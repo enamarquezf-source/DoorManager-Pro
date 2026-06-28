@@ -1,236 +1,215 @@
-# DoorManager Pro - Requisitos de seguridad
+# DoorManager Pro - Requisitos de seguridad y proteccion de datos
+
+| Campo | Valor |
+| --- | --- |
+| Version | 0.3 |
+| Estado | Vivo |
+| Fecha | 2026-06-28 |
+| Autor | Francisco Javier Ena Marquez |
+| Ultima modificacion | 2026-06-28 |
+
+## Indice
+
+Este documento mantiene la numeracion de seguridad interna. Para el enfoque fundacional consultar `docs/SECURITY.md` y `docs/ADR/ADR-003-security-by-design.md`.
+
+## Referencias cruzadas
+
+- `docs/SECURITY.md`.
+- `docs/CONSTITUTION.md`.
+- `docs/ADR/ADR-003-security-by-design.md`.
+
+## Proximos desarrollos
+
+- Definir matriz completa de roles y permisos.
+- Definir politica de incidentes de seguridad.
 
 ## 1. Objetivo
 
-La seguridad es una prioridad del proyecto DoorManager Pro. La plataforma gestionara datos de clientes, ubicaciones, puertas automaticas, usuarios internos, fotografias, historiales de intervenciones y comprobaciones tecnicas, por lo que debe aplicar controles solidos desde el MVP.
+DoorManager Pro gestionara datos personales, clientes, proveedores, presupuestos, facturas, partes de trabajo, fotografias, firmas, manuales, documentos, ubicaciones e historiales tecnicos. La seguridad debe disenarse desde el inicio.
 
-Este documento define los requisitos iniciales de autenticacion, autorizacion, proteccion de datos, auditoria, validacion, seguridad de API, frontend web/PWA y despliegue seguro.
+Este documento recoge buenas practicas tecnicas orientadas a RGPD y LOPDGDD, sin sustituir asesoramiento legal especializado.
 
-## 2. Principios de seguridad
+## 2. Principios
 
 - Seguridad por defecto.
 - Minimo privilegio.
-- Separacion clara de responsabilidades.
-- Validacion estricta de entradas.
-- Proteccion de credenciales y tokens.
-- Trazabilidad de operaciones relevantes.
-- Autorizacion real siempre en backend.
-- Evitar exposicion innecesaria de informacion interna.
-- Preparacion para futuras exigencias de cumplimiento normativo.
+- Privacidad desde el diseno.
+- Trazabilidad completa.
+- Cifrado de comunicaciones.
+- Control de acceso por modulo y accion.
+- Proteccion de archivos sensibles.
+- Copias de seguridad cifradas.
+- Restauracion segura.
+- Minimización de datos personales.
 
 ## 3. Autenticacion
 
-El sistema usara Spring Security con JWT para autenticar usuarios contra la API REST.
-
 Requisitos:
 
-- Las credenciales deben enviarse exclusivamente por canales seguros en entornos reales.
-- Las passwords nunca deben almacenarse en texto plano.
-- Las passwords deben cifrarse mediante BCrypt o algoritmo equivalente robusto.
-- El login debe devolver un token JWT firmado.
-- El JWT debe incluir solo informacion necesaria para identificar al usuario, rol y permisos.
-- El JWT debe tener expiracion.
-- El sistema debe rechazar tokens expirados, manipulados o mal firmados.
-- Los endpoints protegidos deben requerir token valido.
-- Los endpoints publicos deben reducirse al minimo imprescindible, como login y documentacion controlada.
-- Los usuarios inactivos no deben poder autenticarse.
+- Autenticacion segura para usuarios internos.
+- Contraseñas cifradas con BCrypt o algoritmo robusto equivalente.
+- JWT o sistema equivalente con expiracion.
+- Control de sesiones.
+- Revocacion o invalidacion de sesiones cuando proceda.
+- Bloqueo o proteccion ante intentos repetidos de login.
+- Registro de accesos exitosos y fallidos.
+- Usuarios inactivos sin acceso.
 
-Consideraciones futuras:
-
-- Refresh tokens.
-- Revocacion de sesiones.
-- Bloqueo temporal por intentos fallidos.
-- Segundo factor de autenticacion para perfiles administrativos.
-
-## 4. Autorizacion
-
-La autorizacion se basara en roles y permisos. El frontend podra ocultar acciones no permitidas, pero la decision de seguridad debe aplicarse siempre en el backend.
+## 4. Roles y permisos
 
 Roles iniciales:
 
 - ADMIN.
-- RESPONSABLE_TECNICO.
+- GERENTE.
+- ADMINISTRATIVO.
+- COMERCIAL.
+- JEFE_EQUIPO.
 - TECNICO.
 - CONSULTA.
 
-Matriz inicial de permisos:
+El sistema debe permitir permisos por:
 
-| Recurso | ADMIN | RESPONSABLE_TECNICO | TECNICO | CONSULTA |
-| --- | --- | --- | --- | --- |
-| Usuarios | CRUD | Lectura limitada | Sin acceso | Sin acceso |
-| Roles y permisos | CRUD | Lectura | Sin acceso | Sin acceso |
-| Clientes | CRUD | Lectura/edicion | Lectura | Lectura |
-| Instalaciones | CRUD | CRUD | Lectura | Lectura |
-| Equipos | CRUD | CRUD | Lectura/edicion tecnica | Lectura |
-| Intervenciones | CRUD | CRUD | Lectura/actualizacion asignadas | Lectura |
-| Comprobaciones de montaje | CRUD/validacion | CRUD/validacion | Lectura/edicion asignadas | Lectura autorizada |
-| Comprobaciones de mantenimiento | CRUD/validacion | CRUD/validacion | Lectura/edicion asignadas | Lectura autorizada |
-| Fotografias de checks | CRUD | CRUD | Crear/leer asignadas | Lectura autorizada |
-| Dashboard | Completo | Operativo | Personalizado | Solo lectura |
+- Modulo.
+- Accion.
+- Recurso.
+- Propiedad o asignacion.
 
-Requisitos:
+Ejemplos de permisos:
 
-- Los permisos deben comprobarse por endpoint y, cuando aplique, por recurso concreto.
-- Las rutas administrativas deben requerir rol ADMIN.
-- Los tecnicos no deben poder modificar trabajos o comprobaciones no asignadas salvo permiso explicito.
-- La validacion o firma de comprobaciones puede requerir permiso especifico.
-- El cambio de rol debe estar restringido a usuarios autorizados.
-- El acceso a fotografias debe respetar los mismos permisos que la comprobacion asociada.
+- CLIENTES_LEER.
+- CLIENTES_EDITAR.
+- PROVEEDORES_GESTIONAR.
+- PARTES_VALIDAR.
+- PRESUPUESTOS_CREAR.
+- FACTURAS_EMITIR.
+- DOCUMENTOS_DESCARGAR.
+- CHECKLIST_COMPLETAR.
+- SYNC_ENVIAR_TRABAJO.
+- BACKUPS_CONSULTAR_ESTADO.
 
-## 5. Proteccion de datos
+## 5. Auditoria
 
-Requisitos:
+Debe registrarse auditoria de:
 
-- No devolver passwords, hashes ni datos sensibles innecesarios en respuestas de API.
-- Usar DTOs para controlar la informacion expuesta.
-- Validar y normalizar emails, telefonos y campos identificativos.
-- Evitar mensajes de error que revelen informacion sensible.
-- Registrar solo la informacion necesaria en logs.
-- No registrar tokens JWT completos.
-- No registrar passwords ni datos secretos.
-- Configurar secretos mediante variables de entorno o mecanismos seguros equivalentes.
-- Evitar credenciales hardcodeadas en codigo o repositorio.
-- Controlar tamano, tipo y almacenamiento de fotografias asociadas a checks.
-- Preparar politicas de retencion y backup para datos operativos.
+- Accesos.
+- Cambios de datos.
+- Cambios de permisos.
+- Subida, descarga o eliminacion de archivos.
+- Carga y envio de trabajos offline.
+- Validacion o rechazo de partes.
+- Emision o anulacion de facturas.
+- Generacion de PDFs.
+- Restauraciones de backup.
 
-## 6. Validacion de entrada
+Datos minimos:
 
-Todas las entradas externas deben validarse antes de procesarse.
+- Usuario.
+- Fecha y hora.
+- Accion.
+- Modulo.
+- Recurso afectado.
+- Resultado.
+- IP o dispositivo cuando aplique.
+- Detalles tecnicos no sensibles.
 
-Requisitos:
-
-- Validar campos obligatorios.
-- Validar formatos de email, fechas, telefonos y estados.
-- Limitar longitudes maximas de texto.
-- Rechazar valores no contemplados en enumeraciones.
-- Sanitizar campos libres cuando se muestren en interfaces web.
-- Usar Bean Validation en DTOs de entrada.
-- Evitar confiar en IDs recibidos sin comprobar existencia y permisos.
-- Validar que cada check pertenece a la puerta/equipo indicado.
-- Validar que las fotografias pertenecen a una comprobacion accesible por el usuario.
-
-## 7. Seguridad de API
+## 6. Proteccion contra ataques comunes
 
 Requisitos:
 
-- Todas las respuestas de error deben tener estructura uniforme.
-- Los endpoints deben estar versionados, por ejemplo `/api/v1`.
-- Aplicar paginacion en listados para evitar respuestas masivas.
-- Restringir CORS a origenes autorizados.
-- Configurar cabeceras de seguridad cuando aplique.
-- Proteger Swagger/OpenAPI en entornos no locales.
-- Evitar exponer trazas internas en respuestas HTTP.
-- Aplicar limites razonables a subida de fotografias.
-- Separar endpoints publicos, autenticados y administrativos.
+- Usar JPA/consultas parametrizadas para reducir riesgo de inyeccion SQL.
+- Validar entradas con DTOs y Bean Validation.
+- Sanitizar campos mostrados en interfaz.
+- Limitar tamanos de payload y archivos.
+- Configurar CORS de forma restrictiva.
+- Configurar cabeceras de seguridad.
+- No exponer stack traces.
+- No registrar contraseñas, tokens completos ni secretos.
+- Proteger endpoints de subida de archivos.
 
-Codigos HTTP esperados:
+## 7. Archivos sensibles
 
-- 200 para consultas correctas.
-- 201 para creaciones correctas.
-- 204 para acciones sin cuerpo.
-- 400 para errores de validacion.
-- 401 para autenticacion ausente o invalida.
-- 403 para permisos insuficientes.
-- 404 para recursos inexistentes o no accesibles.
-- 409 para conflictos de negocio.
-- 500 para errores internos no controlados.
+Archivos protegidos:
 
-## 8. Seguridad frontend/PWA
-
-Requisitos:
-
-- El frontend React debe consumir solo la API REST autorizada.
-- El frontend no debe contener secretos.
-- Las rutas de la aplicacion deben protegerse segun sesion y permisos.
-- Las acciones no autorizadas deben ocultarse o deshabilitarse, sin sustituir la validacion backend.
-- La PWA debe servirse por HTTPS en entornos reales.
-- El service worker no debe cachear informacion sensible sin una decision explicita.
-- El cierre de sesion debe limpiar estado local sensible.
-- El almacenamiento del token debe minimizar riesgo de exposicion.
-
-## 9. Auditoria y trazabilidad
-
-Desde el MVP se debe preparar una base de auditoria.
-
-Requisitos iniciales:
-
-- Registrar fecha de creacion de entidades principales.
-- Registrar fecha de ultima modificacion.
-- Registrar usuario creador cuando sea viable.
-- Registrar usuario modificador cuando sea viable.
-- Mantener historico funcional de intervenciones y comprobaciones.
-- Registrar tecnico responsable de cada zona comprobada.
-- Registrar fecha y hora de cada check.
-
-Eventos candidatos para auditoria futura:
-
-- Login exitoso y fallido.
-- Cambio de password.
-- Cambio de rol o permisos.
-- Desactivacion de usuarios.
-- Desactivacion de clientes, instalaciones o equipos.
-- Cierre de intervenciones.
-- Creacion, modificacion o validacion de comprobaciones.
-- Adjuntos fotograficos anadidos o eliminados.
-
-## 10. Gestion de errores
+- Manuales.
+- Fotografias.
+- Firmas.
+- Documentos.
+- Facturas.
+- Presupuestos.
+- Informes.
+- Esquemas y planos.
 
 Requisitos:
 
-- Centralizar el tratamiento de excepciones.
-- No exponer stack traces al cliente.
-- Diferenciar errores de validacion, negocio, autenticacion y sistema.
-- Incluir identificador de error o timestamp para facilitar soporte.
-- Mantener mensajes claros pero no reveladores.
+- Acceso siempre autorizado por backend.
+- URLs temporales o descarga controlada cuando proceda.
+- Validacion de tipo MIME, extension y tamano.
+- Separacion de metadatos y binarios.
+- Backup cifrado de archivos.
+- Registro de accesos relevantes.
 
-Formato recomendado de error:
+## 8. RGPD y LOPDGDD
 
-```json
-{
-  "timestamp": "2026-06-28T10:00:00Z",
-  "status": 400,
-  "error": "VALIDATION_ERROR",
-  "message": "La solicitud contiene campos no validos",
-  "path": "/api/v1/customers"
-}
-```
+Buenas practicas tecnicas:
 
-## 11. Seguridad en base de datos
+- Minimizar datos personales recogidos.
+- Registrar consentimiento en formularios publicos.
+- Definir finalidad del tratamiento.
+- Aplicar control de acceso estricto.
+- Permitir localizar datos de una persona.
+- Preparar procesos para acceso, rectificacion y eliminacion cuando aplique.
+- Aplicar borrado logico o anonimización cuando exista obligacion de conservar historico fiscal o tecnico.
+- Definir politica de retencion.
+- Evitar almacenar datos innecesarios en dispositivos moviles.
+- Documentar encargados, ubicacion de datos y backups en implantaciones reales.
 
-Requisitos:
-
-- Usar PostgreSQL con usuario de aplicacion de privilegios limitados.
-- Gestionar cambios de esquema con Flyway.
-- Evitar modificaciones manuales no versionadas del esquema.
-- Definir restricciones de integridad referencial.
-- Definir indices para claves foraneas y busquedas frecuentes.
-- Evitar borrados fisicos de datos de negocio salvo necesidad justificada.
-- Garantizar unicidad e integridad de checks por puerta/equipo, tipo y zona cuando aplique.
-- Preparar backups en entornos reales.
-
-## 12. Seguridad en despliegue
+## 9. Seguridad offline-first
 
 Requisitos:
 
-- Usar Docker para entornos reproducibles.
-- No incluir secretos en imagenes Docker.
-- Configurar variables sensibles desde entorno.
-- Separar perfiles de desarrollo, test y produccion.
-- Desactivar configuraciones inseguras en produccion.
-- Usar HTTPS delante de frontend y backend en entornos reales.
-- Configurar logs adecuados para diagnostico sin filtrar informacion sensible.
+- Descargar al movil solo trabajos necesarios.
+- Proteger almacenamiento local si la tecnologia elegida lo permite.
+- No guardar secretos de servidor en el cliente.
+- Usar UUID para datos creados offline.
+- Evitar duplicados en reintentos.
+- Detectar conflictos por version.
+- Registrar auditoria de sincronizacion.
+- Permitir borrar datos locales tras cierre o sincronizacion segun politica.
 
-## 13. Pruebas de seguridad iniciales
+## 10. Copias de seguridad
 
-El MVP debe incluir pruebas o verificaciones para:
+Requisitos:
 
-- Login correcto.
-- Login con credenciales invalidas.
-- Acceso sin token a endpoints protegidos.
-- Acceso con token invalido.
-- Restriccion por rol.
-- Restriccion por permiso sobre comprobaciones.
-- Validacion de DTOs.
-- No exposicion de password en respuestas.
-- Rechazo de operaciones sobre recursos inexistentes.
-- Rechazo de modificacion de checks no asignados o no autorizados.
+- Backups automaticos diarios.
+- Backups semanales y mensuales.
+- Backups cifrados.
+- Copias fuera del servidor principal.
+- Registro de ejecucion.
+- Alertas por fallo.
+- Pruebas periodicas de restauracion.
+- Control de acceso a backups.
+- Backup de PostgreSQL y del servidor de archivos.
+
+## 11. Restauracion segura
+
+Requisitos:
+
+- Documentar proceso de restauracion.
+- Verificar integridad del backup.
+- Registrar quien restaura y cuando.
+- Evitar restauraciones no autorizadas.
+- Probar recuperacion en entorno controlado.
+- Definir RPO y RTO objetivo.
+
+## 12. Pruebas minimas de seguridad
+
+- Login valido e invalido.
+- Acceso sin token.
+- Acceso con token caducado.
+- Permisos por modulo y accion.
+- Acceso denegado a archivos no autorizados.
+- Validacion de formularios publicos.
+- Rechazo de archivos no permitidos.
+- Sincronizacion offline duplicada.
+- Conflicto de sincronizacion.
+- Restauracion de backup en entorno de prueba.

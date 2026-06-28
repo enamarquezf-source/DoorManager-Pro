@@ -1,147 +1,125 @@
 # DoorManager Pro
 
-DoorManager Pro es una plataforma web profesional para empresas de instalacion y mantenimiento de puertas automaticas.
+DoorManager Pro es una Technical Operations Platform (TOP) para empresas instaladoras y mantenedoras de puertas automaticas.
 
-El proyecto deja de plantearse como una aplicacion de escritorio Java Swing y pasa a definirse como una solucion web responsive/PWA, accesible desde ordenador, movil y tablet, con datos centralizados y control de acceso por usuarios, roles y permisos.
+El objetivo es construir un producto de nivel empresarial, preparado para oficina, tecnicos en campo, comerciales, administrativos y gerencia. El proyecto esta pensado como referencia solida de portfolio para entrevistas como desarrollador Java, mostrando arquitectura, seguridad, datos, offline-first y modelado de negocio real.
 
-## Objetivo
+## Vision General
 
-Construir una aplicacion realista, mantenible y presentable como portfolio profesional que permita gestionar clientes, instalaciones, puertas/equipos, intervenciones, comprobaciones de montaje, comprobaciones de mantenimiento e historiales tecnicos por equipo.
+DoorManager Pro debe poder usarse desde:
 
-La plataforma debe facilitar el trabajo de oficina, responsables tecnicos y tecnicos de campo desde cualquier dispositivo compatible con navegador moderno.
+- Oficina.
+- Ordenador.
+- Movil.
+- Tablet.
+- Tecnicos en campo.
+- Comerciales.
+- Administrativos.
+- Gerencia.
 
-## Vision del producto
+La plataforma incluira:
 
-- Plataforma web responsive para escritorio, movil y tablet.
-- PWA instalable visualmente en movil y escritorio.
-- Backend centralizado con API REST segura.
-- Base de datos PostgreSQL unica y compartida por todos los dispositivos.
-- Gestion de usuarios, roles y permisos.
-- Checklist visual e interactivo por puerta/equipo.
-- Historial unico de comprobaciones por cada puerta.
-- Documentacion tecnica mediante Swagger/OpenAPI.
-- Despliegue reproducible con Docker.
+- Aplicacion interna para la empresa.
+- Panel web para oficina.
+- Aplicacion movil offline-first para tecnicos.
+- Web publica para clientes potenciales.
+- API REST segura.
+- Base de datos PostgreSQL centralizada.
+- Servidor de archivos para documentos, manuales, fotografias, videos y firmas.
+- Sistema de roles, permisos, auditoria y proteccion de datos.
 
-## Funcionalidades previstas
+## Modulos Principales
 
-### Modulos principales
+- Clientes, contactos, direcciones e instalaciones.
+- Puertas/equipos con ficha unica.
+- Proveedores, materiales, stock, tarifas, pedidos y albaranes.
+- Avisos, incidencias y averias.
+- Partes de trabajo.
+- Presupuestos.
+- Validacion de oficina.
+- Facturacion inicial.
+- Checklist interactivo visual por tipo de puerta.
+- Manuales, documentos, fotografias e historial.
+- Equipos de trabajo y dashboard operativo.
+- Offline-first para tecnicos.
+- Web publica para solicitudes de presupuesto, avisos y captacion comercial.
+- Copias de seguridad y recuperacion ante desastre.
+- Knowledge Base tecnica con taxonomia, ITI, compatibilidades y Gemelo Digital conceptual.
 
-- Gestion de clientes.
-- Gestion de instalaciones por cliente.
-- Gestion de puertas automaticas y equipos.
-- Gestion de usuarios, roles y permisos.
-- Registro de intervenciones tecnicas.
-- Modulo de comprobaciones de montaje.
-- Modulo de comprobaciones de mantenimiento.
-- Checklist visual e interactivo por puerta.
-- Historial de checks por puerta/equipo.
-- Dashboard operativo responsive.
-- Busqueda, filtrado, paginacion y consulta de historicos.
-
-### Checklist interactivo
-
-Cada puerta debe mostrar un dibujo o esquema interactivo. Al pulsar una zona de la puerta, se abrira la comprobacion correspondiente.
-
-Partes iniciales contempladas:
-
-- Motor.
-- Cuadro de maniobra.
-- Fotocelulas.
-- Guias.
-- Hoja u hojas moviles.
-- Radar o detector.
-- Selector de funciones.
-- Bateria.
-- Finales de carrera.
-- Sistema antiaplastamiento.
-- Cerradura o desbloqueo manual.
-
-Cada zona comprobada podra registrar:
-
-- Estado: correcto, pendiente, revisar o averia.
-- Observaciones.
-- Fotografias.
-- Fecha y hora.
-- Tecnico responsable.
-- Firma o validacion si procede.
-
-## Stack tecnologico previsto
-
-### Backend
-
-- Java 21 LTS.
-- Spring Boot.
-- Spring Web.
-- Spring Data JPA.
-- Spring Security.
-- JWT.
-- PostgreSQL.
-- Flyway.
-- Swagger/OpenAPI.
-- JUnit y Mockito.
-
-### Frontend
-
-- React.
-- TypeScript.
-- Vite.
-- Tailwind CSS.
-- PWA con manifest, service worker y assets instalables.
-
-### Infraestructura
-
-- Docker.
-- Docker Compose.
-- Variables de entorno para configuracion y secretos.
-- GitHub Actions como mejora futura para CI.
-
-## Arquitectura prevista
+## Arquitectura Prevista
 
 ```text
-Dispositivo web/PWA
-  React + TypeScript + Vite + Tailwind CSS
+Web publica
+Panel web oficina
+App movil tecnico offline-first
         |
-        | HTTPS / JSON / JWT
+        | HTTPS / API REST / JWT
         v
-API REST Spring Boot
-  Controllers -> Services -> Repositories -> Entities/DTOs
+Backend Java 21 + Spring Boot
         |
-        v
-PostgreSQL centralizado
+        |-- PostgreSQL centralizado
+        |-- Servidor de archivos
+        |-- Sistema de backups
 ```
 
-El frontend no debe contener reglas de seguridad criticas. La autorizacion real se aplicara siempre en el backend mediante Spring Security, roles y permisos.
+## Offline-First
 
-## Seguridad
+La app movil no debe sincronizar constantemente.
 
-- Autenticacion con Spring Security y JWT.
-- Passwords cifradas con BCrypt.
-- Permisos evaluados en backend.
-- Roles iniciales: ADMIN, RESPONSABLE_TECNICO, TECNICO y CONSULTA.
-- Restriccion de acceso a comprobaciones segun permisos.
-- Validacion de datos de entrada.
-- DTOs para evitar exponer datos internos.
-- Variables de entorno para credenciales y secretos.
-- No se subiran secretos al repositorio.
+Flujo principal:
 
-## Estado del proyecto
+1. El tecnico pulsa `Cargar trabajos`.
+2. El dispositivo descarga datos necesarios.
+3. El tecnico trabaja localmente sin conexion.
+4. Se guardan partes, fotos, firmas, materiales, horas y checklists en local.
+5. El tecnico pulsa `Enviar trabajo`.
+6. Si falla la conexion, no se pierde informacion y se puede reintentar.
 
-Proyecto en fase inicial de diseno y planificacion tecnica.
+El sistema usara UUID, control de versiones, auditoria de sincronizacion y resolucion de conflictos.
 
-## Roadmap resumido
+## Seguridad y Proteccion de Datos
 
-- [ ] Definir arquitectura web/PWA y documentacion base.
-- [ ] Crear backend Spring Boot con Java 21.
-- [ ] Configurar PostgreSQL, Flyway y Docker.
-- [ ] Implementar seguridad con usuarios, roles, permisos y JWT.
-- [ ] Crear API REST documentada con Swagger/OpenAPI.
-- [ ] Crear frontend React, TypeScript, Vite y Tailwind CSS.
-- [ ] Implementar PWA instalable.
-- [ ] Crear modulos de clientes, instalaciones y equipos.
-- [ ] Crear modulos de intervenciones y comprobaciones.
-- [ ] Implementar checklist visual interactivo por puerta.
-- [ ] Anadir tests automatizados y datos demo.
-- [ ] Preparar primera release demostrable.
+La plataforma debe aplicar seguridad desde el diseno:
+
+- Autenticacion segura.
+- Contraseñas cifradas.
+- JWT o sistema equivalente.
+- Roles y permisos por modulo y accion.
+- Registro de accesos y cambios.
+- Validacion de entradas.
+- Comunicaciones cifradas.
+- Gestion segura de archivos.
+- Copias de seguridad cifradas.
+- Buenas practicas tecnicas orientadas a RGPD y LOPDGDD.
+
+Este proyecto no sustituye asesoramiento legal, pero documenta medidas tecnicas razonables para proteger datos personales y operativos.
+
+## Documentacion
+
+La documentacion principal esta en `docs/`:
+
+- `01-requisitos-funcionales.md`.
+- `02-requisitos-seguridad.md`.
+- `03-modelo-datos.md`.
+- `04-arquitectura.md`.
+- `05-roadmap.md`.
+- `06-modulo-checklist.md`.
+- `07-ui-ux.md`.
+- `08-manuales-historial.md`.
+- `09-dashboard.md`.
+- `10-offline-first.md`.
+- `11-partes-trabajo.md`.
+- `12-presupuestos.md`.
+- `13-validacion-oficina.md`.
+- `14-base-datos-seguridad-backups.md`.
+- `15-hardware-infraestructura.md`.
+- `16-web-publica.md`.
+- `17-clientes-proveedores.md`.
+- `18-facturacion.md`.
+
+## Estado
+
+Proyecto en fase de documentacion, arquitectura y modelo conceptual. No se debe generar codigo hasta cerrar la base funcional y tecnica.
 
 ## Autor
 

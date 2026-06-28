@@ -1,308 +1,241 @@
 # DoorManager Pro - Roadmap
 
+| Campo | Valor |
+| --- | --- |
+| Version | 0.3 |
+| Estado | Vivo |
+| Fecha | 2026-06-28 |
+| Autor | Francisco Javier Ena Marquez |
+| Ultima modificacion | 2026-06-28 |
+
+## Indice
+
+Este documento mantiene la numeracion del roadmap. La version 0.4 debe incorporar hitos de Knowledge Base, Gemelo Digital y compatibilidades.
+
+## Referencias cruzadas
+
+- `docs/PROJECT_DNA.md`.
+- `docs/PRODUCT_BIBLE.md`.
+- `docs/KNOWLEDGE_BASE/README.md`.
+
+## Proximos desarrollos
+
+- Reordenar fases con TOP y Knowledge Base como ejes.
+- Crear roadmap v0.4 por hitos verificables.
+
 ## 1. Objetivo
 
-Este roadmap define una evolucion tecnica y funcional realista para DoorManager Pro como plataforma web responsive/PWA. El objetivo es construir un producto demostrable, seguro y profesional, no una aplicacion Java Swing de escritorio.
+Definir una evolucion realista para construir DoorManager Pro como plataforma profesional de portfolio y producto empresarial escalable.
 
-El enfoque recomendado es establecer primero la base tecnica full-stack, despues seguridad y datos centralizados, y finalmente los modulos operativos con especial atencion al checklist visual interactivo.
+## 2. Principios
 
-## 2. Principios de ejecucion
+- Documentar antes de codificar.
+- Construir una base de datos robusta.
+- Seguridad desde el inicio.
+- Offline-first como requisito critico.
+- Separar archivos de datos relacionales.
+- Preparar backups y recuperacion.
+- Evitar sobredimensionar la primera version sin bloquear crecimiento.
 
-- Priorizar calidad sobre cantidad de funcionalidades.
-- Mantener la arquitectura simple pero bien separada.
-- Implementar seguridad desde el inicio.
-- Versionar base de datos con Flyway desde la primera migracion.
-- Documentar decisiones relevantes.
-- Cubrir con tests las reglas criticas.
-- Disenar responsive desde el inicio.
-- Validar permisos siempre en backend.
-- Evitar funcionalidades futuras hasta que el MVP este estable.
-
-## 3. Fase 0 - Vision y documentacion tecnica
-
-Objetivo: actualizar el proyecto hacia plataforma web profesional responsive/PWA.
+## 3. Fase 0 - Documentacion maestra
 
 Entregables:
 
-- README actualizado.
-- Requisitos funcionales actualizados.
-- Requisitos de seguridad actualizados.
-- Modelo de datos actualizado.
-- Arquitectura web/PWA actualizada.
-- Documentacion de checklist interactivo.
-- Documentacion de acceso multidispositivo.
+- Requisitos funcionales.
+- Seguridad y RGPD.
+- Modelo de datos.
+- Arquitectura.
+- Roadmap.
+- Documentos especificos de checklist, UI, historial, dashboard, offline, partes, presupuestos, validacion, backups, hardware, web publica, clientes/proveedores y facturacion.
 
-Criterios de salida:
+Criterio de salida:
 
-- La documentacion ya no plantea Java Swing como objetivo.
-- El stack full-stack esta definido.
-- Los modulos de montaje, mantenimiento y checklist estan descritos.
+- La documentacion describe todos los modulos actuales sin contradicciones relevantes.
 
-## 4. Fase 1 - Base tecnica backend
-
-Objetivo: crear una base backend limpia y segura para la API REST.
+## 4. Fase 1 - Base tecnica backend y datos
 
 Entregables:
 
-- Estructura inicial Maven con Java 21 y Spring Boot.
-- Configuracion base de perfiles.
-- Dependencias principales.
-- Configuracion inicial de PostgreSQL.
-- Docker Compose para base de datos local.
-- Flyway configurado.
-- Swagger/OpenAPI configurado.
-- Estructura de paquetes inicial.
+- Proyecto Spring Boot Java 21.
+- PostgreSQL.
+- Flyway.
+- Docker Compose.
+- OpenAPI.
+- Manejo global de errores.
+- Estructura modular.
 
-Criterios de salida:
+Criterio de salida:
 
-- La aplicacion backend arranca localmente.
-- La base de datos se levanta con Docker.
-- Flyway ejecuta migraciones iniciales.
-- Swagger esta disponible en entorno local.
+- Backend arranca y expone salud y documentacion.
 
-## 5. Fase 2 - Seguridad, usuarios, roles y permisos
-
-Objetivo: implementar autenticacion, autorizacion y control de permisos.
+## 5. Fase 2 - Seguridad
 
 Entregables:
 
-- Modelo de roles.
-- Modelo de permisos.
-- Modelo de usuarios.
-- Migraciones iniciales de roles, permisos y usuarios.
-- Password hashing con BCrypt.
-- Login con JWT.
-- Filtro de autenticacion JWT.
-- Reglas de autorizacion por rol y permiso.
-- Endpoint de usuario autenticado.
-- Gestion basica de usuarios por ADMIN.
-- Tests de login y autorizacion.
+- Usuarios.
+- Roles.
+- Permisos.
+- JWT o equivalente.
+- Auditoria basica.
+- Registro de accesos.
+- Tests de permisos.
 
-Criterios de salida:
+Criterio de salida:
 
-- Un usuario puede autenticarse con credenciales validas.
-- Un usuario inactivo no puede autenticarse.
-- Los endpoints protegidos rechazan peticiones sin token.
-- Los roles y permisos limitan correctamente el acceso.
-- Las respuestas no exponen hashes de password.
+- Los modulos quedan protegidos por roles y permisos.
 
-## 6. Fase 3 - Base frontend responsive/PWA
-
-Objetivo: crear la aplicacion web que consumira la API.
+## 6. Fase 3 - Clientes, instalaciones y puertas
 
 Entregables:
 
-- Proyecto React con TypeScript y Vite.
-- Tailwind CSS configurado.
-- Rutas principales.
-- Layout responsive base.
-- Login integrado con API.
-- Gestion inicial de sesion.
-- Cliente HTTP para API REST.
-- Configuracion PWA inicial.
-- Manifest, iconos y service worker basico.
+- Clientes.
+- Contactos.
+- Direcciones.
+- Instalaciones.
+- Tipos de puerta.
+- Puertas/equipos.
+- Ficha unica de puerta.
 
-Criterios de salida:
+Criterio de salida:
 
-- El frontend arranca localmente.
-- Puede iniciar sesion contra el backend.
-- La interfaz se adapta a escritorio, movil y tablet.
-- La PWA es instalable visualmente en entorno compatible.
+- Una puerta puede consultarse con cliente, ubicacion, datos tecnicos e historial inicial.
 
-## 7. Fase 4 - Clientes e instalaciones
-
-Objetivo: implementar la base del negocio.
+## 7. Fase 4 - Documentos, manuales y archivos
 
 Entregables:
 
-- CRUD de clientes.
-- Busqueda y paginacion de clientes.
-- Desactivacion logica de clientes.
-- CRUD de instalaciones.
-- Busqueda y paginacion de instalaciones.
-- Relacion cliente-instalaciones.
-- Pantallas responsive para clientes e instalaciones.
-- Validaciones de entrada.
-- Tests de servicios y controladores principales.
+- Servidor de archivos local.
+- Metadatos en base de datos.
+- Manuales.
+- Documentos.
+- Fotografias.
+- Firmas.
+- Control de permisos.
 
-Criterios de salida:
+Criterio de salida:
 
-- No se puede crear una instalacion sin cliente valido.
-- Se puede consultar el detalle de un cliente con sus instalaciones.
-- Los listados soportan paginacion.
-- Los errores de validacion son claros y consistentes.
+- Los archivos se suben, protegen y consultan desde entidades del sistema.
 
-## 8. Fase 5 - Puertas y equipos
-
-Objetivo: registrar y consultar los activos tecnicos mantenidos por la empresa.
+## 8. Fase 5 - Proveedores, materiales y stock
 
 Entregables:
 
-- CRUD de equipos.
-- Relacion instalacion-equipos.
-- Tipos y estados de equipo.
-- Busqueda por instalacion, tipo, estado y numero de serie.
-- Desactivacion logica de equipos.
-- Pantalla de ficha tecnica del equipo.
-- Acceso al historial operativo del equipo.
-- Validaciones de integridad.
-- Tests de reglas principales.
+- Proveedores.
+- Materiales.
+- Tarifas.
+- Stock.
+- Movimientos.
+- Relacion con partes.
 
-Criterios de salida:
+Criterio de salida:
 
-- No se puede crear un equipo sin instalacion valida.
-- Se puede consultar el historico operativo desde el equipo.
-- Los equipos desactivados no desaparecen del historico.
+- Un parte puede consumir materiales controlados.
 
-## 9. Fase 6 - Intervenciones
-
-Objetivo: gestionar trabajos tecnicos y averias.
+## 9. Fase 6 - Partes de trabajo
 
 Entregables:
 
-- CRUD de intervenciones.
-- Asignacion de tecnico.
-- Estados de intervencion.
-- Prioridades.
-- Filtros por cliente, instalacion, equipo, tecnico, estado, prioridad y fechas.
-- Cambio controlado de estado.
-- Registro de solucion aplicada.
-- Pantallas responsive de listado y detalle.
-- Tests de cambios de estado y permisos.
+- Tipos de parte.
+- Estados.
+- Horas.
+- Desplazamientos.
+- Materiales usados.
+- Fotos.
+- Firma.
+- Checklist asociado.
 
-Criterios de salida:
+Criterio de salida:
 
-- Una intervencion siempre pertenece a cliente e instalacion.
-- Si se informa equipo, debe pertenecer a la instalacion indicada.
-- Un tecnico solo puede actualizar intervenciones asignadas segun permisos.
-- Una intervencion finalizada conserva fecha de cierre y solucion aplicada.
+- Un tecnico puede completar un parte en flujo controlado.
 
-## 10. Fase 7 - Comprobaciones de montaje y mantenimiento
-
-Objetivo: implementar los procesos tecnicos de comprobacion por puerta/equipo.
+## 10. Fase 7 - Validacion de oficina
 
 Entregables:
 
-- Modelo de plantillas de comprobacion.
-- Zonas iniciales de puerta.
-- Comprobaciones de montaje.
-- Comprobaciones de mantenimiento.
-- Estados de comprobacion.
-- Estados por zona: correcto, pendiente, revisar y averia.
-- Observaciones por zona.
-- Registro de tecnico y fecha/hora.
-- Validacion o firma si procede.
-- Permisos especificos sobre comprobaciones.
-- Tests de reglas de comprobacion.
+- Revision de horas, desplazamiento, materiales, fotos, firma y observaciones.
+- Validar.
+- Rechazar.
+- Solicitar correccion.
+- Generar PDF.
+- Pasar a facturacion.
+- Auditoria completa.
 
-Criterios de salida:
+Criterio de salida:
 
-- Cada comprobacion pertenece a una puerta/equipo.
-- Cada puerta/equipo conserva su propio historial de checks.
-- Cada zona es unica dentro de una comprobacion.
-- Solo usuarios autorizados pueden consultar o modificar comprobaciones.
+- Un parte enviado no pasa a facturacion sin validacion.
 
-## 11. Fase 8 - Checklist visual interactivo
-
-Objetivo: ofrecer una experiencia visual diferencial para tecnicos.
+## 11. Fase 8 - Presupuestos
 
 Entregables:
 
-- Esquema visual inicial de puerta.
-- Zonas pulsables sobre el esquema.
-- Apertura de comprobacion al pulsar una zona.
-- Indicadores visuales de estado por zona.
-- Formulario responsive para estado, observaciones, fotos, fecha y tecnico.
-- Subida de fotografias por zona.
-- Vista de historial de checks por equipo.
-- Tests de componentes criticos.
+- Presupuestos.
+- Lineas.
+- Estados.
+- Envio.
+- Aceptacion.
+- Conversion a partes.
 
-Criterios de salida:
+Criterio de salida:
 
-- El checklist se puede usar en movil, tablet y escritorio.
-- Pulsar una parte de la puerta abre la comprobacion correspondiente.
-- El estado visual de cada zona refleja los datos guardados.
-- Las fotografias quedan asociadas a la zona correcta.
+- Un presupuesto aceptado genera uno o varios partes.
 
-## 12. Fase 9 - Dashboard y experiencia operativa
-
-Objetivo: ofrecer una vision operativa inicial del sistema.
+## 12. Fase 9 - Facturacion inicial
 
 Entregables:
 
-- Endpoint `/api/v1/dashboard/summary`.
-- Conteo de clientes activos.
-- Conteo de instalaciones activas.
-- Conteo de equipos activos.
-- Conteo de intervenciones pendientes y urgentes.
-- Conteo de comprobaciones pendientes.
-- Conteo de checks con averia o a revisar.
-- Ultimas intervenciones y comprobaciones registradas.
-- Dashboard responsive.
-- Tests de agregacion basica.
+- Facturas.
+- Lineas.
+- Estados.
+- Relacion con partes validados.
+- Relacion con presupuestos.
+- IVA.
 
-Criterios de salida:
+Criterio de salida:
 
-- El dashboard responde rapidamente con datos agregados.
-- La informacion respeta permisos del usuario autenticado.
-- Las consultas estan optimizadas con indices adecuados.
+- Un parte validado puede convertirse en factura inicial.
 
-## 13. Fase 10 - Docker, demo y portfolio
-
-Objetivo: elevar el proyecto a una presentacion profesional.
+## 13. Fase 10 - Offline-first movil
 
 Entregables:
 
-- Dockerfile backend.
-- Dockerfile frontend.
-- Docker Compose completo.
-- README completo de ejecucion.
-- Documentacion de arquitectura actualizada.
-- Coleccion de ejemplos de uso de API.
-- Capturas o guia de Swagger.
-- Datos semilla para demo.
-- Tests de seguridad adicionales.
-- Revision de logs y errores.
-- Limpieza de codigo y nombres.
+- Cargar trabajos.
+- Base local conceptual.
+- Enviar trabajo.
+- Reintentos.
+- Duplicados por UUID.
+- Conflictos por version.
+- Auditoria de sincronizacion.
 
-Criterios de salida:
+Criterio de salida:
 
-- El proyecto puede ejecutarse siguiendo el README.
-- La API puede probarse desde Swagger.
-- El frontend puede probarse desde navegador.
-- Hay datos de ejemplo suficientes para una demo.
-- Los tests principales pasan.
-- La documentacion explica decisiones tecnicas y de negocio.
+- El tecnico puede trabajar sin conexion y enviar despues.
 
-## 14. Mejoras futuras
+## 14. Fase 11 - Web publica
 
-Funcionalidades candidatas tras el MVP:
+Entregables:
 
-- Sincronizacion offline parcial para tecnicos.
-- Firma digital avanzada de partes.
-- Generacion de PDF.
-- Notificaciones por email o push.
-- Planificador de revisiones recurrentes.
-- Calendario de intervenciones.
-- Gestion de contratos de mantenimiento.
-- Gestion de materiales y stock.
-- Facturacion o integracion con ERP.
-- Auditoria avanzada.
-- Multiempresa o multi-tenant.
-- Informes avanzados.
+- Paginas de servicios.
+- Anuncios o avisos.
+- Formulario de presupuesto.
+- Formulario de aviso o reparacion.
+- Consentimiento de proteccion de datos.
+- Entrada como lead en oficina.
 
-## 15. Orden recomendado de implementacion
+Criterio de salida:
 
-1. Base Spring Boot, Docker, PostgreSQL y Flyway.
-2. Roles, permisos, usuarios y autenticacion JWT.
-3. Base React, TypeScript, Vite, Tailwind CSS y PWA.
-4. Clientes.
-5. Instalaciones.
-6. Equipos.
-7. Intervenciones.
-8. Comprobaciones de montaje y mantenimiento.
-9. Checklist visual interactivo.
-10. Dashboard.
-11. Tests, documentacion, Docker completo y datos demo.
+- Una solicitud web puede convertirse en cliente, aviso, presupuesto o parte.
 
-Este orden reduce riesgos porque primero establece seguridad e infraestructura, despues entidades base y finalmente flujos operativos diferenciales.
+## 15. Fase 12 - Backups, infraestructura y demo
+
+Entregables:
+
+- Estrategia de backup.
+- Registro de backups.
+- Prueba de restauracion.
+- Documentacion hardware.
+- Datos semilla.
+- Demo profesional.
+
+Criterio de salida:
+
+- El proyecto puede presentarse con arquitectura, datos, seguridad y recuperacion documentadas.

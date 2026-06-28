@@ -1,430 +1,281 @@
 # DoorManager Pro - Arquitectura
 
+| Campo | Valor |
+| --- | --- |
+| Version | 0.3 |
+| Estado | Conceptual |
+| Fecha | 2026-06-28 |
+| Autor | Francisco Javier Ena Marquez |
+| Ultima modificacion | 2026-06-28 |
+
+## Indice
+
+Este documento mantiene la numeracion arquitectonica interna. Para decisiones aceptadas consultar `docs/ADR/`.
+
+## Referencias cruzadas
+
+- `docs/PROJECT_DNA.md`.
+- `docs/PRODUCT_BIBLE.md`.
+- `docs/ADR/`.
+
+## Proximos desarrollos
+
+- Incorporar arquitectura conceptual de Gemelo Digital.
+- Definir boundaries entre TOP, Knowledge Base y sincronizacion offline.
+
 ## 1. Objetivo
 
-DoorManager Pro se construira como una plataforma web profesional responsive/PWA. La arquitectura debe permitir acceso desde ordenador, movil y tablet, con datos centralizados, API REST segura, permisos por usuario y una experiencia visual adecuada para tecnicos de campo y usuarios de oficina.
+DoorManager Pro sera una plataforma empresarial modular preparada para crecer durante anos. La arquitectura debe soportar oficina, web publica, app movil offline-first, API REST, PostgreSQL centralizado, servidor de archivos, backups, auditoria y seguridad avanzada.
 
-El proyecto ya no se plantea como aplicacion Java Swing de escritorio. La solucion objetivo se compone de backend Java 21 con Spring Boot, frontend React con TypeScript, PostgreSQL centralizado, PWA instalable y despliegue mediante Docker.
+## 2. Componentes
 
-## 2. Stack tecnologico previsto
+- Panel web interno para oficina.
+- Aplicacion movil offline-first para tecnicos.
+- Web publica para captacion, solicitudes y avisos.
+- Backend Java 21 con Spring Boot.
+- API REST documentada con OpenAPI.
+- PostgreSQL centralizado.
+- Servidor de archivos.
+- Servicio de sincronizacion offline.
+- Sistema de backups.
+- Sistema de auditoria.
 
-### Backend
+## 3. Vista general
+
+```text
+Web publica clientes         Panel web oficina           App movil tecnicos
+        |                          |                           |
+        | HTTPS                    | HTTPS                     | Cargar / Enviar trabajo
+        v                          v                           v
+                        API REST Spring Boot
+        -----------------------------------------------------------------
+        | Seguridad | Negocio | Sincronizacion | Archivos | Auditoria |
+        -----------------------------------------------------------------
+             |                    |                    |
+             v                    v                    v
+        PostgreSQL central   Servidor archivos   Sistema backups
+```
+
+## 4. Backend
+
+Stack:
 
 - Java 21.
 - Spring Boot.
 - Spring Web.
 - Spring Data JPA.
 - Spring Security.
-- JWT.
-- PostgreSQL.
+- JWT o equivalente.
 - Flyway.
+- PostgreSQL.
 - Swagger/OpenAPI.
-- JUnit.
-- Mockito.
-
-### Frontend
-
-- React.
-- TypeScript.
-- Vite.
-- Tailwind CSS.
-- PWA con manifest, service worker y assets instalables.
-
-### Infraestructura
-
-- Docker.
-- Docker Compose.
-- Variables de entorno.
-- HTTPS en entornos reales.
-- GitHub Actions como mejora futura para CI.
-
-## 3. Vista de alto nivel
-
-```text
-Ordenador / Movil / Tablet
-  Navegador moderno o PWA instalada
-        |
-        | HTTPS + JSON + JWT
-        v
-Frontend React + TypeScript + Vite + Tailwind CSS
-        |
-        | API REST versionada
-        v
-Backend Java 21 + Spring Boot
-  Controllers -> Services -> Repositories
-  Security -> JWT -> Roles/Permisos
-        |
-        v
-PostgreSQL centralizado
-```
-
-Todos los dispositivos consumen la misma API y acceden a la misma base de datos centralizada. No debe existir almacenamiento local como fuente principal de verdad.
-
-## 4. Estilo arquitectonico backend
-
-Se propone una arquitectura por capas con separacion clara entre API, aplicacion, dominio e infraestructura.
-
-Capas principales:
-
-- API: controladores REST, DTOs, validaciones de entrada y documentacion OpenAPI.
-- Aplicacion: casos de uso, servicios transaccionales y orquestacion.
-- Dominio: entidades, reglas de negocio, enumeraciones y excepciones de negocio.
-- Infraestructura: repositorios JPA, configuracion de seguridad, persistencia, migraciones y adaptadores tecnicos.
-
-Esta estructura permite mantener el MVP simple sin renunciar a una organizacion limpia y escalable.
-
-## 5. Arquitectura frontend
-
-El frontend sera una aplicacion web responsive construida con React, TypeScript, Vite y Tailwind CSS.
-
-Responsabilidades principales:
-
-- Gestion de rutas protegidas.
-- Login y mantenimiento de sesion.
-- Consumo de API REST.
-- Renderizado responsive para escritorio, movil y tablet.
-- Pantallas de gestion administrativa y operativa.
-- Checklist visual e interactivo por puerta/equipo.
-- Visualizacion de estados de checks por zona.
-- Captura y subida de fotografias.
-- Integracion PWA para instalacion visual.
-
-El frontend podra ocultar acciones no autorizadas, pero no debe asumir responsabilidad final de seguridad. Las reglas criticas se validaran en backend.
-
-## 6. Modulos funcionales
-
-Modulos iniciales:
-
-- Auth.
-- Users.
-- RolesPermissions.
-- Customers.
-- Installations.
-- Equipment.
-- Interventions.
-- Inspections.
-- Checklist.
-- Photos.
-- Dashboard.
-- Common.
+- JUnit y Mockito.
 
 Responsabilidades:
 
-| Modulo | Responsabilidad |
-| --- | --- |
-| Auth | Login, generacion y validacion de JWT, contexto de seguridad |
-| Users | Gestion de usuarios internos |
-| RolesPermissions | Roles, permisos y autorizacion funcional |
-| Customers | Gestion de clientes |
-| Installations | Gestion de instalaciones por cliente |
-| Equipment | Gestion de puertas y equipos |
-| Interventions | Gestion de trabajos tecnicos |
-| Inspections | Comprobaciones de montaje y mantenimiento |
-| Checklist | Zonas interactivas, estados y reglas del checklist visual |
-| Photos | Adjuntos fotograficos asociados a checks |
-| Dashboard | Indicadores operativos basicos |
-| Common | Errores, utilidades, auditoria, paginacion y respuestas compartidas |
+- Seguridad y autorizacion.
+- Gestion de negocio.
+- Validacion de datos.
+- API REST.
+- Persistencia central.
+- Gestion de archivos.
+- Auditoria.
+- Sincronizacion offline.
+- Integracion con backups.
 
-## 7. Estructura de paquetes backend recomendada
+## 5. Frontend web interno
 
-```text
-com.doormanagerpro
-  auth
-    api
-    application
-    domain
-    infrastructure
-  users
-    api
-    application
-    domain
-    infrastructure
-  rolespermissions
-    api
-    application
-    domain
-    infrastructure
-  customers
-    api
-    application
-    domain
-    infrastructure
-  installations
-    api
-    application
-    domain
-    infrastructure
-  equipment
-    api
-    application
-    domain
-    infrastructure
-  interventions
-    api
-    application
-    domain
-    infrastructure
-  inspections
-    api
-    application
-    domain
-    infrastructure
-  checklist
-    api
-    application
-    domain
-  photos
-    api
-    application
-    infrastructure
-  dashboard
-    api
-    application
-  common
-    api
-    config
-    error
-    security
-    persistence
-```
+Usuarios:
 
-La estructura puede ajustarse durante la implementacion si el tamano real del MVP aconseja simplificarla.
+- Gerencia.
+- Administracion.
+- Comerciales.
+- Jefes de equipo.
+- Usuarios de consulta.
 
-## 8. Estructura frontend recomendada
+Modulos principales:
 
-```text
-src
-  app
-  routes
-  features
-    auth
-    customers
-    installations
-    equipment
-    interventions
-    inspections
-    checklist
-    dashboard
-  shared
-    api
-    components
-    hooks
-    layout
-    styles
-  pwa
-```
+- Dashboard.
+- Clientes.
+- Proveedores.
+- Instalaciones y puertas.
+- Avisos.
+- Presupuestos.
+- Partes.
+- Validacion de oficina.
+- Facturacion.
+- Documentacion.
+- Stock y materiales.
+- Configuracion y permisos.
 
-La organizacion debe favorecer componentes reutilizables, pantallas responsive y separacion entre logica de API y presentacion.
+## 6. App movil offline-first
 
-## 9. API REST
+Usuarios:
 
-La API debe exponerse bajo versionado:
-
-```text
-/api/v1
-```
-
-Endpoints iniciales previstos:
-
-```text
-POST   /api/v1/auth/login
-GET    /api/v1/auth/me
-
-GET    /api/v1/users
-POST   /api/v1/users
-GET    /api/v1/users/{id}
-PUT    /api/v1/users/{id}
-PATCH  /api/v1/users/{id}/activate
-PATCH  /api/v1/users/{id}/deactivate
-
-GET    /api/v1/roles
-GET    /api/v1/permissions
-
-GET    /api/v1/customers
-POST   /api/v1/customers
-GET    /api/v1/customers/{id}
-PUT    /api/v1/customers/{id}
-PATCH  /api/v1/customers/{id}/deactivate
-
-GET    /api/v1/installations
-POST   /api/v1/installations
-GET    /api/v1/installations/{id}
-PUT    /api/v1/installations/{id}
-PATCH  /api/v1/installations/{id}/deactivate
-
-GET    /api/v1/equipment
-POST   /api/v1/equipment
-GET    /api/v1/equipment/{id}
-PUT    /api/v1/equipment/{id}
-PATCH  /api/v1/equipment/{id}/deactivate
-
-GET    /api/v1/interventions
-POST   /api/v1/interventions
-GET    /api/v1/interventions/{id}
-PUT    /api/v1/interventions/{id}
-PATCH  /api/v1/interventions/{id}/status
-
-GET    /api/v1/inspections
-POST   /api/v1/inspections
-GET    /api/v1/inspections/{id}
-PUT    /api/v1/inspections/{id}
-PATCH  /api/v1/inspections/{id}/status
-POST   /api/v1/inspections/{id}/validate
-
-GET    /api/v1/equipment/{id}/inspection-history
-GET    /api/v1/inspections/{id}/items
-PUT    /api/v1/inspections/{id}/items/{itemId}
-POST   /api/v1/inspection-items/{itemId}/photos
-
-GET    /api/v1/dashboard/summary
-```
-
-Requisitos de API:
-
-- Usar DTOs de entrada y salida.
-- No exponer entidades JPA directamente.
-- Aplicar validacion con Bean Validation.
-- Usar paginacion en listados.
-- Mantener formato de errores consistente.
-- Documentar endpoints con Swagger/OpenAPI.
-- Aplicar autorizacion por rol, permiso y recurso.
-
-## 10. Seguridad
-
-Spring Security sera el punto central de autenticacion y autorizacion.
-
-Componentes previstos:
-
-- Security configuration.
-- Authentication controller.
-- Authentication service.
-- JWT provider.
-- JWT authentication filter.
-- UserDetailsService propio.
-- PasswordEncoder con BCrypt.
-- Reglas de autorizacion por endpoint, rol, permiso y recurso.
-
-Flujo de autenticacion:
-
-1. El usuario envia email y password a `/api/v1/auth/login`.
-2. El backend valida credenciales.
-3. El backend comprueba que el usuario esta activo.
-4. El backend genera un JWT firmado con expiracion.
-5. El cliente usa el token en la cabecera `Authorization: Bearer <token>`.
-6. El filtro JWT valida el token en cada peticion protegida.
-7. Spring Security establece el contexto del usuario autenticado.
-
-## 11. Persistencia
-
-La persistencia se implementara con Spring Data JPA sobre PostgreSQL.
-
-Criterios:
-
-- Entidades JPA separadas de DTOs.
-- Repositorios por agregado o entidad principal.
-- Consultas derivadas para casos simples.
-- JPQL o specifications para filtros mas complejos.
-- Transacciones en servicios de aplicacion.
-- Migraciones de esquema mediante Flyway.
-- Indices para historiales por equipo, estados y fechas.
-
-## 12. Checklist interactivo
-
-El checklist sera una funcionalidad central del producto.
+- Tecnicos.
+- Jefes de equipo en campo.
 
 Principios:
 
-- Cada puerta/equipo tiene su propio historial de comprobaciones.
-- Cada comprobacion se compone de zonas interactivas.
-- Cada zona registra estado, observaciones, fotografias, fecha, tecnico y validacion si procede.
-- El frontend representa las zonas sobre un dibujo o esquema de puerta.
-- El backend conserva la verdad del estado y permisos.
+- No sincronizacion continua.
+- Boton `Cargar trabajos`.
+- Trabajo local sin conexion.
+- Boton `Enviar trabajo`.
+- Reintento manual.
+- UUID para evitar duplicados.
+- Version para conflictos.
+- Auditoria de sincronizacion.
 
-## 13. PWA y acceso multidispositivo
+Datos locales:
 
-La PWA debe permitir instalacion visual en dispositivos compatibles sin convertirse en app nativa.
+- Partes asignados.
+- Clientes necesarios.
+- Instalaciones y puertas.
+- Checklists.
+- Historial basico.
+- Manuales necesarios.
+- Fotografias necesarias.
+- Materiales.
+- Firmas y fotos tomadas.
 
-Requisitos arquitectonicos:
+## 7. Web publica
 
-- Manifest configurado.
-- Iconos y nombre de aplicacion.
-- Service worker controlado.
-- Responsive design desde el inicio.
-- API centralizada como fuente de datos.
-- HTTPS en despliegue real.
+Objetivos:
 
-## 14. Docker y entornos
+- Captar clientes.
+- Recibir solicitudes de presupuesto.
+- Recibir avisos o reparaciones.
+- Mostrar servicios.
+- Mostrar anuncios o avisos.
 
-Docker se usara para facilitar ejecucion local y demostracion profesional.
+La web publica debe integrarse con oficina creando leads o solicitudes que puedan convertirse en cliente, aviso, presupuesto o parte.
 
-Componentes previstos:
+## 8. Servidor de archivos
 
-- Contenedor de backend Spring Boot.
-- Contenedor de frontend React servido como build estatico.
-- Contenedor PostgreSQL.
-- Docker Compose para entorno local.
+Debe almacenar:
 
-Perfiles recomendados:
+- Manuales.
+- Documentos.
+- Fotografias.
+- Firmas.
+- Videos.
+- Planos.
+- Esquemas.
+- PDFs.
+- Facturas y presupuestos generados.
 
-- local.
-- test.
-- prod.
+La base de datos guardara metadatos y claves de almacenamiento.
 
-Variables de entorno candidatas:
+## 9. Base de datos
 
-- DATABASE_URL.
-- DATABASE_USERNAME.
-- DATABASE_PASSWORD.
-- JWT_SECRET.
-- JWT_EXPIRATION_MINUTES.
-- SPRING_PROFILES_ACTIVE.
-- FRONTEND_API_BASE_URL.
+PostgreSQL sera la base central.
 
-## 15. Testing
+Requisitos:
 
-El proyecto debe incluir pruebas desde fases tempranas.
+- Integridad referencial.
+- Indices.
+- Restricciones.
+- Auditoria.
+- Versionado offline.
+- Borrado logico.
+- Migraciones con Flyway.
+- Backups consistentes.
 
-Tipos de pruebas:
+## 10. Backups y recuperacion
 
-- Unitarias para servicios de aplicacion.
-- Unitarias para reglas de dominio.
-- Tests de controladores con MockMvc.
-- Tests de seguridad para autorizacion y autenticacion.
-- Tests de repositorios cuando haya consultas no triviales.
-- Tests frontend de componentes criticos como login y checklist.
+La arquitectura debe incluir:
 
-Prioridades iniciales:
+- Backup de base de datos.
+- Backup de servidor de archivos.
+- Copias cifradas.
+- Copias fuera del servidor principal.
+- Registro y alertas.
+- Pruebas de restauracion.
+- Plan de recuperacion ante desastre.
 
-- Auth y seguridad.
-- Validaciones de entrada.
-- Reglas de creacion de entidades relacionadas.
-- Cambios de estado de intervenciones y comprobaciones.
-- Permisos sobre checks.
-- No exposicion de informacion sensible.
+## 11. Modulos backend recomendados
 
-## 16. Observabilidad inicial
+- auth.
+- authorization.
+- users.
+- customers.
+- suppliers.
+- installations.
+- doors.
+- documents.
+- checklist.
+- service_requests.
+- quotes.
+- work_orders.
+- office_validation.
+- invoices.
+- materials_stock.
+- work_teams.
+- dashboard.
+- public_web.
+- sync.
+- backups.
+- audit.
+- common.
 
-Para el MVP se recomienda incluir:
+## 12. API REST
 
-- Logs estructurados basicos.
-- Logging de errores controlado.
-- Actuator en perfil local o protegido.
-- Health check para base de datos.
+Grupos de endpoints:
 
-No se recomienda incorporar herramientas complejas de observabilidad hasta que exista una necesidad real.
+- `/api/v1/auth`.
+- `/api/v1/users`.
+- `/api/v1/customers`.
+- `/api/v1/suppliers`.
+- `/api/v1/installations`.
+- `/api/v1/doors`.
+- `/api/v1/documents`.
+- `/api/v1/checklists`.
+- `/api/v1/service-requests`.
+- `/api/v1/quotes`.
+- `/api/v1/work-orders`.
+- `/api/v1/office-validations`.
+- `/api/v1/invoices`.
+- `/api/v1/materials`.
+- `/api/v1/stock`.
+- `/api/v1/dashboard`.
+- `/api/v1/public`.
+- `/api/v1/sync/download`.
+- `/api/v1/sync/upload`.
+- `/api/v1/backups`.
 
-## 17. Escalabilidad futura
+## 13. Seguridad arquitectonica
 
-La arquitectura debe permitir evolucionar hacia:
+- HTTPS obligatorio en entornos reales.
+- Autenticacion segura.
+- Autorizacion por modulo, accion y recurso.
+- Validacion de entradas.
+- DTOs.
+- No exponer entidades internas.
+- Control de acceso a archivos.
+- Registro de auditoria.
+- Politicas de retencion.
 
-- Sincronizacion offline parcial para tecnicos.
-- Firma digital avanzada.
-- Generacion de PDF.
-- Notificaciones por email o push.
-- Planificacion avanzada.
-- Integracion con ERP o facturacion.
-- Multiempresa o multi-tenant.
-- Auditoria avanzada.
-- Almacenamiento externo de adjuntos.
+## 14. Infraestructura
 
-El MVP no debe sobredisenarse para todos estos escenarios, pero si evitar decisiones que bloqueen su incorporacion futura.
+Opciones:
+
+- Cloud.
+- Servidor local.
+- Modelo mixto.
+
+Recomendacion inicial para portfolio:
+
+- Docker Compose local.
+- PostgreSQL en contenedor.
+- Backend Spring Boot.
+- Frontend web.
+- Almacenamiento de archivos local controlado.
+- Documentacion de despliegue cloud futuro.
+
+## 15. Riesgos arquitectonicos
+
+- Offline-first incrementa complejidad de sincronizacion.
+- Archivos offline pueden consumir mucho almacenamiento.
+- Facturacion exige especial cuidado fiscal y legal si se lleva a produccion.
+- RGPD requiere procesos organizativos ademas de medidas tecnicas.
+- Backups sin pruebas de restauracion generan falsa seguridad.

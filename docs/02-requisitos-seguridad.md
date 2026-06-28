@@ -2,9 +2,9 @@
 
 ## 1. Objetivo
 
-La seguridad es una prioridad del proyecto DoorManager Pro. La aplicacion gestionara datos de clientes, ubicaciones, instalaciones tecnicas, usuarios internos e historiales de intervenciones, por lo que debe aplicar controles solidos desde el MVP.
+La seguridad es una prioridad del proyecto DoorManager Pro. La plataforma gestionara datos de clientes, ubicaciones, puertas automaticas, usuarios internos, fotografias, historiales de intervenciones y comprobaciones tecnicas, por lo que debe aplicar controles solidos desde el MVP.
 
-Este documento define los requisitos iniciales de autenticacion, autorizacion, proteccion de datos, auditoria, validacion y despliegue seguro.
+Este documento define los requisitos iniciales de autenticacion, autorizacion, proteccion de datos, auditoria, validacion, seguridad de API, frontend web/PWA y despliegue seguro.
 
 ## 2. Principios de seguridad
 
@@ -12,26 +12,28 @@ Este documento define los requisitos iniciales de autenticacion, autorizacion, p
 - Minimo privilegio.
 - Separacion clara de responsabilidades.
 - Validacion estricta de entradas.
-- Proteccion de credenciales.
+- Proteccion de credenciales y tokens.
 - Trazabilidad de operaciones relevantes.
+- Autorizacion real siempre en backend.
 - Evitar exposicion innecesaria de informacion interna.
 - Preparacion para futuras exigencias de cumplimiento normativo.
 
 ## 3. Autenticacion
 
-El sistema usara Spring Security con JWT para autenticar usuarios.
+El sistema usara Spring Security con JWT para autenticar usuarios contra la API REST.
 
 Requisitos:
 
 - Las credenciales deben enviarse exclusivamente por canales seguros en entornos reales.
 - Las passwords nunca deben almacenarse en texto plano.
-- Las passwords deben cifrarse mediante un algoritmo robusto como BCrypt.
+- Las passwords deben cifrarse mediante BCrypt o algoritmo equivalente robusto.
 - El login debe devolver un token JWT firmado.
-- El JWT debe incluir solo informacion necesaria para identificar al usuario y sus permisos.
+- El JWT debe incluir solo informacion necesaria para identificar al usuario, rol y permisos.
 - El JWT debe tener expiracion.
 - El sistema debe rechazar tokens expirados, manipulados o mal firmados.
 - Los endpoints protegidos deben requerir token valido.
 - Los endpoints publicos deben reducirse al minimo imprescindible, como login y documentacion controlada.
+- Los usuarios inactivos no deben poder autenticarse.
 
 Consideraciones futuras:
 
@@ -42,34 +44,38 @@ Consideraciones futuras:
 
 ## 4. Autorizacion
 
-La autorizacion se basara en roles y permisos.
+La autorizacion se basara en roles y permisos. El frontend podra ocultar acciones no permitidas, pero la decision de seguridad debe aplicarse siempre en el backend.
 
 Roles iniciales:
 
-- ADMIN
-- RESPONSABLE_TECNICO
-- TECNICO
-- CONSULTA
+- ADMIN.
+- RESPONSABLE_TECNICO.
+- TECNICO.
+- CONSULTA.
 
 Matriz inicial de permisos:
 
 | Recurso | ADMIN | RESPONSABLE_TECNICO | TECNICO | CONSULTA |
 | --- | --- | --- | --- | --- |
 | Usuarios | CRUD | Lectura limitada | Sin acceso | Sin acceso |
+| Roles y permisos | CRUD | Lectura | Sin acceso | Sin acceso |
 | Clientes | CRUD | Lectura/edicion | Lectura | Lectura |
 | Instalaciones | CRUD | CRUD | Lectura | Lectura |
 | Equipos | CRUD | CRUD | Lectura/edicion tecnica | Lectura |
 | Intervenciones | CRUD | CRUD | Lectura/actualizacion asignadas | Lectura |
-| Revisiones | CRUD | CRUD | Lectura/actualizacion asignadas | Lectura |
+| Comprobaciones de montaje | CRUD/validacion | CRUD/validacion | Lectura/edicion asignadas | Lectura autorizada |
+| Comprobaciones de mantenimiento | CRUD/validacion | CRUD/validacion | Lectura/edicion asignadas | Lectura autorizada |
+| Fotografias de checks | CRUD | CRUD | Crear/leer asignadas | Lectura autorizada |
 | Dashboard | Completo | Operativo | Personalizado | Solo lectura |
 
 Requisitos:
 
-- Los permisos deben comprobarse en backend, no solo en frontend.
+- Los permisos deben comprobarse por endpoint y, cuando aplique, por recurso concreto.
 - Las rutas administrativas deben requerir rol ADMIN.
-- Los tecnicos no deben poder modificar trabajos no asignados salvo permiso explicito.
-- Los usuarios inactivos no deben poder autenticarse.
+- Los tecnicos no deben poder modificar trabajos o comprobaciones no asignadas salvo permiso explicito.
+- La validacion o firma de comprobaciones puede requerir permiso especifico.
 - El cambio de rol debe estar restringido a usuarios autorizados.
+- El acceso a fotografias debe respetar los mismos permisos que la comprobacion asociada.
 
 ## 5. Proteccion de datos
 
@@ -84,6 +90,8 @@ Requisitos:
 - No registrar passwords ni datos secretos.
 - Configurar secretos mediante variables de entorno o mecanismos seguros equivalentes.
 - Evitar credenciales hardcodeadas en codigo o repositorio.
+- Controlar tamano, tipo y almacenamiento de fotografias asociadas a checks.
+- Preparar politicas de retencion y backup para datos operativos.
 
 ## 6. Validacion de entrada
 
@@ -98,6 +106,8 @@ Requisitos:
 - Sanitizar campos libres cuando se muestren en interfaces web.
 - Usar Bean Validation en DTOs de entrada.
 - Evitar confiar en IDs recibidos sin comprobar existencia y permisos.
+- Validar que cada check pertenece a la puerta/equipo indicado.
+- Validar que las fotografias pertenecen a una comprobacion accesible por el usuario.
 
 ## 7. Seguridad de API
 
@@ -110,12 +120,14 @@ Requisitos:
 - Configurar cabeceras de seguridad cuando aplique.
 - Proteger Swagger/OpenAPI en entornos no locales.
 - Evitar exponer trazas internas en respuestas HTTP.
+- Aplicar limites razonables a subida de fotografias.
+- Separar endpoints publicos, autenticados y administrativos.
 
 Codigos HTTP esperados:
 
 - 200 para consultas correctas.
 - 201 para creaciones correctas.
-- 204 para eliminaciones logicas o acciones sin cuerpo.
+- 204 para acciones sin cuerpo.
 - 400 para errores de validacion.
 - 401 para autenticacion ausente o invalida.
 - 403 para permisos insuficientes.
@@ -123,7 +135,20 @@ Codigos HTTP esperados:
 - 409 para conflictos de negocio.
 - 500 para errores internos no controlados.
 
-## 8. Auditoria y trazabilidad
+## 8. Seguridad frontend/PWA
+
+Requisitos:
+
+- El frontend React debe consumir solo la API REST autorizada.
+- El frontend no debe contener secretos.
+- Las rutas de la aplicacion deben protegerse segun sesion y permisos.
+- Las acciones no autorizadas deben ocultarse o deshabilitarse, sin sustituir la validacion backend.
+- La PWA debe servirse por HTTPS en entornos reales.
+- El service worker no debe cachear informacion sensible sin una decision explicita.
+- El cierre de sesion debe limpiar estado local sensible.
+- El almacenamiento del token debe minimizar riesgo de exposicion.
+
+## 9. Auditoria y trazabilidad
 
 Desde el MVP se debe preparar una base de auditoria.
 
@@ -133,19 +158,22 @@ Requisitos iniciales:
 - Registrar fecha de ultima modificacion.
 - Registrar usuario creador cuando sea viable.
 - Registrar usuario modificador cuando sea viable.
-- Mantener historico funcional de intervenciones y revisiones.
+- Mantener historico funcional de intervenciones y comprobaciones.
+- Registrar tecnico responsable de cada zona comprobada.
+- Registrar fecha y hora de cada check.
 
 Eventos candidatos para auditoria futura:
 
 - Login exitoso y fallido.
 - Cambio de password.
-- Cambio de rol.
+- Cambio de rol o permisos.
 - Desactivacion de usuarios.
 - Desactivacion de clientes, instalaciones o equipos.
 - Cierre de intervenciones.
-- Resultado de revisiones.
+- Creacion, modificacion o validacion de comprobaciones.
+- Adjuntos fotograficos anadidos o eliminados.
 
-## 9. Gestion de errores
+## 10. Gestion de errores
 
 Requisitos:
 
@@ -163,11 +191,11 @@ Formato recomendado de error:
   "status": 400,
   "error": "VALIDATION_ERROR",
   "message": "La solicitud contiene campos no validos",
-  "path": "/api/v1/clientes"
+  "path": "/api/v1/customers"
 }
 ```
 
-## 10. Seguridad en base de datos
+## 11. Seguridad en base de datos
 
 Requisitos:
 
@@ -177,9 +205,10 @@ Requisitos:
 - Definir restricciones de integridad referencial.
 - Definir indices para claves foraneas y busquedas frecuentes.
 - Evitar borrados fisicos de datos de negocio salvo necesidad justificada.
+- Garantizar unicidad e integridad de checks por puerta/equipo, tipo y zona cuando aplique.
 - Preparar backups en entornos reales.
 
-## 11. Seguridad en despliegue
+## 12. Seguridad en despliegue
 
 Requisitos:
 
@@ -188,10 +217,10 @@ Requisitos:
 - Configurar variables sensibles desde entorno.
 - Separar perfiles de desarrollo, test y produccion.
 - Desactivar configuraciones inseguras en produccion.
-- Usar HTTPS delante de la aplicacion en entornos reales.
+- Usar HTTPS delante de frontend y backend en entornos reales.
 - Configurar logs adecuados para diagnostico sin filtrar informacion sensible.
 
-## 12. Pruebas de seguridad iniciales
+## 13. Pruebas de seguridad iniciales
 
 El MVP debe incluir pruebas o verificaciones para:
 
@@ -200,6 +229,8 @@ El MVP debe incluir pruebas o verificaciones para:
 - Acceso sin token a endpoints protegidos.
 - Acceso con token invalido.
 - Restriccion por rol.
+- Restriccion por permiso sobre comprobaciones.
 - Validacion de DTOs.
 - No exposicion de password en respuestas.
 - Rechazo de operaciones sobre recursos inexistentes.
+- Rechazo de modificacion de checks no asignados o no autorizados.

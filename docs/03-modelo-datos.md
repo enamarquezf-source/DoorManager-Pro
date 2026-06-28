@@ -2,7 +2,7 @@
 
 ## 1. Objetivo
 
-Este documento define el modelo de datos inicial para el MVP de DoorManager Pro. El objetivo es disponer de una estructura relacional clara, normalizada y preparada para evolucionar sin comprometer mantenibilidad ni trazabilidad.
+Este documento define el modelo de datos inicial para DoorManager Pro como plataforma web centralizada. El objetivo es disponer de una estructura relacional clara, normalizada y preparada para gestionar clientes, instalaciones, puertas/equipos, usuarios, roles, permisos, intervenciones y comprobaciones tecnicas con historial por equipo.
 
 La base de datos prevista es PostgreSQL, gestionada mediante migraciones Flyway y accedida desde Spring Data JPA.
 
@@ -15,34 +15,39 @@ La base de datos prevista es PostgreSQL, gestionada mediante migraciones Flyway 
 - Campos de auditoria basicos.
 - Enumeraciones controladas desde la aplicacion.
 - Indices en claves foraneas y filtros frecuentes.
+- Historial por puerta/equipo.
+- Unicidad de checks por equipo, tipo de comprobacion y zona cuando aplique.
 - Nombres consistentes y orientados a negocio.
 
 ## 3. Entidades principales
 
 Entidades del MVP:
 
-- users
-- roles
-- customers
-- installations
-- equipment
-- interventions
-- reviews
+- users.
+- roles.
+- permissions.
+- role_permissions.
+- customers.
+- installations.
+- equipment.
+- interventions.
+- inspection_templates.
+- inspection_template_zones.
+- inspections.
+- inspection_items.
+- inspection_photos.
 
 Entidades auxiliares futuras posibles:
 
-- permissions
-- audit_logs
-- documents
-- intervention_photos
-- maintenance_contracts
-- notifications
+- audit_logs.
+- documents.
+- maintenance_contracts.
+- notifications.
+- signatures.
 
 ## 4. Tabla users
 
-Representa usuarios internos de la aplicacion.
-
-Campos propuestos:
+Representa usuarios internos de la plataforma.
 
 | Campo | Tipo | Restricciones | Descripcion |
 | --- | --- | --- | --- |
@@ -67,8 +72,6 @@ Indices recomendados:
 
 Representa roles funcionales del sistema.
 
-Campos propuestos:
-
 | Campo | Tipo | Restricciones | Descripcion |
 | --- | --- | --- | --- |
 | id | UUID | PK | Identificador unico |
@@ -79,16 +82,49 @@ Campos propuestos:
 
 Valores iniciales:
 
-- ADMIN
-- RESPONSABLE_TECNICO
-- TECNICO
-- CONSULTA
+- ADMIN.
+- RESPONSABLE_TECNICO.
+- TECNICO.
+- CONSULTA.
 
-## 6. Tabla customers
+## 6. Tabla permissions
+
+Representa permisos atomicos de la plataforma.
+
+| Campo | Tipo | Restricciones | Descripcion |
+| --- | --- | --- | --- |
+| id | UUID | PK | Identificador unico |
+| code | VARCHAR(100) | NOT NULL, UNIQUE | Codigo tecnico del permiso |
+| description | VARCHAR(255) | NULL | Descripcion funcional |
+| created_at | TIMESTAMP WITH TIME ZONE | NOT NULL | Fecha de creacion |
+| updated_at | TIMESTAMP WITH TIME ZONE | NOT NULL | Fecha de actualizacion |
+
+Permisos iniciales candidatos:
+
+- USERS_MANAGE.
+- CUSTOMERS_READ.
+- CUSTOMERS_WRITE.
+- EQUIPMENT_READ.
+- EQUIPMENT_WRITE.
+- INTERVENTIONS_READ.
+- INTERVENTIONS_WRITE.
+- INSPECTIONS_READ.
+- INSPECTIONS_WRITE.
+- INSPECTIONS_VALIDATE.
+- PHOTOS_UPLOAD.
+
+## 7. Tabla role_permissions
+
+Relaciona roles con permisos.
+
+| Campo | Tipo | Restricciones | Descripcion |
+| --- | --- | --- | --- |
+| role_id | UUID | PK, FK roles(id) | Rol |
+| permission_id | UUID | PK, FK permissions(id) | Permiso |
+
+## 8. Tabla customers
 
 Representa clientes de la empresa instaladora o mantenedora.
-
-Campos propuestos:
 
 | Campo | Tipo | Restricciones | Descripcion |
 | --- | --- | --- | --- |
@@ -104,17 +140,9 @@ Campos propuestos:
 | created_at | TIMESTAMP WITH TIME ZONE | NOT NULL | Fecha de creacion |
 | updated_at | TIMESTAMP WITH TIME ZONE | NOT NULL | Fecha de actualizacion |
 
-Indices recomendados:
-
-- idx_customers_business_name sobre business_name.
-- idx_customers_tax_id sobre tax_id.
-- idx_customers_active sobre active.
-
-## 7. Tabla installations
+## 9. Tabla installations
 
 Representa ubicaciones fisicas donde existen puertas o equipos.
-
-Campos propuestos:
 
 | Campo | Tipo | Restricciones | Descripcion |
 | --- | --- | --- | --- |
@@ -135,23 +163,14 @@ Campos propuestos:
 
 Estados operativos iniciales:
 
-- OPERATIVA
-- CON_INCIDENCIAS
-- FUERA_DE_SERVICIO
-- PENDIENTE_REVISION
+- OPERATIVA.
+- CON_INCIDENCIAS.
+- FUERA_DE_SERVICIO.
+- PENDIENTE_REVISION.
 
-Indices recomendados:
-
-- idx_installations_customer_id sobre customer_id.
-- idx_installations_city sobre city.
-- idx_installations_operational_status sobre operational_status.
-- idx_installations_active sobre active.
-
-## 8. Tabla equipment
+## 10. Tabla equipment
 
 Representa puertas automaticas y equipos asociados.
-
-Campos propuestos:
 
 | Campo | Tipo | Restricciones | Descripcion |
 | --- | --- | --- | --- |
@@ -171,27 +190,17 @@ Campos propuestos:
 
 Tipos iniciales:
 
-- PUERTA_CORREDERA
-- PUERTA_BATIENTE
-- PUERTA_SECCIONAL
-- PUERTA_ENROLLABLE
-- BARRERA_AUTOMATICA
-- PERSIANA_AUTOMATICA
-- OTRO
+- PUERTA_CORREDERA.
+- PUERTA_BATIENTE.
+- PUERTA_SECCIONAL.
+- PUERTA_ENROLLABLE.
+- BARRERA_AUTOMATICA.
+- PERSIANA_AUTOMATICA.
+- OTRO.
 
-Indices recomendados:
-
-- idx_equipment_installation_id sobre installation_id.
-- idx_equipment_type sobre type.
-- idx_equipment_serial_number sobre serial_number.
-- idx_equipment_operational_status sobre operational_status.
-- idx_equipment_active sobre active.
-
-## 9. Tabla interventions
+## 11. Tabla interventions
 
 Representa trabajos tecnicos, averias, mantenimientos o instalaciones.
-
-Campos propuestos:
 
 | Campo | Tipo | Restricciones | Descripcion |
 | --- | --- | --- | --- |
@@ -213,88 +222,136 @@ Campos propuestos:
 | created_at | TIMESTAMP WITH TIME ZONE | NOT NULL | Fecha de creacion |
 | updated_at | TIMESTAMP WITH TIME ZONE | NOT NULL | Fecha de actualizacion |
 
-Tipos iniciales:
+## 12. Tabla inspection_templates
 
-- AVERIA
-- MANTENIMIENTO_CORRECTIVO
-- MANTENIMIENTO_PREVENTIVO
-- INSTALACION
-- PUESTA_EN_MARCHA
-- INSPECCION
-- OTRO
-
-Prioridades iniciales:
-
-- BAJA
-- MEDIA
-- ALTA
-- URGENTE
-
-Estados iniciales:
-
-- PENDIENTE
-- ASIGNADA
-- EN_CURSO
-- FINALIZADA
-- CANCELADA
-
-Indices recomendados:
-
-- idx_interventions_customer_id sobre customer_id.
-- idx_interventions_installation_id sobre installation_id.
-- idx_interventions_equipment_id sobre equipment_id.
-- idx_interventions_assigned_user_id sobre assigned_user_id.
-- idx_interventions_status sobre status.
-- idx_interventions_priority sobre priority.
-- idx_interventions_scheduled_date sobre scheduled_date.
-
-## 10. Tabla reviews
-
-Representa revisiones periodicas de equipos o instalaciones.
-
-Campos propuestos:
+Representa plantillas de comprobacion reutilizables por tipo de equipo y tipo de proceso.
 
 | Campo | Tipo | Restricciones | Descripcion |
 | --- | --- | --- | --- |
 | id | UUID | PK | Identificador unico |
-| customer_id | UUID | FK customers(id), NOT NULL | Cliente asociado |
-| installation_id | UUID | FK installations(id), NOT NULL | Instalacion asociada |
-| equipment_id | UUID | FK equipment(id), NOT NULL | Equipo revisado |
+| name | VARCHAR(150) | NOT NULL | Nombre de plantilla |
+| equipment_type | VARCHAR(50) | NOT NULL | Tipo de equipo al que aplica |
+| inspection_type | VARCHAR(50) | NOT NULL | MONTAJE o MANTENIMIENTO |
+| active | BOOLEAN | NOT NULL | Estado activo/inactivo |
+| created_at | TIMESTAMP WITH TIME ZONE | NOT NULL | Fecha de creacion |
+| updated_at | TIMESTAMP WITH TIME ZONE | NOT NULL | Fecha de actualizacion |
+
+## 13. Tabla inspection_template_zones
+
+Representa zonas interactivas definidas en una plantilla.
+
+| Campo | Tipo | Restricciones | Descripcion |
+| --- | --- | --- | --- |
+| id | UUID | PK | Identificador unico |
+| template_id | UUID | FK inspection_templates(id), NOT NULL | Plantilla asociada |
+| zone_code | VARCHAR(80) | NOT NULL | Codigo tecnico de zona |
+| label | VARCHAR(120) | NOT NULL | Etiqueta visible |
+| description | TEXT | NULL | Descripcion de comprobacion |
+| display_order | INTEGER | NOT NULL | Orden visual |
+| active | BOOLEAN | NOT NULL | Estado activo/inactivo |
+
+Zonas iniciales:
+
+- MOTOR.
+- CUADRO_MANIOBRA.
+- FOTOCELULAS.
+- GUIAS.
+- HOJAS_MOVILES.
+- RADAR_DETECTOR.
+- SELECTOR_FUNCIONES.
+- BATERIA.
+- FINALES_CARRERA.
+- SISTEMA_ANTIAPLASTAMIENTO.
+- CERRADURA_DESBLOQUEO_MANUAL.
+
+Restriccion recomendada:
+
+- UNIQUE(template_id, zone_code).
+
+## 14. Tabla inspections
+
+Representa una comprobacion concreta realizada o planificada sobre una puerta/equipo.
+
+| Campo | Tipo | Restricciones | Descripcion |
+| --- | --- | --- | --- |
+| id | UUID | PK | Identificador unico |
+| equipment_id | UUID | FK equipment(id), NOT NULL | Puerta/equipo comprobado |
+| template_id | UUID | FK inspection_templates(id), NOT NULL | Plantilla usada |
+| intervention_id | UUID | FK interventions(id), NULL | Intervencion relacionada |
 | assigned_user_id | UUID | FK users(id), NULL | Tecnico asignado |
-| scheduled_date | DATE | NOT NULL | Fecha prevista |
-| completed_date | DATE | NULL | Fecha realizada |
-| status | VARCHAR(50) | NOT NULL | Estado |
-| result | VARCHAR(50) | NULL | Resultado |
-| observations | TEXT | NULL | Observaciones |
-| next_recommended_date | DATE | NULL | Proxima fecha recomendada |
+| type | VARCHAR(50) | NOT NULL | MONTAJE o MANTENIMIENTO |
+| status | VARCHAR(50) | NOT NULL | Estado general |
+| scheduled_at | TIMESTAMP WITH TIME ZONE | NULL | Fecha planificada |
+| started_at | TIMESTAMP WITH TIME ZONE | NULL | Inicio real |
+| completed_at | TIMESTAMP WITH TIME ZONE | NULL | Finalizacion |
+| validated_by_user_id | UUID | FK users(id), NULL | Usuario validador |
+| validated_at | TIMESTAMP WITH TIME ZONE | NULL | Fecha de validacion |
+| general_observations | TEXT | NULL | Observaciones generales |
 | created_at | TIMESTAMP WITH TIME ZONE | NOT NULL | Fecha de creacion |
 | updated_at | TIMESTAMP WITH TIME ZONE | NOT NULL | Fecha de actualizacion |
 
 Estados iniciales:
 
-- PROGRAMADA
-- PENDIENTE
-- REALIZADA
-- VENCIDA
-- CANCELADA
-
-Resultados iniciales:
-
-- CORRECTA
-- CORRECTA_CON_OBSERVACIONES
-- REQUIERE_INTERVENCION
-- NO_REALIZADA
+- PENDIENTE.
+- EN_CURSO.
+- FINALIZADA.
+- VALIDADA.
+- CANCELADA.
 
 Indices recomendados:
 
-- idx_reviews_customer_id sobre customer_id.
-- idx_reviews_installation_id sobre installation_id.
-- idx_reviews_equipment_id sobre equipment_id.
-- idx_reviews_assigned_user_id sobre assigned_user_id.
-- idx_reviews_status sobre status.
-- idx_reviews_scheduled_date sobre scheduled_date.
+- idx_inspections_equipment_id sobre equipment_id.
+- idx_inspections_assigned_user_id sobre assigned_user_id.
+- idx_inspections_type sobre type.
+- idx_inspections_status sobre status.
+- idx_inspections_scheduled_at sobre scheduled_at.
 
-## 11. Relaciones principales
+## 15. Tabla inspection_items
+
+Representa el resultado de comprobar una zona concreta de la puerta.
+
+| Campo | Tipo | Restricciones | Descripcion |
+| --- | --- | --- | --- |
+| id | UUID | PK | Identificador unico |
+| inspection_id | UUID | FK inspections(id), NOT NULL | Comprobacion asociada |
+| zone_code | VARCHAR(80) | NOT NULL | Zona comprobada |
+| status | VARCHAR(50) | NOT NULL | Estado de la zona |
+| observations | TEXT | NULL | Observaciones |
+| checked_at | TIMESTAMP WITH TIME ZONE | NULL | Fecha y hora de comprobacion |
+| checked_by_user_id | UUID | FK users(id), NULL | Tecnico responsable |
+| validation_required | BOOLEAN | NOT NULL | Indica si requiere validacion |
+| validated_by_user_id | UUID | FK users(id), NULL | Usuario validador |
+| validated_at | TIMESTAMP WITH TIME ZONE | NULL | Fecha de validacion |
+| created_at | TIMESTAMP WITH TIME ZONE | NOT NULL | Fecha de creacion |
+| updated_at | TIMESTAMP WITH TIME ZONE | NOT NULL | Fecha de actualizacion |
+
+Estados por zona:
+
+- CORRECTO.
+- PENDIENTE.
+- REVISAR.
+- AVERIA.
+
+Restriccion recomendada:
+
+- UNIQUE(inspection_id, zone_code).
+
+## 16. Tabla inspection_photos
+
+Representa fotografias adjuntas a una zona comprobada.
+
+| Campo | Tipo | Restricciones | Descripcion |
+| --- | --- | --- | --- |
+| id | UUID | PK | Identificador unico |
+| inspection_item_id | UUID | FK inspection_items(id), NOT NULL | Zona comprobada asociada |
+| file_name | VARCHAR(255) | NOT NULL | Nombre original o normalizado |
+| content_type | VARCHAR(100) | NOT NULL | Tipo MIME |
+| storage_path | VARCHAR(500) | NOT NULL | Ruta o clave de almacenamiento |
+| size_bytes | BIGINT | NOT NULL | Tamano del archivo |
+| uploaded_by_user_id | UUID | FK users(id), NOT NULL | Usuario que sube la foto |
+| uploaded_at | TIMESTAMP WITH TIME ZONE | NOT NULL | Fecha de subida |
+
+## 17. Relaciones principales
 
 - Un cliente puede tener muchas instalaciones.
 - Una instalacion pertenece a un cliente.
@@ -302,45 +359,51 @@ Indices recomendados:
 - Un equipo pertenece a una instalacion.
 - Una intervencion pertenece a un cliente y a una instalacion.
 - Una intervencion puede estar asociada a un equipo concreto.
-- Una intervencion puede tener un tecnico asignado.
-- Una revision pertenece a un cliente, instalacion y equipo.
-- Una revision puede tener un tecnico asignado.
+- Una comprobacion pertenece siempre a un equipo concreto.
+- Una comprobacion puede estar asociada a una intervencion.
+- Una comprobacion contiene muchos items de zona.
+- Cada item representa una zona unica dentro de una comprobacion.
+- Cada item puede tener cero o muchas fotografias.
 - Un usuario pertenece a un rol.
+- Un rol tiene muchos permisos.
 
-## 12. Reglas de integridad
+## 18. Reglas de integridad
 
 - No debe existir una instalacion sin cliente.
 - No debe existir un equipo sin instalacion.
-- No debe existir una revision sin equipo.
+- No debe existir una comprobacion sin equipo.
 - Una intervencion debe estar asociada siempre a cliente e instalacion.
 - El equipo de una intervencion debe pertenecer a la instalacion indicada.
-- El equipo de una revision debe pertenecer a la instalacion indicada.
-- El cliente asociado a intervenciones y revisiones debe coincidir con el cliente de la instalacion.
+- El equipo de una comprobacion debe pertenecer a una instalacion existente.
+- Cada zona debe ser unica dentro de una misma comprobacion.
+- Las fotografias deben pertenecer a un item de comprobacion existente.
 - Los emails de usuarios deben ser unicos.
 - El CIF/NIF de clientes debe ser unico cuando se informe.
 
-## 13. Auditoria tecnica
+## 19. Auditoria tecnica
 
 Campos recomendados para entidades principales:
 
-- created_at
-- updated_at
-- created_by
-- updated_by
+- created_at.
+- updated_at.
+- created_by.
+- updated_by.
 
 Para el MVP se consideran obligatorios `created_at` y `updated_at`. Los campos `created_by` y `updated_by` se recomiendan si no incrementan excesivamente la complejidad inicial.
 
-## 14. Estrategia con Flyway
+## 20. Estrategia con Flyway
 
 Migraciones iniciales sugeridas:
 
-- V1__create_roles_table.sql
-- V2__create_users_table.sql
-- V3__create_customers_table.sql
-- V4__create_installations_table.sql
-- V5__create_equipment_table.sql
-- V6__create_interventions_table.sql
-- V7__create_reviews_table.sql
-- V8__insert_initial_roles.sql
+- V1__create_roles_and_permissions.sql.
+- V2__create_users_table.sql.
+- V3__create_customers_table.sql.
+- V4__create_installations_table.sql.
+- V5__create_equipment_table.sql.
+- V6__create_interventions_table.sql.
+- V7__create_inspection_templates.sql.
+- V8__create_inspections_tables.sql.
+- V9__insert_initial_roles_permissions.sql.
+- V10__insert_initial_inspection_template_zones.sql.
 
 Las migraciones deben ser incrementales, revisables y no destructivas siempre que sea posible.

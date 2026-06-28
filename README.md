@@ -1,96 +1,150 @@
 # DoorManager Pro
 
-DoorManager Pro es un proyecto de portfolio desarrollado en Java orientado a la gestión de empresas de instalación y mantenimiento de puertas automáticas.
+DoorManager Pro es una plataforma web profesional para empresas de instalacion y mantenimiento de puertas automaticas.
 
-El objetivo del proyecto es construir una aplicación realista, mantenible y profesional que permita gestionar clientes, instalaciones, equipos, revisiones e intervenciones técnicas.
+El proyecto deja de plantearse como una aplicacion de escritorio Java Swing y pasa a definirse como una solucion web responsive/PWA, accesible desde ordenador, movil y tablet, con datos centralizados y control de acceso por usuarios, roles y permisos.
 
-## Motivación
+## Objetivo
 
-Este proyecto nace a partir de experiencia real en el sector de puertas automáticas. La idea es transformar necesidades habituales del trabajo técnico en una solución software completa, útil y presentable como proyecto profesional para entrevistas de desarrollo Java.
+Construir una aplicacion realista, mantenible y presentable como portfolio profesional que permita gestionar clientes, instalaciones, puertas/equipos, intervenciones, comprobaciones de montaje, comprobaciones de mantenimiento e historiales tecnicos por equipo.
+
+La plataforma debe facilitar el trabajo de oficina, responsables tecnicos y tecnicos de campo desde cualquier dispositivo compatible con navegador moderno.
+
+## Vision del producto
+
+- Plataforma web responsive para escritorio, movil y tablet.
+- PWA instalable visualmente en movil y escritorio.
+- Backend centralizado con API REST segura.
+- Base de datos PostgreSQL unica y compartida por todos los dispositivos.
+- Gestion de usuarios, roles y permisos.
+- Checklist visual e interactivo por puerta/equipo.
+- Historial unico de comprobaciones por cada puerta.
+- Documentacion tecnica mediante Swagger/OpenAPI.
+- Despliegue reproducible con Docker.
 
 ## Funcionalidades previstas
 
-### Versión inicial
+### Modulos principales
 
-- Gestión de clientes.
-- Gestión de instalaciones por cliente.
-- Registro de puertas automáticas y equipos.
-- Registro de averías e intervenciones.
-- Planificación de revisiones.
-- Dashboard con información principal.
-- Búsqueda y filtrado de datos.
+- Gestion de clientes.
+- Gestion de instalaciones por cliente.
+- Gestion de puertas automaticas y equipos.
+- Gestion de usuarios, roles y permisos.
+- Registro de intervenciones tecnicas.
+- Modulo de comprobaciones de montaje.
+- Modulo de comprobaciones de mantenimiento.
+- Checklist visual e interactivo por puerta.
+- Historial de checks por puerta/equipo.
+- Dashboard operativo responsive.
+- Busqueda, filtrado, paginacion y consulta de historicos.
 
-### Futuras mejoras
+### Checklist interactivo
 
-- Gestión de usuarios y roles.
-- Firma del cliente.
-- Adjuntar fotografías a intervenciones.
-- Generación de informes PDF.
-- Exportación de datos.
-- Calendario avanzado de mantenimientos.
-- Estadísticas de averías, revisiones y clientes.
-- Aplicación web o móvil para técnicos.
+Cada puerta debe mostrar un dibujo o esquema interactivo. Al pulsar una zona de la puerta, se abrira la comprobacion correspondiente.
 
-## Tecnologías previstas
+Partes iniciales contempladas:
 
-- Java 21 LTS
-- Spring Boot
-- Maven
-- PostgreSQL
-- Spring Data JPA
-- Flyway
-- Spring Security
-- JWT
-- Swagger / OpenAPI
-- Docker
-- JUnit
-- Mockito
-- GitHub Actions
+- Motor.
+- Cuadro de maniobra.
+- Fotocelulas.
+- Guias.
+- Hoja u hojas moviles.
+- Radar o detector.
+- Selector de funciones.
+- Bateria.
+- Finales de carrera.
+- Sistema antiaplastamiento.
+- Cerradura o desbloqueo manual.
+
+Cada zona comprobada podra registrar:
+
+- Estado: correcto, pendiente, revisar o averia.
+- Observaciones.
+- Fotografias.
+- Fecha y hora.
+- Tecnico responsable.
+- Firma o validacion si procede.
+
+## Stack tecnologico previsto
+
+### Backend
+
+- Java 21 LTS.
+- Spring Boot.
+- Spring Web.
+- Spring Data JPA.
+- Spring Security.
+- JWT.
+- PostgreSQL.
+- Flyway.
+- Swagger/OpenAPI.
+- JUnit y Mockito.
+
+### Frontend
+
+- React.
+- TypeScript.
+- Vite.
+- Tailwind CSS.
+- PWA con manifest, service worker y assets instalables.
+
+### Infraestructura
+
+- Docker.
+- Docker Compose.
+- Variables de entorno para configuracion y secretos.
+- GitHub Actions como mejora futura para CI.
 
 ## Arquitectura prevista
 
-El proyecto seguirá una arquitectura por capas:
-
 ```text
-Controller  -> Entrada de peticiones
-Service     -> Lógica de negocio
-Repository  -> Acceso a base de datos
-Entity      -> Modelo persistente
-DTO         -> Datos de entrada y salida
-Security    -> Autenticación y autorización
+Dispositivo web/PWA
+  React + TypeScript + Vite + Tailwind CSS
+        |
+        | HTTPS / JSON / JWT
+        v
+API REST Spring Boot
+  Controllers -> Services -> Repositories -> Entities/DTOs
+        |
+        v
+PostgreSQL centralizado
 ```
+
+El frontend no debe contener reglas de seguridad criticas. La autorizacion real se aplicara siempre en el backend mediante Spring Security, roles y permisos.
 
 ## Seguridad
 
-La seguridad será una parte importante del proyecto desde el inicio:
-
-- Validación de datos de entrada.
-- Protección contra inyección SQL mediante JPA y consultas seguras.
-- Contraseñas cifradas cuando se implemente autenticación.
-- Roles diferenciados: Administrador, Oficina y Técnico.
-- Gestión centralizada de errores.
-- Variables de entorno para credenciales y configuración.
-- No se subirán secretos ni contraseñas al repositorio.
+- Autenticacion con Spring Security y JWT.
+- Passwords cifradas con BCrypt.
+- Permisos evaluados en backend.
+- Roles iniciales: ADMIN, RESPONSABLE_TECNICO, TECNICO y CONSULTA.
+- Restriccion de acceso a comprobaciones segun permisos.
+- Validacion de datos de entrada.
+- DTOs para evitar exponer datos internos.
+- Variables de entorno para credenciales y secretos.
+- No se subiran secretos al repositorio.
 
 ## Estado del proyecto
 
-Proyecto en fase inicial de diseño y planificación.
+Proyecto en fase inicial de diseno y planificacion tecnica.
 
-## Roadmap
+## Roadmap resumido
 
-- [ ] Crear estructura base del proyecto Spring Boot.
-- [ ] Configurar PostgreSQL y Docker.
-- [ ] Crear módulo de clientes.
-- [ ] Crear módulo de instalaciones.
-- [ ] Crear módulo de equipos/puertas.
-- [ ] Crear módulo de intervenciones.
-- [ ] Añadir dashboard inicial.
-- [ ] Añadir documentación Swagger.
-- [ ] Añadir tests automatizados.
-- [ ] Preparar primera release.
+- [ ] Definir arquitectura web/PWA y documentacion base.
+- [ ] Crear backend Spring Boot con Java 21.
+- [ ] Configurar PostgreSQL, Flyway y Docker.
+- [ ] Implementar seguridad con usuarios, roles, permisos y JWT.
+- [ ] Crear API REST documentada con Swagger/OpenAPI.
+- [ ] Crear frontend React, TypeScript, Vite y Tailwind CSS.
+- [ ] Implementar PWA instalable.
+- [ ] Crear modulos de clientes, instalaciones y equipos.
+- [ ] Crear modulos de intervenciones y comprobaciones.
+- [ ] Implementar checklist visual interactivo por puerta.
+- [ ] Anadir tests automatizados y datos demo.
+- [ ] Preparar primera release demostrable.
 
 ## Autor
 
-Francisco Javier Ena Márquez
+Francisco Javier Ena Marquez
 
-Proyecto desarrollado como portfolio profesional dentro del proceso de formación y especialización en desarrollo de aplicaciones multiplataforma.
+Proyecto desarrollado como portfolio profesional dentro del proceso de formacion y especializacion en desarrollo de aplicaciones multiplataforma.

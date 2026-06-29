@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 | --- | --- |
-| Version | 0.3 |
+| Version | 0.4 |
 | Estado | Vivo |
 | Fecha | 2026-06-28 |
 | Autor | Francisco Javier Ena Marquez |
-| Ultima modificacion | 2026-06-28 |
+| Ultima modificacion | 2026-06-29 |
 
 ## Indice
 
@@ -74,6 +74,55 @@ Debe incluir:
 - Fotografias historicas.
 - Informes.
 - Firmas.
+
+## 4.1 Historial tecnico del equipo
+
+Cuando un componente esta averiado y se sustituye, debe quedar reflejado en el historial del equipo.
+
+Debe distinguirse:
+
+- Reparacion del mismo componente.
+- Sustitucion por un componente nuevo.
+
+En sustituciones debe constar:
+
+- Componente sustituido.
+- Componente nuevo.
+- Fecha.
+- Parte.
+- Tecnico.
+- Causa.
+- Pruebas.
+- Resultado.
+
+Las sucesivas sustituciones y reincidencias forman parte del historial tecnico cronologico del equipo.
+
+La logistica y la garantia del proveedor pertenecen al area de compras y proveedores. La instalacion, pruebas y resultado pertenecen al area tecnica. Ambas areas se relacionan, pero no se mezclan.
+
+## 4.2 Busqueda tecnica transversal
+
+El buscador debe permitir trabajar sobre un equipo, varios equipos, un centro, un cliente, una familia o todo el parque tecnico.
+
+Filtros previstos:
+
+- Componente.
+- Marca.
+- Modelo.
+- Averia.
+- Reparacion.
+- Sustitucion.
+- Tecnico.
+- Fecha.
+- Garantia.
+- Reincidencia.
+- Cliente.
+- Centro.
+- Expediente.
+- Parte.
+- Tipo de equipo.
+- Resultado.
+
+Debe respetar permisos y aislamiento de datos. No se priorizan todavia consultas guardadas.
 
 ## 5. Proteccion de datos
 

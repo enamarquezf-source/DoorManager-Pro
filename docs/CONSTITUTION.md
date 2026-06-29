@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 | --- | --- |
-| Version | 0.3 |
+| Version | 0.4 |
 | Estado | Vivo |
 | Fecha | 2026-06-28 |
 | Autor | Francisco Javier Ena Marquez |
-| Ultima modificacion | 2026-06-28 |
+| Ultima modificacion | 2026-06-29 |
 
 ## Indice
 
@@ -101,11 +101,33 @@ La confianza de tecnicos, oficina, gerencia y clientes depende de que el sistema
 
 DoorManager Pro existe para preservar conocimiento, ayudar a tomar mejores decisiones y hacer que las empresas trabajen de forma mas segura, eficiente y profesional.
 
+### Articulo 20. Un unico dato, multiples perspectivas
+
+DoorManager Pro es una aplicacion web empresarial transversal. Cada departamento trabaja con sus propias vistas y responsabilidades, pero sobre un nucleo comun de informacion. Los datos se relacionan entre departamentos sin mezclar responsabilidades.
+
+### Articulo 21. Neutralidad organizativa
+
+DoorManager Pro apoya la organizacion, pero no impone estructura, departamentos, flujos ni decisiones empresariales concretas. La plataforma informa, ayuda y conserva trazabilidad; la empresa decide.
+
+### Articulo 22. Configuracion adaptable
+
+La plataforma debe poder adaptarse a terminologia, roles, permisos, estados, flujos, reglas de aprobacion, documentos, nomenclaturas, modulos, requisitos de seguridad y forma de trabajo de cada empresa.
+
+### Articulo 23. Derechos sobre modulos implantados
+
+Un modulo ya implantado no debe retirarse automaticamente ni perder sus datos. Debe separarse el derecho de uso del modulo implantado de servicios continuados, alojamiento, soporte, mantenimiento, integraciones y nuevas ampliaciones.
+
+### Articulo 24. Trazabilidad economica y tecnica separada
+
+La logistica, compras, stock y facturas deben relacionarse con el historial tecnico sin mezclarse con el trabajo tecnico. Una cosa es como entra y cuesta el material; otra, donde se instala, quien lo instala y con que resultado.
+
 ## 3. Documentos relacionados
 
 - `docs/PROJECT_DNA.md`.
 - `docs/PRODUCT_BIBLE.md`.
 - `docs/SECURITY.md`.
+- `docs/ARCHITECTURE/WORKSPACE_ARCHITECTURE.md`.
+- `docs/PRODUCT/MODULAR_PRODUCT_STRATEGY.md`.
 
 ## 4. Proximos desarrollos
 

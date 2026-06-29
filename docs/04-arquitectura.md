@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 | --- | --- |
-| Version | 0.3 |
+| Version | 0.4 |
 | Estado | Conceptual |
 | Fecha | 2026-06-28 |
 | Autor | Francisco Javier Ena Marquez |
-| Ultima modificacion | 2026-06-28 |
+| Ultima modificacion | 2026-06-29 |
 
 ## Indice
 
@@ -17,6 +17,9 @@ Este documento mantiene la numeracion arquitectonica interna. Para decisiones ac
 - `docs/PROJECT_DNA.md`.
 - `docs/PRODUCT_BIBLE.md`.
 - `docs/ADR/`.
+- `docs/ARCHITECTURE/WORKSPACE_ARCHITECTURE.md`.
+- `docs/PORTALS/CLIENT_PORTAL.md`.
+- `docs/PRODUCT/MODULAR_PRODUCT_STRATEGY.md`.
 
 ## Proximos desarrollos
 
@@ -27,9 +30,13 @@ Este documento mantiene la numeracion arquitectonica interna. Para decisiones ac
 
 DoorManager Pro sera una plataforma empresarial modular preparada para crecer durante anos. La arquitectura debe soportar oficina, web publica, app movil offline-first, API REST, PostgreSQL centralizado, servidor de archivos, backups, auditoria y seguridad avanzada.
 
+DoorManager Pro sera una aplicacion web empresarial completa y modular. Debe admitir despliegue en nube gestionada, nube privada, infraestructura propia del cliente, servidor de terceros y entornos aislados, segun necesidades de seguridad y operativa.
+
 ## 2. Componentes
 
 - Panel web interno para oficina.
+- Workspaces departamentales.
+- Portal seguro del cliente como modulo configurable.
 - Aplicacion movil offline-first para tecnicos.
 - Web publica para captacion, solicitudes y avisos.
 - Backend Java 21 con Spring Boot.
@@ -108,6 +115,8 @@ Modulos principales:
 - Stock y materiales.
 - Configuracion y permisos.
 
+El frontend interno debe organizarse conceptualmente por Workspaces: Tecnico, SAT, Comercial, Administracion, Almacen/Compras, Gerencia, Cliente y modulos futuros. Todos operan sobre un nucleo comun de datos.
+
 ## 6. App movil offline-first
 
 Usuarios:
@@ -149,6 +158,12 @@ Objetivos:
 - Mostrar anuncios o avisos.
 
 La web publica debe integrarse con oficina creando leads o solicitudes que puedan convertirse en cliente, aviso, presupuesto o parte.
+
+## 7.1 Portal seguro del cliente
+
+El portal cliente es diferente de la web publica. Es un modulo autenticado y configurable que permite consultar solo la informacion publicada por la empresa usuaria.
+
+Debe aplicar aislamiento estricto, autorizacion por peticion, permisos por organizacion, centro, expediente y documento, auditoria de accesos y descargas, sesiones seguras e identificadores no predecibles.
 
 ## 8. Servidor de archivos
 
@@ -213,6 +228,12 @@ La arquitectura debe incluir:
 - work_teams.
 - dashboard.
 - public_web.
+- client_portal.
+- workspaces.
+- capabilities.
+- purchasing.
+- stock_reliability.
+- reporting.
 - sync.
 - backups.
 - audit.
@@ -239,6 +260,9 @@ Grupos de endpoints:
 - `/api/v1/stock`.
 - `/api/v1/dashboard`.
 - `/api/v1/public`.
+- `/api/v1/client-portal`.
+- `/api/v1/reports`.
+- `/api/v1/purchasing`.
 - `/api/v1/sync/download`.
 - `/api/v1/sync/upload`.
 - `/api/v1/backups`.
@@ -259,8 +283,11 @@ Grupos de endpoints:
 
 Opciones:
 
-- Cloud.
-- Servidor local.
+- Nube gestionada.
+- Nube privada.
+- Infraestructura propia del cliente.
+- Servidor de terceros.
+- Entornos aislados.
 - Modelo mixto.
 
 Recomendacion inicial para portfolio:

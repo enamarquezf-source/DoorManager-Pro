@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 | --- | --- |
-| Version | 0.3 |
+| Version | 0.5 |
 | Estado | Vivo |
 | Fecha | 2026-06-28 |
 | Autor | Francisco Javier Ena Marquez |
-| Ultima modificacion | 2026-06-28 |
+| Ultima modificacion | 2026-06-29 |
 
 ## Indice
 
@@ -23,14 +23,15 @@
 11. Backups y restauracion
 12. Cumplimiento RGPD/LOPDGDD
 13. Amenazas contempladas
-14. Documentos relacionados
-15. Proximos desarrollos
+14. Portal seguro del cliente
+15. Documentos relacionados
+16. Proximos desarrollos
 
 ## 1. Enfoque
 
 DoorManager Pro debe aplicar Security by Design y Zero Trust desde el inicio.
 
-La plataforma gestionara informacion sensible de clientes, instalaciones, puertas, expedientes, fotos, videos, facturas, presupuestos, firmas, garantias y conocimiento tecnico interno.
+La plataforma gestionara informacion sensible de clientes, instalaciones, puertas, expedientes, fotos, videos, facturas, presupuestos, firmas, garantias, condiciones comerciales, datos de pago y conocimiento tecnico interno.
 
 ## 2. Principios
 
@@ -75,6 +76,8 @@ Requisitos:
 - No registrar contraseñas ni tokens completos.
 - Minimizar datos personales.
 - Politicas de retencion.
+- Proteger datos fiscales, formas de pago, plazos, condiciones comerciales y datos necesarios para reclamacion.
+- No almacenar datos bancarios o de pago mas detallados de lo necesario para la operativa y reclamacion.
 
 ## 6. Gestion segura de archivos
 
@@ -136,6 +139,8 @@ Registrar acciones criticas:
 - Subida o eliminacion de archivos.
 - Validacion o cierre de partes.
 - Emision o anulacion de facturas.
+- Cambios en forma de pago, plazos, condiciones comerciales o datos de reclamacion.
+- Autorizaciones excepcionales para iniciar trabajo sin politica comercial completa.
 - Rechazos firmados por cliente.
 - Sincronizaciones offline.
 - Restauraciones de backup.
@@ -193,13 +198,32 @@ Este documento no sustituye asesoramiento legal.
 - Codigo malicioso.
 - Perdida o robo de dispositivos moviles.
 
-## 14. Documentos relacionados
+## 14. Portal seguro del cliente
+
+El portal cliente, si se activa, debe ser un modulo configurable con aislamiento estricto entre empresas y clientes.
+
+Requisitos obligatorios:
+
+- Autorizacion comprobada en cada peticion.
+- Usuarios individuales.
+- Contraseñas protegidas.
+- Identificadores no predecibles.
+- Permisos por organizacion, centro, expediente y documento.
+- Sesiones seguras.
+- Auditoria de accesos y descargas.
+- Segundo factor configurable.
+- Ausencia total de acceso a informacion interna de la empresa usuaria de DMP.
+
+La visibilidad del portal debe depender de la configuracion acordada entre proveedor de DMP, empresa usuaria y politica aplicada por esa empresa a sus clientes.
+
+## 15. Documentos relacionados
 
 - `docs/CONSTITUTION.md`.
 - `docs/02-requisitos-seguridad.md`.
 - `docs/ADR/ADR-003-security-by-design.md`.
+- `docs/PORTALS/CLIENT_PORTAL.md`.
 
-## 15. Proximos desarrollos
+## 16. Proximos desarrollos
 
 - Definir matriz de permisos v0.4.
 - Definir criterios minimos de hardening.

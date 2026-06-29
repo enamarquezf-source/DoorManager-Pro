@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 | --- | --- |
-| Version | 0.3 |
+| Version | 0.4 |
 | Estado | Vivo |
 | Fecha | 2026-06-28 |
 | Autor | Francisco Javier Ena Marquez |
-| Ultima modificacion | 2026-06-28 |
+| Ultima modificacion | 2026-06-29 |
 
 ## Indice
 
@@ -18,8 +18,10 @@
 6. Biblioteca de conocimiento
 7. Motor de compatibilidades
 8. Relacion con Gemelo Digital
-9. Documentos relacionados
-10. Proximos desarrollos
+9. Libro Tecnico del Equipo
+10. Garantias, reincidencias y rentabilidad
+11. Documentos relacionados
+12. Proximos desarrollos
 
 ## 1. Concepto
 
@@ -60,6 +62,7 @@ Instalacion incluye:
 - Manuales entregados.
 - Garantia.
 - Mejoras futuras posibles.
+- Creacion del Libro Tecnico del Equipo.
 
 Los checklists pueden ser genericos por tipo de equipo, especificos por marca/modelo o personalizados por cliente. Deben tener versionado.
 
@@ -182,15 +185,63 @@ Centro
         Inspecciones
 ```
 
-## 9. Documentos relacionados
+La ITI debe alimentar la linea de vida de cada referencia fisica y de cada equipo instalado. Cuando un equipo se sustituye, la informacion tecnica queda asociada al equipo concreto que la genero, no solo a la posicion.
+
+## 9. Libro Tecnico del Equipo
+
+El Libro Tecnico del Equipo es el contenedor de conocimiento tecnico de un equipo instalado. Nace con el check de instalacion y se enriquece con cada intervencion posterior.
+
+Contenido minimo:
+
+- Fabricante.
+- Modelo.
+- Numero de serie.
+- Tipo de equipo.
+- Referencia fisica donde queda instalado.
+- Fotografias.
+- Check de instalacion.
+- Pruebas de funcionamiento.
+- Pruebas de seguridad.
+- Tipo de uso previsto.
+- Manuales.
+- Declaraciones o certificados si procede.
+- Garantia.
+- Observaciones tecnicas.
+- Recomendaciones futuras.
+- Posibles mejoras.
+- Firma o validacion del cliente.
+- Historial posterior de reparaciones, mantenimientos, deficiencias, garantias e ITI.
+
+La instalacion no se considera completa si no queda creado el Libro Tecnico del Equipo.
+
+## 10. Garantias, reincidencias y rentabilidad
+
+El Knowledge Engine debe distinguir entre causa tecnica y decision comercial.
+
+SAT evalua si una averia puede ser garantia, reincidencia, error de montaje, defecto de material, mal uso, golpe externo, desgaste, falta de mantenimiento u otra causa. El comercial asignado al cliente decide la facturacion final.
+
+Las garantias y reincidencias deben conservar conocimiento y coste:
+
+- Parte original vinculado.
+- Motivo tecnico.
+- Decision comercial.
+- Horas.
+- Desplazamiento.
+- Material.
+- Coste interno.
+- Importe facturado o no facturado.
+- Rentabilidad real.
+
+## 11. Documentos relacionados
 
 - `docs/PRODUCT_BIBLE.md`.
 - `docs/KNOWLEDGE_BASE/09_ITI_ENGINE.md`.
 - `docs/KNOWLEDGE_BASE/07_COMPATIBILITY_ENGINE.md`.
 - `docs/KNOWLEDGE_BASE/10_DIGITAL_TWIN.md`.
 - `docs/ADR/ADR-004-knowledge-engine.md`.
+- `docs/ADR/ADR-005-referencia-fisica-equipo-libro-tecnico.md`.
 
-## 10. Proximos desarrollos
+## 12. Proximos desarrollos
 
 - Definir modelo de deficiencias.
 - Definir versionado de checklists.

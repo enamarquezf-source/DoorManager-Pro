@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 | --- | --- |
-| Version | 0.3 |
+| Version | 0.4 |
 | Estado | Vivo |
 | Fecha | 2026-06-28 |
 | Autor | Francisco Javier Ena Marquez |
-| Ultima modificacion | 2026-06-28 |
+| Ultima modificacion | 2026-06-29 |
 
 ## Indice
 
@@ -59,18 +59,37 @@ Debe gestionar:
 
 ## 4. Proveedores
 
-Debe gestionar:
+Los proveedores son entidad principal para compras, facturacion, stock, trazabilidad, costes y obligaciones documentales. La implementacion fiscal y contable debera validarse posteriormente segun normativa aplicable.
 
-- Nombre proveedor.
-- CIF/NIF.
+La ficha del proveedor debe admitir:
+
+- Identidad legal y fiscal.
 - Contactos.
-- Telefono.
-- Email.
-- Direccion.
-- Materiales suministrados.
+- Correo de facturacion.
+- Condiciones de pago.
+- Datos bancarios cuando proceda.
+- Referencias suministradas.
 - Marcas.
-- Referencias.
 - Tarifas.
+- Descuentos.
+- Plazos.
+- Estado.
+- Documentos.
+- Observaciones.
+
+## 4.1 Compras y trazabilidad
+
+Flujo general:
+
+```text
+Proveedor -> Pedido de compra -> Albaran o recepcion -> Entrada o destino del material -> Factura del proveedor -> Coste real -> Consumo o instalacion -> Facturacion al cliente cuando corresponda
+```
+
+DMP debe diferenciar lo pedido, confirmado, recibido, facturado, utilizado, devuelto o sobrante.
+
+DMP puede detectar necesidades, consolidarlas, comparar proveedores, proponer cantidades, preparar pedidos, generar PDF, preparar correos y mostrar vista previa. Nunca debe aprobar una compra automaticamente, emitir un pedido sin autorizacion ni enviar un pedido sin accion expresa de usuario autorizado.
+
+Una factura de proveedor puede agrupar varios pedidos, albaranes, expedientes y partes sin eliminar trazabilidad original de cada pedido y linea.
 - Pedidos.
 - Albaranes.
 - Facturas de proveedor.
@@ -82,9 +101,12 @@ Debe gestionar:
 - Las tarifas pueden cambiar en el tiempo.
 - Los materiales usados en partes pueden descontar stock.
 - Los pedidos y albaranes alimentan stock.
+- Los pedidos pueden vincularse a expediente, parte, equipo o stock general.
+- Las devoluciones a proveedor se registran y siguen, pero DMP no reclama ni ejecuta automaticamente la devolucion.
 
 ## 6. Criterios de aceptacion
 
 - Un cliente agrupa contactos, direcciones, instalaciones y puertas.
 - Un proveedor agrupa materiales, marcas y tarifas.
 - Los materiales usados en partes pueden relacionarse con proveedor y stock.
+- Ninguna compra se envia sin usuario autorizado.

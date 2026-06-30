@@ -1,0 +1,5 @@
+node_modules/
+dist/
+*.tsbuildinfo
+Sesiones.gitignore
+public/checks/seccional-industrial22.png

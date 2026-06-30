@@ -121,6 +121,89 @@ La documentacion principal esta en `docs/`:
 
 Proyecto en fase de documentacion, arquitectura y modelo conceptual. No se debe generar codigo hasta cerrar la base funcional y tecnica.
 
+## Prototipo web de demostracion
+
+El repositorio incluye un prototipo frontend navegable con React, TypeScript y Vite. Es una simulacion visual con datos locales para validar estructura, navegacion y perfiles.
+
+### Instalacion
+
+```text
+npm install
+```
+
+### Ejecucion
+
+```text
+npm run dev:web
+```
+
+URL unica de la aplicacion:
+
+```text
+http://localhost:5173/
+```
+
+`npm run dev:mobile` queda como alias de desarrollo sobre el mismo host y la misma aplicacion. No levanta una segunda app ni un segundo puerto.
+
+```text
+npm run dev:mobile
+```
+
+### Usuarios demo
+
+En la pantalla de login, pulsa `Acceso de demostracion`, selecciona un usuario y despues pulsa `Iniciar sesion`.
+
+- Marta Lopez: SAT como area principal, con acceso tambien a Comercial.
+- Laura Sanchez: Comercial.
+- Elena Ruiz: Oficina.
+- Carlos Navarro: Gerencia.
+- Diego Martin: Tecnico de campo.
+
+Marta puede cambiar de espacio de trabajo desde el menu de usuario situado en la cabecera. Los demas usuarios solo ven su espacio autorizado.
+
+### Cierre de sesion y reset
+
+El menu de usuario permite:
+
+- Ver `Mi perfil`.
+- Cambiar de espacio si el usuario tiene varios roles.
+- Restablecer demostracion.
+- Cerrar sesion.
+
+El restablecimiento borra la sesion demo, preferencia del menu lateral y estado local del tecnico.
+
+### Rutas internas principales
+
+```text
+/
+/app/inicio
+/app/trabajos
+/app/trabajos/TR-2401
+/app/equipos/EQ-SEC-001
+/app/presupuestos?estado=enviado
+/app/facturacion
+/app/prl
+/app/operaciones?filtro=pendientes
+/app/tecnico
+/app/tecnico/trabajo/TR-2401
+/app/tecnico/trabajo/TR-2401/check
+/app/tecnico/trabajo/TR-2401/check/hoja
+```
+
+### Restablecimiento de datos demo
+
+El flujo simulado del tecnico guarda el estado en `localStorage` con las claves `dmp-tech-stage` y `dmp-tech-history`. Puede restablecerse desde `Restablecer demostracion` en el menu de usuario.
+
+### Limitaciones del prototipo
+
+- No hay backend.
+- No hay autenticacion real.
+- No hay base de datos.
+- No hay sincronizacion offline real.
+- Los permisos y perfiles son simulados.
+- Los datos son ficticios y locales.
+- El check tecnico de puerta seccional industrial usa la imagen publica `/checks/seccional-industrial.png` y guarda resultados en estado local simulado. Sigue sin existir validacion tecnica definitiva ni backend.
+
 ## Autor
 
 Francisco Javier Ena Marquez

@@ -8,33 +8,23 @@ import {
 import {
   alerts, budgets, centerName, clientName, clients, contracts, equipment, equipmentName, invoices, purchases,
   supplierName, technicianName, technicians, works, type AlertItem, type ProfileId, type Severity, type TechnicianStage,
-  type Work,
+  type Work, type DemoUser, type CheckResult, type CheckProgress,
 } from './demoData';
+import { useDemoStore, type DemoActions } from './data/store';
 
-type DemoUser = { id: string; name: string; email: string; password: string; position: string; primary: ProfileId; roles: ProfileId[] };
 type Session = { userId: string; workspace: ProfileId; signedIn: true };
 type NavItem = { id: string; label: string; path: string; icon: typeof Home };
 type Metric = { key: string; label: string; value: string; tone: Severity; icon: ReactNode; route: string };
 type WorkRuntime = Record<string, { stage: TechnicianStage; history: string[]; returnRequested?: boolean }>;
-type CheckStatus = 'Sin revisar' | 'Favorable' | 'Problema leve' | 'No favorable' | 'Favorable tras intervención' | 'No aplicable';
+type CheckStatus = CheckResult;
 type CheckBlockId = 'hoja' | 'guias' | 'muelles' | 'automatizacion' | 'estructura' | 'funcionamiento';
-type CheckRecord = { id: string; partId: string; workId: string; equipmentId: string; technician: string; date: string; result: string; blocks: Record<CheckBlockId, CheckStatus>; completed?: boolean };
+type CheckRecord = { id: string; partId: string; workId: string; equipmentId: string; technician: string; date: string; progress: CheckProgress; result: CheckResult | 'Borrador'; blocks: Record<CheckBlockId, CheckStatus>; completed?: boolean; deficiency?: string; opportunityId?: string };
 
 const iconProps = { size: 18, strokeWidth: 2 };
 const sessionKey = 'dmp-demo-session';
 const sidebarKey = 'dmp-sidebar-collapsed';
 const techStageKey = 'dmp-tech-stage';
 const techHistoryKey = 'dmp-tech-history';
-const workRuntimeKey = 'dmp-work-runtime';
-const checksKey = 'dmp-checks';
-
-const demoUsers: DemoUser[] = [
-  { id: 'marta', name: 'Marta López', email: 'marta.demo@doormanager.local', password: 'DemoSAT2026', position: 'Coordinación técnica', primary: 'sat', roles: ['sat', 'comercial'] },
-  { id: 'laura', name: 'Laura Sánchez', email: 'laura.demo@doormanager.local', password: 'DemoCOM2026', position: 'Gestión comercial', primary: 'comercial', roles: ['comercial'] },
-  { id: 'elena', name: 'Elena Ruiz', email: 'elena.demo@doormanager.local', password: 'DemoOFI2026', position: 'Administración', primary: 'oficina', roles: ['oficina'] },
-  { id: 'carlos', name: 'Carlos Navarro', email: 'carlos.demo@doormanager.local', password: 'DemoDIR2026', position: 'Dirección', primary: 'gerencia', roles: ['gerencia'] },
-  { id: 'diego', name: 'Diego Martín', email: 'diego.demo@doormanager.local', password: 'DemoTEC2026', position: 'Técnico de campo', primary: 'tecnico', roles: ['tecnico'] },
-];
 
 const sectionalBlocks: { id: CheckBlockId; name: string; components: string[]; area: React.CSSProperties }[] = [
   { id: 'hoja', name: 'Hoja', components: ['Paneles', 'Herrajes', 'Bisagras', 'Rodillos', 'Juntas', 'Perfil inferior', 'Sistema anticaída'], area: { left: '25%', top: '30%', width: '44%', height: '42%' } },
@@ -47,7 +37,7 @@ const sectionalBlocks: { id: CheckBlockId; name: string; components: string[]; a
 
 const physicalSectionalBlocks = sectionalBlocks.filter((block) => block.id !== 'funcionamiento');
 
-const checkStatuses: CheckStatus[] = ['Sin revisar', 'Favorable', 'Problema leve', 'No favorable', 'Favorable tras intervención', 'No aplicable'];
+const checkStatuses: CheckStatus[] = ['Sin revisar', 'Todo favorable', 'Problema leve', 'No favorable', 'Favorable tras intervención', 'No aplicable'];
 
 const technicalDocs = [
   ['Manual instalación SD-420', 'manual de instalación', 'Equipo concreto EQ-SEC-001'],
@@ -68,9 +58,10 @@ const workspaceTitles: Record<ProfileId, string> = {
 function App() {
   const [path, navigate] = usePath();
   const [session, setSession] = usePersistentSession();
-  const [runtime, setRuntime] = usePersistentRuntime();
-  const [checks, setChecks] = usePersistentChecks();
-  const user = session ? demoUsers.find((item) => item.id === session.userId) : undefined;
+  const { store, actions } = useDemoStore();
+  const runtime = store.runtime as WorkRuntime;
+  const checks = store.checks as CheckRecord[];
+  const user = session ? store.users.find((item) => item.id === session.userId) : undefined;
 
   useEffect(() => {
     if (!session && path !== '/') navigate('/');
@@ -83,10 +74,10 @@ function App() {
     navigate(defaultRoute(nextUser.primary));
   };
 
-  if (!session || !user) return <LoginPage onSignIn={signIn} />;
-  if (session.workspace === 'tecnico') return <TechnicianApp user={user} navigate={navigate} path={path} runtime={runtime} setRuntime={setRuntime} checks={checks} setChecks={setChecks} onLogout={() => logout(setSession, navigate)} />;
+  if (!session || !user) return <LoginPage users={store.users} onSignIn={signIn} />;
+  if (session.workspace === 'tecnico') return <TechnicianApp user={user} navigate={navigate} path={path} runtime={runtime} setRuntime={actions.setRuntime} checks={checks} setChecks={actions.setChecks} actions={actions} onLogout={() => logout(setSession, navigate)} />;
 
-  return <DesktopLayout session={session} setSession={setSession} user={user} path={path} navigate={navigate}>{renderRoute(session.workspace, path, navigate, runtime, checks)}</DesktopLayout>;
+  return <DesktopLayout session={session} setSession={setSession} user={user} path={path} navigate={navigate} alerts={store.alerts} actions={actions}>{renderRoute(session.workspace, path, navigate, runtime, checks, actions)}</DesktopLayout>;
 }
 
 function usePath(): [string, (path: string) => void] {
@@ -114,36 +105,6 @@ function usePersistentSession(): [Session | null, (session: Session | null) => v
   return [session, setSession];
 }
 
-function usePersistentRuntime(): [WorkRuntime, (runtime: WorkRuntime) => void] {
-  const [runtime, setState] = useState<WorkRuntime>(() => {
-    const stored = localStorage.getItem(workRuntimeKey);
-    if (stored) return JSON.parse(stored) as WorkRuntime;
-    return defaultRuntime();
-  });
-  const setRuntime = (next: WorkRuntime) => {
-    localStorage.setItem(workRuntimeKey, JSON.stringify(next));
-    setState(next);
-  };
-  return [runtime, setRuntime];
-}
-
-function usePersistentChecks(): [CheckRecord[], (checks: CheckRecord[]) => void] {
-  const [checks, setState] = useState<CheckRecord[]>(() => JSON.parse(localStorage.getItem(checksKey) ?? '[]') as CheckRecord[]);
-  const setChecks = (next: CheckRecord[]) => {
-    localStorage.setItem(checksKey, JSON.stringify(next));
-    setState(next);
-  };
-  return [checks, setChecks];
-}
-
-function defaultRuntime(): WorkRuntime {
-  return {
-    'TR-2401': { stage: 'downloaded', history: [`${now()} Trabajo descargado`] },
-    'TR-2406': { stage: 'downloaded', history: [`${now()} Trabajo descargado`] },
-    'TR-2411': { stage: 'downloaded', history: [`${now()} Trabajo descargado`] },
-  };
-}
-
 function parseSession(value: string | null): Session | null {
   if (!value) return null;
   try {
@@ -153,7 +114,7 @@ function parseSession(value: string | null): Session | null {
   return null;
 }
 
-function LoginPage({ onSignIn }: { onSignIn: (user: DemoUser) => void }) {
+function LoginPage({ users, onSignIn }: { users: DemoUser[]; onSignIn: (user: DemoUser) => void }) {
   const [demoOpen, setDemoOpen] = useState(false);
   const [selected, setSelected] = useState<DemoUser | null>(null);
   const [email, setEmail] = useState('');
@@ -172,7 +133,7 @@ function LoginPage({ onSignIn }: { onSignIn: (user: DemoUser) => void }) {
 
   const submit = () => {
     setError('');
-    const user = demoUsers.find((item) => item.email === email && item.password === password);
+    const user = users.find((item) => item.email === email && item.password === password);
     if (!user) {
       setError('Credenciales demo no válidas. Selecciona un usuario de demostración o revisa los datos.');
       return;
@@ -197,13 +158,13 @@ function LoginPage({ onSignIn }: { onSignIn: (user: DemoUser) => void }) {
       {error && <p className="form-error"><AlertTriangle size={16} />{error}</p>}
       <button className="primary wide big" onClick={submit} disabled={loading}>{loading ? 'Iniciando sesión...' : 'Iniciar sesión'}</button>
       <button className="demo-toggle" onClick={() => setDemoOpen(!demoOpen)}><UsersRound size={17} /> Acceso de demostración</button>
-      {demoOpen && <div className="demo-users">{demoUsers.map((user) => <button key={user.id} className={selected?.id === user.id ? 'selected' : ''} onClick={() => pickDemo(user)}><span>{initials(user.name)}</span><strong>{user.name}</strong><small>{user.position} · {workspaceTitles[user.primary]}</small></button>)}</div>}
+      {demoOpen && <div className="demo-users">{users.map((user) => <button key={user.id} className={selected?.id === user.id ? 'selected' : ''} onClick={() => pickDemo(user)}><span>{initials(user.name)}</span><strong>{user.name}</strong><small>{user.position} · {workspaceTitles[user.primary]}</small></button>)}</div>}
       <footer>Versión demo local. Sin autenticación real. Privacidad y seguridad pendientes de implementación backend.</footer>
     </section>
   </main>;
 }
 
-function DesktopLayout({ session, setSession, user, path, navigate, children }: { session: Session; setSession: (session: Session | null) => void; user: DemoUser; path: string; navigate: (path: string) => void; children: ReactNode }) {
+function DesktopLayout({ session, setSession, user, path, navigate, alerts, actions, children }: { session: Session; setSession: (session: Session | null) => void; user: DemoUser; path: string; navigate: (path: string) => void; alerts: AlertItem[]; actions: DemoActions; children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(() => window.innerWidth <= 760 || localStorage.getItem(sidebarKey) === 'true');
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
@@ -235,12 +196,37 @@ function DesktopLayout({ session, setSession, user, path, navigate, children }: 
         <div className="top-title"><p className="eyebrow">{workspaceTitles[session.workspace]}</p><h1>{active?.label ?? workspaceTitles[session.workspace]}</h1></div>
         <GlobalSearch workspace={session.workspace} query={query} setQuery={setQuery} navigate={navigate} />
         <button className="icon-btn" onClick={() => setAlertsOpen(true)} title="Centro de avisos" aria-label="Abrir centro de avisos"><Bell {...iconProps} /><b>{profileAlerts.length}</b></button>
-        <div className="user-menu-wrap"><button className="user user-button" onClick={() => setUserOpen(!userOpen)}><span>{initials(user.name)}</span><div><strong>{user.name}</strong><small>{user.position}</small></div></button>{userOpen && <><button className="popover-backdrop" aria-label="Cerrar menú de usuario" onClick={() => setUserOpen(false)} /><UserMenu user={user} session={session} setWorkspace={setWorkspace} onReset={() => resetDemo(setSession, navigate)} onLogout={() => logout(setSession, navigate)} onClose={() => setUserOpen(false)} /></>}</div>
+        <div className="user-menu-wrap"><button className="user user-button" onClick={() => setUserOpen(!userOpen)}><span>{initials(user.name)}</span><div><strong>{user.name}</strong><small>{user.position}</small></div></button>{userOpen && <><button className="popover-backdrop" aria-label="Cerrar menú de usuario" onClick={() => setUserOpen(false)} /><UserMenu user={user} session={session} setWorkspace={setWorkspace} onReset={() => resetDemo(setSession, navigate, actions)} onLogout={() => logout(setSession, navigate)} onClose={() => setUserOpen(false)} /></>}</div>
+        <div className="mobile-session-actions"><button onClick={() => resetDemo(setSession, navigate, actions)}>Restablecer</button><button onClick={() => logout(setSession, navigate)}><LogOut size={16} /> Salir</button></div>
       </header>
+      <AdminDemoActions actions={actions} />
       <main>{children}</main>
     </div>
-    {alertsOpen && <SidePanel title="Centro de avisos" subtitle={workspaceTitles[session.workspace]} onClose={() => setAlertsOpen(false)}><AlertsPanel items={profileAlerts} navigate={navigate} /></SidePanel>}
+    {alertsOpen && <SidePanel title="Centro de avisos" subtitle={workspaceTitles[session.workspace]} onClose={() => setAlertsOpen(false)}><AlertsPanel items={profileAlerts} navigate={navigate} actions={actions} /></SidePanel>}
   </div>;
+}
+
+function AdminDemoActions({ actions }: { actions: DemoActions }) {
+  const [mode, setMode] = useState<'part' | 'edit-part' | 'check' | 'edit-check' | 'alert' | 'edit-alert' | null>(null);
+  const [title, setTitle] = useState('');
+  const [message, setMessage] = useState('');
+  const close = () => { setMode(null); setTitle(''); };
+  const save = () => {
+    if (!mode) return;
+    if (!title.trim() && ['part', 'alert'].includes(mode)) { setMessage('Completa al menos el título para guardar.'); return; }
+    if (mode === 'part') {
+      const id = `TR-${Date.now().toString().slice(-4)}`;
+      actions.upsertWork({ ...works[0], id, partId: `PAR-${Date.now().toString().slice(-4)}`, caseId: `EXP-DEMO-${Date.now().toString().slice(-3)}`, type: title, status: 'Pendiente', technicianStage: 'downloaded', history: [`${now()} Parte creado desde demo`] });
+    }
+    if (mode === 'edit-part') actions.upsertWork({ ...works[3], fault: title || 'Deficiencia editada desde demo', status: 'Pendiente', history: [...works[3].history, `${now()} Parte modificado desde demo`] });
+    if (mode === 'check') actions.upsertCheck({ id: `CHK-DEMO-${Date.now().toString().slice(-4)}`, workId: 'TR-2401', partId: 'PAR-8812', equipmentId: 'EQ-SEC-001', technician: 'Marta López', date: new Date().toLocaleString('es-ES'), progress: 'Por realizar', result: 'Sin revisar', blocks: emptyBlocks() });
+    if (mode === 'edit-check') actions.upsertCheck({ id: 'CHK-PAR-8812', workId: 'TR-2401', partId: 'PAR-8812', equipmentId: 'EQ-SEC-001', technician: 'Marta López', date: new Date().toLocaleString('es-ES'), progress: 'Realizado', result: 'No favorable', blocks: { ...emptyBlocks(), automatizacion: 'No favorable' }, completed: true, deficiency: title || 'Deficiencia editada desde administración' });
+    if (mode === 'alert') actions.upsertAlert({ id: `av-demo-${Date.now()}`, profiles: ['sat', 'comercial'], title, detail: 'Aviso creado desde formulario demo', severity: 'warn', date: new Date().toISOString().slice(0, 10), entity: 'TR-2401', relatedType: 'work', relatedId: 'TR-2401', owner: 'Marta López', status: 'nuevo', read: false, route: '/app/trabajos/TR-2401' });
+    if (mode === 'edit-alert') actions.upsertAlert({ ...alerts[0], detail: title || 'Aviso modificado desde formulario demo', read: false, status: 'actualizado' });
+    setMessage('Guardado en la base ficticia local. Recarga la página para comprobar persistencia.');
+    close();
+  };
+  return <section className="demo-actions"><strong>Acciones demo</strong><button onClick={() => setMode('part')}>Crear parte</button><button onClick={() => setMode('edit-part')}>Modificar parte</button><button onClick={() => setMode('check')}>Crear check</button><button onClick={() => setMode('edit-check')}>Modificar check</button><button onClick={() => setMode('alert')}>Crear aviso</button><button onClick={() => setMode('edit-alert')}>Modificar aviso</button>{message && <span>{message}</span>}{mode && <div className="mini-modal" role="dialog" aria-modal="true"><div><h3>{mode.includes('edit') ? 'Modificar registro' : 'Crear registro'}</h3><label>Campo principal<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Título, descripción o deficiencia" /></label><p>Los datos se vinculan a registros reales de demo para mantener relaciones navegables.</p><button className="primary" onClick={save}>Guardar</button><button onClick={close}>Cancelar</button></div></div>}</section>;
 }
 
 function UserMenu({ user, session, setWorkspace, onReset, onLogout, onClose }: { user: DemoUser; session: Session; setWorkspace: (workspace: ProfileId) => void; onReset: () => void; onLogout: () => void; onClose: () => void }) {
@@ -248,7 +234,7 @@ function UserMenu({ user, session, setWorkspace, onReset, onLogout, onClose }: {
   return <div className="user-popover" role="menu"><button><UserRound size={16} /> Mi perfil</button>{user.roles.length > 1 && <div className="workspace-switch"><strong>Cambiar espacio de trabajo</strong>{user.roles.map((role) => <button key={role} className={session.workspace === role ? 'active' : ''} onClick={() => setWorkspace(role)}>{workspaceTitles[role]}</button>)}</div>}<button onClick={onReset}><Settings size={16} /> Restablecer demostración</button><button onClick={onLogout}><LogOut size={16} /> Cerrar sesión</button></div>;
 }
 
-function renderRoute(workspace: ProfileId, pathWithQuery: string, navigate: (path: string) => void, runtime: WorkRuntime, checks: CheckRecord[]) {
+function renderRoute(workspace: ProfileId, pathWithQuery: string, navigate: (path: string) => void, runtime: WorkRuntime, checks: CheckRecord[], actions: DemoActions) {
   const path = cleanPath(pathWithQuery);
   const params = new URLSearchParams(pathWithQuery.split('?')[1] ?? '');
   if (workspace === 'sat') {
@@ -260,14 +246,14 @@ function renderRoute(workspace: ProfileId, pathWithQuery: string, navigate: (pat
     if (path === '/app/equipos') return <EquipmentList navigate={navigate} />;
     if (path === '/app/tecnicos') return <TechniciansPage />;
     if (path === '/app/material') return <MaterialDetail navigate={navigate} />;
-    if (path === '/app/avisos') return <GenericAlertsPage workspace="sat" navigate={navigate} />;
+    if (path === '/app/avisos') return <GenericAlertsPage workspace="sat" navigate={navigate} actions={actions} />;
     return <SatPanel navigate={navigate} runtime={runtime} />;
   }
   if (workspace === 'comercial') {
     if (path === '/app/presupuestos') return <BudgetsDetail status={params.get('estado')} navigate={navigate} />;
     if (path === '/app/oportunidades') return <OpportunitiesDetail navigate={navigate} />;
     if (path === '/app/contratos') return <ContractsDetail />;
-    if (path === '/app/avisos') return <GenericAlertsPage workspace="comercial" navigate={navigate} />;
+    if (path === '/app/avisos') return <GenericAlertsPage workspace="comercial" navigate={navigate} actions={actions} />;
     return <CommercialPanel navigate={navigate} />;
   }
   if (workspace === 'oficina') {
@@ -275,11 +261,11 @@ function renderRoute(workspace: ProfileId, pathWithQuery: string, navigate: (pat
     if (path === '/app/compras' || path === '/app/proveedores') return <PurchasesDetail />;
     if (path === '/app/prl') return <PrlDetail />;
     if (path === '/app/vehiculos') return <VehiclesDetail />;
-    if (path === '/app/avisos') return <GenericAlertsPage workspace="oficina" navigate={navigate} />;
+    if (path === '/app/avisos') return <GenericAlertsPage workspace="oficina" navigate={navigate} actions={actions} />;
     return <OfficePanel navigate={navigate} />;
   }
   if (path === '/app/informes' || path === '/app/operaciones') return <ManagementDetail filter={params.get('filtro')} navigate={navigate} />;
-  if (path === '/app/avisos') return <GenericAlertsPage workspace="gerencia" navigate={navigate} />;
+  if (path === '/app/avisos') return <GenericAlertsPage workspace="gerencia" navigate={navigate} actions={actions} />;
   return <ManagementPanel navigate={navigate} />;
 }
 
@@ -386,22 +372,22 @@ function ContractsDetail() { return <DetailPage title="Contratos" summary="Renov
 function InvoicesDetail({ filter }: { filter: string | null }) { return <DetailPage title={filter === 'vencidos' ? 'Cobros vencidos' : 'Facturación'} summary="Facturas, vencimientos e importes simulados." back="/app/inicio"><CompactList items={invoices.map((invoice) => [invoice.id, `${clientName(invoice.clientId)} · ${invoice.due} · ${formatCurrency(invoice.amount)} · ${invoice.status}`, invoice.status === 'vencida' ? 'danger' : 'warn'])} /></DetailPage>; }
 function PurchasesDetail() { return <DetailPage title="Compras y proveedores" summary="Pedidos, confirmaciones y expedientes afectados." back="/app/inicio"><CompactList items={purchases.map((purchase) => [purchase.id, `${supplierName(purchase.supplierId)} · ${purchase.date} · ${purchase.confirmation} · afecta ${purchase.affected}`, purchase.confirmation === 'confirmado' ? 'ok' : 'warn'])} /></DetailPage>; }
 function VehiclesDetail() { return <DetailPage title="Vehículos" summary="ITV, seguros y mantenimiento de flota ficticia." back="/app/inicio"><CompactList items={[[ 'FIC-2045', 'ITV 12/07 · seguro vigente · mantenimiento menor', 'warn' ], [ 'FIC-9812', 'Seguro 21/08 · mantenimiento programado', 'info' ]]} /></DetailPage>; }
-function GenericAlertsPage({ workspace, navigate }: { workspace: ProfileId; navigate: (path: string) => void }) { return <DetailPage title="Avisos" summary="Centro de avisos filtrado por perfil." back="/app/inicio" navigate={navigate}><AlertsPanel items={alerts.filter((alert) => alert.profiles.includes(workspace))} navigate={navigate} /></DetailPage>; }
+function GenericAlertsPage({ workspace, navigate, actions }: { workspace: ProfileId; navigate: (path: string) => void; actions: DemoActions }) { return <DetailPage title="Avisos" summary="Centro de avisos filtrado por perfil." back="/app/inicio" navigate={navigate}><AlertsPanel items={alerts.filter((alert) => alert.profiles.includes(workspace))} navigate={navigate} actions={actions} /></DetailPage>; }
 
-function TechnicianApp({ user, path, navigate, runtime, setRuntime, checks, setChecks, onLogout }: { user: DemoUser; path: string; navigate: (path: string) => void; runtime: WorkRuntime; setRuntime: (runtime: WorkRuntime) => void; checks: CheckRecord[]; setChecks: (checks: CheckRecord[]) => void; onLogout: () => void }) {
+function TechnicianApp({ user, path, navigate, runtime, setRuntime, checks, setChecks, actions, onLogout }: { user: DemoUser; path: string; navigate: (path: string) => void; runtime: WorkRuntime; setRuntime: (runtime: WorkRuntime) => void; checks: CheckRecord[]; setChecks: (checks: CheckRecord[]) => void; actions: DemoActions; onLogout: () => void }) {
   const [alertsOpen, setAlertsOpen] = useState(false);
   const route = cleanPath(path);
   const workId = route.match(/\/app\/tecnico\/trabajo\/([^/]+)/)?.[1];
   const checkMatch = route.match(/\/app\/tecnico\/trabajo\/([^/]+)\/check(?:\/([^/]+))?/);
   if (checkMatch) {
     const work = works.find((item) => item.id === checkMatch[1]) ?? works[0];
-    return <TechShell user={user} onLogout={onLogout} onAlerts={() => setAlertsOpen(true)}>{checkMatch[2] ? <SectionalCheckBlock work={work} blockId={checkMatch[2] as CheckBlockId} checks={checks} setChecks={setChecks} navigate={navigate} user={user} /> : <SectionalCheckMain work={work} checks={checks} setChecks={setChecks} navigate={navigate} user={user} />}{alertsOpen && <BottomSheet onClose={() => setAlertsOpen(false)}><AlertsPanel items={alerts.filter((alert) => alert.profiles.includes('tecnico'))} navigate={navigate} /></BottomSheet>}</TechShell>;
+    return <TechShell user={user} onLogout={onLogout} onAlerts={() => setAlertsOpen(true)}>{checkMatch[2] ? <SectionalCheckBlock work={work} blockId={checkMatch[2] as CheckBlockId} checks={checks} setChecks={setChecks} navigate={navigate} user={user} /> : <SectionalCheckMain work={work} checks={checks} setChecks={setChecks} navigate={navigate} user={user} />}{alertsOpen && <BottomSheet onClose={() => setAlertsOpen(false)}><AlertsPanel items={alerts.filter((alert) => alert.profiles.includes('tecnico'))} navigate={navigate} actions={actions} /></BottomSheet>}</TechShell>;
   }
   if (workId) {
     const work = works.find((item) => item.id === workId) ?? works[0];
-    return <TechShell user={user} onLogout={onLogout} onAlerts={() => setAlertsOpen(true)}><TechnicianWorkDetail work={work} runtime={runtime} setRuntime={setRuntime} checks={checks} navigate={navigate} user={user} />{alertsOpen && <BottomSheet onClose={() => setAlertsOpen(false)}><AlertsPanel items={alerts.filter((alert) => alert.profiles.includes('tecnico'))} navigate={navigate} /></BottomSheet>}</TechShell>;
+    return <TechShell user={user} onLogout={onLogout} onAlerts={() => setAlertsOpen(true)}><TechnicianWorkDetail work={work} runtime={runtime} setRuntime={setRuntime} checks={checks} navigate={navigate} user={user} actions={actions} />{alertsOpen && <BottomSheet onClose={() => setAlertsOpen(false)}><AlertsPanel items={alerts.filter((alert) => alert.profiles.includes('tecnico'))} navigate={navigate} actions={actions} /></BottomSheet>}</TechShell>;
   }
-  return <TechShell user={user} onLogout={onLogout} onAlerts={() => setAlertsOpen(true)}><MyDay runtime={runtime} navigate={navigate} />{alertsOpen && <BottomSheet onClose={() => setAlertsOpen(false)}><AlertsPanel items={alerts.filter((alert) => alert.profiles.includes('tecnico'))} navigate={navigate} /></BottomSheet>}</TechShell>;
+  return <TechShell user={user} onLogout={onLogout} onAlerts={() => setAlertsOpen(true)}><MyDay runtime={runtime} navigate={navigate} />{alertsOpen && <BottomSheet onClose={() => setAlertsOpen(false)}><AlertsPanel items={alerts.filter((alert) => alert.profiles.includes('tecnico'))} navigate={navigate} actions={actions} /></BottomSheet>}</TechShell>;
 }
 
 function MyDay({ runtime, navigate }: { runtime: WorkRuntime; navigate: (path: string) => void }) {
@@ -416,7 +402,7 @@ function MyDay({ runtime, navigate }: { runtime: WorkRuntime; navigate: (path: s
   return <section className="page"><div className="page-head"><div><p className="eyebrow">Trabajo técnico</p><h2>Mi jornada</h2><p>Partes asignados para hoy. Solo puede haber un trabajo activo al mismo tiempo.</p></div></div><div className="tabs"><button className={tab === 'pending' ? 'active' : ''} onClick={() => setTab('pending')}>Pendientes</button><button className={tab === 'active' ? 'active' : ''} onClick={() => setTab('active')}>En curso</button><button className={tab === 'done' ? 'active' : ''} onClick={() => setTab('done')}>Finalizados</button></div><div className="work-list">{rows.map((work) => <button className="journey-card" key={work.id} onClick={() => navigate(`/app/tecnico/trabajo/${work.id}`)}><div><strong>{work.hour} · {work.type}</strong><span>{clientName(work.clientId)} · {centerName(work.centerId)}</span><span>{work.equipmentId} · {equipmentName(work.equipmentId)}</span><p>{work.fault}</p></div><div><Badge tone={work.priority} icon={iconForTone(work.priority)}>{work.priority}</Badge><Badge tone={toneForStatus(work.status)} icon={iconForTone(toneForStatus(work.status))}>{work.status}</Badge><small>Material: {work.material}</small><small>Acceso: {work.access}</small><b>Abrir trabajo</b></div></button>)}{rows.length === 0 && <Card title="Sin partes en esta pestaña" icon={<CheckCircle2 {...iconProps} />}><p className="large-note">No hay trabajos en este estado.</p></Card>}</div></section>;
 }
 
-function TechnicianWorkDetail({ work, runtime, setRuntime, checks, navigate, user }: { work: Work; runtime: WorkRuntime; setRuntime: (runtime: WorkRuntime) => void; checks: CheckRecord[]; navigate: (path: string) => void; user: DemoUser }) {
+function TechnicianWorkDetail({ work, runtime, setRuntime, checks, navigate, user, actions }: { work: Work; runtime: WorkRuntime; setRuntime: (runtime: WorkRuntime) => void; checks: CheckRecord[]; navigate: (path: string) => void; user: DemoUser; actions: DemoActions }) {
   const [message, setMessage] = useState('');
   const [moreOpen, setMoreOpen] = useState(false);
   const state = runtime[work.id] ?? { stage: 'downloaded' as TechnicianStage, history: [`${now()} Trabajo descargado`] };
@@ -428,7 +414,7 @@ function TechnicianWorkDetail({ work, runtime, setRuntime, checks, navigate, use
     if (state.stage === 'sent') { requestReturn(); return; }
     if (state.stage === 'downloaded' && Object.entries(runtime).some(([id, item]) => id !== work.id && ['traveling', 'working', 'review', 'readyToSend'].includes(item.stage))) { setMessage('Ya existe otro trabajo activo. Finalízalo o corrige su estado antes de iniciar este.'); return; }
     const next = nextStage(state.stage);
-    update({ ...state, stage: next, history: [...state.history, `${now()} Estado cambiado a “${stageLabel(next)}”`] });
+    actions.updateWorkStage(work.id, next, stageLabel(next));
     setMessage(`Estado actualizado: ${stageLabel(next)}`);
   };
   const goBack = () => {
@@ -440,7 +426,7 @@ function TechnicianWorkDetail({ work, runtime, setRuntime, checks, navigate, use
   };
   const requestReturn = () => {
     if (state.returnRequested) { setMessage('La devolución a SAT ya está solicitada.'); return; }
-    update({ ...state, returnRequested: true, history: [...state.history, `${now()} Devolución solicitada a SAT por ${user.name}`] });
+    actions.requestReturn(work.id, user.name);
     setMessage('Devolución solicitada a SAT.');
   };
   return <section className="page"><button className="link-button" onClick={() => navigate('/app/tecnico')}><ChevronLeft size={16} /> Mi jornada</button><section className="tech-hero"><Badge tone={toneForStage(state.stage)} icon={iconForTone(toneForStage(state.stage))}>{stageLabel(state.stage)}</Badge><h1>{work.type}</h1><p>{clientName(work.clientId)} · {centerName(work.centerId)}</p><strong>{work.address}</strong><button className="primary wide big" onClick={advance}>{state.stage === 'sent' ? 'Solicitar devolución a SAT' : primaryTechnicianAction(state.stage)}</button>{previous && state.stage !== 'sent' && <button className="state-back" onClick={goBack}>Estado actual: {stageLabel(state.stage)} · Volver a {stageLabel(previous)}</button>}{message && <p className="success-note">{message}</p>}</section><Card title="Datos del parte" icon={<FileText {...iconProps} />}><InfoGrid items={[[ 'Cliente', clientName(work.clientId) ], [ 'Contacto', work.contact ], [ 'Equipo', `${work.equipmentId} · ${equipmentName(work.equipmentId)}` ], [ 'Ubicación', work.address ], [ 'Avería', work.fault ], [ 'Acceso', work.access ], [ 'Antecedentes', 'Holgura leve y térmico disparado en intervención anterior' ], [ 'Material previsto', work.material ]]} /></Card><Card title="Documentación técnica" icon={<FileText {...iconProps} />}><TechnicalDocs equipmentId={work.equipmentId} /></Card><div className="tech-sections"><Card title="Diagnóstico" icon={<Wrench {...iconProps} />}><textarea disabled={state.stage === 'sent'} placeholder="Registrar diagnóstico técnico..." /></Card><Card title="Trabajo realizado" icon={<ClipboardCheck {...iconProps} />}><textarea disabled={state.stage === 'sent'} placeholder="Describir actuación realizada..." /></Card><Card title="Fotografías" icon={<Factory {...iconProps} />}><div className="photo-strip"><span>Cámara simulada</span><span>Galería simulada</span><button disabled={state.stage === 'sent'}>Añadir archivos</button></div></Card><Card title="Checks" icon={<ClipboardList {...iconProps} />}><div className="tabs"><button className="active">Por realizar</button><button>Realizados</button></div><CompactList items={pendingChecks.length ? pendingChecks : [[ 'Sin checks pendientes', 'Los checks de este parte están completados', 'ok' ]]} />{pendingChecks.length > 0 && <button className="primary wide" onClick={() => navigate(`/app/tecnico/trabajo/${work.id}/check`)}>Abrir check</button>}<CompactList items={workChecks.map((check) => [check.id, `${check.date} · ${check.technician} · ${check.result}`, check.result.includes('No favorable') ? 'danger' : 'ok'])} /></Card><Card title="Documentación, deficiencias y firma" icon={<ShieldAlert {...iconProps} />}><InfoGrid items={[[ 'Documentación', 'Manuales y esquemas disponibles arriba' ], [ 'Deficiencias', 'Pendiente de registrar si aplica' ], [ 'Firma', state.stage === 'sent' ? 'Parte enviado' : 'Pendiente de recoger' ]]} /></Card><Card title="Historial de estados" icon={<CalendarClock {...iconProps} />}><Timeline items={state.history} /></Card></div><nav className="tech-bottom"><button className="active"><ClipboardList size={18} />Trabajo</button><button onClick={() => setMoreOpen(true)}><MoreHorizontal size={18} />Más acciones</button></nav>{moreOpen && <BottomSheet onClose={() => setMoreOpen(false)}><button>Voy a terminar antes</button><button>Consultar antecedentes</button><button>Añadir fotografía</button><button>Registrar material</button><button>Comunicar incidencia</button><button>Registrar deficiencia</button><button>Abrir ubicación</button><button>Llamar al contacto</button><button>Requisitos de acceso</button></BottomSheet>}</section>;
@@ -452,7 +438,7 @@ function SectionalCheckMain({ work, checks, setChecks, navigate, user }: { work:
   const reviewed = Object.values(blocks).filter((status) => status !== 'Sin revisar').length;
   const finish = () => {
     if (reviewed < 6) return;
-    const record: CheckRecord = { id: done?.id ?? `CHK-${work.partId}`, workId: work.id, partId: work.partId, equipmentId: work.equipmentId, technician: user.name, date: new Date().toLocaleString('es-ES'), result: Object.values(blocks).some((item) => item === 'No favorable') ? 'No favorable' : 'Favorable', blocks, completed: true };
+    const record: CheckRecord = { id: done?.id ?? `CHK-${work.partId}`, workId: work.id, partId: work.partId, equipmentId: work.equipmentId, technician: user.name, date: new Date().toLocaleString('es-ES'), progress: 'Realizado', result: Object.values(blocks).some((item) => item === 'No favorable') ? 'No favorable' : 'Todo favorable', blocks, completed: true };
     setChecks(done ? checks.map((item) => item.id === done.id ? record : item) : [...checks, record]);
     navigate(`/app/tecnico/trabajo/${work.id}`);
   };
@@ -473,11 +459,11 @@ function SectionalCheckBlock({ work, blockId, checks, setChecks, navigate, user 
   };
   const save = () => {
     const blocks = { ...(existing?.blocks ?? emptyBlocks()), [blockId]: status };
-    const record: CheckRecord = { id: existing?.id ?? `CHK-${work.partId}`, workId: work.id, partId: work.partId, equipmentId: work.equipmentId, technician: user.name, date: new Date().toLocaleString('es-ES'), result: existing?.completed ? existing.result : 'Borrador', blocks, completed: existing?.completed };
+    const record: CheckRecord = { id: existing?.id ?? `CHK-${work.partId}`, workId: work.id, partId: work.partId, equipmentId: work.equipmentId, technician: user.name, date: new Date().toLocaleString('es-ES'), progress: existing?.completed ? 'Realizado' : 'En curso', result: existing?.completed ? existing.result : 'Borrador', blocks, completed: existing?.completed };
     setChecks(existing ? checks.map((item) => item.id === existing.id ? record : item) : [...checks, record]);
     navigate(`/app/tecnico/trabajo/${work.id}/check`);
   };
-  const favorableAll = () => { setStatus('Favorable'); setComponents(block.components); setDirty(true); };
+  const favorableAll = () => { setStatus('Todo favorable'); setComponents(block.components); setDirty(true); };
   return <section className="check-mobile"><button className="link-button sticky-back" onClick={back}><ChevronLeft size={16} /> Volver a la puerta</button><header><p className="eyebrow">Detalle del bloque</p><h2>{block.name}</h2><Badge tone={statusTone(status)} icon={iconForTone(statusTone(status))}>{status}</Badge></header><button className="primary wide" onClick={favorableAll}>Favorable a todo</button><div className="status-grid">{checkStatuses.map((item) => <button key={item} className={status === item ? 'active' : ''} onClick={() => { setStatus(item); setDirty(true); }}>{item}</button>)}</div>{!['Favorable', 'Sin revisar', 'No aplicable'].includes(status) && <Card title="Componentes afectados" icon={<Wrench {...iconProps} />}><div className="component-select">{block.components.map((component) => <label key={component}><input type="checkbox" checked={components.includes(component)} onChange={(event) => { setDirty(true); setComponents(event.target.checked ? [...components, component] : components.filter((item) => item !== component)); }} /> {component}</label>)}</div></Card>}<Card title="Observaciones" icon={<FileText {...iconProps} />}><textarea onChange={() => setDirty(true)} placeholder="Observaciones del bloque..." /></Card><Card title="Descripción de intervención" icon={<ClipboardCheck {...iconProps} />}><textarea onChange={() => setDirty(true)} placeholder="Intervención realizada si aplica..." /></Card><Card title="Fotografías" icon={<Factory {...iconProps} />}><div className="photo-strip"><button onClick={() => { setPhotos([...photos, `Foto ${photos.length + 1}`]); setDirty(true); }}>Cámara</button><button onClick={() => { setPhotos([...photos, `Galería ${photos.length + 1}`]); setDirty(true); }}>Galería</button><button onClick={() => { setPhotos([...photos, `Archivo ${photos.length + 1}`]); setDirty(true); }}>Archivos</button></div><div className="photo-list">{photos.map((photo) => <span key={photo}>{photo}<button onClick={() => setPhotos(photos.filter((item) => item !== photo))}>Eliminar</button></span>)}</div></Card><button className="primary wide big" onClick={save}>Guardar bloque</button></section>;
 }
 
@@ -506,7 +492,7 @@ function detailTitle(base: string, filter: string | null) { return filter ? `${b
 function GlobalSearch({ workspace, query, setQuery, navigate }: { workspace: ProfileId; query: string; setQuery: (value: string) => void; navigate: (path: string) => void }) { const results = useMemo(() => buildSearchResults(workspace, query), [workspace, query]); return <div className="search-wrap"><label className="search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar cliente, equipo, expediente, parte..." /></label>{query && <div className="search-results">{results.length ? results.map((item) => <button key={`${item.kind}-${item.id}`} onClick={() => { setQuery(''); navigate(item.route); }}><Badge tone={item.tone} icon={iconForTone(item.tone)}>{item.kind}</Badge><span>{item.title}</span><small>{item.detail}</small></button>) : <p>Sin resultados visibles para este perfil.</p>}</div>}</div>; }
 function buildSearchResults(workspace: ProfileId, query: string) { if (!query.trim()) return []; const term = query.toLowerCase(); const rows: { kind: string; id: string; title: string; detail: string; tone: Severity; route: string }[] = []; works.forEach((work) => { const text = `${work.id} ${work.caseId} ${work.partId} ${clientName(work.clientId)} ${centerName(work.centerId)} ${work.equipmentId}`.toLowerCase(); if (text.includes(term)) rows.push({ kind: 'Trabajo', id: work.id, title: work.id, detail: `${clientName(work.clientId)} · ${work.status}`, tone: toneForStatus(work.status), route: workspace === 'tecnico' ? '/app/tecnico' : '/app/trabajos/' + work.id }); }); if (workspace !== 'tecnico') equipment.forEach((item) => { const text = `${item.id} ${item.type} ${clientName(item.clientId)}`.toLowerCase(); if (text.includes(term)) rows.push({ kind: 'Equipo', id: item.id, title: item.id, detail: `${item.type} · ${clientName(item.clientId)}`, tone: toneForEquipment(item.status), route: '/app/equipos/' + item.id }); }); return rows.slice(0, 8); }
 
-function AlertsPanel({ items, navigate }: { items: AlertItem[]; navigate: (path: string) => void }) { const [read, setRead] = useState<string[]>([]); const [filter, setFilter] = useState<Severity | 'all'>('all'); const filtered = items.filter((item) => filter === 'all' || item.severity === filter); return <div className="alerts-panel"><div className="tabs"><button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>Todos</button><button className={filter === 'danger' ? 'active' : ''} onClick={() => setFilter('danger')}>Críticos</button><button className={filter === 'warn' ? 'active' : ''} onClick={() => setFilter('warn')}>Riesgo</button></div><div className="compact-list">{filtered.map((item) => <article key={item.id} className={read.includes(item.id) ? 'read' : ''}><Badge tone={item.severity} icon={iconForTone(item.severity)}>{item.title}</Badge><p>{item.detail}<br /><small>{item.date} · {item.entity} · {item.status}</small></p><div className="row-actions"><button onClick={() => item.route && navigate(toAppRoute(item.route))}>Abrir</button><button onClick={() => setRead([...read, item.id])}>Leído</button></div></article>)}</div></div>; }
+function AlertsPanel({ items, navigate, actions }: { items: AlertItem[]; navigate: (path: string) => void; actions?: DemoActions }) { const [filter, setFilter] = useState<Severity | 'all'>('all'); const filtered = items.filter((item) => filter === 'all' || item.severity === filter); return <div className="alerts-panel"><div className="tabs"><button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>Todos</button><button className={filter === 'danger' ? 'active' : ''} onClick={() => setFilter('danger')}>Críticos</button><button className={filter === 'warn' ? 'active' : ''} onClick={() => setFilter('warn')}>Advertencia</button></div><div className="compact-list">{filtered.map((item) => <article key={item.id} className={item.read ? 'read' : ''}><Badge tone={item.severity} icon={iconForTone(item.severity)}>{item.title}</Badge><p>{item.detail}<br /><small>{item.date} · {item.entity} · {item.status} · {item.read ? 'Leído' : 'Sin leer'}</small></p><div className="row-actions"><button onClick={() => { actions?.markAlertRead(item.id); if (item.route) navigate(toAppRoute(item.route)); }}>Abrir</button><button onClick={() => actions?.markAlertRead(item.id)}>{item.read ? 'Leído' : 'Marcar como leído'}</button><button onClick={() => actions?.closeAlert(item.id)}>Cerrar</button></div></article>)}</div></div>; }
 function toAppRoute(route: string) { return route.replace('/demo/sat/trabajos', '/app/trabajos').replace('/demo/sat/equipos', '/app/equipos'); }
 
 function WorkTable({ rows, navigate }: { rows: Work[]; navigate: (path: string) => void }) { return <div className="table-card"><table><thead><tr><th>Trabajo</th><th>Cliente / centro</th><th>Equipo</th><th>Hora</th><th>Técnico</th><th>Material</th><th>Acceso</th><th>Estado</th></tr></thead><tbody>{rows.map((work) => <tr key={work.id} onClick={() => navigate(`/app/trabajos/${work.id}`)}><td><strong>{work.id}</strong><span>{work.type}</span></td><td><strong>{clientName(work.clientId)}</strong><span>{centerName(work.centerId)}</span></td><td>{work.equipmentId}</td><td>{work.hour}</td><td>{technicianName(work.technicianId)}</td><td>{work.material}</td><td>{work.access}</td><td><Badge tone={toneForStatus(work.status)} icon={iconForTone(toneForStatus(work.status))}>{work.status}</Badge></td></tr>)}</tbody></table></div>; }
@@ -522,14 +508,14 @@ function CompactList({ items }: { items: (readonly [string, string, string])[] }
 function InfoGrid({ items }: { items: [string, string][] }) { return <dl className="info-grid">{items.map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value}</dd></div>)}</dl>; }
 function Timeline({ items }: { items: string[] }) { return <ol className="timeline">{items.map((item) => <li key={item}>{item}</li>)}</ol>; }
 function Breadcrumb({ items }: { items: string[] }) { return <div className="breadcrumb">{items.map((item, index) => <span key={`${item}-${index}`}>{index > 0 && '/'} {item}</span>)}</div>; }
-function Badge({ tone, icon, children }: { tone: Severity; icon: ReactNode; children: ReactNode }) { return <span className={`badge ${tone}`}>{icon}{children}</span>; }
+function Badge({ tone, icon, children }: { tone: Severity; icon: ReactNode; children: ReactNode }) { return <span className={`badge ${tone}`}>{icon}{typeof children === 'string' ? visibleLabel(children) : children}</span>; }
 function SidePanel({ title, subtitle, onClose, children }: { title: string; subtitle?: string; onClose: () => void; children: ReactNode }) { useEscape(onClose); return <div className="overlay" role="dialog" aria-modal="true"><aside className="side-panel"><header><div><p className="eyebrow">{subtitle}</p><h2>{title}</h2></div><button onClick={onClose} aria-label="Cerrar"><X size={18} /></button></header>{children}</aside></div>; }
 function BottomSheet({ onClose, children }: { onClose: () => void; children: ReactNode }) { useEscape(onClose); return <div className="sheet-backdrop" role="dialog" aria-modal="true"><div className="bottom-sheet"><button className="sheet-close" onClick={onClose}>Cerrar</button>{children}</div></div>; }
 function VisualCheckPlaceholder({ navigate }: { navigate: (path: string) => void }) { return <section className="page"><Breadcrumb items={['Técnico', 'Check provisional']} /><Card title="Prototipo técnico en desarrollo" icon={<ClipboardCheck {...iconProps} />}><p className="large-note">Esta pantalla conserva el acceso provisional. No representa el sistema definitivo de checks técnicos.</p><div className="component-photo"><Wrench size={42} /><span>Esquema provisional sustituible</span></div><button className="primary" onClick={() => navigate('/app/tecnico')}>Volver al trabajo</button></Card></section>; }
 
 function TechnicalDocs({ equipmentId }: { equipmentId: string }) {
   const prioritized = [...technicalDocs].sort((a, b) => Number(b[2].includes(equipmentId)) - Number(a[2].includes(equipmentId)));
-  return <div className="doc-list">{prioritized.map(([title, type, scope]) => <article key={title}><FileText size={17} /><div><strong>{title}</strong><span>{type} · {scope}</span></div></article>)}</div>;
+  return <div className="doc-list">{prioritized.map(([title, type, scope]) => <article key={title}><FileText size={17} /><div><strong>{title}</strong><span>{type} · {scope}</span></div><button onClick={() => window.alert(`${title}\nTipo: ${type}\nÁmbito: ${scope}\nVista documental simulada sin PDF real.`)}>Abrir</button></article>)}</div>;
 }
 
 function BarChart({ values, labels, tone }: { values: number[]; labels: string[]; tone: Severity }) { const max = Math.max(...values); return <div className="bar-chart">{values.map((value, index) => <div key={labels[index]}><span style={{ height: `${(value / max) * 100}%` }} className={tone}></span><small>{labels[index]}</small><b>{value}</b></div>)}</div>; }
@@ -537,20 +523,21 @@ function DualBars({ left, right, leftValue, rightValue }: { left: string; right:
 function useEscape(action: () => void) { useEffect(() => { const listener = (event: KeyboardEvent) => { if (event.key === 'Escape') action(); }; window.addEventListener('keydown', listener); return () => window.removeEventListener('keydown', listener); }, [action]); }
 
 function logout(setSession: (session: Session | null) => void, navigate: (path: string) => void) { setSession(null); navigate('/'); }
-function resetDemo(setSession: (session: Session | null) => void, navigate: (path: string) => void) { localStorage.removeItem(techStageKey); localStorage.removeItem(techHistoryKey); localStorage.removeItem(workRuntimeKey); localStorage.removeItem(checksKey); localStorage.removeItem(sidebarKey); setSession(null); navigate('/'); }
+function resetDemo(setSession: (session: Session | null) => void, navigate: (path: string) => void, actions: DemoActions) { if (!window.confirm('¿Restablecer demostración? Se eliminarán los cambios locales y se cargarán los datos iniciales.')) return; localStorage.removeItem(techStageKey); localStorage.removeItem(techHistoryKey); localStorage.removeItem(sidebarKey); actions.resetDemo(); setSession(null); navigate('/'); }
 function now() { return new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }); }
 function previousStageFromHistory(history: string[]): TechnicianStage | null { const stages: TechnicianStage[] = ['downloaded', 'traveling', 'working', 'review', 'readyToSend', 'sent']; const currentIndex = Math.max(0, history.filter((item) => item.includes('Estado cambiado')).length - 1); return stages[currentIndex] ?? null; }
 function previousStage(stage: TechnicianStage): TechnicianStage | null { const order: TechnicianStage[] = ['downloaded', 'traveling', 'working', 'review', 'readyToSend', 'sent']; const index = order.indexOf(stage); return index > 0 ? order[index - 1] : null; }
 function withRuntime(work: Work, runtime: WorkRuntime): Work { const state = runtime[work.id]; return state ? { ...work, status: stageLabel(state.stage), technicianStage: state.stage } : work; }
 function emptyBlocks(): Record<CheckBlockId, CheckStatus> { return { hoja: 'Sin revisar', guias: 'Sin revisar', muelles: 'Sin revisar', automatizacion: 'Sin revisar', estructura: 'Sin revisar', funcionamiento: 'Sin revisar' }; }
-function statusTone(status: CheckStatus): Severity { if (status === 'Favorable' || status === 'Favorable tras intervención') return 'ok'; if (status === 'Problema leve') return 'warn'; if (status === 'No favorable') return 'danger'; if (status === 'No aplicable') return 'muted'; return 'info'; }
+function statusTone(status: CheckStatus): Severity { if (status === 'Todo favorable' || status === 'Favorable tras intervención') return 'ok'; if (status === 'Problema leve') return 'warn'; if (status === 'No favorable') return 'danger'; if (status === 'No aplicable') return 'muted'; return 'info'; }
 function primaryTechnicianAction(stage: TechnicianStage) { if (stage === 'downloaded') return 'Iniciar desplazamiento'; if (stage === 'traveling') return 'He llegado / Iniciar intervención'; if (stage === 'working') return 'Continuar trabajo'; if (stage === 'review') return 'Revisar y finalizar'; if (stage === 'readyToSend') return 'Enviar trabajo'; return 'Trabajo enviado'; }
 function nextStage(stage: TechnicianStage): TechnicianStage { if (stage === 'downloaded') return 'traveling'; if (stage === 'traveling') return 'working'; if (stage === 'working') return 'review'; if (stage === 'review') return 'readyToSend'; if (stage === 'readyToSend') return 'sent'; return 'sent'; }
-function stageLabel(stage: TechnicianStage) { return ({ downloaded: 'Trabajo descargado', traveling: 'En desplazamiento', working: 'En intervención', review: 'Finalizado técnicamente', readyToSend: 'Pendiente de envío', sent: 'Enviado' })[stage]; }
+function stageLabel(stage: TechnicianStage) { const labels: Record<TechnicianStage, string> = { downloaded: 'Trabajo descargado', traveling: 'En desplazamiento', working: 'En intervención', review: 'Finalizado técnicamente', readyToSend: 'Pendiente de envío', sent: 'Enviado', returned: 'Devuelto por SAT', cancelled: 'Cancelado' }; return labels[stage]; }
 function toneForStage(stage: TechnicianStage): Severity { if (stage === 'sent') return 'ok'; if (stage === 'readyToSend' || stage === 'review') return 'warn'; if (stage === 'working' || stage === 'traveling') return 'info'; return 'muted'; }
 function toneForStatus(status: string): Severity { if (status.includes('cerrado') || status.includes('finalizado')) return 'ok'; if (status.includes('material') || status.includes('parcial')) return 'warn'; if (status.includes('pendiente')) return 'info'; if (status.includes('intervención') || status.includes('desplazamiento')) return 'info'; return 'muted'; }
 function toneForEquipment(status: string): Severity { if (status.includes('crítica') || status.includes('Crítica')) return 'danger'; if (status.includes('Pendiente') || status.includes('material')) return 'warn'; if (status.includes('Operativa')) return 'ok'; return 'info'; }
 function iconForTone(tone: Severity) { if (tone === 'ok') return <CheckCircle2 size={14} />; if (tone === 'danger' || tone === 'warn') return <AlertTriangle size={14} />; if (tone === 'maintenance') return <Wrench size={14} />; if (tone === 'commercial') return <BriefcaseBusiness size={14} />; return <Bell size={14} />; }
+function visibleLabel(value: string) { return ({ danger: 'Crítico', warn: 'Advertencia', info: 'Información', maintenance: 'Mantenimiento', commercial: 'Comercial', ok: 'Correcto', muted: 'Sin prioridad' } as Record<string, string>)[value] ?? value; }
 function initials(name: string) { return name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase(); }
 function formatCurrency(value: number) { return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value); }
 

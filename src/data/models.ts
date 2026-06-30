@@ -1,0 +1,45 @@
+export type Severity = 'ok' | 'info' | 'warn' | 'danger' | 'commercial' | 'maintenance' | 'muted';
+export type ProfileId = 'sat' | 'comercial' | 'oficina' | 'gerencia' | 'tecnico';
+export type TechnicianStage = 'downloaded' | 'traveling' | 'working' | 'review' | 'readyToSend' | 'sent' | 'returned' | 'cancelled';
+export type WorkStatus = 'Pendiente' | 'Trabajo descargado' | 'En desplazamiento' | 'En intervención' | 'Finalizado técnicamente' | 'Pendiente de envío' | 'Enviado' | 'Devolución solicitada' | 'Devuelto por SAT' | 'Cancelado';
+export type CheckProgress = 'Por realizar' | 'En curso' | 'Realizado';
+export type CheckResult = 'Todo favorable' | 'Problema leve' | 'No favorable' | 'Favorable tras intervención' | 'No aplicable' | 'Sin revisar';
+export type CheckBlockId = 'hoja' | 'guias' | 'muelles' | 'automatizacion' | 'estructura' | 'funcionamiento';
+
+export type DemoUser = { id: string; name: string; email: string; password: string; position: string; primary: ProfileId; roles: ProfileId[] };
+export type Technician = { id: string; name: string; availability: string; currentWorkId?: string; eta: string; enabledFor: string; courses: { name: string; expires: string; days: number; affected: string }[]; warning?: string };
+export type Client = { id: string; name: string; segment: string; contact: string };
+export type Center = { id: string; clientId: string; name: string; address: string };
+export type Equipment = { id: string; code: string; clientId: string; centerId: string; location: string; type: string; maker: string; model: string; serial: string; status: string; installedAt: string; last: string; next: string; documentIds: string[]; history: string[] };
+export type Supplier = { id: string; name: string; contact: string };
+export type Work = { id: string; caseId: string; partId: string; type: string; clientId: string; centerId: string; equipmentId: string; hour: string; date: string; technicianId?: string; material: string; access: string; priority: Severity; status: string; address: string; contact: string; fault: string; history: string[]; pendingInfo?: string; supplierId?: string; budgetId?: string; technicianStage?: TechnicianStage };
+export type Part = { id: string; workId: string; clientId: string; centerId: string; equipmentId: string; title: string; description: string; status: string; createdAt: string; updatedAt: string };
+export type CheckRecord = { id: string; partId: string; workId: string; equipmentId: string; technician: string; date: string; progress: CheckProgress; result: CheckResult | 'Borrador'; blocks: Record<CheckBlockId, CheckResult>; completed?: boolean; deficiency?: string; opportunityId?: string };
+export type AlertItem = { id: string; profiles: ProfileId[]; title: string; detail: string; severity: Severity; date: string; entity: string; relatedType: 'work' | 'equipment' | 'part' | 'check' | 'budget' | 'invoice' | 'client' | 'center' | 'opportunity'; relatedId: string; owner: string; status: string; read: boolean; route?: string };
+export type Budget = { id: string; clientId: string; equipmentId?: string; amount: number; version: string; status: string; date: string; owner: string; sourceWorkId?: string; opportunityId?: string };
+export type Opportunity = { id: string; origin: string; partId: string; workId: string; equipmentId: string; deficiency: string; clientId: string; owner: string; status: string; budgetId?: string };
+export type Contract = { id: string; clientId: string; renewal: string; equipment: number; status: string };
+export type Invoice = { id: string; clientId: string; due: string; amount: number; status: string; workId?: string };
+export type Purchase = { id: string; supplierId: string; date: string; confirmation: string; affected: string };
+export type DocumentItem = { id: string; title: string; type: string; scope: string; maker?: string; model?: string; equipmentId?: string; clientId?: string; centerId?: string; family?: string; motor?: string; controlPanel?: string };
+export type WorkRuntime = Record<string, { stage: TechnicianStage; history: string[]; returnRequested?: boolean }>;
+
+export type DemoStore = {
+  users: DemoUser[];
+  technicians: Technician[];
+  clients: Client[];
+  centers: Center[];
+  equipment: Equipment[];
+  suppliers: Supplier[];
+  works: Work[];
+  parts: Part[];
+  checks: CheckRecord[];
+  alerts: AlertItem[];
+  budgets: Budget[];
+  opportunities: Opportunity[];
+  contracts: Contract[];
+  invoices: Invoice[];
+  purchases: Purchase[];
+  documents: DocumentItem[];
+  runtime: WorkRuntime;
+};

@@ -1,122 +1,77 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import {
-  AlertTriangle, Bell, BriefcaseBusiness, Building2, CalendarClock, Car, CheckCircle2, ChevronLeft, ClipboardCheck,
-  ClipboardList, DollarSign, Eye, EyeOff, Factory, FileText, Gauge, Home, LogOut, Menu, MoreHorizontal,
-  PackageCheck, PanelLeftClose, PanelLeftOpen, PieChart, Search, Settings, ShieldAlert, TrendingUp, Truck, UserRound,
-  UsersRound, Warehouse, Wrench, X,
-} from 'lucide-react';
-import {
-  alerts, budgets, centerName, clientName, clients, contracts, equipment, equipmentName, invoices, purchases,
-  supplierName, technicianName, technicians, works, type AlertItem, type ProfileId, type Severity, type TechnicianStage,
-  type Work, type DemoUser, type CheckResult, type CheckProgress,
-} from './demoData';
-import { useDemoStore, type DemoActions } from './data/store';
+import { createContext, useContext, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { AlertTriangle, Bell, BriefcaseBusiness, Building2, CalendarClock, CheckCircle2, ChevronLeft, ClipboardCheck, ClipboardList, Eye, EyeOff, Factory, FileText, Gauge, Home, LogOut, Menu, PackageCheck, PanelLeftClose, PanelLeftOpen, PieChart, Search, Settings, ShieldAlert, Truck, UserRound, UsersRound, Warehouse, Wrench, X } from 'lucide-react';
+import type { Session } from '@supabase/supabase-js';
+import { authService, demoLogins } from './services/authService';
+import { profilesService } from './services/profilesService';
+import { clientsService } from './services/clientsService';
+import { sitesService } from './services/sitesService';
+import { equipmentService } from './services/equipmentService';
+import { casesService } from './services/casesService';
+import { workOrdersService } from './services/workOrdersService';
+import { assignmentsService } from './services/assignmentsService';
+import { checksService } from './services/checksService';
+import { deficienciesService } from './services/deficienciesService';
+import { alertsService } from './services/alertsService';
+import { documentsService } from './services/documentsService';
+import { managementService } from './services/managementService';
+import { dashboardService } from './services/dashboardService';
+import { checkProblemStatuses, physicalSectionalZones, sectionalZones, type CheckBlockId } from './checks/sectionalZones';
+import { displayStatus, formatDate, fullName, initials, nextWorkOrderStatus, previousWorkOrderStatus, roleToWorkspace, severityForPriority, severityForStatus, visibleLabel, workspaceTitles, workspaceToRole } from './shared/labels';
+import type { Profile, RoleName, Severity, Workspace } from './shared/types';
 
-type Session = { userId: string; workspace: ProfileId; signedIn: true };
-type NavItem = { id: string; label: string; path: string; icon: typeof Home };
-type Metric = { key: string; label: string; value: string; tone: Severity; icon: ReactNode; route: string };
-type WorkRuntime = Record<string, { stage: TechnicianStage; history: string[]; returnRequested?: boolean }>;
-type CheckStatus = CheckResult;
-type CheckBlockId = 'hoja' | 'guias' | 'muelles' | 'automatizacion' | 'estructura' | 'funcionamiento';
-type CheckRecord = { id: string; partId: string; workId: string; equipmentId: string; technician: string; date: string; progress: CheckProgress; result: CheckResult | 'Borrador'; blocks: Record<CheckBlockId, CheckStatus>; completed?: boolean; deficiency?: string; opportunityId?: string };
+type AuthContextValue = { session: Session | null; profile: Profile | null; workspace: Workspace; setWorkspace: (workspace: Workspace) => void; refreshProfile: () => Promise<void>; signOut: () => Promise<void> };
+type LoadState<T> = { data: T; loading: boolean; error: string };
 
-const iconProps = { size: 18, strokeWidth: 2 };
-const sessionKey = 'dmp-demo-session';
+const AuthContext = createContext<AuthContextValue | null>(null);
 const sidebarKey = 'dmp-sidebar-collapsed';
-const techStageKey = 'dmp-tech-stage';
-const techHistoryKey = 'dmp-tech-history';
-
-const sectionalBlocks: { id: CheckBlockId; name: string; components: string[]; area: React.CSSProperties }[] = [
-  { id: 'hoja', name: 'Hoja', components: ['Paneles', 'Herrajes', 'Bisagras', 'Rodillos', 'Juntas', 'Perfil inferior', 'Sistema anticaída'], area: { left: '25%', top: '30%', width: '44%', height: '42%' } },
-  { id: 'guias', name: 'Guías', components: ['Guías'], area: { left: '18%', top: '22%', width: '12%', height: '58%' } },
-  { id: 'muelles', name: 'Línea de muelles y compensación', components: ['Muelles', 'Eje', 'Tambores', 'Cables', 'Soportes', 'Cojinetes', 'Seguridad de rotura o paracaídas de cable, si existe'], area: { left: '22%', top: '8%', width: '58%', height: '18%' } },
-  { id: 'automatizacion', name: 'Automatización, maniobra y seguridad', components: ['Motor directo al eje', 'Desbloqueo manual', 'Cuadro de maniobra', 'Cableado', 'Alimentación y protecciones', 'Finales de carrera o encoder', 'Fotocélulas', 'Banda de seguridad', 'Activación', 'Señalización'], area: { left: '70%', top: '25%', width: '22%', height: '48%' } },
-  { id: 'estructura', name: 'Estructura', components: ['Estructura'], area: { left: '8%', top: '14%', width: '15%', height: '70%' } },
-  { id: 'funcionamiento', name: 'Funcionamiento general', components: ['Apertura y cierre', 'Equilibrado', 'Suavidad de marcha', 'Ruidos o rozamientos', 'Maniobra manual'], area: { left: '30%', top: '74%', width: '42%', height: '18%' } },
-];
-
-const physicalSectionalBlocks = sectionalBlocks.filter((block) => block.id !== 'funcionamiento');
-
-const checkStatuses: CheckStatus[] = ['Sin revisar', 'Todo favorable', 'Problema leve', 'No favorable', 'Favorable tras intervención', 'No aplicable'];
-
-const technicalDocs = [
-  ['Manual instalación SD-420', 'manual de instalación', 'Equipo concreto EQ-SEC-001'],
-  ['Manual mantenimiento SD-420', 'manual de mantenimiento', 'Modelo SD-420'],
-  ['Motor Nice X2', 'manual del motor', 'Motor'],
-  ['Cuadro DM-CTRL', 'manual del cuadro', 'Cuadro de maniobra'],
-  ['Esquema eléctrico seccional', 'esquema eléctrico', 'Familia puerta seccional'],
-  ['Despiece hoja industrial', 'despiece', 'Componente hoja'],
-  ['Declaración CE NovoDemo', 'declaración CE', 'Marca NovoDemo'],
-  ['Desbloqueo manual eje', 'instrucciones de desbloqueo', 'Automatización'],
-  ['Procedimiento interno SAT-SEC', 'procedimientos internos', 'Cliente Logística Ares'],
-] as const;
-
-const workspaceTitles: Record<ProfileId, string> = {
-  sat: 'Panel SAT', comercial: 'Panel comercial', oficina: 'Panel oficina', gerencia: 'Panel gerencia', tecnico: 'Trabajo técnico',
-};
+const workspaceKey = 'dmp-workspace';
+const iconProps = { size: 18, strokeWidth: 2 };
 
 function App() {
-  const [path, navigate] = usePath();
-  const [session, setSession] = usePersistentSession();
-  const { store, actions } = useDemoStore();
-  const runtime = store.runtime as WorkRuntime;
-  const checks = store.checks as CheckRecord[];
-  const user = session ? store.users.find((item) => item.id === session.userId) : undefined;
-
-  useEffect(() => {
-    if (!session && path !== '/') navigate('/');
-    if (session && path === '/') navigate(defaultRoute(session.workspace));
-  }, [session, path, navigate]);
-
-  const signIn = (nextUser: DemoUser) => {
-    const nextSession: Session = { userId: nextUser.id, workspace: nextUser.primary, signedIn: true };
-    setSession(nextSession);
-    navigate(defaultRoute(nextUser.primary));
-  };
-
-  if (!session || !user) return <LoginPage users={store.users} onSignIn={signIn} />;
-  if (session.workspace === 'tecnico') return <TechnicianApp user={user} navigate={navigate} path={path} runtime={runtime} setRuntime={actions.setRuntime} checks={checks} setChecks={actions.setChecks} actions={actions} onLogout={() => logout(setSession, navigate)} />;
-
-  return <DesktopLayout session={session} setSession={setSession} user={user} path={path} navigate={navigate} alerts={store.alerts} actions={actions}>{renderRoute(session.workspace, path, navigate, runtime, checks, actions)}</DesktopLayout>;
+  return <BrowserRouter><AuthProvider><Routes><Route path="/" element={<LoginPage />} /><Route element={<ProtectedLayout />}><Route path="/app/inicio" element={<HomePage />} /><Route path="/app/clientes" element={<ClientsPage />} /><Route path="/app/clientes/:id" element={<ClientDetailPage />} /><Route path="/app/centros" element={<SitesPage />} /><Route path="/app/centros/:id" element={<SiteDetailPage />} /><Route path="/app/equipos" element={<EquipmentPage />} /><Route path="/app/equipos/:id" element={<EquipmentDetailPage />} /><Route path="/app/expedientes" element={<CasesPage />} /><Route path="/app/expedientes/:id" element={<CaseDetailPage />} /><Route path="/app/partes" element={<WorkOrdersPage />} /><Route path="/app/trabajos" element={<Navigate to="/app/partes" replace />} /><Route path="/app/trabajos/:id" element={<WorkOrderDetailPage />} /><Route path="/app/partes/:id" element={<WorkOrderDetailPage />} /><Route path="/app/tecnico" element={<TechnicianDayPage />} /><Route path="/app/tecnico/trabajo/:id" element={<TechnicianWorkPage />} /><Route path="/app/checks" element={<ChecksPage />} /><Route path="/app/checks/:id" element={<CheckDetailPage />} /><Route path="/app/checks/:id/bloque/:blockId" element={<CheckBlockPage />} /><Route path="/app/deficiencias" element={<DeficienciesPage />} /><Route path="/app/deficiencias/:id" element={<DeficiencyDetailPage />} /><Route path="/app/avisos" element={<AlertsPage />} /><Route path="/app/documentos" element={<DocumentsPage />} /><Route path="/app/documentos/:id" element={<DocumentDetailPage />} /><Route path="/app/gerencia" element={<ManagementPage />} /><Route path="/app/*" element={<NotFound />} /></Route><Route path="*" element={<NotFound />} /></Routes></AuthProvider></BrowserRouter>;
 }
 
-function usePath(): [string, (path: string) => void] {
-  const [path, setPath] = useState(window.location.pathname + window.location.search);
+function AuthProvider({ children }: { children: ReactNode }) {
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [workspace, setWorkspaceState] = useState<Workspace>(() => (localStorage.getItem(workspaceKey) as Workspace | null) ?? 'sat');
+
+  const refreshProfile = async () => {
+    const current = (await authService.getSession()).data.session;
+    setSession(current);
+    if (!current) { setProfile(null); return; }
+    const nextProfile = await profilesService.getCurrentProfile();
+    setProfile(nextProfile);
+    const saved = localStorage.getItem(workspaceKey) as Workspace | null;
+    const firstWorkspace = roleToWorkspace[nextProfile.roles[0] ?? nextProfile.primary_area];
+    const allowed = saved && nextProfile.roles.some((role) => roleToWorkspace[role] === saved) ? saved : firstWorkspace;
+    setWorkspaceState(allowed);
+  };
+
   useEffect(() => {
-    const listener = () => setPath(window.location.pathname + window.location.search);
-    window.addEventListener('popstate', listener);
-    return () => window.removeEventListener('popstate', listener);
+    refreshProfile().catch(() => setProfile(null));
+    const { data } = authService.onAuthStateChange(async (_event, nextSession) => {
+      setSession(nextSession);
+      if (nextSession) refreshProfile().catch(() => setProfile(null));
+      else setProfile(null);
+    });
+    return () => data.subscription.unsubscribe();
   }, []);
-  const navigate = (next: string) => {
-    if (window.location.pathname + window.location.search !== next) window.history.pushState({}, '', next);
-    setPath(next);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-  return [path, navigate];
+
+  const setWorkspace = (next: Workspace) => { localStorage.setItem(workspaceKey, next); setWorkspaceState(next); };
+  const signOut = async () => { await authService.signOut(); localStorage.removeItem(workspaceKey); setSession(null); setProfile(null); };
+  const value = useMemo(() => ({ session, profile, workspace, setWorkspace, refreshProfile, signOut }), [session, profile, workspace]);
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-function usePersistentSession(): [Session | null, (session: Session | null) => void] {
-  const [session, setSessionState] = useState<Session | null>(() => parseSession(localStorage.getItem(sessionKey)));
-  const setSession = (next: Session | null) => {
-    if (next) localStorage.setItem(sessionKey, JSON.stringify(next));
-    else localStorage.removeItem(sessionKey);
-    setSessionState(next);
-  };
-  return [session, setSession];
-}
+function useAuth() { const value = useContext(AuthContext); if (!value) throw new Error('AuthContext no disponible'); return value; }
 
-function parseSession(value: string | null): Session | null {
-  if (!value) return null;
-  try {
-    const parsed = JSON.parse(value) as Partial<Session>;
-    if (parsed.signedIn && parsed.userId && parsed.workspace) return parsed as Session;
-  } catch { return null; }
-  return null;
-}
-
-function LoginPage({ users, onSignIn }: { users: DemoUser[]; onSignIn: (user: DemoUser) => void }) {
+function LoginPage() {
+  const { session, profile, refreshProfile } = useAuth();
+  const navigate = useNavigate();
   const [demoOpen, setDemoOpen] = useState(false);
-  const [selected, setSelected] = useState<DemoUser | null>(null);
+  const [selected, setSelected] = useState(demoLogins[0]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -124,421 +79,428 @@ function LoginPage({ users, onSignIn }: { users: DemoUser[]; onSignIn: (user: De
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const pickDemo = (user: DemoUser) => {
-    setSelected(user);
-    setEmail(user.email);
-    setPassword(user.password);
-    setError('');
+  useEffect(() => { if (session && profile) navigate(profile.primary_area === 'Tecnico' ? '/app/tecnico' : '/app/inicio', { replace: true }); }, [session, profile, navigate]);
+
+  const pickDemo = (user = selected) => { setSelected(user); setEmail(user.email); setPassword(user.password); setError(''); };
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setLoading(true); setError('');
+    const { error: signError } = await authService.signIn(email, password);
+    if (signError) { setError('No se ha podido iniciar sesión. Comprueba que el usuario existe en Supabase Auth y que profiles.auth_user_id está enlazado.'); setLoading(false); return; }
+    try { await refreshProfile(); } catch (err) { setError(err instanceof Error ? err.message : 'Perfil no enlazado.'); await authService.signOut(); }
+    setLoading(false);
   };
 
-  const submit = () => {
-    setError('');
-    const user = users.find((item) => item.email === email && item.password === password);
-    if (!user) {
-      setError('Credenciales demo no válidas. Selecciona un usuario de demostración o revisa los datos.');
-      return;
-    }
-    setLoading(true);
-    window.setTimeout(() => onSignIn(user), 350);
-  };
-
-  return <main className="login-page">
-    <section className="login-visual" aria-hidden="true">
-      <div className="industrial-mark"><Factory size={42} /><span>DMP</span></div>
-      <div className="door-illustration"><span /><span /><span /><i /></div>
-      <h1>DoorManager Pro</h1>
-      <p>Operaciones, mantenimiento, SAT y gestión empresarial sobre un mismo núcleo de información.</p>
-      <div className="visual-tags"><Badge tone="maintenance" icon={<Wrench size={14} />}>SAT</Badge><Badge tone="commercial" icon={<BriefcaseBusiness size={14} />}>Comercial</Badge><Badge tone="info" icon={<Gauge size={14} />}>Dirección</Badge></div>
-    </section>
-    <section className="login-card" aria-label="Acceso a DoorManager Pro">
-      <div className="login-brand"><Factory size={30} /><div><strong>DoorManager Pro</strong><span>Gestión integral para empresas de puertas automáticas</span></div></div>
-      <label>Usuario o correo<input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="usuario@empresa.com" autoComplete="username" /></label>
-      <label>Contraseña<div className="password-field"><input value={password} onChange={(event) => setPassword(event.target.value)} type={showPassword ? 'text' : 'password'} placeholder="Contraseña" autoComplete="current-password" /><button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></label>
-      <div className="login-row"><label className="check"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} /> Recordarme</label><button type="button" className="text-button">¿Has olvidado tu contraseña?</button></div>
-      {error && <p className="form-error"><AlertTriangle size={16} />{error}</p>}
-      <button className="primary wide big" onClick={submit} disabled={loading}>{loading ? 'Iniciando sesión...' : 'Iniciar sesión'}</button>
-      <button className="demo-toggle" onClick={() => setDemoOpen(!demoOpen)}><UsersRound size={17} /> Acceso de demostración</button>
-      {demoOpen && <div className="demo-users">{users.map((user) => <button key={user.id} className={selected?.id === user.id ? 'selected' : ''} onClick={() => pickDemo(user)}><span>{initials(user.name)}</span><strong>{user.name}</strong><small>{user.position} · {workspaceTitles[user.primary]}</small></button>)}</div>}
-      <footer>Versión demo local. Sin autenticación real. Privacidad y seguridad pendientes de implementación backend.</footer>
-    </section>
-  </main>;
+  return <main className="login-page"><section className="login-visual" aria-hidden="true"><div className="industrial-mark"><Factory size={42} /><span>DMP</span></div><div className="door-illustration"><span /><span /><span /><i /></div><h1>DoorManager Pro</h1><p>Operaciones, mantenimiento, SAT y gestión empresarial sobre un mismo núcleo de información.</p><div className="visual-tags"><Badge tone="maintenance">SAT</Badge><Badge tone="commercial">Comercial</Badge><Badge tone="info">Dirección</Badge></div></section><form className="login-card" aria-label="Acceso a DoorManager Pro" onSubmit={submit}><div className="login-brand"><Factory size={30} /><div><strong>DoorManager Pro</strong><span>Demo conectada a Supabase</span></div></div><label>Usuario o correo<input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="usuario@empresa.com" autoComplete="username" required /></label><label>Contraseña<div className="password-field"><input value={password} onChange={(event) => setPassword(event.target.value)} type={showPassword ? 'text' : 'password'} placeholder="Contraseña" autoComplete="current-password" required /><button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></label><div className="login-row"><label className="check"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} /> Recordarme</label><button type="button" className="text-button" disabled>Recuperación no configurada</button></div>{error && <p className="form-error"><AlertTriangle size={16} />{error}</p>}<button className="primary wide big" disabled={loading}>{loading ? 'Iniciando sesión...' : 'Iniciar sesión'}</button><button type="button" className="demo-toggle" onClick={() => setDemoOpen(!demoOpen)}><UsersRound size={17} /> Acceso de demostración</button>{demoOpen && <div className="demo-users">{demoLogins.map((user) => <button type="button" key={user.email} className={selected.email === user.email ? 'selected' : ''} onClick={() => pickDemo(user)}><span>{initials(user.name)}</span><strong>{user.name}</strong><small>{user.position} · {workspaceTitles[user.workspace]}</small></button>)}</div>}<footer>La sesión usa Supabase Auth. No se usa service_role ni acceso anónimo.</footer></form></main>;
 }
 
-function DesktopLayout({ session, setSession, user, path, navigate, alerts, actions, children }: { session: Session; setSession: (session: Session | null) => void; user: DemoUser; path: string; navigate: (path: string) => void; alerts: AlertItem[]; actions: DemoActions; children: ReactNode }) {
+function ProtectedLayout() {
+  const { session, profile, workspace, setWorkspace, signOut } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [collapsed, setCollapsed] = useState(() => window.innerWidth <= 760 || localStorage.getItem(sidebarKey) === 'true');
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const nav = navForWorkspace(session.workspace);
-  const active = activeNav(nav, cleanPath(path));
-  const profileAlerts = alerts.filter((item) => item.profiles.includes(session.workspace));
+  const [unread, setUnread] = useState(0);
+  const nav = navForWorkspace(workspace);
+  const active = nav.find((item) => location.pathname.startsWith(item.path)) ?? nav[0];
 
-  const setWorkspace = (workspace: ProfileId) => {
-    const next = { ...session, workspace };
-    setSession(next);
-    setUserOpen(false);
-    navigate(defaultRoute(workspace));
+  useEffect(() => { setAlertsOpen(false); setUserOpen(false); }, [location.pathname, workspace]);
+  useEffect(() => {
+    const loadUnread = () => { if (profile) alertsService.unread().then((rows) => setUnread(rows.length)).catch(() => setUnread(0)); };
+    loadUnread();
+    window.addEventListener('dmp-alerts-changed', loadUnread);
+    return () => window.removeEventListener('dmp-alerts-changed', loadUnread);
+  }, [profile, location.pathname]);
+
+  if (!session) return <Navigate to="/" replace />;
+  if (!profile) return <main className="page"><Card title="Perfil no enlazado"><p className="form-error">La sesión existe, pero no hay perfil activo enlazado a este usuario Auth.</p><button className="primary" onClick={() => signOut()}>Cerrar sesión</button></Card></main>;
+  const allowedWorkspaces = profile.roles.map((role) => roleToWorkspace[role]);
+  if (!allowedWorkspaces.includes(workspace)) setWorkspace(allowedWorkspaces[0]);
+
+  const toggleSidebar = () => { localStorage.setItem(sidebarKey, String(!collapsed)); setCollapsed(!collapsed); };
+  const doSignOut = async () => { setAlertsOpen(false); await signOut(); navigate('/', { replace: true }); };
+
+  return <div className="shell"><aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}><div className="brand-row"><Link className="brand" to={workspace === 'tecnico' ? '/app/tecnico' : '/app/inicio'}><Factory {...iconProps} /><span>DoorManager</span></Link><button className="side-toggle" onClick={toggleSidebar} title={collapsed ? 'Expandir menú' : 'Contraer menú'}>{collapsed ? <PanelLeftOpen {...iconProps} /> : <PanelLeftClose {...iconProps} />}</button></div><nav>{nav.map((item) => { const Icon = item.icon; return <Link key={item.id} className={active?.id === item.id ? 'active' : ''} to={item.path}><Icon {...iconProps} /><span>{item.label}</span></Link>; })}</nav></aside><div className="workspace"><header className="topbar"><button className="mobile-menu" onClick={toggleSidebar} title="Menú"><Menu {...iconProps} /></button><div className="top-title"><p className="eyebrow">{workspaceTitles[workspace]}</p><h1>{active?.label ?? 'DoorManager Pro'}</h1></div><GlobalSearch query={query} setQuery={setQuery} /><button className="icon-btn" onClick={() => setAlertsOpen(true)} title="Centro de avisos" aria-label="Abrir centro de avisos"><Bell {...iconProps} /><b>{unread}</b></button><div className="user-menu-wrap"><button className="user user-button" onClick={() => setUserOpen(!userOpen)}><span>{initials(fullName(profile))}</span><div><strong>{fullName(profile)}</strong><small>{profile.primary_area}</small></div></button>{userOpen && <><button className="popover-backdrop" aria-label="Cerrar menú" onClick={() => setUserOpen(false)} /><div className="user-popover" role="menu"><button disabled><UserRound size={16} /> Mi perfil</button>{allowedWorkspaces.length > 1 && <div className="workspace-switch"><strong>Cambiar espacio de trabajo</strong>{allowedWorkspaces.map((item) => <button key={item} className={workspace === item ? 'active' : ''} onClick={() => { setWorkspace(item); navigate(item === 'tecnico' ? '/app/tecnico' : '/app/inicio'); }}>{workspaceTitles[item]}</button>)}</div>}<button disabled><Settings size={16} /> Preferencias locales</button><button onClick={doSignOut}><LogOut size={16} /> Cerrar sesión</button></div></>}</div><div className="mobile-session-actions"><button onClick={doSignOut}><LogOut size={16} /> Salir</button></div></header><main><Outlet /></main></div>{alertsOpen && <SidePanel title="Centro de avisos" subtitle={workspaceTitles[workspace]} onClose={() => setAlertsOpen(false)}><AlertsPanel onClose={() => setAlertsOpen(false)} /></SidePanel>}</div>;
+}
+
+function navForWorkspace(workspace: Workspace) {
+  const sat = [{ id: 'inicio', label: 'Inicio', path: '/app/inicio', icon: Home }, { id: 'planificacion', label: 'Planificación', path: '/app/partes?fecha=hoy', icon: CalendarClock }, { id: 'trabajos', label: 'Trabajos', path: '/app/partes', icon: ClipboardList }, { id: 'tecnicos', label: 'Técnicos', path: '/app/partes?vista=tecnicos', icon: UsersRound }, { id: 'clientes', label: 'Clientes', path: '/app/clientes', icon: Building2 }, { id: 'centros', label: 'Centros', path: '/app/centros', icon: Factory }, { id: 'equipos', label: 'Equipos', path: '/app/equipos', icon: Warehouse }, { id: 'expedientes', label: 'Expedientes', path: '/app/expedientes', icon: FileText }, { id: 'partes', label: 'Partes', path: '/app/partes', icon: ClipboardList }, { id: 'checks', label: 'Checks', path: '/app/checks', icon: ClipboardCheck }, { id: 'deficiencias', label: 'Deficiencias', path: '/app/deficiencias', icon: ShieldAlert }, { id: 'documentos', label: 'Documentación', path: '/app/documentos', icon: FileText }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }];
+  const comercial = [{ id: 'inicio', label: 'Inicio', path: '/app/inicio', icon: Home }, { id: 'clientes', label: 'Clientes', path: '/app/clientes', icon: Building2 }, { id: 'oportunidades', label: 'Oportunidades', path: '/app/deficiencias?origen=oportunidad', icon: BriefcaseBusiness }, { id: 'presupuestos', label: 'Presupuestos', path: '/app/partes?tipo=presupuesto', icon: FileText }, { id: 'contratos', label: 'Contratos', path: '/app/clientes?filtro=contratos', icon: ClipboardList }, { id: 'visitas', label: 'Visitas', path: '/app/partes?tipo=visita', icon: CalendarClock }, { id: 'expedientes', label: 'Expedientes', path: '/app/expedientes', icon: FileText }, { id: 'partes', label: 'Partes', path: '/app/partes', icon: ClipboardList }, { id: 'informes', label: 'Informes comerciales', path: '/app/gerencia?vista=comercial', icon: PieChart }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }];
+  const oficina = [{ id: 'inicio', label: 'Inicio', path: '/app/inicio', icon: Home }, { id: 'administracion', label: 'Administración', path: '/app/documentos?area=administracion', icon: ClipboardCheck }, { id: 'facturacion', label: 'Facturación', path: '/app/partes?area=facturacion', icon: FileText }, { id: 'cobros', label: 'Cobros', path: '/app/avisos?tipo=cobros', icon: Bell }, { id: 'compras', label: 'Compras', path: '/app/documentos?area=compras', icon: Truck }, { id: 'proveedores', label: 'Proveedores', path: '/app/documentos?area=proveedores', icon: Warehouse }, { id: 'prl', label: 'PRL y personal', path: '/app/documentos?tipo=prl', icon: ShieldAlert }, { id: 'vehiculos', label: 'Vehículos', path: '/app/documentos?tipo=vehiculos', icon: Truck }, { id: 'documentos', label: 'Documentos', path: '/app/documentos', icon: FileText }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }];
+  const gerencia = [{ id: 'inicio', label: 'Inicio', path: '/app/inicio', icon: Home }, { id: 'resumen', label: 'Resumen', path: '/app/gerencia', icon: PieChart }, { id: 'ventas', label: 'Ventas', path: '/app/gerencia?indicador=ventas', icon: BriefcaseBusiness }, { id: 'operaciones', label: 'Operaciones', path: '/app/partes', icon: Gauge }, { id: 'rentabilidad', label: 'Rentabilidad', path: '/app/gerencia?indicador=rentabilidad', icon: PieChart }, { id: 'calidad', label: 'Calidad', path: '/app/deficiencias', icon: ShieldAlert }, { id: 'clientes', label: 'Clientes', path: '/app/clientes', icon: Building2 }, { id: 'personal', label: 'Personal', path: '/app/partes?vista=personal', icon: UsersRound }, { id: 'informes', label: 'Informes', path: '/app/gerencia', icon: FileText }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }];
+  if (workspace === 'tecnico') return [{ id: 'jornada', label: 'Mi jornada', path: '/app/tecnico', icon: CalendarClock }, { id: 'checks', label: 'Checks', path: '/app/checks', icon: ClipboardCheck }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }];
+  if (workspace === 'sat') return sat;
+  if (workspace === 'comercial') return comercial;
+  if (workspace === 'oficina') return oficina;
+  return gerencia;
+}
+
+function useLoad<T>(loader: () => Promise<T>, deps: unknown[] = [], empty: T) {
+  const [state, setState] = useState<LoadState<T>>({ data: empty, loading: true, error: '' });
+  const reload = async () => { setState((prev) => ({ ...prev, loading: true, error: '' })); try { setState({ data: await loader(), loading: false, error: '' }); } catch (err) { setState({ data: empty, loading: false, error: err instanceof Error ? err.message : 'Error inesperado' }); } };
+  useEffect(() => { reload(); }, deps);
+  return { ...state, reload };
+}
+
+function HomePage() {
+  const { workspace } = useAuth();
+  if (workspace === 'sat') return <SatDashboard />;
+  if (workspace === 'comercial') return <CommercialDashboard />;
+  if (workspace === 'oficina') return <OfficeDashboard />;
+  if (workspace === 'gerencia') return <ManagementDashboard />;
+  return <Navigate to="/app/tecnico" replace />;
+}
+
+function SatDashboard() {
+  const { data, loading, error, reload } = useLoad(() => dashboardService.getSatDashboardData(), [], null as any);
+  const [mode, setMode] = useState<'work' | 'alert' | 'check' | null>(null);
+  if (loading || error || !data) return <StateBlock loading={loading} error={error} retry={reload} empty={!data} />;
+  const todayWorks = data.workOrders.filter((w: any) => w.scheduled_date === data.day);
+  const pending = data.workOrders.filter((w: any) => ['Pendiente', 'Trabajo descargado'].includes(w.status));
+  const inProgress = data.workOrders.filter((w: any) => ['En desplazamiento', 'En intervencion', 'Finalizado tecnicamente', 'Pendiente de envio'].includes(w.status));
+  const unassigned = data.workOrders.filter((w: any) => !w.main_technician_name);
+  const urgent = data.workOrders.filter((w: any) => ['Alta', 'Critica'].includes(w.priority));
+  const delayed = data.workOrders.filter((w: any) => w.scheduled_date === data.prevDay && !['Enviado', 'Cerrado', 'Cancelado'].includes(w.status));
+  const openDef = data.deficiencies.filter((d: any) => !['Corregida', 'Cerrada', 'Rechazada'].includes(d.status));
+  const criticalAlerts = data.alerts.filter((a: any) => a.priority === 'Critica' || a.type === 'Critico');
+  const materialPending = data.materials.filter((m: any) => ['Pendiente', 'Pendiente de material'].includes(m.work_orders?.status));
+  const kpis = [
+    kpiCard('Técnicos disponibles', data.technicians.filter((t: any) => t.active).length, 'Hoy', 'Perfiles técnicos activos', '/app/partes?vista=tecnicos'),
+    kpiCard('Técnicos en intervención', inProgress.length, 'Ahora', 'Partes operativos en curso', '/app/partes?estado=en-curso'),
+    kpiCard('Partes pendientes', pending.length, 'Actual', 'Pendientes de iniciar o descargar', '/app/partes?estado=pendiente'),
+    kpiCard('Partes sin asignar', unassigned.length, 'Actual', 'Sin técnico principal', '/app/partes?filtro=sin-asignar'),
+    kpiCard('Partes urgentes', urgent.length, 'Actual', 'Prioridad alta o crítica', '/app/partes?prioridad=critica'),
+    kpiCard('No terminados ayer', delayed.length, data.prevDay, 'Arrastrados del día anterior', '/app/partes?filtro=no-terminados'),
+    kpiCard('Checks pendientes', data.pendingChecks.length, 'Actual', 'Por realizar o en curso', '/app/checks?estado=por-realizar'),
+    kpiCard('Checks realizados hoy', data.completedChecks.length, data.day, 'Finalizados hoy', '/app/checks?estado=realizado'),
+    kpiCard('Deficiencias pendientes', openDef.length, 'Actual', 'Pendientes de valoración', '/app/deficiencias?estado=pendiente'),
+    kpiCard('Avisos críticos', criticalAlerts.length, 'Actual', 'Prioridad crítica', '/app/avisos?prioridad=critica'),
+    kpiCard('Material pendiente', materialPending.length, 'Actual', 'Material asociado a partes pendientes', '/app/partes?filtro=material'),
+    kpiCard('Accesos pendientes', data.workOrders.filter((w: any) => !w.site_name).length, 'Actual', 'Partes con contexto incompleto', '/app/partes?filtro=acceso'),
+  ];
+  return <RoleDashboard title="Inicio SAT" subtitle="Centro operativo de planificación, partes, técnicos, checks y avisos." kpis={kpis} quickActions={<><button onClick={() => setMode('work')}>Crear parte</button><Link to="/app/partes?filtro=sin-asignar">Asignar técnico</Link><button onClick={() => setMode('check')}>Crear check</button><button onClick={() => setMode('alert')}>Crear aviso</button><Link to="/app/partes?fecha=hoy">Abrir planificación</Link><Link to="/app/deficiencias?estado=pendiente">Revisar deficiencia</Link></>}><DashboardList title="Trabajos de hoy" rows={todayWorks.slice(0, 8).map((w: any) => [`${w.scheduled_time ?? 'Sin hora'} · ${w.code}`, `${displayStatus(w.priority)} · ${w.type} · ${w.client_name} · ${w.site_name} · ${w.main_technician_name ?? 'Sin técnico'} · ${displayStatus(w.status)}`, severityForPriority(w.priority), `/app/partes/${w.id}`])} empty="No hay trabajos planificados hoy." /><DashboardList title="Técnicos" rows={data.technicians.slice(0, 6).map((t: any) => [fullName(t), 'Perfil técnico activo · disponibilidad según partes asignados', 'info', '/app/partes?vista=tecnicos'])} empty="Sin técnicos visibles." /><DashboardList title="Alertas operativas" rows={[...delayed, ...unassigned, ...criticalAlerts, ...openDef].slice(0, 8).map((item: any) => [item.code ?? item.title, item.description ?? item.title ?? item.status, severityForStatus(item.status ?? item.priority), item.related_id ? routeForAlert(item) : '/app/partes'])} empty="Sin alertas operativas destacadas." /><DashboardList title="Actividad reciente" rows={data.assignments.slice(0, 8).map((a: any) => [a.work_orders?.code ?? 'Asignación', `${a.assignment_date} · ${fullName(a.profiles)} · ${displayStatus(a.status)}`, severityForStatus(a.status), `/app/partes/${a.work_order_id}`])} empty="Sin actividad reciente." />{mode === 'work' && <WorkOrderForm onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}{mode === 'alert' && <AlertForm onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}{mode === 'check' && <CheckForm onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}</RoleDashboard>;
+}
+
+function CommercialDashboard() {
+  const { data, loading, error, reload } = useLoad(() => dashboardService.getCommercialDashboardData(), [], null as any);
+  const [mode, setMode] = useState<'work' | 'alert' | null>(null);
+  if (loading || error || !data) return <StateBlock loading={loading} error={error} retry={reload} empty={!data} />;
+  const pendingQuotes = data.quotes.filter((q: any) => q.status === 'Borrador' || q.status === 'Pendiente de valoracion');
+  const sentQuotes = data.quotes.filter((q: any) => q.status === 'Enviado');
+  const acceptedQuotes = data.quotes.filter((q: any) => q.status === 'Aceptado');
+  const openOpps = data.opportunities.filter((o: any) => !['Ganada', 'Perdida', 'Cerrada'].includes(o.status));
+  const withoutOwner = openOpps.filter((o: any) => !o.responsible_profile_id);
+  const commercialDef = data.deficiencies.filter((d: any) => ['Pendiente de valoracion', 'En valoracion', 'Presupuestada'].includes(d.status));
+  const sales = acceptedQuotes.reduce((sum: number, q: any) => sum + Number(q.total ?? 0), 0);
+  return <RoleDashboard title="Inicio Comercial" subtitle="Oportunidades, presupuestos, renovaciones y seguimiento comercial." kpis={[kpiCard('Presupuestos pendientes', pendingQuotes.length, 'Actual', 'Borradores y pendientes de valoración', '/app/gerencia?vista=presupuestos'), kpiCard('Presupuestos enviados', sentQuotes.length, 'Actual', 'Pendientes de respuesta', '/app/gerencia?vista=presupuestos&estado=enviado'), kpiCard('Presupuestos aceptados', acceptedQuotes.length, 'Periodo', 'Aceptados en datos actuales', '/app/gerencia?vista=ventas'), kpiCard('Oportunidades abiertas', openOpps.length, 'Actual', 'No cerradas', '/app/deficiencias?origen=oportunidad'), kpiCard('Sin responsable', withoutOwner.length, 'Actual', 'Oportunidades sin responsable', '/app/deficiencias?filtro=sin-responsable'), kpiCard('Deficiencias comerciales', commercialDef.length, 'Actual', 'Con potencial comercial', '/app/deficiencias?estado=valoracion'), kpiCard('Clientes activos', data.clients.filter((c: any) => c.status === 'Activo').length, 'Actual', 'Cartera activa', '/app/clientes?estado=activo'), kpiCard('Ventas del periodo', `${sales.toLocaleString('es-ES')} €`, 'Periodo', 'Total presupuestos aceptados', '/app/gerencia?indicador=ventas')]} quickActions={<><button onClick={() => setMode('work')}>Crear parte</button><Link to="/app/partes?tipo=visita">Crear visita</Link><Link to="/app/deficiencias?origen=oportunidad">Crear oportunidad</Link><Link to="/app/gerencia?vista=presupuestos">Crear presupuesto</Link><button onClick={() => setMode('alert')}>Crear aviso</button><Link to="/app/clientes">Abrir cliente</Link></>}><DashboardList title="Actividad comercial" rows={[...openOpps, ...sentQuotes].slice(0, 8).map((item: any) => [item.code ?? item.title, item.title ?? `${item.clients?.legal_name ?? 'Cliente'} · ${item.status}`, severityForStatus(item.status), item.code?.startsWith('PRE') ? '/app/gerencia?vista=presupuestos' : '/app/deficiencias'])} empty="Sin actividad comercial pendiente." /><DashboardList title="Oportunidades desde deficiencias" rows={commercialDef.slice(0, 8).map((d: any) => [d.clients?.legal_name ?? d.code, `${d.equipment?.code ?? 'Equipo'} · ${d.description} · ${displayStatus(d.severity)} · ${displayStatus(d.status)}`, severityForPriority(d.severity), `/app/deficiencias/${d.id}`])} empty="Sin deficiencias comerciales." />{mode === 'work' && <WorkOrderForm onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}{mode === 'alert' && <AlertForm onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}</RoleDashboard>;
+}
+
+function OfficeDashboard() {
+  const { data, loading, error, reload } = useLoad(() => dashboardService.getOfficeDashboardData(), [], null as any);
+  const [mode, setMode] = useState<'alert' | 'document' | null>(null);
+  if (loading || error || !data) return <StateBlock loading={loading} error={error} retry={reload} empty={!data} />;
+  const pendingDocs = data.documents.filter((d: any) => !d.valid || !d.file_id);
+  const pendingRequests = data.materialRequests.filter((r: any) => !['Entregada', 'Cancelada'].includes(r.status));
+  const pendingMaterials = data.workOrderMaterials.filter((m: any) => ['Pendiente', 'Pendiente de material'].includes(m.work_orders?.status));
+  const adminAlerts = data.alerts.filter((a: any) => ['Administrativo', 'Documentacion', 'Material', 'PRL'].includes(a.type));
+  return <RoleDashboard title="Inicio Oficina" subtitle="Tareas administrativas, documentación, compras, proveedores y soporte." kpis={[kpiCard('Documentos pendientes', pendingDocs.length, 'Actual', 'Sin archivo o no válidos', '/app/documentos?estado=pendiente'), kpiCard('Pedidos sin confirmar', pendingRequests.length, 'Actual', 'Solicitudes de material abiertas', '/app/documentos?area=compras'), kpiCard('Material pendiente', pendingMaterials.length, 'Actual', 'Material asociado a partes', '/app/partes?filtro=material'), kpiCard('Avisos administrativos', adminAlerts.length, 'Actual', 'Administración, PRL o documentación', '/app/avisos?tipo=administrativo'), kpiCard('Proveedores', data.suppliers.length, 'Actual', 'Proveedores activos visibles', '/app/documentos?area=proveedores'), kpiCard('Partes consultables', data.workOrders.length, 'Actual', 'Soporte administrativo', '/app/partes')]} quickActions={<><button onClick={() => setMode('alert')}>Crear aviso</button><button onClick={() => setMode('document')}>Registrar documento</button><Link to="/app/documentos?area=compras">Crear pedido</Link><Link to="/app/documentos?area=proveedores">Abrir proveedor</Link><Link to="/app/partes?area=facturacion">Abrir facturación</Link><Link to="/app/partes">Consultar parte</Link></>}><DashboardList title="Facturación y cobros" rows={data.workOrders.slice(0, 6).map((w: any) => [w.code, `${w.client_name} · ${w.scheduled_date ?? 'Sin fecha'} · ${displayStatus(w.status)}`, severityForStatus(w.status), `/app/partes/${w.id}`])} empty="Sin partes recientes para facturación." /><DashboardList title="Compras y proveedores" rows={[...pendingRequests, ...pendingMaterials].slice(0, 8).map((item: any) => [item.work_orders?.code ?? item.materials?.code ?? 'Solicitud', item.notes ?? item.materials?.description ?? displayStatus(item.status), severityForStatus(item.status ?? item.work_orders?.status), item.work_order_id ? `/app/partes/${item.work_order_id}` : '/app/documentos?area=compras'])} empty="Sin compras pendientes." /><DashboardList title="Documentación" rows={pendingDocs.slice(0, 8).map((d: any) => [d.title, `${d.type} · ${d.valid ? 'Pendiente de archivo' : 'No válido'}`, d.valid ? 'warn' : 'danger', `/app/documentos/${d.id}`])} empty="Sin documentación pendiente." />{mode === 'alert' && <AlertForm onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}{mode === 'document' && <DocumentForm onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}</RoleDashboard>;
+}
+
+function ManagementDashboard() {
+  const { data, loading, error, reload } = useLoad(() => dashboardService.getManagementDashboardData(), [], null as any);
+  const [mode, setMode] = useState<'work' | 'alert' | null>(null);
+  if (loading || error || !data) return <StateBlock loading={loading} error={error} retry={reload} empty={!data} />;
+  const done = data.workOrders.filter((w: any) => ['Enviado', 'Cerrado'].includes(w.status));
+  const pending = data.workOrders.filter((w: any) => !['Enviado', 'Cerrado', 'Cancelado'].includes(w.status));
+  const urgent = data.workOrders.filter((w: any) => ['Alta', 'Critica'].includes(w.priority));
+  const openDef = data.deficiencies.filter((d: any) => !['Corregida', 'Cerrada', 'Rechazada'].includes(d.status));
+  const amount = Number(data.metrics.accepted_quote_amount ?? 0);
+  return <RoleDashboard title="Inicio Gerencia" subtitle="Visión global, rentabilidad, carga operativa y alertas estratégicas." kpis={[kpiCard('Ventas periodo', `${amount.toLocaleString('es-ES')} €`, 'v_management_metrics', 'Presupuestos aceptados', '/app/gerencia?indicador=ventas'), kpiCard('Clientes activos', data.metrics.clients ?? data.clients.length, 'Actual', 'Clientes visibles por RLS', '/app/clientes'), kpiCard('Equipos', data.metrics.equipment ?? 0, 'Actual', 'Inventario instalado', '/app/equipos'), kpiCard('Partes realizados', done.length, 'Actual', 'Enviados o cerrados', '/app/partes?estado=realizado'), kpiCard('Partes pendientes', pending.length, 'Actual', 'Carga abierta', '/app/partes?estado=pendiente'), kpiCard('Partes urgentes', urgent.length, 'Actual', 'Alta o crítica', '/app/partes?prioridad=critica'), kpiCard('Deficiencias abiertas', openDef.length, 'Actual', 'Riesgo técnico/comercial', '/app/deficiencias?estado=abierta'), kpiCard('Oportunidades', data.opportunities.length, 'Actual', 'Pipeline visible', '/app/deficiencias?origen=oportunidad')]} quickActions={<><button onClick={() => setMode('work')}>Crear parte</button><button onClick={() => setMode('alert')}>Crear aviso</button><Link to="/app/gerencia">Abrir informe</Link><Link to="/app/gerencia?indicador=metricas">Consultar métricas</Link><Link to="/app/deficiencias?filtro=desviaciones">Revisar desviaciones</Link><Link to="/app/clientes">Abrir cliente</Link></>}><InteractiveBars title="Trabajos realizados frente a pendientes" values={[['Realizados', done.length, '/app/partes?estado=realizado'], ['Pendientes', pending.length, '/app/partes?estado=pendiente'], ['Urgentes', urgent.length, '/app/partes?prioridad=critica']]} /><InteractiveBars title="Deficiencias por gravedad" values={['Baja','Media','Alta','Critica'].map((level) => [displayStatus(level), data.deficiencies.filter((d: any) => d.severity === level).length, `/app/deficiencias?gravedad=${level}`]) as any} /><DashboardList title="Alertas de dirección" rows={[...data.alerts, ...openDef].slice(0, 8).map((item: any) => [item.title ?? item.code, item.description ?? item.status, severityForStatus(item.status ?? item.priority), item.related_id ? routeForAlert(item) : '/app/deficiencias'])} empty="Sin alertas estratégicas." />{mode === 'work' && <WorkOrderForm onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}{mode === 'alert' && <AlertForm onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}</RoleDashboard>;
+}
+
+function RoleDashboard({ title, subtitle, kpis, quickActions, children }: { title: string; subtitle: string; kpis: any[]; quickActions: ReactNode; children: ReactNode }) {
+  return <section className="page dashboard-page"><Breadcrumb items={['Inicio', title]} /><div className="page-head"><div><h2>{title}</h2><p>{subtitle}</p><small>Última actualización: {new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</small></div></div><div className="stats-grid dashboard-kpis">{kpis.map((item) => <Link key={item.label} className={`metric ${item.tone}`} to={item.route}><div>{item.icon}<span>{item.label}</span></div><strong>{item.value}</strong><small>{item.period} · {item.help}</small></Link>)}</div><Card title="Acciones rápidas"><div className="actions quick-actions">{quickActions}</div></Card><div className="dashboard-grid">{children}</div></section>;
+}
+
+function kpiCard(label: string, value: any, period: string, help: string, route: string, tone: Severity = 'info') {
+  return { label, value, period, help, route, tone, icon: <Gauge {...iconProps} /> };
+}
+
+function DashboardList({ title, rows, empty }: { title: string; rows: [string, string, Severity, string][]; empty: string }) {
+  return <Card title={title}>{rows.length ? <div className="compact-list dashboard-list">{rows.map(([head, text, tone, route]) => <article key={`${title}-${head}-${text}`}><Badge tone={tone}>{head}</Badge><p>{text}</p><Link to={route}>Abrir</Link></article>)}</div> : <p className="large-note">{empty}</p>}<Link className="link-button" to={rows[0]?.[3] ? rows[0][3].split('?')[0] : '/app/inicio'}>Ver todos</Link></Card>;
+}
+
+function InteractiveBars({ title, values }: { title: string; values: [string, number, string][] }) {
+  const max = Math.max(1, ...values.map((item) => item[1]));
+  return <Card title={title}><div className="interactive-bars">{values.map(([label, value, route]) => <Link key={label} to={route} title={`Ver registros de ${label}`}><span style={{ height: `${Math.max(12, (value / max) * 120)}px` }} /><strong>{value}</strong><small>{label}</small></Link>)}</div><p className="large-note">Pulsa una barra para ver los registros origen del periodo actual.</p></Card>;
+}
+
+function ClientsPage() {
+  const [search, setSearch] = useState('');
+  const { data, loading, error, reload } = useLoad(() => clientsService.list(search), [search], [] as any[]);
+  const [creating, setCreating] = useState(false);
+  return <ListPage title="Clientes" summary="Listado conectado a public.clients y public.client_contacts." search={search} setSearch={setSearch} action={<button className="primary" onClick={() => setCreating(true)}>Crear cliente</button>} loading={loading} error={error} retry={reload} empty={!data.length}><div className="grid half">{data.map((client) => <Card key={client.id} title={client.legal_name} action={<Link to={`/app/clientes/${client.id}`}>Abrir</Link>}><InfoGrid items={[[ 'Código', client.code ], [ 'Nombre comercial', client.trade_name ?? '-' ], [ 'NIF', client.tax_id ?? '-' ], [ 'Estado', client.status ], [ 'Teléfono', client.phone ?? '-' ], [ 'Correo', client.email ?? '-' ], [ 'Centros', String(client.sites?.length ?? 0) ], [ 'Equipos', String(client.equipment?.length ?? 0) ]]} /></Card>)}</div>{creating && <ClientForm title="Crear cliente" onClose={() => setCreating(false)} onSaved={() => { setCreating(false); reload(); }} />}</ListPage>;
+}
+
+function ClientDetailPage() {
+  const { id = '' } = useParams();
+  const { data, loading, error, reload } = useLoad(() => clientsService.get(id), [id], null as any);
+  const [mode, setMode] = useState<'edit' | 'contact' | 'site' | 'work' | null>(null);
+  if (loading || error || !data) return <StateBlock loading={loading} error={error} retry={reload} empty={!data} />;
+  return <section className="page"><BackButton /><Hero title={data.legal_name} subtitle={`${data.code} · ${data.status}`} tone={severityForStatus(data.status)} /><div className="actions"><button onClick={() => setMode('edit')}>Modificar cliente</button><button onClick={() => setMode('contact')}>Añadir contacto</button><button onClick={() => setMode('site')}>Crear centro</button><button onClick={() => setMode('work')}>Crear parte</button></div><div className="grid two-one"><Card title="Datos del cliente"><InfoGrid items={[[ 'Código', data.code ], [ 'Razón social', data.legal_name ], [ 'Nombre comercial', data.trade_name ?? '-' ], [ 'NIF', data.tax_id ?? '-' ], [ 'Dirección', data.address ?? '-' ], [ 'Localidad', data.city ?? '-' ], [ 'Provincia', data.province ?? '-' ], [ 'CP', data.postal_code ?? '-' ], [ 'País', data.country ?? '-' ], [ 'Teléfono', data.phone ?? '-' ], [ 'Correo', data.email ?? '-' ], [ 'Observaciones', data.notes ?? '-' ]]} /></Card><Card title="Contactos"><CompactRows rows={(data.client_contacts ?? []).map((item: any) => [fullName(item), `${item.role ?? '-'} · ${item.email ?? '-'} · ${item.phone ?? '-'}`, item.is_primary ? 'ok' : 'info', `/app/clientes/${data.id}`])} empty="Sin contactos." /></Card></div><Related title="Relaciones" groups={[['Centros', data.sites, '/app/centros'], ['Equipos', data.equipment, '/app/equipos'], ['Expedientes', data.cases, '/app/expedientes'], ['Partes', data.work_orders, '/app/partes']]} />{mode === 'edit' && <ClientForm title="Modificar cliente" initial={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}{mode === 'contact' && <ContactForm clientId={data.id} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}{mode === 'site' && <SiteForm title="Crear centro" initial={{ client_id: data.id }} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}{mode === 'work' && <WorkOrderForm initial={{ client_id: data.id }} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}</section>;
+}
+
+function SitesPage() { const [search, setSearch] = useState(''); const { data, loading, error, reload } = useLoad(() => sitesService.list(search), [search], [] as any[]); const [creating, setCreating] = useState(false); return <ListPage title="Centros" summary="Centros conectados con cliente, accesos, contactos, equipos y partes." search={search} setSearch={setSearch} action={<button className="primary" onClick={() => setCreating(true)}>Crear centro</button>} loading={loading} error={error} retry={reload} empty={!data.length}><div className="grid half">{data.map((site) => <Card key={site.id} title={site.name} action={<Link to={`/app/centros/${site.id}`}>Abrir</Link>}><InfoGrid items={[[ 'Código', site.code ], [ 'Cliente', site.clients?.legal_name ?? '-' ], [ 'Dirección', site.address ?? '-' ], [ 'Horario', site.schedule ?? '-' ], [ 'Equipos', String(site.equipment?.length ?? 0) ], [ 'Partes', String(site.work_orders?.length ?? 0) ]]} /></Card>)}</div>{creating && <SiteForm title="Crear centro" onClose={() => setCreating(false)} onSaved={() => { setCreating(false); reload(); }} />}</ListPage>; }
+
+function SiteDetailPage() { const { id = '' } = useParams(); const { data, loading, error, reload } = useLoad(() => sitesService.get(id), [id], null as any); const [mode, setMode] = useState<'edit' | 'contact' | 'equipment' | 'work' | null>(null); if (loading || error || !data) return <StateBlock loading={loading} error={error} retry={reload} empty={!data} />; return <section className="page"><BackButton /><Hero title={data.name} subtitle={`${data.code} · ${data.clients?.legal_name ?? ''}`} tone="maintenance" /><div className="actions"><button onClick={() => setMode('edit')}>Modificar centro</button><button onClick={() => setMode('contact')}>Añadir contacto</button><button onClick={() => setMode('equipment')}>Crear equipo</button><button onClick={() => setMode('work')}>Crear parte</button></div><Card title="Datos del centro"><InfoGrid items={[[ 'Cliente', data.clients?.legal_name ?? '-' ], [ 'Dirección', data.address ?? '-' ], [ 'Localidad', data.city ?? '-' ], [ 'Provincia', data.province ?? '-' ], [ 'CP', data.postal_code ?? '-' ], [ 'Horario', data.schedule ?? '-' ], [ 'Requisitos de acceso', data.access_requirements?.description ?? '-' ], [ 'Observaciones', data.notes ?? '-' ]]} /></Card><Related title="Relaciones" groups={[['Equipos instalados', data.equipment, '/app/equipos'], ['Expedientes', data.cases, '/app/expedientes'], ['Partes', data.work_orders, '/app/partes']]} />{mode === 'edit' && <SiteForm title="Modificar centro" initial={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}{mode === 'contact' && <SiteContactForm siteId={data.id} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}{mode === 'equipment' && <EquipmentForm initial={{ client_id: data.client_id, site_id: data.id }} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}{mode === 'work' && <WorkOrderForm initial={{ client_id: data.client_id, site_id: data.id }} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}</section>; }
+
+function EquipmentPage() { const [search, setSearch] = useState(''); const { data, loading, error, reload } = useLoad(() => equipmentService.list(search), [search], [] as any[]); const [creating, setCreating] = useState(false); return <ListPage title="Equipos" summary="Inventario conectado a public.equipment, tipos y componentes." search={search} setSearch={setSearch} action={<button className="primary" onClick={() => setCreating(true)}>Crear equipo</button>} loading={loading} error={error} retry={reload} empty={!data.length}><div className="grid half">{data.map((item) => <Card key={item.id} title={item.code} action={<Link to={`/app/equipos/${item.id}`}>Abrir</Link>}><InfoGrid items={[[ 'Tipo', item.equipment_types?.name ?? '-' ], [ 'Cliente', item.clients?.legal_name ?? '-' ], [ 'Centro', item.sites?.name ?? '-' ], [ 'Ubicación', item.internal_location ?? '-' ], [ 'Marca/modelo', `${item.brand ?? '-'} ${item.model ?? ''}` ], [ 'Estado', displayStatus(item.status) ], [ 'Próxima revisión', item.next_review_date ?? '-' ]]} /></Card>)}</div>{creating && <EquipmentForm onClose={() => setCreating(false)} onSaved={() => { setCreating(false); reload(); }} />}</ListPage>; }
+
+function EquipmentDetailPage() { const { id = '' } = useParams(); const navigate = useNavigate(); const { data, loading, error, reload } = useLoad(() => equipmentService.get(id), [id], null as any); const history = useLoad(() => equipmentService.history(id), [id], [] as any[]); const [mode, setMode] = useState<'edit' | 'component' | 'work' | 'check' | null>(null); if (loading || error || !data) return <StateBlock loading={loading} error={error} retry={reload} empty={!data} />; return <section className="page"><BackButton /><Hero title={`${data.code} · ${data.equipment_types?.name ?? 'Equipo'}`} subtitle={`${data.clients?.legal_name ?? ''} · ${data.sites?.name ?? ''}`} tone={severityForStatus(data.status)} /><div className="actions"><button onClick={() => setMode('edit')}>Modificar equipo</button><button onClick={() => setMode('component')}>Añadir componente</button><button onClick={() => setMode('work')}>Crear parte desde equipo</button><button onClick={() => setMode('check')}>Crear check desde equipo</button></div><Card title="Identificación"><InfoGrid items={[[ 'Código', data.code ], [ 'Cliente', data.clients?.legal_name ?? '-' ], [ 'Centro', data.sites?.name ?? '-' ], [ 'Ubicación', data.internal_location ?? '-' ], [ 'Fabricante', data.brand ?? '-' ], [ 'Modelo', data.model ?? '-' ], [ 'Serie', data.serial_number ?? '-' ], [ 'Estado', displayStatus(data.status) ], [ 'Criticidad', displayStatus(data.criticality) ]]} /></Card><div className="grid half"><Card title="Componentes"><CompactRows rows={(data.equipment_components ?? []).map((c: any) => [c.component_type, `${c.brand ?? '-'} ${c.model ?? ''} · ${c.status}`, severityForStatus(c.status), `/app/equipos/${id}`])} empty="Sin componentes." /></Card><Card title="Historial"><CompactRows rows={history.data.map((h: any) => [displayStatus(h.event_type), `${formatDate(h.event_at)} · ${h.summary ?? ''} · ${h.detail ?? ''}`, severityForStatus(h.detail), h.event_type === 'parte' ? '/app/partes' : `/app/equipos/${id}`])} empty="Sin historial." /></Card></div><Related title="Relaciones" groups={[['Documentos', data.document_links?.map((l: any) => l.documents), '/app/documentos'], ['Expedientes', data.cases, '/app/expedientes'], ['Partes', data.work_orders, '/app/partes'], ['Checks', data.checks, '/app/checks']]} />{mode === 'edit' && <EquipmentForm initial={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}{mode === 'component' && <ComponentForm equipmentId={data.id} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}{mode === 'work' && <WorkOrderForm initial={{ client_id: data.client_id, site_id: data.site_id, main_equipment_id: data.id }} onClose={() => setMode(null)} onSaved={(newId) => { setMode(null); if (newId) navigate(`/app/partes/${newId}`); }} />}{mode === 'check' && <CheckForm initial={{ equipment_id: data.id }} onClose={() => setMode(null)} onSaved={(newId) => { setMode(null); if (newId) navigate(`/app/checks/${newId}`); }} />}</section>; }
+
+function CasesPage() { const [search, setSearch] = useState(''); const { data, loading, error, reload } = useLoad(() => casesService.list(search), [search], [] as any[]); const [creating, setCreating] = useState(false); return <ListPage title="Expedientes" summary="Expedientes con eventos y enlaces reales." search={search} setSearch={setSearch} action={<button className="primary" onClick={() => setCreating(true)}>Crear expediente</button>} loading={loading} error={error} retry={reload} empty={!data.length}><WorkTable rows={data} columns={['code', 'title', 'clients.legal_name', 'status', 'priority']} route="/app/expedientes" /></ListPage>; }
+
+function CaseDetailPage() { const { id = '' } = useParams(); const { data, loading, error, reload } = useLoad(() => casesService.get(id), [id], null as any); const [mode, setMode] = useState<'edit' | 'work' | null>(null); if (loading || error || !data) return <StateBlock loading={loading} error={error} retry={reload} empty={!data} />; return <section className="page"><BackButton /><Hero title={`${data.code} · ${data.title}`} subtitle={`${data.clients?.legal_name ?? ''} · ${displayStatus(data.status)}`} tone={severityForPriority(data.priority)} /><div className="actions"><button onClick={() => setMode('edit')}>Modificar expediente</button><button onClick={() => setMode('work')}>Crear parte</button></div><Card title="Datos del expediente"><InfoGrid items={[[ 'Cliente', data.clients?.legal_name ?? '-' ], [ 'Centro', data.sites?.name ?? '-' ], [ 'Tipo', displayStatus(data.type) ], [ 'Prioridad', displayStatus(data.priority) ], [ 'Estado', displayStatus(data.status) ], [ 'Origen', data.origin ], [ 'Descripción', data.description ?? '-' ]]} /></Card><Card title="Cronología"><Timeline items={(data.case_events ?? []).map((event: any) => `${formatDate(event.created_at)} · ${event.event_type} · ${event.description ?? ''}`)} /></Card><Related title="Registros vinculados" groups={[[ 'Vínculos', data.case_links, '/app' ], [ 'Documentos', data.case_documents, '/app/documentos' ]]} />{mode === 'edit' && <CaseForm title="Modificar expediente" initial={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}{mode === 'work' && <WorkOrderForm initial={{ case_id: data.id, client_id: data.client_id, site_id: data.site_id }} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}</section>; }
+
+function WorkOrdersPage() { const [search, setSearch] = useState(''); const { data, loading, error, reload } = useLoad(() => workOrdersService.list(search), [search], [] as any[]); const [creating, setCreating] = useState(false); return <ListPage title="Partes" summary="Partes conectados a v_work_order_full_detail y RPC de creación/asignación." search={search} setSearch={setSearch} action={<button className="primary" onClick={() => setCreating(true)}>Crear parte</button>} loading={loading} error={error} retry={reload} empty={!data.length}><WorkTable rows={data} columns={['code', 'title', 'client_name', 'site_name', 'equipment_code', 'status']} route="/app/partes" />{creating && <WorkOrderForm onClose={() => setCreating(false)} onSaved={() => { setCreating(false); reload(); }} />}</ListPage>; }
+
+function WorkOrderDetailPage() { const { id = '' } = useParams(); const { data, loading, error, reload } = useLoad(() => workOrdersService.get(id), [id], null as any); const [mode, setMode] = useState<'edit' | 'assign' | 'check' | null>(null); const [message, setMessage] = useState(''); if (loading || error || !data) return <StateBlock loading={loading} error={error} retry={reload} empty={!data} />; const previous = previousWorkOrderStatus(data.status); const advance = async () => { await workOrdersService.changeStatus(data.id, nextWorkOrderStatus(data.status), 'Cambio desde panel del parte'); setMessage('Estado actualizado.'); reload(); }; const goBack = async () => { if (!previous) return; const reason = window.prompt('Motivo de la corrección de estado'); if (!reason) return; await workOrdersService.changeStatus(data.id, previous, reason, true); setMessage('Estado anterior restaurado conservando historial.'); reload(); }; return <section className="page"><BackButton /><Hero title={`${data.code} · ${data.title}`} subtitle={`${data.clients?.legal_name ?? ''} · ${data.sites?.name ?? ''}`} tone={severityForStatus(data.status)} /><div className="actions"><button onClick={() => setMode('edit')}>Modificar parte</button><button onClick={() => setMode('assign')}>Asignar técnico</button><button onClick={advance}>Avanzar estado</button><button disabled={!previous} onClick={goBack}>Volver al estado anterior</button><button onClick={() => setMode('check')}>Crear check</button><Link to={`/app/equipos/${data.main_equipment_id}`}>Abrir equipo</Link></div>{message && <p className="state-warning">{message}</p>}<div className="grid two-one"><Card title="Datos principales"><InfoGrid items={[[ 'Expediente', data.cases?.code ?? '-' ], [ 'Cliente', data.clients?.legal_name ?? '-' ], [ 'Centro', data.sites?.name ?? '-' ], [ 'Equipo', data.equipment?.code ?? '-' ], [ 'Tipo', displayStatus(data.type) ], [ 'Prioridad', displayStatus(data.priority) ], [ 'Estado', displayStatus(data.status) ], [ 'Fecha', data.scheduled_date ?? '-' ], [ 'Hora', data.scheduled_time ?? '-' ], [ 'Duración', data.estimated_duration_minutes ? `${data.estimated_duration_minutes} min` : '-' ], [ 'Material previsto', data.planned_material ?? '-' ], [ 'Descripción', data.description ?? '-' ]]} /></Card><Card title="Asignaciones"><CompactRows rows={(data.work_order_assignments ?? []).map((a: any) => [fullName(a.profiles), `${a.assignment_date} · ${a.planned_start_time ?? '-'} · ${a.status}`, severityForStatus(a.status), `/app/partes/${id}`])} empty="Sin técnico asignado." /></Card></div><Card title="Historial de estados"><Timeline items={(data.work_order_status_history ?? []).map((h: any) => `${formatDate(h.changed_at)} · ${displayStatus(h.previous_status)} -> ${displayStatus(h.new_status)} · ${h.reason ?? ''}`)} /></Card><Related title="Relaciones" groups={[[ 'Checks', data.checks, '/app/checks' ], [ 'Deficiencias', data.deficiencies, '/app/deficiencias' ], [ 'Materiales', data.work_order_materials, '/app/partes' ]]} />{mode === 'edit' && <WorkOrderForm initial={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}{mode === 'assign' && <AssignmentForm workOrderId={data.id} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}{mode === 'check' && <CheckForm initial={{ work_order_id: data.id, equipment_id: data.main_equipment_id }} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}</section>; }
+
+function TechnicianDayPage() { const navigate = useNavigate(); const [tab, setTab] = useState<'pendientes' | 'curso' | 'finalizados'>('pendientes'); const { data, loading, error, reload } = useLoad(() => assignmentsService.dailySchedule(), [], [] as any[]); const rows = data.filter((row) => tab === 'pendientes' ? ['Pendiente','Trabajo descargado'].includes(row.work_order_status) : tab === 'curso' ? ['En desplazamiento','En intervencion','Finalizado tecnicamente','Pendiente de envio'].includes(row.work_order_status) : ['Enviado','Cerrado'].includes(row.work_order_status)); return <section className="page"><div className="page-head"><div><p className="eyebrow">Trabajo técnico</p><h2>Mi jornada</h2><p>Partes asignados para hoy desde public.v_technician_daily_schedule.</p></div></div><div className="tabs"><button className={tab === 'pendientes' ? 'active' : ''} onClick={() => setTab('pendientes')}>Pendientes</button><button className={tab === 'curso' ? 'active' : ''} onClick={() => setTab('curso')}>En curso</button><button className={tab === 'finalizados' ? 'active' : ''} onClick={() => setTab('finalizados')}>Finalizados</button></div><StateBlock loading={loading} error={error} retry={reload} empty={!rows.length}>{rows.map((work) => <button className="journey-card" key={work.work_order_id} onClick={() => navigate(`/app/tecnico/trabajo/${work.work_order_id}`)}><div><strong>{work.planned_start_time ?? '--:--'} · {work.title}</strong><span>{work.client_name} · {work.site_name}</span><span>{work.equipment_code ?? 'Sin equipo'}</span><p>{displayStatus(work.work_order_status)}</p></div><div><Badge tone={severityForStatus(work.work_order_status)}>{displayStatus(work.work_order_status)}</Badge><small>Acceso/material: abrir parte</small><b>Abrir trabajo</b></div></button>)}</StateBlock></section>; }
+
+function TechnicianWorkPage() { const { id = '' } = useParams(); return <WorkOrderDetailPage key={id} />; }
+
+function ChecksPage() { const [tab, setTab] = useState<'pending' | 'done'>('pending'); const loader = () => tab === 'pending' ? checksService.pending() : checksService.completed(); const { data, loading, error, reload } = useLoad(loader, [tab], [] as any[]); const [creating, setCreating] = useState(false); return <section className="page"><div className="page-head"><div><h2>Checks</h2><p>Por realizar y realizados con datos reales.</p></div><button className="primary" onClick={() => setCreating(true)}>Crear check</button></div><div className="tabs"><button className={tab === 'pending' ? 'active' : ''} onClick={() => setTab('pending')}>Por realizar</button><button className={tab === 'done' ? 'active' : ''} onClick={() => setTab('done')}>Realizados</button></div><StateBlock loading={loading} error={error} retry={reload} empty={!data.length}><WorkTable rows={data} columns={['code', 'equipment_code', 'work_order_code', 'status', 'global_result']} route="/app/checks" /></StateBlock>{creating && <CheckForm onClose={() => setCreating(false)} onSaved={() => { setCreating(false); reload(); }} />}</section>; }
+
+function CheckDetailPage() {
+  const { id = '' } = useParams();
+  const { data, loading, error, reload } = useLoad(() => checksService.get(id), [id], null as any);
+  const [mode, setMode] = useState<'finish' | null>(null);
+  if (loading || error || !data) return <StateBlock loading={loading} error={error} retry={reload} empty={!data} />;
+  const sectionStatus = (zone: CheckBlockId) => {
+    const zoneConfig = sectionalZones.find((item) => item.id === zone);
+    const result = data.check_section_results?.find((item: any) => normalize(item.check_template_sections?.title ?? '') === normalize(zoneConfig?.name ?? ''));
+    return result?.result ?? 'Sin revisar';
   };
+  const reviewed = sectionalZones.filter((zone) => sectionStatus(zone.id) !== 'Sin revisar').length;
+  const globalResult = sectionalZones.some((zone) => sectionStatus(zone.id) === 'No favorable') ? 'No favorable' : sectionalZones.some((zone) => sectionStatus(zone.id) === 'Problema leve') ? 'Problema leve' : 'Todo favorable';
+  return <section className="check-mobile"><BackButton /><header><p className="eyebrow">Check seccional industrial</p><h2>{data.code} · {data.equipment?.code}</h2><p>{reviewed} de {sectionalZones.length} bloques revisados</p></header><div className="progress"><span style={{ width: `${Math.min(100, (reviewed / sectionalZones.length) * 100)}%` }} /></div><div className="door-check" aria-label="Zonas táctiles de puerta seccional"><img src="/checks/seccional-industrial.png" alt="Puerta seccional industrial" />{physicalSectionalZones.map((zone) => <Link key={zone.id} style={{ ...zone.area, zIndex: zone.zIndex }} className={`hotspot ${severityForStatus(sectionStatus(zone.id))}`} to={`/app/checks/${id}/bloque/${zone.id}`} aria-label={`Revisar ${zone.name}`}><span>{zone.name}</span></Link>)}</div><div className="block-list">{sectionalZones.map((zone) => <Link key={zone.id} to={`/app/checks/${id}/bloque/${zone.id}`}><span>{zone.name}</span><Badge tone={severityForStatus(sectionStatus(zone.id))}>{displayStatus(sectionStatus(zone.id))}</Badge></Link>)}</div><button className="primary wide big" disabled={reviewed < sectionalZones.length} onClick={() => setMode('finish')}>Finalizar check</button>{reviewed < sectionalZones.length && <p className="large-note">Para finalizar, todos los bloques deben estar revisados o marcados como No aplicable.</p>}{mode === 'finish' && <ConfirmModal title="Completar check" text="Se moverá de Por realizar a Realizados conservando parte, equipo, técnico, fecha y resultado." onCancel={() => setMode(null)} onConfirm={async () => { await checksService.finish(id, globalResult); setMode(null); reload(); }} />}</section>;
+}
 
-  const toggleSidebar = () => {
-    localStorage.setItem(sidebarKey, String(!collapsed));
-    setCollapsed(!collapsed);
+function CheckBlockPage() {
+  const { id = '', blockId = 'hoja' } = useParams();
+  const navigate = useNavigate();
+  const { data, loading, error, reload } = useLoad(() => checksService.get(id), [id], null as any);
+  const [status, setStatus] = useState('Sin revisar');
+  const [observations, setObservations] = useState('');
+  const [saving, setSaving] = useState(false);
+  const zone = sectionalZones.find((item) => item.id === blockId as CheckBlockId) ?? sectionalZones[0];
+  const section = data?.check_templates?.check_template_sections?.find((item: any) => normalize(item.title) === normalize(zone.name));
+  const existing = data?.check_section_results?.find((item: any) => item.section_id === section?.id);
+  useEffect(() => {
+    if (existing) setStatus(existing.result === 'Favorable tras intervencion' ? 'Favorable tras intervención' : existing.result);
+  }, [existing?.id, existing?.result]);
+  if (loading || error || !data) return <StateBlock loading={loading} error={error} retry={reload} empty={!data} />;
+  const save = async (result = status) => {
+    if (!section) return;
+    setSaving(true);
+    const persisted = result.replace('Favorable tras intervención', 'Favorable tras intervencion');
+    try {
+      if (result === 'Todo favorable') await checksService.markSectionFavorable(id, section);
+      else {
+        const sectionResult = await checksService.setSectionResult(id, section.id, persisted, observations);
+        await checksService.setItemsResult(id, sectionResult.id, section.check_template_items ?? [], persisted, observations);
+      }
+      await reload();
+      navigate(`/app/checks/${id}`);
+    } finally { setSaving(false); }
   };
-
-  return <div className="shell">
-    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
-      <div className="brand-row"><button className="brand" onClick={() => navigate(defaultRoute(session.workspace))} title="Inicio"><Factory {...iconProps} /><span>DoorManager</span></button><button className="side-toggle" onClick={toggleSidebar} title={collapsed ? 'Expandir menú' : 'Contraer menú'}>{collapsed ? <PanelLeftOpen {...iconProps} /> : <PanelLeftClose {...iconProps} />}</button></div>
-      <nav>{nav.map((item) => { const Icon = item.icon; const isActive = active?.id === item.id; return <button key={item.id} className={isActive ? 'active' : ''} onClick={() => navigate(item.path)} title={item.label} aria-current={isActive ? 'page' : undefined}><Icon {...iconProps} /><span>{item.label}</span></button>; })}</nav>
-    </aside>
-    <div className="workspace">
-      <header className="topbar">
-        <button className="mobile-menu" onClick={toggleSidebar} title="Menú"><Menu {...iconProps} /></button>
-        <div className="top-title"><p className="eyebrow">{workspaceTitles[session.workspace]}</p><h1>{active?.label ?? workspaceTitles[session.workspace]}</h1></div>
-        <GlobalSearch workspace={session.workspace} query={query} setQuery={setQuery} navigate={navigate} />
-        <button className="icon-btn" onClick={() => setAlertsOpen(true)} title="Centro de avisos" aria-label="Abrir centro de avisos"><Bell {...iconProps} /><b>{profileAlerts.length}</b></button>
-        <div className="user-menu-wrap"><button className="user user-button" onClick={() => setUserOpen(!userOpen)}><span>{initials(user.name)}</span><div><strong>{user.name}</strong><small>{user.position}</small></div></button>{userOpen && <><button className="popover-backdrop" aria-label="Cerrar menú de usuario" onClick={() => setUserOpen(false)} /><UserMenu user={user} session={session} setWorkspace={setWorkspace} onReset={() => resetDemo(setSession, navigate, actions)} onLogout={() => logout(setSession, navigate)} onClose={() => setUserOpen(false)} /></>}</div>
-        <div className="mobile-session-actions"><button onClick={() => resetDemo(setSession, navigate, actions)}>Restablecer</button><button onClick={() => logout(setSession, navigate)}><LogOut size={16} /> Salir</button></div>
-      </header>
-      <AdminDemoActions actions={actions} />
-      <main>{children}</main>
-    </div>
-    {alertsOpen && <SidePanel title="Centro de avisos" subtitle={workspaceTitles[session.workspace]} onClose={() => setAlertsOpen(false)}><AlertsPanel items={profileAlerts} navigate={navigate} actions={actions} /></SidePanel>}
-  </div>;
+  return <section className="check-mobile"><button className="link-button sticky-back" onClick={() => navigate(`/app/checks/${id}`)}><ChevronLeft size={16} /> Volver a la puerta</button><header><p className="eyebrow">Detalle del bloque</p><h2>{zone.name}</h2><Badge tone={severityForStatus(status)}>{displayStatus(status)}</Badge></header><button className="primary wide" disabled={saving} onClick={() => save('Todo favorable')}>Todo favorable</button><div className="status-grid">{checkProblemStatuses.map((item) => <button key={item} className={status === item ? 'active' : ''} onClick={() => setStatus(item)}>{item}</button>)}</div>{!['Todo favorable', 'Sin revisar', 'No aplicable'].includes(status) && <Card title="Componentes afectados"><div className="component-select">{zone.components.map((component) => <label key={component}><input type="checkbox" /> {component}</label>)}</div><label>Observación<textarea value={observations} onChange={(event) => setObservations(event.target.value)} required /></label><label>Intervención<textarea placeholder="Intervención realizada si aplica" /></label><div className="photo-strip"><button type="button">Fotografía simulada</button></div><button className="primary wide" disabled={saving || !observations.trim()} onClick={() => save()}>Guardar bloque</button></Card>}</section>;
 }
 
-function AdminDemoActions({ actions }: { actions: DemoActions }) {
-  const [mode, setMode] = useState<'part' | 'edit-part' | 'check' | 'edit-check' | 'alert' | 'edit-alert' | null>(null);
-  const [title, setTitle] = useState('');
-  const [message, setMessage] = useState('');
-  const close = () => { setMode(null); setTitle(''); };
-  const save = () => {
-    if (!mode) return;
-    if (!title.trim() && ['part', 'alert'].includes(mode)) { setMessage('Completa al menos el título para guardar.'); return; }
-    if (mode === 'part') {
-      const id = `TR-${Date.now().toString().slice(-4)}`;
-      actions.upsertWork({ ...works[0], id, partId: `PAR-${Date.now().toString().slice(-4)}`, caseId: `EXP-DEMO-${Date.now().toString().slice(-3)}`, type: title, status: 'Pendiente', technicianStage: 'downloaded', history: [`${now()} Parte creado desde demo`] });
-    }
-    if (mode === 'edit-part') actions.upsertWork({ ...works[3], fault: title || 'Deficiencia editada desde demo', status: 'Pendiente', history: [...works[3].history, `${now()} Parte modificado desde demo`] });
-    if (mode === 'check') actions.upsertCheck({ id: `CHK-DEMO-${Date.now().toString().slice(-4)}`, workId: 'TR-2401', partId: 'PAR-8812', equipmentId: 'EQ-SEC-001', technician: 'Marta López', date: new Date().toLocaleString('es-ES'), progress: 'Por realizar', result: 'Sin revisar', blocks: emptyBlocks() });
-    if (mode === 'edit-check') actions.upsertCheck({ id: 'CHK-PAR-8812', workId: 'TR-2401', partId: 'PAR-8812', equipmentId: 'EQ-SEC-001', technician: 'Marta López', date: new Date().toLocaleString('es-ES'), progress: 'Realizado', result: 'No favorable', blocks: { ...emptyBlocks(), automatizacion: 'No favorable' }, completed: true, deficiency: title || 'Deficiencia editada desde administración' });
-    if (mode === 'alert') actions.upsertAlert({ id: `av-demo-${Date.now()}`, profiles: ['sat', 'comercial'], title, detail: 'Aviso creado desde formulario demo', severity: 'warn', date: new Date().toISOString().slice(0, 10), entity: 'TR-2401', relatedType: 'work', relatedId: 'TR-2401', owner: 'Marta López', status: 'nuevo', read: false, route: '/app/trabajos/TR-2401' });
-    if (mode === 'edit-alert') actions.upsertAlert({ ...alerts[0], detail: title || 'Aviso modificado desde formulario demo', read: false, status: 'actualizado' });
-    setMessage('Guardado en la base ficticia local. Recarga la página para comprobar persistencia.');
-    close();
-  };
-  return <section className="demo-actions"><strong>Acciones demo</strong><button onClick={() => setMode('part')}>Crear parte</button><button onClick={() => setMode('edit-part')}>Modificar parte</button><button onClick={() => setMode('check')}>Crear check</button><button onClick={() => setMode('edit-check')}>Modificar check</button><button onClick={() => setMode('alert')}>Crear aviso</button><button onClick={() => setMode('edit-alert')}>Modificar aviso</button>{message && <span>{message}</span>}{mode && <div className="mini-modal" role="dialog" aria-modal="true"><div><h3>{mode.includes('edit') ? 'Modificar registro' : 'Crear registro'}</h3><label>Campo principal<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Título, descripción o deficiencia" /></label><p>Los datos se vinculan a registros reales de demo para mantener relaciones navegables.</p><button className="primary" onClick={save}>Guardar</button><button onClick={close}>Cancelar</button></div></div>}</section>;
+function DeficienciesPage() { const [search, setSearch] = useState(''); const { data, loading, error, reload } = useLoad(() => deficienciesService.list(search), [search], [] as any[]); return <ListPage title="Deficiencias" summary="Deficiencias y acciones correctivas conectadas." search={search} setSearch={setSearch} loading={loading} error={error} retry={reload} empty={!data.length}><WorkTable rows={data} columns={['code', 'description', 'severity', 'status']} route="/app/deficiencias" /></ListPage>; }
+
+function DeficiencyDetailPage() { const { id = '' } = useParams(); const { data, loading, error, reload } = useLoad(() => deficienciesService.get(id), [id], null as any); const [action, setAction] = useState(''); if (loading || error || !data) return <StateBlock loading={loading} error={error} retry={reload} empty={!data} />; return <section className="page"><BackButton /><Hero title={`${data.code} · ${data.description}`} subtitle={`${data.clients?.legal_name ?? ''} · ${displayStatus(data.status)}`} tone={severityForPriority(data.severity)} /><div className="actions"><Link to={`/app/partes/${data.work_order_id}`}>Abrir parte</Link><Link to={`/app/equipos/${data.equipment_id}`}>Abrir equipo</Link><button onClick={async () => { await deficienciesService.update(id, { status: 'En valoracion' }); reload(); }}>Cambiar estado</button></div><Card title="Detalle"><InfoGrid items={[[ 'Gravedad', displayStatus(data.severity) ], [ 'Estado', displayStatus(data.status) ], [ 'Acción recomendada', data.recommended_action ?? '-' ], [ 'Responsable', fullName(data.profiles) ]]} /></Card><Card title="Acciones correctivas"><form onSubmit={async (event) => { event.preventDefault(); await deficienciesService.addAction(id, { description: action }); setAction(''); reload(); }}><label>Añadir acción recomendada<input value={action} onChange={(event) => setAction(event.target.value)} required /></label><button className="primary">Guardar acción</button></form><Timeline items={(data.corrective_actions ?? []).map((item: any) => `${displayStatus(item.status)} · ${item.description}`)} /></Card></section>; }
+
+function AlertsPage() {
+  const { workspace } = useAuth();
+  const [creating, setCreating] = useState(false);
+  const canCreate = ['sat', 'gerencia', 'comercial', 'tecnico'].includes(workspace);
+  return <section className="page"><div className="page-head"><div><h2>Avisos</h2><p>Leer, abrir, ir al registro, cerrar y reabrir funcionan contra Supabase.</p></div>{canCreate && <button className="primary" onClick={() => setCreating(true)}>Crear aviso</button>}</div><AlertsPanel showFilters />{creating && <AlertForm onClose={() => setCreating(false)} onSaved={() => { setCreating(false); window.dispatchEvent(new Event('dmp-alerts-changed')); }} />}</section>;
 }
 
-function UserMenu({ user, session, setWorkspace, onReset, onLogout, onClose }: { user: DemoUser; session: Session; setWorkspace: (workspace: ProfileId) => void; onReset: () => void; onLogout: () => void; onClose: () => void }) {
-  useEscape(onClose);
-  return <div className="user-popover" role="menu"><button><UserRound size={16} /> Mi perfil</button>{user.roles.length > 1 && <div className="workspace-switch"><strong>Cambiar espacio de trabajo</strong>{user.roles.map((role) => <button key={role} className={session.workspace === role ? 'active' : ''} onClick={() => setWorkspace(role)}>{workspaceTitles[role]}</button>)}</div>}<button onClick={onReset}><Settings size={16} /> Restablecer demostración</button><button onClick={onLogout}><LogOut size={16} /> Cerrar sesión</button></div>;
-}
-
-function renderRoute(workspace: ProfileId, pathWithQuery: string, navigate: (path: string) => void, runtime: WorkRuntime, checks: CheckRecord[], actions: DemoActions) {
-  const path = cleanPath(pathWithQuery);
-  const params = new URLSearchParams(pathWithQuery.split('?')[1] ?? '');
-  if (workspace === 'sat') {
-    const workId = path.match(/\/app\/trabajos\/([^/]+)/)?.[1];
-    const equipmentId = path.match(/\/app\/equipos\/([^/]+)/)?.[1];
-    if (workId) return <JobDetail work={withRuntime(works.find((item) => item.id === workId) ?? works[0], runtime)} navigate={navigate} checks={checks} />;
-    if (equipmentId) return <EquipmentDetail item={equipment.find((item) => item.id === equipmentId) ?? equipment[0]} navigate={navigate} checks={checks} />;
-    if (path === '/app/trabajos') return <WorkDetailList filter={params.get('filtro')} navigate={navigate} runtime={runtime} />;
-    if (path === '/app/equipos') return <EquipmentList navigate={navigate} />;
-    if (path === '/app/tecnicos') return <TechniciansPage />;
-    if (path === '/app/material') return <MaterialDetail navigate={navigate} />;
-    if (path === '/app/avisos') return <GenericAlertsPage workspace="sat" navigate={navigate} actions={actions} />;
-    return <SatPanel navigate={navigate} runtime={runtime} />;
-  }
-  if (workspace === 'comercial') {
-    if (path === '/app/presupuestos') return <BudgetsDetail status={params.get('estado')} navigate={navigate} />;
-    if (path === '/app/oportunidades') return <OpportunitiesDetail navigate={navigate} />;
-    if (path === '/app/contratos') return <ContractsDetail />;
-    if (path === '/app/avisos') return <GenericAlertsPage workspace="comercial" navigate={navigate} actions={actions} />;
-    return <CommercialPanel navigate={navigate} />;
-  }
-  if (workspace === 'oficina') {
-    if (path === '/app/facturacion' || path === '/app/cobros') return <InvoicesDetail filter={params.get('filtro')} />;
-    if (path === '/app/compras' || path === '/app/proveedores') return <PurchasesDetail />;
-    if (path === '/app/prl') return <PrlDetail />;
-    if (path === '/app/vehiculos') return <VehiclesDetail />;
-    if (path === '/app/avisos') return <GenericAlertsPage workspace="oficina" navigate={navigate} actions={actions} />;
-    return <OfficePanel navigate={navigate} />;
-  }
-  if (path === '/app/informes' || path === '/app/operaciones') return <ManagementDetail filter={params.get('filtro')} navigate={navigate} />;
-  if (path === '/app/avisos') return <GenericAlertsPage workspace="gerencia" navigate={navigate} actions={actions} />;
-  return <ManagementPanel navigate={navigate} />;
-}
-
-function SatPanel({ navigate, runtime }: { navigate: (path: string) => void; runtime: WorkRuntime }) {
-  const satWorks = works.map((work) => withRuntime(work, runtime));
-  const metrics: Metric[] = [
-    kpi('tecnicos', 'Técnicos disponibles', '2/5', 'ok', <UsersRound {...iconProps} />, '/app/tecnicos?filtro=disponibles'),
-    kpi('activos', 'Trabajos activos', '2', 'info', <Wrench {...iconProps} />, '/app/trabajos?filtro=activos'),
-    kpi('pendientes', 'Trabajos pendientes', satWorks.filter((work) => !['sent', 'readyToSend'].includes(runtime[work.id]?.stage ?? '') && work.status !== 'cerrado').length.toString(), 'warn', <CalendarClock {...iconProps} />, '/app/trabajos?filtro=pendientes'),
-    kpi('ayer', 'No terminados ayer', '1', 'warn', <AlertTriangle {...iconProps} />, '/app/trabajos?filtro=no-terminados'),
-    kpi('material', 'Material no confirmado', '3', 'danger', <PackageCheck {...iconProps} />, '/app/material?filtro=no-confirmado'),
-    kpi('info', 'Info pendiente', '3', 'info', <FileText {...iconProps} />, '/app/trabajos?filtro=info-pendiente'),
-    kpi('prl', 'PRL próximos', '2', 'warn', <ShieldAlert {...iconProps} />, '/app/tecnicos?filtro=prl'),
-    kpi('avisos', 'Avisos críticos', '2', 'danger', <Bell {...iconProps} />, '/app/avisos?prioridad=critica'),
-  ];
-  return <Dashboard title="Panel SAT de hoy" subtitle="Planificación, técnicos, trabajos, material, accesos y avisos operativos." metrics={metrics} navigate={navigate}><div className="grid two-one"><Card title="Trabajos de hoy" icon={<ClipboardList {...iconProps} />}><div className="work-list">{satWorks.slice(0, 7).map((work) => <WorkRow key={work.id} work={work} onClick={() => navigate(`/app/trabajos/${work.id}`)} />)}</div></Card><Card title="Técnicos" icon={<UsersRound {...iconProps} />}><div className="tech-list">{technicians.map((tech) => <TechnicianCard key={tech.id} tech={tech} />)}</div></Card></div></Dashboard>;
-}
-
-function CommercialPanel({ navigate }: { navigate: (path: string) => void }) {
-  const metrics: Metric[] = [
-    kpi('pendientes', 'Presupuestos pendientes', '2', 'commercial', <DollarSign {...iconProps} />, '/app/presupuestos?estado=pendiente'),
-    kpi('enviados', 'Presupuestos enviados', '1', 'commercial', <FileText {...iconProps} />, '/app/presupuestos?estado=enviado'),
-    kpi('aceptados', 'Presupuestos aceptados', '1', 'ok', <CheckCircle2 {...iconProps} />, '/app/presupuestos?estado=aceptado'),
-    kpi('parcial', 'Aceptaciones parciales', '1', 'warn', <AlertTriangle {...iconProps} />, '/app/presupuestos?estado=aceptacion-parcial'),
-    kpi('oportunidades', 'Oportunidades abiertas', '4', 'info', <TrendingUp {...iconProps} />, '/app/oportunidades'),
-    kpi('contratos', 'Contratos a renovar', '2', 'warn', <CalendarClock {...iconProps} />, '/app/contratos?filtro=renovacion'),
-    kpi('ventas', 'Ventas periodo', formatCurrency(19230), 'ok', <TrendingUp {...iconProps} />, '/app/informes-comerciales'),
-    kpi('deficiencias', 'Pendiente valorar', '3', 'danger', <Wrench {...iconProps} />, '/app/oportunidades?origen=deficiencias'),
-  ];
-  return <Dashboard title="Panel comercial" subtitle="Presupuestos, oportunidades, renovaciones y actividad comercial." metrics={metrics} navigate={navigate}><div className="grid half"><Card title="Actividad comercial" icon={<BriefcaseBusiness {...iconProps} />}><CompactList items={[[ 'Seguimiento', 'PRE-3041 pendiente de respuesta de Logística Ares', 'commercial' ], [ 'Visita', 'Ampliación Sur, medición y propuesta inicial', 'info' ], [ 'Cliente activo', 'Centro Órbita revisa renovación de contrato', 'warn' ]]} /></Card><Card title="Oportunidades desde deficiencias" icon={<AlertTriangle {...iconProps} />}><CompactList items={works.filter((work) => work.budgetId).map((work) => [clientName(work.clientId), `${work.equipmentId} · ${work.fault} · ${work.budgetId}`, work.priority])} /></Card></div></Dashboard>;
-}
-
-function OfficePanel({ navigate }: { navigate: (path: string) => void }) {
-  const metrics: Metric[] = [
-    kpi('facturas', 'Facturas pendientes', '3', 'warn', <DollarSign {...iconProps} />, '/app/facturacion?filtro=pendientes'),
-    kpi('cobros', 'Cobros vencidos', '1', 'danger', <AlertTriangle {...iconProps} />, '/app/cobros?filtro=vencidos'),
-    kpi('proveedor', 'Facturas proveedor', '2', 'warn', <Truck {...iconProps} />, '/app/proveedores?filtro=pendientes'),
-    kpi('pedidos', 'Pedidos sin confirmar', '1', 'danger', <Warehouse {...iconProps} />, '/app/compras?filtro=sin-confirmar'),
-    kpi('entregas', 'Entregas próximas', '2', 'info', <PackageCheck {...iconProps} />, '/app/compras?filtro=entregas'),
-    kpi('prl', 'PRL próximos', '2', 'warn', <ShieldAlert {...iconProps} />, '/app/prl?filtro=proximos'),
-    kpi('medicos', 'Reconocimientos', '1', 'info', <UsersRound {...iconProps} />, '/app/prl?filtro=reconocimientos'),
-    kpi('itv', 'ITV y vehículos', '2', 'warn', <Car {...iconProps} />, '/app/vehiculos?filtro=vencimientos'),
-    kpi('docs', 'Documentos pendientes', '4', 'muted', <FileText {...iconProps} />, '/app/documentos?filtro=pendientes'),
-    kpi('avisos', 'Avisos administrativos', '3', 'danger', <Bell {...iconProps} />, '/app/avisos'),
-  ];
-  return <Dashboard title="Panel oficina" subtitle="Administración, facturación, compras, PRL, vehículos y avisos." metrics={metrics} navigate={navigate}><div className="grid half"><Card title="Facturación y cobros" icon={<DollarSign {...iconProps} />}><CompactList items={invoices.map((invoice) => [invoice.id, `${clientName(invoice.clientId)} · ${invoice.due} · ${formatCurrency(invoice.amount)} · ${invoice.status}`, invoice.status === 'vencida' ? 'danger' : 'warn'])} /></Card><Card title="Compras y proveedores" icon={<Truck {...iconProps} />}><CompactList items={purchases.map((purchase) => [purchase.id, `${supplierName(purchase.supplierId)} · ${purchase.date} · ${purchase.confirmation}`, purchase.confirmation === 'confirmado' ? 'ok' : 'warn'])} /></Card></div></Dashboard>;
-}
-
-function ManagementPanel({ navigate }: { navigate: (path: string) => void }) {
-  const metrics: Metric[] = [
-    kpi('ventas', 'Ventas periodo', formatCurrency(48200), 'ok', <TrendingUp {...iconProps} />, '/app/ventas'),
-    kpi('facturacion', 'Facturación', formatCurrency(36910), 'info', <DollarSign {...iconProps} />, '/app/rentabilidad?filtro=facturacion'),
-    kpi('coste', 'Coste', formatCurrency(24400), 'warn', <Warehouse {...iconProps} />, '/app/rentabilidad?filtro=costes'),
-    kpi('margen', 'Margen', '34%', 'ok', <PieChart {...iconProps} />, '/app/rentabilidad?filtro=margen'),
-    kpi('realizados', 'Trabajos realizados', '18', 'ok', <CheckCircle2 {...iconProps} />, '/app/operaciones?filtro=realizados'),
-    kpi('pendientes', 'Trabajos pendientes', '9', 'warn', <CalendarClock {...iconProps} />, '/app/operaciones?filtro=pendientes'),
-    kpi('garantias', 'Garantías', '2', 'warn', <ShieldAlert {...iconProps} />, '/app/calidad?filtro=garantias'),
-    kpi('reclamaciones', 'Reclamaciones', '1', 'danger', <AlertTriangle {...iconProps} />, '/app/calidad?filtro=reclamaciones'),
-    kpi('clientes', 'Clientes activos', '4', 'info', <Building2 {...iconProps} />, '/app/clientes'),
-  ];
-  return <Dashboard title="Panel gerencia" subtitle="Ventas, carga, costes, calidad, clientes y evolución agregada." metrics={metrics} navigate={navigate}><div className="grid half"><Card title="Ventas por mes" icon={<TrendingUp {...iconProps} />}><BarChart values={[22, 31, 28, 44, 39, 48]} labels={['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun']} tone="commercial" /></Card><Card title="Realizados frente a pendientes" icon={<Gauge {...iconProps} />}><DualBars left="Realizados" right="Pendientes" leftValue={18} rightValue={9} /></Card></div><div className="grid half"><Card title="Actividad por intervención" icon={<Wrench {...iconProps} />}><CompactList items={[[ 'Reparación', '38% de la actividad', 'danger' ], [ 'Mantenimiento', '34% de la actividad', 'maintenance' ], [ 'Instalación', '18% de la actividad', 'info' ]]}/></Card><Card title="Alertas principales" icon={<Bell {...iconProps} />}><CompactList items={[[ 'TR-2401', 'Desviación por cambio de motor', 'warn' ], [ 'FAC-2308', 'Factura vencida hace 8 días', 'danger' ], [ 'CON-ARES-24', 'Renovación próxima', 'commercial' ]]} /></Card></div></Dashboard>;
-}
-
-function Dashboard({ title, subtitle, metrics, navigate, children }: { title: string; subtitle: string; metrics: Metric[]; navigate: (path: string) => void; children: ReactNode }) {
-  return <section className="page"><Breadcrumb items={['Inicio', title]} /><div className="page-head"><div><h2>{title}</h2><p>{subtitle}</p></div></div><div className="stats-grid">{metrics.map((item) => <button key={item.key} className={`metric ${item.tone}`} onClick={() => navigate(item.route)} aria-label={`Abrir detalle de ${item.label}`}><div>{item.icon}<span>{item.label}</span></div><strong>{item.value}</strong><small>Abrir detalle</small></button>)}</div>{children}</section>;
-}
-
-function WorkDetailList({ filter, navigate, runtime }: { filter: string | null; navigate: (path: string) => void; runtime: WorkRuntime }) {
-  const rows = works.map((work) => withRuntime(work, runtime)).filter((work) => {
-    if (filter === 'activos') return ['En desplazamiento', 'En intervención', 'Finalizado técnicamente', 'Pendiente de envío'].includes(work.status);
-    if (filter === 'pendientes') return !['Enviado', 'cerrado'].includes(work.status);
-    if (filter === 'no-terminados') return work.id === 'TR-2406';
-    if (filter === 'info-pendiente') return Boolean(work.pendingInfo);
+function AlertsPanel({ onClose, showFilters = false }: { onClose?: () => void; showFilters?: boolean }) {
+  const navigate = useNavigate();
+  const { data, loading, error, reload } = useLoad(() => alertsService.list(), [], [] as any[]);
+  const [filter, setFilter] = useState('todos');
+  const notify = () => window.dispatchEvent(new Event('dmp-alerts-changed'));
+  const markRead = async (row: any) => { if (!row.is_read) await alertsService.markAsRead(row.id); notify(); await reload(); };
+  const open = async (row: any) => { await markRead(row); const route = routeForAlert(row.alerts); onClose?.(); navigate(route); };
+  const close = async (row: any) => { await alertsService.close(row.id); notify(); await reload(); };
+  const reopen = async (row: any) => { await alertsService.reopen(row.id); notify(); await reload(); };
+  const filtered = data.filter((row) => {
+    const alert = row.alerts;
+    if (filter === 'sin-leer') return !row.is_read && !row.closed_at;
+    if (filter === 'leidos') return row.is_read && !row.closed_at;
+    if (filter === 'abiertos') return !row.closed_at;
+    if (filter === 'cerrados') return Boolean(row.closed_at);
+    if (filter === 'alta') return ['Alta', 'Critica'].includes(alert.priority);
+    if (filter === 'criticos') return alert.priority === 'Critica' || alert.type === 'Critico';
     return true;
   });
-  return <DetailPage title={detailTitle('Trabajos', filter)} summary="Listado filtrado desde indicadores SAT." back="/app/inicio" navigate={navigate}><WorkTable rows={rows} navigate={navigate} /></DetailPage>;
+  return <StateBlock loading={loading} error={error} retry={reload} empty={false}>{showFilters && <div className="alert-filters"><div className="tabs">{[['todos','Todos'],['sin-leer','Sin leer'],['leidos','Leídos'],['abiertos','Abiertos'],['cerrados','Cerrados'],['alta','Alta prioridad'],['criticos','Críticos']].map(([key, label]) => <button key={key} className={filter === key ? 'active' : ''} onClick={() => setFilter(key)}>{label}</button>)}</div><p className="large-note">Filtro activo: {filter.replace('-', ' ')} · {filtered.length} resultado(s)</p><button className="link-button" onClick={() => setFilter('todos')}>Restablecer filtros</button></div>}{!filtered.length ? <Card title="Sin avisos para este filtro"><p className="large-note">No hay avisos que cumplan el filtro seleccionado. Puedes restablecer filtros o crear un aviso nuevo si tu rol lo permite.</p></Card> : <div className="alerts-panel compact-list">{filtered.map((row) => { const alert = row.alerts; return <article key={row.id} className={row.is_read ? 'read' : ''}><Badge tone={severityForPriority(alert.priority)}>{alert.title}</Badge><p>{alert.description}<br /><small>{formatDate(alert.alert_date)} · {displayStatus(alert.status)} · {row.closed_at ? 'Cerrado' : row.is_read ? 'Leído' : 'Sin leer'}</small></p><div className="row-actions"><button onClick={() => markRead(row)} disabled={row.is_read}>Leer</button><button onClick={() => open(row)}>Abrir</button><button onClick={() => open(row)}>Ir al registro</button>{row.closed_at ? <button onClick={() => reopen(row)}>Reabrir</button> : <button onClick={() => close(row)}>Cerrar</button>}</div></article>; })}</div>}</StateBlock>;
 }
 
-function MaterialDetail({ navigate }: { navigate: (path: string) => void }) {
-  const rows = works.filter((work) => work.material.includes('pendientes') || work.material.includes('sin confirmar'));
-  return <DetailPage title="Material no confirmado" summary="Trabajos con material, proveedor o entrega sin confirmar." back="/app/inicio" navigate={navigate}><div className="table-card"><table><thead><tr><th>Trabajo</th><th>Cliente</th><th>Parte</th><th>Material</th><th>Proveedor</th><th>Entrega</th><th>Impacto</th><th>Técnico</th></tr></thead><tbody>{rows.map((work) => <tr key={work.id} onClick={() => navigate(`/app/trabajos/${work.id}`)}><td>{work.id}</td><td>{clientName(work.clientId)}</td><td>{work.partId}</td><td>{work.material}</td><td>{supplierName(work.supplierId)}</td><td>Sin confirmar</td><td><Badge tone="danger" icon={<AlertTriangle size={14} />}>Puede retrasar</Badge></td><td>{technicianName(work.technicianId)}</td></tr>)}</tbody></table></div></DetailPage>;
-}
+function DocumentsPage() { const [search, setSearch] = useState(''); const { data, loading, error, reload } = useLoad(() => documentsService.list(search), [search], [] as any[]); const [creating, setCreating] = useState(false); return <ListPage title="Documentación" summary="Documentos y vínculos conectados a public.documents y document_links." search={search} setSearch={setSearch} action={<button className="primary" onClick={() => setCreating(true)}>Crear documento</button>} loading={loading} error={error} retry={reload} empty={!data.length}><div className="doc-list">{data.map((doc) => <article key={doc.id}><FileText size={17} /><div><strong>{doc.title}</strong><span>{doc.type} · {doc.origin ?? 'Sin origen'}</span></div><Link to={`/app/documentos/${doc.id}`}>Abrir</Link></article>)}</div>{creating && <DocumentForm onClose={() => setCreating(false)} onSaved={() => { setCreating(false); reload(); }} />}</ListPage>; }
 
-function BudgetsDetail({ status, navigate }: { status: string | null; navigate: (path: string) => void }) {
-  const normalized = status === 'aceptacion-parcial' ? 'aceptación parcial' : status;
-  const rows = normalized ? budgets.filter((budget) => budget.status.includes(normalized)) : budgets;
-  return <DetailPage title={detailTitle('Presupuestos', status)} summary="Presupuestos con expediente, importe, versión y seguimiento." back="/app/inicio" navigate={navigate}><div className="table-card"><table><thead><tr><th>Código</th><th>Cliente</th><th>Expediente</th><th>Importe</th><th>Versión</th><th>Fecha envío</th><th>Responsable</th><th>Días sin respuesta</th><th>Última acción</th><th>Estado</th></tr></thead><tbody>{rows.map((budget) => <tr key={budget.id}><td>{budget.id}</td><td>{clientName(budget.clientId)}</td><td>{works.find((work) => work.id === budget.sourceWorkId)?.caseId ?? 'EXP-COM-001'}</td><td>{formatCurrency(budget.amount)}</td><td>{budget.version}</td><td>{budget.date}</td><td>{budget.owner}</td><td>{budget.status === 'enviado' ? '4' : '0'}</td><td>Seguimiento comercial</td><td><Badge tone="commercial" icon={<BriefcaseBusiness size={14} />}>{budget.status}</Badge></td></tr>)}</tbody></table></div></DetailPage>;
-}
+function DocumentDetailPage() { const { id = '' } = useParams(); const { data, loading, error, reload } = useLoad(() => documentsService.get(id), [id], null as any); if (loading || error || !data) return <StateBlock loading={loading} error={error} retry={reload} empty={!data} />; return <section className="page"><BackButton /><Hero title={data.title} subtitle={`${data.type} · ${data.version ?? 'sin versión'}`} tone="info" /><Card title="Ficha documental"><InfoGrid items={[[ 'Tipo', data.type ], [ 'Fecha', data.document_date ?? '-' ], [ 'Origen', data.origin ?? '-' ], [ 'Disponible offline', data.available_offline ? 'Sí' : 'No' ], [ 'Archivo real', data.file_id ? 'Sí' : 'No' ], [ 'URL', data.url ?? 'Ficha simulada sin archivo real' ], [ 'Observaciones', data.observations ?? '-' ]]} /></Card><Card title="Vínculos"><CompactRows rows={(data.document_links ?? []).map((l: any) => [l.related_type, l.related_value ?? l.related_id, 'info', '/app/documentos'])} empty="Sin vínculos." /></Card></section>; }
 
-function PrlDetail() {
-  return <DetailPage title="PRL próximos" summary="Cursos, reconocimientos y documentos próximos a caducar." back="/app/inicio"><div className="table-card"><table><thead><tr><th>Trabajador</th><th>Curso</th><th>Fecha</th><th>Días</th><th>Clientes afectados</th><th>Centros afectados</th><th>Estado</th><th>Documentos</th></tr></thead><tbody>{technicians.flatMap((tech) => tech.courses).filter((course) => course.days < 40).map((course) => <tr key={course.name}><td>Mara Gil</td><td>{course.name}</td><td>{course.expires}</td><td>{course.days}</td><td>{course.affected}</td><td>Centros logísticos</td><td><Badge tone="warn" icon={<AlertTriangle size={14} />}>Renovar</Badge></td><td>Certificado pendiente</td></tr>)}</tbody></table></div></DetailPage>;
-}
+function ManagementPage() { const { data, loading, error, reload } = useLoad(() => managementService.metrics(), [], [] as any[]); const row = data[0] ?? {}; return <section className="page"><Breadcrumb items={['Gerencia', 'Métricas']} /><div className="page-head"><div><h2>Métricas básicas</h2><p>Proceden de public.v_management_metrics. Periodo: mes actual para partes y presupuestos aceptados.</p></div></div><StateBlock loading={loading} error={error} retry={reload} empty={!data.length}><div className="stats-grid">{[['Clientes', row.clients, '/app/clientes'], ['Equipos', row.equipment, '/app/equipos'], ['Partes del mes', row.work_orders_this_month, '/app/partes'], ['Presupuestos aceptados', row.accepted_quotes, '/app/partes'], ['Importe aceptado', `${row.accepted_quote_amount ?? 0} €`, '/app/partes']].map(([label, value, route]) => <Link key={label} className="metric info" to={String(route)}><div><Gauge {...iconProps} /><span>{label}</span></div><strong>{value}</strong><small>Abrir registros que producen el valor</small></Link>)}</div></StateBlock></section>; }
 
-function ManagementDetail({ filter, navigate }: { filter: string | null; navigate: (path: string) => void }) {
-  return <DetailPage title={filter === 'pendientes' ? 'Trabajos pendientes' : 'Detalle de gerencia'} summary="Distribución por estado, tipo, cliente, carga prevista y desviaciones." back="/app/inicio" navigate={navigate}><div className="grid half"><Card title="Distribución por estado" icon={<PieChart {...iconProps} />}><CompactList items={[[ 'Programados', '5 trabajos · carga prevista 18 h', 'info' ], [ 'Material pendiente', '3 trabajos · desviación probable', 'warn' ], [ 'Críticos', '2 trabajos afectados', 'danger' ]]} /></Card><Card title="Trabajos filtrados" icon={<ClipboardList {...iconProps} />}><div className="work-list">{works.filter((work) => work.status !== 'cerrado').slice(0, 6).map((work) => <WorkRow key={work.id} work={work} onClick={() => navigate(`/app/trabajos/${work.id}`)} />)}</div></Card></div></DetailPage>;
-}
+function NotFound() { return <section className="page"><Card title="Página no encontrada"><p className="large-note">La ruta no existe o no está disponible para este perfil.</p><Link className="primary" to="/app/inicio">Volver al inicio</Link></Card></section>; }
 
-function DetailPage({ title, summary, back, navigate, children }: { title: string; summary: string; back: string; navigate?: (path: string) => void; children: ReactNode }) {
-  return <section className="page"><Breadcrumb items={['Detalle', title]} /><div className="page-head"><div><h2>{title}</h2><p>{summary}</p></div>{navigate && <button className="link-button" onClick={() => navigate(back)}><ChevronLeft size={16} /> Volver</button>}</div><div className="filters"><label><Search size={16} /><input placeholder="Buscar en resultados..." /></label><select><option>Orden: prioridad</option><option>Orden: fecha</option></select><select><option>Todos los estados</option></select></div>{children}</section>;
-}
+function GlobalSearch({ query, setQuery }: { query: string; setQuery: (value: string) => void }) { const navigate = useNavigate(); const { data } = useLoad(async () => query.trim() ? [...await clientsService.list(query), ...await equipmentService.list(query), ...await workOrdersService.list(query)] : [], [query], [] as any[]); return <div className="search-wrap"><label className="search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar cliente, equipo, expediente, parte..." /></label>{query && <div className="search-results">{data.slice(0, 8).map((item) => { const route = item.legal_name ? `/app/clientes/${item.id}` : item.equipment_type_id ? `/app/equipos/${item.id}` : `/app/partes/${item.id}`; return <button key={`${route}-${item.id}`} onClick={() => { setQuery(''); navigate(route); }}><Badge tone="info">Resultado</Badge><span>{item.legal_name ?? item.code ?? item.title}</span><small>{item.trade_name ?? item.model ?? item.client_name ?? 'Registro Supabase'}</small></button>; })}{!data.length && <p>Sin resultados.</p>}</div>}</div>; }
 
-function OpportunitiesDetail({ navigate }: { navigate: (path: string) => void }) { return <DetailPage title="Oportunidades abiertas" summary="Oportunidades conectadas con trabajos, equipos y deficiencias." back="/app/inicio" navigate={navigate}><CompactList items={works.filter((work) => work.budgetId).map((work) => [clientName(work.clientId), `${work.equipmentId} · ${work.fault} · ${work.budgetId}`, work.priority])} /></DetailPage>; }
-function ContractsDetail() { return <DetailPage title="Contratos" summary="Renovaciones y contratos de mantenimiento." back="/app/inicio"><CompactList items={contracts.map((contract) => [clientName(contract.clientId), `${contract.renewal} · ${contract.equipment} equipos · ${contract.status}`, contract.status === 'vigente' ? 'ok' : 'warn'])} /></DetailPage>; }
-function InvoicesDetail({ filter }: { filter: string | null }) { return <DetailPage title={filter === 'vencidos' ? 'Cobros vencidos' : 'Facturación'} summary="Facturas, vencimientos e importes simulados." back="/app/inicio"><CompactList items={invoices.map((invoice) => [invoice.id, `${clientName(invoice.clientId)} · ${invoice.due} · ${formatCurrency(invoice.amount)} · ${invoice.status}`, invoice.status === 'vencida' ? 'danger' : 'warn'])} /></DetailPage>; }
-function PurchasesDetail() { return <DetailPage title="Compras y proveedores" summary="Pedidos, confirmaciones y expedientes afectados." back="/app/inicio"><CompactList items={purchases.map((purchase) => [purchase.id, `${supplierName(purchase.supplierId)} · ${purchase.date} · ${purchase.confirmation} · afecta ${purchase.affected}`, purchase.confirmation === 'confirmado' ? 'ok' : 'warn'])} /></DetailPage>; }
-function VehiclesDetail() { return <DetailPage title="Vehículos" summary="ITV, seguros y mantenimiento de flota ficticia." back="/app/inicio"><CompactList items={[[ 'FIC-2045', 'ITV 12/07 · seguro vigente · mantenimiento menor', 'warn' ], [ 'FIC-9812', 'Seguro 21/08 · mantenimiento programado', 'info' ]]} /></DetailPage>; }
-function GenericAlertsPage({ workspace, navigate, actions }: { workspace: ProfileId; navigate: (path: string) => void; actions: DemoActions }) { return <DetailPage title="Avisos" summary="Centro de avisos filtrado por perfil." back="/app/inicio" navigate={navigate}><AlertsPanel items={alerts.filter((alert) => alert.profiles.includes(workspace))} navigate={navigate} actions={actions} /></DetailPage>; }
+function ClientForm({ title, initial, onClose, onSaved }: any) { const fields = [['code','Código',true],['legal_name','Razón social',true],['trade_name','Nombre comercial'],['tax_id','NIF'],['status','Estado'],['address','Dirección'],['city','Localidad'],['province','Provincia'],['postal_code','Código postal'],['country','País'],['phone','Teléfono'],['email','Correo'],['notes','Observaciones']]; return <EntityForm title={title} fields={fields} initial={{ status: 'Activo', country: 'Espana', ...initial }} onClose={onClose} onSubmit={(values: any) => initial?.id ? clientsService.update(initial.id, values) : clientsService.create(values)} onSaved={onSaved} />; }
+function ContactForm({ clientId, onClose, onSaved }: any) { return <EntityForm title="Añadir contacto" fields={[[ 'first_name','Nombre',true ],[ 'last_name','Apellidos' ],[ 'role','Cargo' ],[ 'email','Correo' ],[ 'phone','Teléfono' ],[ 'notes','Observaciones' ]]} onClose={onClose} onSubmit={(values: any) => clientsService.addContact(clientId, values)} onSaved={onSaved} />; }
+function SiteForm({ title, initial, onClose, onSaved }: any) { return <EntityForm title={title} fields={[[ 'client_id','Cliente UUID',true ],[ 'code','Código',true ],[ 'name','Nombre',true ],[ 'address','Dirección' ],[ 'city','Localidad' ],[ 'province','Provincia' ],[ 'postal_code','Código postal' ],[ 'country','País' ],[ 'schedule','Horario' ],[ 'notes','Observaciones' ]]} initial={{ country: 'Espana', ...initial }} onClose={onClose} onSubmit={(values: any) => initial?.id ? sitesService.update(initial.id, values) : sitesService.create(values)} onSaved={onSaved} />; }
+function SiteContactForm({ siteId, onClose, onSaved }: any) { return <EntityForm title="Añadir contacto de centro" fields={[[ 'first_name','Nombre',true ],[ 'last_name','Apellidos' ],[ 'role','Cargo' ],[ 'email','Correo' ],[ 'phone','Teléfono' ]]} onClose={onClose} onSubmit={(values: any) => sitesService.addContact(siteId, values)} onSaved={onSaved} />; }
+function EquipmentForm({ initial, onClose, onSaved }: any) { return <EntityForm title={initial?.id ? 'Modificar equipo' : 'Crear equipo'} fields={[[ 'code','Código',true ],[ 'client_id','Cliente UUID',true ],[ 'site_id','Centro UUID',true ],[ 'equipment_type_id','Tipo de equipo UUID',true ],[ 'brand','Marca' ],[ 'model','Modelo' ],[ 'serial_number','Serie' ],[ 'installation_date','Fecha instalación' ],[ 'internal_location','Ubicación' ],[ 'status','Estado' ],[ 'criticality','Criticidad' ],[ 'notes','Observaciones' ]]} initial={{ status: 'Operativo', criticality: 'Media', ...initial }} onClose={onClose} onSubmit={(values: any) => initial?.id ? equipmentService.update(initial.id, values) : equipmentService.create(values)} onSaved={onSaved} />; }
+function ComponentForm({ equipmentId, onClose, onSaved }: any) { return <EntityForm title="Añadir componente" fields={[[ 'component_type','Tipo',true ],[ 'brand','Marca' ],[ 'model','Modelo' ],[ 'serial_number','Serie' ],[ 'status','Estado' ],[ 'notes','Observaciones' ]]} initial={{ status: 'Operativo' }} onClose={onClose} onSubmit={(values: any) => equipmentService.addComponent(equipmentId, values)} onSaved={onSaved} />; }
+function CaseForm({ title, initial, onClose, onSaved }: any) { return <EntityForm title={title} fields={[[ 'code','Código',true ],[ 'title','Título',true ],[ 'description','Descripción' ],[ 'type','Tipo',true ],[ 'priority','Prioridad' ],[ 'status','Estado' ],[ 'client_id','Cliente UUID',true ],[ 'site_id','Centro UUID' ],[ 'origin','Origen',true ]]} initial={{ type: 'Averia', priority: 'Normal', status: 'Abierto', origin: 'SAT', ...initial }} onClose={onClose} onSubmit={(values: any) => initial?.id ? casesService.update(initial.id, values) : casesService.create(values)} onSaved={onSaved} />; }
 
-function TechnicianApp({ user, path, navigate, runtime, setRuntime, checks, setChecks, actions, onLogout }: { user: DemoUser; path: string; navigate: (path: string) => void; runtime: WorkRuntime; setRuntime: (runtime: WorkRuntime) => void; checks: CheckRecord[]; setChecks: (checks: CheckRecord[]) => void; actions: DemoActions; onLogout: () => void }) {
-  const [alertsOpen, setAlertsOpen] = useState(false);
-  const route = cleanPath(path);
-  const workId = route.match(/\/app\/tecnico\/trabajo\/([^/]+)/)?.[1];
-  const checkMatch = route.match(/\/app\/tecnico\/trabajo\/([^/]+)\/check(?:\/([^/]+))?/);
-  if (checkMatch) {
-    const work = works.find((item) => item.id === checkMatch[1]) ?? works[0];
-    return <TechShell user={user} onLogout={onLogout} onAlerts={() => setAlertsOpen(true)}>{checkMatch[2] ? <SectionalCheckBlock work={work} blockId={checkMatch[2] as CheckBlockId} checks={checks} setChecks={setChecks} navigate={navigate} user={user} /> : <SectionalCheckMain work={work} checks={checks} setChecks={setChecks} navigate={navigate} user={user} />}{alertsOpen && <BottomSheet onClose={() => setAlertsOpen(false)}><AlertsPanel items={alerts.filter((alert) => alert.profiles.includes('tecnico'))} navigate={navigate} actions={actions} /></BottomSheet>}</TechShell>;
-  }
-  if (workId) {
-    const work = works.find((item) => item.id === workId) ?? works[0];
-    return <TechShell user={user} onLogout={onLogout} onAlerts={() => setAlertsOpen(true)}><TechnicianWorkDetail work={work} runtime={runtime} setRuntime={setRuntime} checks={checks} navigate={navigate} user={user} actions={actions} />{alertsOpen && <BottomSheet onClose={() => setAlertsOpen(false)}><AlertsPanel items={alerts.filter((alert) => alert.profiles.includes('tecnico'))} navigate={navigate} actions={actions} /></BottomSheet>}</TechShell>;
-  }
-  return <TechShell user={user} onLogout={onLogout} onAlerts={() => setAlertsOpen(true)}><MyDay runtime={runtime} navigate={navigate} />{alertsOpen && <BottomSheet onClose={() => setAlertsOpen(false)}><AlertsPanel items={alerts.filter((alert) => alert.profiles.includes('tecnico'))} navigate={navigate} actions={actions} /></BottomSheet>}</TechShell>;
-}
-
-function MyDay({ runtime, navigate }: { runtime: WorkRuntime; navigate: (path: string) => void }) {
-  const [tab, setTab] = useState<'pending' | 'active' | 'done'>('pending');
-  const dayWorks = works.filter((work) => ['TR-2401', 'TR-2406', 'TR-2411'].includes(work.id)).map((work) => withRuntime(work, runtime));
-  const rows = dayWorks.filter((work) => {
-    const stage = runtime[work.id]?.stage ?? 'downloaded';
-    if (tab === 'pending') return ['downloaded'].includes(stage);
-    if (tab === 'active') return ['traveling', 'working', 'review', 'readyToSend'].includes(stage);
-    return stage === 'sent';
-  });
-  return <section className="page"><div className="page-head"><div><p className="eyebrow">Trabajo técnico</p><h2>Mi jornada</h2><p>Partes asignados para hoy. Solo puede haber un trabajo activo al mismo tiempo.</p></div></div><div className="tabs"><button className={tab === 'pending' ? 'active' : ''} onClick={() => setTab('pending')}>Pendientes</button><button className={tab === 'active' ? 'active' : ''} onClick={() => setTab('active')}>En curso</button><button className={tab === 'done' ? 'active' : ''} onClick={() => setTab('done')}>Finalizados</button></div><div className="work-list">{rows.map((work) => <button className="journey-card" key={work.id} onClick={() => navigate(`/app/tecnico/trabajo/${work.id}`)}><div><strong>{work.hour} · {work.type}</strong><span>{clientName(work.clientId)} · {centerName(work.centerId)}</span><span>{work.equipmentId} · {equipmentName(work.equipmentId)}</span><p>{work.fault}</p></div><div><Badge tone={work.priority} icon={iconForTone(work.priority)}>{work.priority}</Badge><Badge tone={toneForStatus(work.status)} icon={iconForTone(toneForStatus(work.status))}>{work.status}</Badge><small>Material: {work.material}</small><small>Acceso: {work.access}</small><b>Abrir trabajo</b></div></button>)}{rows.length === 0 && <Card title="Sin partes en esta pestaña" icon={<CheckCircle2 {...iconProps} />}><p className="large-note">No hay trabajos en este estado.</p></Card>}</div></section>;
-}
-
-function TechnicianWorkDetail({ work, runtime, setRuntime, checks, navigate, user, actions }: { work: Work; runtime: WorkRuntime; setRuntime: (runtime: WorkRuntime) => void; checks: CheckRecord[]; navigate: (path: string) => void; user: DemoUser; actions: DemoActions }) {
-  const [message, setMessage] = useState('');
-  const [moreOpen, setMoreOpen] = useState(false);
-  const state = runtime[work.id] ?? { stage: 'downloaded' as TechnicianStage, history: [`${now()} Trabajo descargado`] };
-  const previous = previousStage(state.stage);
-  const workChecks = checks.filter((check) => check.workId === work.id && check.completed);
-  const pendingChecks = work.equipmentId === 'EQ-SEC-001' && !workChecks.length ? [['Check seccional industrial', 'Puerta seccional industrial · pendiente para este parte', 'warn'] as const] : [];
-  const update = (next: typeof state) => setRuntime({ ...runtime, [work.id]: next });
-  const advance = () => {
-    if (state.stage === 'sent') { requestReturn(); return; }
-    if (state.stage === 'downloaded' && Object.entries(runtime).some(([id, item]) => id !== work.id && ['traveling', 'working', 'review', 'readyToSend'].includes(item.stage))) { setMessage('Ya existe otro trabajo activo. Finalízalo o corrige su estado antes de iniciar este.'); return; }
-    const next = nextStage(state.stage);
-    actions.updateWorkStage(work.id, next, stageLabel(next));
-    setMessage(`Estado actualizado: ${stageLabel(next)}`);
+function CaseQuickCreate({ initial, onClose, onSaved }: any) {
+  const [values, setValues] = useState<Record<string, any>>({ code: `EXP-${Date.now().toString().slice(-6)}`, title: '', description: '', type: 'Averia', priority: 'Normal', status: 'Abierto', origin: 'SAT', ...initial });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const set = (key: string, value: any) => setValues((current) => ({ ...current, [key]: value }));
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setSaving(true); setError('');
+    try { onSaved(await casesService.create(values)); }
+    catch (err) { setError(err instanceof Error ? err.message : 'No se ha podido crear el expediente.'); }
+    finally { setSaving(false); }
   };
-  const goBack = () => {
-    if (!previous) return;
-    if (window.confirm(`¿Volver a “${stageLabel(previous)}”? Se conservará el historial.`)) {
-      update({ ...state, stage: previous, history: [...state.history, `${now()} Corrección manual por ${user.name}: vuelve a “${stageLabel(previous)}”`] });
-      setMessage('Estado corregido sin borrar el cambio anterior.');
-    }
+  return <div className="nested-form"><h4>Crear expediente</h4><label>Código<input value={values.code} onChange={(event) => set('code', event.target.value)} required /></label><label>Título<input value={values.title} onChange={(event) => set('title', event.target.value)} required /></label><label>Descripción<textarea value={values.description} onChange={(event) => set('description', event.target.value)} /></label><div className="form-grid"><FormSelect label="Tipo" value={values.type} onChange={(value) => set('type', value)} options={['Averia','Mantenimiento','Obra','Inspeccion','Garantia','Reclamacion','Mejora','Comercial'].map((value) => ({ value, label: displayStatus(value) }))} /><FormSelect label="Prioridad" value={values.priority} onChange={(value) => set('priority', value)} options={['Baja','Normal','Alta','Critica'].map((value) => ({ value, label: displayStatus(value) }))} /></div>{error && <p className="form-error">{error}</p>}<div className="modal-footer"><button type="button" onClick={onClose} disabled={saving}>Cancelar expediente</button><button type="button" className="primary" onClick={submit} disabled={saving}>{saving ? 'Creando...' : 'Crear y seleccionar'}</button></div></div>;
+}
+function WorkOrderForm({ initial, onClose, onSaved }: any) {
+  const { workspace } = useAuth();
+  const [values, setValues] = useState<Record<string, any>>({ type: 'Correctivo', priority: 'Normal', origin: workspaceToRole[workspace], scheduled_date: new Date().toISOString().slice(0, 10), ...initial });
+  const [creatingCase, setCreatingCase] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const clients = useLoad(() => clientsService.list(), [], [] as any[]);
+  const sites = useLoad(() => sitesService.list(), [], [] as any[]);
+  const equipment = useLoad(() => equipmentService.list(), [], [] as any[]);
+  const cases = useLoad(() => casesService.list(), [], [] as any[]);
+  const technicians = useLoad(() => profilesService.listTechnicians(), [], [] as any[]);
+  const filteredSites = sites.data.filter((site) => !values.client_id || site.client_id === values.client_id);
+  const filteredEquipment = equipment.data.filter((item) => (!values.client_id || item.client_id === values.client_id) && (!values.site_id || item.site_id === values.site_id));
+  const filteredCases = cases.data.filter((item) => (!values.client_id || item.client_id === values.client_id) && (!values.site_id || !item.site_id || item.site_id === values.site_id) && !['Cerrado', 'Cancelado'].includes(item.status));
+  const set = (key: string, value: any) => setValues((current) => ({ ...current, [key]: value }));
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setSaving(true); setError('');
+    try {
+      const payload = { ...values, estimated_duration_minutes: values.estimated_duration_minutes ? Number(values.estimated_duration_minutes) : null };
+      const result = initial?.id ? await workOrdersService.update(initial.id, payload) : await workOrdersService.create(payload, workspaceToRole[workspace]);
+      onSaved?.(result?.id ?? result);
+    } catch (err) { setError(err instanceof Error ? err.message : 'No se ha podido guardar el parte.'); }
+    finally { setSaving(false); }
   };
-  const requestReturn = () => {
-    if (state.returnRequested) { setMessage('La devolución a SAT ya está solicitada.'); return; }
-    actions.requestReturn(work.id, user.name);
-    setMessage('Devolución solicitada a SAT.');
+  return <ModalForm title={initial?.id ? 'Modificar parte' : 'Crear parte'} onClose={onClose} onSubmit={submit} saving={saving} error={error}><FormSelect label="Cliente" value={values.client_id} onChange={(value) => setValues((current) => ({ ...current, client_id: value, site_id: '', main_equipment_id: '', case_id: '' }))} required options={clients.data.map((client) => ({ value: client.id, label: `${client.code} · ${client.legal_name}` }))} loading={clients.loading} /><FormSelect label="Centro" value={values.site_id} onChange={(value) => setValues((current) => ({ ...current, site_id: value, main_equipment_id: '', case_id: '' }))} required={filteredSites.length > 0} options={filteredSites.map((site) => ({ value: site.id, label: `${site.code} · ${site.name}` }))} loading={sites.loading} disabled={!values.client_id} /><FormSelect label="Equipo" value={values.main_equipment_id} onChange={(value) => set('main_equipment_id', value)} options={filteredEquipment.map((item) => ({ value: item.id, label: `${item.code} · ${item.equipment_types?.name ?? item.model ?? 'Equipo'}` }))} loading={equipment.loading} disabled={!values.site_id} /><div className="field-with-action"><FormSelect label="Expediente" value={values.case_id} onChange={(value) => set('case_id', value)} options={filteredCases.map((item) => ({ value: item.id, label: `${item.code} · ${item.title} · ${displayStatus(item.type)} · ${displayStatus(item.status)}` }))} loading={cases.loading} disabled={!values.client_id} />{values.client_id && !cases.loading && !filteredCases.length && <p className="large-note">No hay expedientes activos para este cliente.</p>}<button type="button" onClick={() => setCreatingCase(true)} disabled={!values.client_id}>Crear expediente</button></div><div className="form-grid"><FormSelect label="Tipo" value={values.type} onChange={(value) => set('type', value)} required options={['Averia urgente','Correctivo','Preventivo','Mantenimiento','Inspeccion','Instalacion','Visita tecnica','Visita comercial','Garantia'].map((value) => ({ value, label: displayStatus(value) }))} /><FormSelect label="Prioridad" value={values.priority} onChange={(value) => set('priority', value)} options={['Baja','Normal','Alta','Critica'].map((value) => ({ value, label: displayStatus(value) }))} /></div><label>Título *<input value={values.title ?? ''} onChange={(event) => set('title', event.target.value)} required /></label><label>Avería o descripción<textarea value={values.description ?? ''} onChange={(event) => set('description', event.target.value)} placeholder="Describe la avería, solicitud o trabajo previsto" /></label><div className="form-grid"><label>Fecha<input type="date" value={values.scheduled_date ?? ''} onChange={(event) => set('scheduled_date', event.target.value)} /></label><label>Hora<input type="time" value={values.scheduled_time ?? ''} onChange={(event) => set('scheduled_time', event.target.value)} /></label><label>Duración estimada (min)<input type="number" min="1" value={values.estimated_duration_minutes ?? ''} onChange={(event) => set('estimated_duration_minutes', event.target.value)} /></label><FormSelect label="Técnico" value={values.technician_id} onChange={(value) => set('technician_id', value)} options={technicians.data.map((row) => ({ value: row.id, label: fullName(row) }))} loading={technicians.loading} /></div><label>Material previsto<input value={values.planned_material ?? ''} onChange={(event) => set('planned_material', event.target.value)} /></label><label>Acceso / requisitos<input value={values.access_notes ?? ''} onChange={(event) => set('access_notes', event.target.value)} /></label><label>Observaciones<textarea value={values.notes ?? ''} onChange={(event) => set('notes', event.target.value)} /></label>{creatingCase && <CaseQuickCreate initial={{ client_id: values.client_id, site_id: values.site_id }} onClose={() => setCreatingCase(false)} onSaved={async (created: any) => { set('case_id', created.id); setCreatingCase(false); await cases.reload(); }} />}</ModalForm>;
+}
+function AssignmentForm({ workOrderId, onClose, onSaved }: any) { return <EntityForm title="Asignar técnico" fields={[[ 'technician_id','Técnico UUID',true ],[ 'assignment_date','Fecha',true ],[ 'planned_start_time','Hora inicio' ],[ 'planned_end_time','Hora fin' ],[ 'role','Rol' ]]} initial={{ assignment_date: new Date().toISOString().slice(0, 10), role: 'Principal' }} onClose={onClose} onSubmit={(values: any) => workOrdersService.assign(workOrderId, values.technician_id, values.assignment_date, values.planned_start_time || null, values.planned_end_time || null, values.role || 'Principal')} onSaved={onSaved} />; }
+function CheckForm({ initial, onClose, onSaved }: any) {
+  const [values, setValues] = useState<Record<string, any>>({ status: 'Por realizar', global_result: 'Sin revisar', code: `CHK-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${Date.now().toString().slice(-4)}`, ...initial });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const workOrders = useLoad(() => workOrdersService.options(), [], [] as any[]);
+  const equipment = useLoad(() => equipmentService.list(), [], [] as any[]);
+  const templates = useLoad(() => checksService.templates(), [], [] as any[]);
+  const set = (key: string, value: any) => setValues((current) => ({ ...current, [key]: value }));
+  const selectWorkOrder = (workOrderId: string) => {
+    const workOrder = workOrders.data.find((item) => item.id === workOrderId);
+    setValues((current) => ({ ...current, work_order_id: workOrderId, equipment_id: workOrder?.main_equipment_id ?? current.equipment_id }));
   };
-  return <section className="page"><button className="link-button" onClick={() => navigate('/app/tecnico')}><ChevronLeft size={16} /> Mi jornada</button><section className="tech-hero"><Badge tone={toneForStage(state.stage)} icon={iconForTone(toneForStage(state.stage))}>{stageLabel(state.stage)}</Badge><h1>{work.type}</h1><p>{clientName(work.clientId)} · {centerName(work.centerId)}</p><strong>{work.address}</strong><button className="primary wide big" onClick={advance}>{state.stage === 'sent' ? 'Solicitar devolución a SAT' : primaryTechnicianAction(state.stage)}</button>{previous && state.stage !== 'sent' && <button className="state-back" onClick={goBack}>Estado actual: {stageLabel(state.stage)} · Volver a {stageLabel(previous)}</button>}{message && <p className="success-note">{message}</p>}</section><Card title="Datos del parte" icon={<FileText {...iconProps} />}><InfoGrid items={[[ 'Cliente', clientName(work.clientId) ], [ 'Contacto', work.contact ], [ 'Equipo', `${work.equipmentId} · ${equipmentName(work.equipmentId)}` ], [ 'Ubicación', work.address ], [ 'Avería', work.fault ], [ 'Acceso', work.access ], [ 'Antecedentes', 'Holgura leve y térmico disparado en intervención anterior' ], [ 'Material previsto', work.material ]]} /></Card><Card title="Documentación técnica" icon={<FileText {...iconProps} />}><TechnicalDocs equipmentId={work.equipmentId} /></Card><div className="tech-sections"><Card title="Diagnóstico" icon={<Wrench {...iconProps} />}><textarea disabled={state.stage === 'sent'} placeholder="Registrar diagnóstico técnico..." /></Card><Card title="Trabajo realizado" icon={<ClipboardCheck {...iconProps} />}><textarea disabled={state.stage === 'sent'} placeholder="Describir actuación realizada..." /></Card><Card title="Fotografías" icon={<Factory {...iconProps} />}><div className="photo-strip"><span>Cámara simulada</span><span>Galería simulada</span><button disabled={state.stage === 'sent'}>Añadir archivos</button></div></Card><Card title="Checks" icon={<ClipboardList {...iconProps} />}><div className="tabs"><button className="active">Por realizar</button><button>Realizados</button></div><CompactList items={pendingChecks.length ? pendingChecks : [[ 'Sin checks pendientes', 'Los checks de este parte están completados', 'ok' ]]} />{pendingChecks.length > 0 && <button className="primary wide" onClick={() => navigate(`/app/tecnico/trabajo/${work.id}/check`)}>Abrir check</button>}<CompactList items={workChecks.map((check) => [check.id, `${check.date} · ${check.technician} · ${check.result}`, check.result.includes('No favorable') ? 'danger' : 'ok'])} /></Card><Card title="Documentación, deficiencias y firma" icon={<ShieldAlert {...iconProps} />}><InfoGrid items={[[ 'Documentación', 'Manuales y esquemas disponibles arriba' ], [ 'Deficiencias', 'Pendiente de registrar si aplica' ], [ 'Firma', state.stage === 'sent' ? 'Parte enviado' : 'Pendiente de recoger' ]]} /></Card><Card title="Historial de estados" icon={<CalendarClock {...iconProps} />}><Timeline items={state.history} /></Card></div><nav className="tech-bottom"><button className="active"><ClipboardList size={18} />Trabajo</button><button onClick={() => setMoreOpen(true)}><MoreHorizontal size={18} />Más acciones</button></nav>{moreOpen && <BottomSheet onClose={() => setMoreOpen(false)}><button>Voy a terminar antes</button><button>Consultar antecedentes</button><button>Añadir fotografía</button><button>Registrar material</button><button>Comunicar incidencia</button><button>Registrar deficiencia</button><button>Abrir ubicación</button><button>Llamar al contacto</button><button>Requisitos de acceso</button></BottomSheet>}</section>;
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setSaving(true); setError('');
+    try {
+      const result = initial?.id ? await checksService.update(initial.id, values) : await checksService.create(values);
+      onSaved?.(result?.id ?? result);
+    } catch (err) { setError(err instanceof Error ? err.message : 'No se ha podido guardar el check.'); }
+    finally { setSaving(false); }
+  };
+  return <ModalForm title={initial?.id ? 'Modificar check' : 'Crear check'} onClose={onClose} onSubmit={submit} saving={saving} error={error}><label>Código *<input value={values.code ?? ''} onChange={(event) => set('code', event.target.value)} required /></label><FormSelect label="Parte relacionado" value={values.work_order_id} onChange={selectWorkOrder} options={workOrders.data.map((item) => ({ value: item.id, label: `${item.code} · ${item.title}` }))} loading={workOrders.loading} /><FormSelect label="Equipo" value={values.equipment_id} onChange={(value) => set('equipment_id', value)} required options={equipment.data.map((item) => ({ value: item.id, label: `${item.code} · ${item.equipment_types?.name ?? item.model ?? 'Equipo'}` }))} loading={equipment.loading} /><FormSelect label="Plantilla" value={values.template_id} onChange={(value) => set('template_id', value)} required options={templates.data.map((item) => ({ value: item.id, label: `${item.name} · v${item.version}` }))} loading={templates.loading} /><FormSelect label="Estado" value={values.status} onChange={(value) => set('status', value)} options={['Por realizar','En curso','Realizado','Cancelado'].map((value) => ({ value, label: value }))} /><FormSelect label="Resultado global" value={values.global_result} onChange={(value) => set('global_result', value)} options={['Sin revisar','Todo favorable','Problema leve','No favorable','Favorable tras intervencion','No aplicable'].map((value) => ({ value, label: displayStatus(value) }))} /><label>Observaciones<textarea value={values.observations ?? ''} onChange={(event) => set('observations', event.target.value)} /></label></ModalForm>;
+}
+function DocumentForm({ onClose, onSaved }: any) { return <EntityForm title="Crear documento" fields={[[ 'title','Título',true ],[ 'type','Tipo',true ],[ 'version','Versión' ],[ 'document_date','Fecha' ],[ 'origin','Origen' ],[ 'url','URL' ],[ 'observations','Observaciones' ]]} initial={{ type: 'Ficha tecnica', url: 'https://example.test/documento-demo.pdf' }} onClose={onClose} onSubmit={(values: any) => documentsService.create(values)} onSaved={onSaved} />; }
+
+function AlertForm({ onClose, onSaved }: any) {
+  const [values, setValues] = useState<Record<string, any>>({ type: 'Operativo', priority: 'Normal', status: 'Abierto', alert_date: new Date().toISOString().slice(0, 10), recipient_role: 'SAT' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const profiles = useLoad(() => profilesService.listActive(), [], [] as any[]);
+  const clients = useLoad(() => clientsService.list(), [], [] as any[]);
+  const sites = useLoad(() => sitesService.list(), [], [] as any[]);
+  const equipment = useLoad(() => equipmentService.list(), [], [] as any[]);
+  const cases = useLoad(() => casesService.list(), [], [] as any[]);
+  const workOrders = useLoad(() => workOrdersService.options(), [], [] as any[]);
+  const checks = useLoad(() => checksService.list(), [], [] as any[]);
+  const deficiencies = useLoad(() => deficienciesService.list(), [], [] as any[]);
+  const set = (key: string, value: any) => setValues((current) => ({ ...current, [key]: value }));
+  const related = (() => {
+    if (values.deficiency_id) return ['deficiencies', values.deficiency_id];
+    if (values.check_id) return ['checks', values.check_id];
+    if (values.work_order_id) return ['work_orders', values.work_order_id];
+    if (values.case_id) return ['cases', values.case_id];
+    if (values.equipment_id) return ['equipment', values.equipment_id];
+    if (values.site_id) return ['sites', values.site_id];
+    if (values.client_id) return ['clients', values.client_id];
+    return [null, null];
+  })();
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setSaving(true); setError('');
+    try {
+      const due = values.due_date ? `\nFecha límite: ${values.due_date}` : '';
+      await alertsService.create({ code: `AVI-${Date.now().toString().slice(-6)}`, title: values.title, description: `${values.description ?? ''}${due}`, type: values.type, priority: values.priority, status: values.status, alert_date: values.alert_date ? new Date(values.alert_date).toISOString() : new Date().toISOString(), related_entity: related[0], related_id: related[1] }, [{ role: values.recipient_role || undefined, profile_id: values.recipient_profile_id || undefined }]);
+      onSaved?.();
+    } catch (err) { setError(err instanceof Error ? err.message : 'No se ha podido crear el aviso.'); }
+    finally { setSaving(false); }
+  };
+  return <ModalForm title="Crear aviso" onClose={onClose} onSubmit={submit} saving={saving} error={error}><label>Título *<input value={values.title ?? ''} onChange={(event) => set('title', event.target.value)} required /></label><label>Descripción *<textarea value={values.description ?? ''} onChange={(event) => set('description', event.target.value)} required /></label><div className="form-grid"><FormSelect label="Tipo" value={values.type} onChange={(value) => set('type', value)} options={['Operativo','Tecnico','Comercial','Administrativo','PRL','Material','Documentacion','Critico'].map((value) => ({ value, label: displayStatus(value) }))} /><FormSelect label="Prioridad" value={values.priority} onChange={(value) => set('priority', value)} options={['Baja','Normal','Alta','Critica'].map((value) => ({ value, label: displayStatus(value) }))} /><FormSelect label="Estado inicial" value={values.status} onChange={(value) => set('status', value)} options={['Abierto','En curso','Cerrado','Cancelado'].map((value) => ({ value, label: value }))} /><label>Fecha<input type="date" value={values.alert_date ?? ''} onChange={(event) => set('alert_date', event.target.value)} /></label><label>Fecha límite opcional<input type="date" value={values.due_date ?? ''} onChange={(event) => set('due_date', event.target.value)} /></label><FormSelect label="Rol destinatario" value={values.recipient_role} onChange={(value) => set('recipient_role', value)} options={['SAT','Comercial','Oficina','Gerencia','Tecnico'].map((value) => ({ value, label: displayStatus(value) }))} /><FormSelect label="Destinatario concreto" value={values.recipient_profile_id} onChange={(value) => set('recipient_profile_id', value)} options={profiles.data.map((item) => ({ value: item.id, label: `${fullName(item)} · ${item.primary_area}` }))} loading={profiles.loading} /></div><Card title="Registro relacionado opcional"><div className="form-grid"><FormSelect label="Cliente" value={values.client_id} onChange={(value) => set('client_id', value)} options={clients.data.map((item) => ({ value: item.id, label: `${item.code} · ${item.legal_name}` }))} loading={clients.loading} /><FormSelect label="Centro" value={values.site_id} onChange={(value) => set('site_id', value)} options={sites.data.map((item) => ({ value: item.id, label: `${item.code} · ${item.name}` }))} loading={sites.loading} /><FormSelect label="Equipo" value={values.equipment_id} onChange={(value) => set('equipment_id', value)} options={equipment.data.map((item) => ({ value: item.id, label: `${item.code} · ${item.equipment_types?.name ?? item.model ?? 'Equipo'}` }))} loading={equipment.loading} /><FormSelect label="Expediente" value={values.case_id} onChange={(value) => set('case_id', value)} options={cases.data.map((item) => ({ value: item.id, label: `${item.code} · ${item.title}` }))} loading={cases.loading} /><FormSelect label="Parte" value={values.work_order_id} onChange={(value) => set('work_order_id', value)} options={workOrders.data.map((item) => ({ value: item.id, label: `${item.code} · ${item.title}` }))} loading={workOrders.loading} /><FormSelect label="Check" value={values.check_id} onChange={(value) => set('check_id', value)} options={checks.data.map((item) => ({ value: item.id, label: `${item.code} · ${item.equipment?.code ?? 'Equipo'}` }))} loading={checks.loading} /><FormSelect label="Deficiencia" value={values.deficiency_id} onChange={(value) => set('deficiency_id', value)} options={deficiencies.data.map((item) => ({ value: item.id, label: `${item.code} · ${item.description}` }))} loading={deficiencies.loading} /></div></Card></ModalForm>;
 }
 
-function SectionalCheckMain({ work, checks, setChecks, navigate, user }: { work: Work; checks: CheckRecord[]; setChecks: (checks: CheckRecord[]) => void; navigate: (path: string) => void; user: DemoUser }) {
-  const done = checks.find((check) => check.workId === work.id);
-  const blocks = done?.blocks ?? emptyBlocks();
-  const reviewed = Object.values(blocks).filter((status) => status !== 'Sin revisar').length;
-  const finish = () => {
-    if (reviewed < 6) return;
-    const record: CheckRecord = { id: done?.id ?? `CHK-${work.partId}`, workId: work.id, partId: work.partId, equipmentId: work.equipmentId, technician: user.name, date: new Date().toLocaleString('es-ES'), progress: 'Realizado', result: Object.values(blocks).some((item) => item === 'No favorable') ? 'No favorable' : 'Todo favorable', blocks, completed: true };
-    setChecks(done ? checks.map((item) => item.id === done.id ? record : item) : [...checks, record]);
-    navigate(`/app/tecnico/trabajo/${work.id}`);
-  };
-  return <section className="check-mobile"><button className="link-button" onClick={() => navigate(`/app/tecnico/trabajo/${work.id}`)}><ChevronLeft size={16} /> Volver al parte</button><header><p className="eyebrow">Check seccional industrial</p><h2>{work.partId} · {work.equipmentId}</h2><p>{reviewed} de 6 bloques revisados</p></header><div className="progress"><span style={{ width: `${(reviewed / 6) * 100}%` }} /></div><div className="door-check" aria-label="Zonas táctiles de puerta seccional"><img src="/checks/seccional-industrial.png" alt="Puerta seccional industrial" />{physicalSectionalBlocks.map((block) => <button key={block.id} style={block.area} className={`hotspot ${statusTone(blocks[block.id])}`} onClick={() => navigate(`/app/tecnico/trabajo/${work.id}/check/${block.id}`)} aria-label={`Revisar ${block.name}`}><span>{block.name}</span></button>)}</div><div className="block-list">{sectionalBlocks.map((block) => <button key={block.id} onClick={() => navigate(`/app/tecnico/trabajo/${work.id}/check/${block.id}`)}><span>{block.name}</span><Badge tone={statusTone(blocks[block.id])} icon={iconForTone(statusTone(blocks[block.id]))}>{blocks[block.id]}</Badge></button>)}</div><button className="primary wide big" disabled={reviewed < 6} onClick={finish}>Finalizar check</button>{reviewed < 6 && <p className="large-note">Para finalizar, todos los bloques deben estar revisados o marcados como No aplicable.</p>}{done?.completed && <Card title="Resumen" icon={<CheckCircle2 {...iconProps} />}><p className="large-note">Check completado y asociado al parte {work.partId}, equipo {work.equipmentId} y técnico {done.technician}.</p></Card>}</section>;
+function ModalForm({ title, onClose, onSubmit, saving, error, children }: any) {
+  return <div className="mini-modal" role="dialog" aria-modal="true"><form onSubmit={onSubmit}><h3>{title}</h3>{children}{error && <p className="form-error"><AlertTriangle size={16} />{error}</p>}<div className="modal-footer"><button type="button" onClick={onClose} disabled={saving}>Cancelar</button><button className="primary" disabled={saving}>{saving ? 'Guardando...' : title}</button></div></form></div>;
 }
 
-function SectionalCheckBlock({ work, blockId, checks, setChecks, navigate, user }: { work: Work; blockId: CheckBlockId; checks: CheckRecord[]; setChecks: (checks: CheckRecord[]) => void; navigate: (path: string) => void; user: DemoUser }) {
-  const block = sectionalBlocks.find((item) => item.id === blockId) ?? sectionalBlocks[0];
-  const existing = checks.find((check) => check.workId === work.id);
-  const [status, setStatus] = useState<CheckStatus>(existing?.blocks[blockId] ?? 'Sin revisar');
-  const [components, setComponents] = useState<string[]>([]);
-  const [dirty, setDirty] = useState(false);
-  const [photos, setPhotos] = useState<string[]>([]);
-  const back = () => {
-    if (!dirty) { navigate(`/app/tecnico/trabajo/${work.id}/check`); return; }
-    const choice = window.confirm('Hay cambios sin guardar. Aceptar para guardar y volver, cancelar para seguir editando.');
-    if (choice) save();
-  };
-  const save = () => {
-    const blocks = { ...(existing?.blocks ?? emptyBlocks()), [blockId]: status };
-    const record: CheckRecord = { id: existing?.id ?? `CHK-${work.partId}`, workId: work.id, partId: work.partId, equipmentId: work.equipmentId, technician: user.name, date: new Date().toLocaleString('es-ES'), progress: existing?.completed ? 'Realizado' : 'En curso', result: existing?.completed ? existing.result : 'Borrador', blocks, completed: existing?.completed };
-    setChecks(existing ? checks.map((item) => item.id === existing.id ? record : item) : [...checks, record]);
-    navigate(`/app/tecnico/trabajo/${work.id}/check`);
-  };
-  const favorableAll = () => { setStatus('Todo favorable'); setComponents(block.components); setDirty(true); };
-  return <section className="check-mobile"><button className="link-button sticky-back" onClick={back}><ChevronLeft size={16} /> Volver a la puerta</button><header><p className="eyebrow">Detalle del bloque</p><h2>{block.name}</h2><Badge tone={statusTone(status)} icon={iconForTone(statusTone(status))}>{status}</Badge></header><button className="primary wide" onClick={favorableAll}>Favorable a todo</button><div className="status-grid">{checkStatuses.map((item) => <button key={item} className={status === item ? 'active' : ''} onClick={() => { setStatus(item); setDirty(true); }}>{item}</button>)}</div>{!['Favorable', 'Sin revisar', 'No aplicable'].includes(status) && <Card title="Componentes afectados" icon={<Wrench {...iconProps} />}><div className="component-select">{block.components.map((component) => <label key={component}><input type="checkbox" checked={components.includes(component)} onChange={(event) => { setDirty(true); setComponents(event.target.checked ? [...components, component] : components.filter((item) => item !== component)); }} /> {component}</label>)}</div></Card>}<Card title="Observaciones" icon={<FileText {...iconProps} />}><textarea onChange={() => setDirty(true)} placeholder="Observaciones del bloque..." /></Card><Card title="Descripción de intervención" icon={<ClipboardCheck {...iconProps} />}><textarea onChange={() => setDirty(true)} placeholder="Intervención realizada si aplica..." /></Card><Card title="Fotografías" icon={<Factory {...iconProps} />}><div className="photo-strip"><button onClick={() => { setPhotos([...photos, `Foto ${photos.length + 1}`]); setDirty(true); }}>Cámara</button><button onClick={() => { setPhotos([...photos, `Galería ${photos.length + 1}`]); setDirty(true); }}>Galería</button><button onClick={() => { setPhotos([...photos, `Archivo ${photos.length + 1}`]); setDirty(true); }}>Archivos</button></div><div className="photo-list">{photos.map((photo) => <span key={photo}>{photo}<button onClick={() => setPhotos(photos.filter((item) => item !== photo))}>Eliminar</button></span>)}</div></Card><button className="primary wide big" onClick={save}>Guardar bloque</button></section>;
+function FormSelect({ label, value, onChange, options, required, loading, disabled }: { label: string; value?: string; onChange: (value: string) => void; options: { value: string; label: string }[]; required?: boolean; loading?: boolean; disabled?: boolean }) {
+  return <label>{label}{required ? ' *' : ''}<select value={value ?? ''} onChange={(event) => onChange(event.target.value)} required={required} disabled={disabled || loading}><option value="">{loading ? 'Cargando...' : 'Seleccionar'}</option>{options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>;
 }
 
-function TechShell({ user, onLogout, onAlerts, children }: { user: DemoUser; onLogout: () => void; onAlerts: () => void; children: ReactNode }) { return <div className="tech-app"><header className="tech-top"><div><strong>DoorManager Técnico</strong><small>{user.name} · {user.position}</small></div><button onClick={onAlerts} title="Avisos"><Bell size={18} /></button><button onClick={onLogout} title="Cerrar sesión"><LogOut size={18} /></button></header><main className="tech-main">{children}</main></div>; }
+function EntityForm({ title, fields, initial = {}, onClose, onSubmit, onSaved }: any) { const [values, setValues] = useState<Record<string, any>>(initial); const [error, setError] = useState(''); const [saving, setSaving] = useState(false); const submit = async (event: FormEvent) => { event.preventDefault(); setSaving(true); setError(''); try { const result = await onSubmit(values); onSaved?.(result?.id ?? result); } catch (err) { setError(err instanceof Error ? err.message : 'Error al guardar'); } finally { setSaving(false); } }; return <div className="mini-modal" role="dialog" aria-modal="true"><form onSubmit={submit}><h3>{title}</h3>{fields.map(([key, label, required]: any[]) => <label key={key}>{label}{required ? ' *' : ''}<input value={values[key] ?? ''} onChange={(event) => setValues({ ...values, [key]: event.target.value })} required={Boolean(required)} /></label>)}{error && <p className="form-error">{error}</p>}<div className="modal-footer"><button type="button" onClick={onClose} disabled={saving}>Cancelar</button><button className="primary" disabled={saving}>{saving ? 'Guardando...' : title}</button></div></form></div>; }
 
-function useTechStage(): [TechnicianStage, (stage: TechnicianStage) => void] { const [stage, setState] = useState<TechnicianStage>(() => (localStorage.getItem(techStageKey) as TechnicianStage | null) ?? 'downloaded'); const setStage = (next: TechnicianStage) => { localStorage.setItem(techStageKey, next); setState(next); }; return [stage, setStage]; }
-function useTechHistory(): [string[], (items: string[]) => void] { const [history, setState] = useState<string[]>(() => JSON.parse(localStorage.getItem(techHistoryKey) ?? 'null') as string[] | null ?? [`${now()} Trabajo descargado`]); const setHistory = (items: string[]) => { localStorage.setItem(techHistoryKey, JSON.stringify(items)); setState(items); }; return [history, setHistory]; }
-
-function navForWorkspace(workspace: ProfileId): NavItem[] {
-  const map: Record<ProfileId, NavItem[]> = {
-    sat: [{ id: 'inicio', label: 'Inicio', path: '/app/inicio', icon: Home }, { id: 'planificacion', label: 'Planificación', path: '/app/planificacion', icon: Gauge }, { id: 'trabajos', label: 'Trabajos', path: '/app/trabajos', icon: ClipboardList }, { id: 'tecnicos', label: 'Técnicos', path: '/app/tecnicos', icon: UsersRound }, { id: 'clientes', label: 'Clientes', path: '/app/clientes', icon: Building2 }, { id: 'equipos', label: 'Equipos', path: '/app/equipos', icon: Factory }, { id: 'expedientes', label: 'Expedientes', path: '/app/expedientes', icon: FileText }, { id: 'partes', label: 'Partes', path: '/app/partes', icon: ClipboardCheck }, { id: 'material', label: 'Material', path: '/app/material', icon: Warehouse }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }],
-    comercial: [{ id: 'inicio', label: 'Inicio', path: '/app/inicio', icon: Home }, { id: 'clientes', label: 'Clientes', path: '/app/clientes', icon: Building2 }, { id: 'oportunidades', label: 'Oportunidades', path: '/app/oportunidades', icon: TrendingUp }, { id: 'presupuestos', label: 'Presupuestos', path: '/app/presupuestos', icon: DollarSign }, { id: 'contratos', label: 'Contratos', path: '/app/contratos', icon: FileText }, { id: 'visitas', label: 'Visitas', path: '/app/visitas', icon: CalendarClock }, { id: 'expedientes', label: 'Expedientes', path: '/app/expedientes', icon: ClipboardList }, { id: 'informes', label: 'Informes comerciales', path: '/app/informes-comerciales', icon: PieChart }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }],
-    oficina: [{ id: 'inicio', label: 'Inicio', path: '/app/inicio', icon: Home }, { id: 'admin', label: 'Administración', path: '/app/administracion', icon: ClipboardCheck }, { id: 'facturacion', label: 'Facturación', path: '/app/facturacion', icon: DollarSign }, { id: 'cobros', label: 'Cobros', path: '/app/cobros', icon: CheckCircle2 }, { id: 'compras', label: 'Compras', path: '/app/compras', icon: Truck }, { id: 'proveedores', label: 'Proveedores', path: '/app/proveedores', icon: Warehouse }, { id: 'prl', label: 'PRL y personal', path: '/app/prl', icon: ShieldAlert }, { id: 'vehiculos', label: 'Vehículos', path: '/app/vehiculos', icon: Car }, { id: 'documentos', label: 'Documentos', path: '/app/documentos', icon: FileText }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }],
-    gerencia: [{ id: 'inicio', label: 'Inicio', path: '/app/inicio', icon: Home }, { id: 'resumen', label: 'Resumen', path: '/app/resumen', icon: PieChart }, { id: 'ventas', label: 'Ventas', path: '/app/ventas', icon: TrendingUp }, { id: 'operaciones', label: 'Operaciones', path: '/app/operaciones', icon: Gauge }, { id: 'rentabilidad', label: 'Rentabilidad', path: '/app/rentabilidad', icon: DollarSign }, { id: 'calidad', label: 'Calidad', path: '/app/calidad', icon: ShieldAlert }, { id: 'clientes', label: 'Clientes', path: '/app/clientes', icon: Building2 }, { id: 'personal', label: 'Personal', path: '/app/personal', icon: UsersRound }, { id: 'informes', label: 'Informes', path: '/app/informes', icon: FileText }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }],
-    tecnico: [],
-  };
-  return map[workspace];
-}
-
-function defaultRoute(workspace: ProfileId) { return workspace === 'tecnico' ? '/app/tecnico' : '/app/inicio'; }
-function activeNav(nav: NavItem[], path: string) { const exact = nav.find((item) => item.path === path); if (exact) return exact; return nav.filter((item) => path.startsWith(`${item.path}/`)).sort((a, b) => b.path.length - a.path.length)[0] ?? nav.find((item) => item.id === 'inicio'); }
-function cleanPath(path: string) { return path.split('?')[0]; }
-function kpi(key: string, label: string, value: string, tone: Severity, icon: ReactNode, route: string): Metric { return { key, label, value, tone, icon, route }; }
-function detailTitle(base: string, filter: string | null) { return filter ? `${base}: ${filter.replaceAll('-', ' ')}` : base; }
-
-function GlobalSearch({ workspace, query, setQuery, navigate }: { workspace: ProfileId; query: string; setQuery: (value: string) => void; navigate: (path: string) => void }) { const results = useMemo(() => buildSearchResults(workspace, query), [workspace, query]); return <div className="search-wrap"><label className="search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar cliente, equipo, expediente, parte..." /></label>{query && <div className="search-results">{results.length ? results.map((item) => <button key={`${item.kind}-${item.id}`} onClick={() => { setQuery(''); navigate(item.route); }}><Badge tone={item.tone} icon={iconForTone(item.tone)}>{item.kind}</Badge><span>{item.title}</span><small>{item.detail}</small></button>) : <p>Sin resultados visibles para este perfil.</p>}</div>}</div>; }
-function buildSearchResults(workspace: ProfileId, query: string) { if (!query.trim()) return []; const term = query.toLowerCase(); const rows: { kind: string; id: string; title: string; detail: string; tone: Severity; route: string }[] = []; works.forEach((work) => { const text = `${work.id} ${work.caseId} ${work.partId} ${clientName(work.clientId)} ${centerName(work.centerId)} ${work.equipmentId}`.toLowerCase(); if (text.includes(term)) rows.push({ kind: 'Trabajo', id: work.id, title: work.id, detail: `${clientName(work.clientId)} · ${work.status}`, tone: toneForStatus(work.status), route: workspace === 'tecnico' ? '/app/tecnico' : '/app/trabajos/' + work.id }); }); if (workspace !== 'tecnico') equipment.forEach((item) => { const text = `${item.id} ${item.type} ${clientName(item.clientId)}`.toLowerCase(); if (text.includes(term)) rows.push({ kind: 'Equipo', id: item.id, title: item.id, detail: `${item.type} · ${clientName(item.clientId)}`, tone: toneForEquipment(item.status), route: '/app/equipos/' + item.id }); }); return rows.slice(0, 8); }
-
-function AlertsPanel({ items, navigate, actions }: { items: AlertItem[]; navigate: (path: string) => void; actions?: DemoActions }) { const [filter, setFilter] = useState<Severity | 'all'>('all'); const filtered = items.filter((item) => filter === 'all' || item.severity === filter); return <div className="alerts-panel"><div className="tabs"><button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>Todos</button><button className={filter === 'danger' ? 'active' : ''} onClick={() => setFilter('danger')}>Críticos</button><button className={filter === 'warn' ? 'active' : ''} onClick={() => setFilter('warn')}>Advertencia</button></div><div className="compact-list">{filtered.map((item) => <article key={item.id} className={item.read ? 'read' : ''}><Badge tone={item.severity} icon={iconForTone(item.severity)}>{item.title}</Badge><p>{item.detail}<br /><small>{item.date} · {item.entity} · {item.status} · {item.read ? 'Leído' : 'Sin leer'}</small></p><div className="row-actions"><button onClick={() => { actions?.markAlertRead(item.id); if (item.route) navigate(toAppRoute(item.route)); }}>Abrir</button><button onClick={() => actions?.markAlertRead(item.id)}>{item.read ? 'Leído' : 'Marcar como leído'}</button><button onClick={() => actions?.closeAlert(item.id)}>Cerrar</button></div></article>)}</div></div>; }
-function toAppRoute(route: string) { return route.replace('/demo/sat/trabajos', '/app/trabajos').replace('/demo/sat/equipos', '/app/equipos'); }
-
-function WorkTable({ rows, navigate }: { rows: Work[]; navigate: (path: string) => void }) { return <div className="table-card"><table><thead><tr><th>Trabajo</th><th>Cliente / centro</th><th>Equipo</th><th>Hora</th><th>Técnico</th><th>Material</th><th>Acceso</th><th>Estado</th></tr></thead><tbody>{rows.map((work) => <tr key={work.id} onClick={() => navigate(`/app/trabajos/${work.id}`)}><td><strong>{work.id}</strong><span>{work.type}</span></td><td><strong>{clientName(work.clientId)}</strong><span>{centerName(work.centerId)}</span></td><td>{work.equipmentId}</td><td>{work.hour}</td><td>{technicianName(work.technicianId)}</td><td>{work.material}</td><td>{work.access}</td><td><Badge tone={toneForStatus(work.status)} icon={iconForTone(toneForStatus(work.status))}>{work.status}</Badge></td></tr>)}</tbody></table></div>; }
-function WorkRow({ work, onClick }: { work: Work; onClick: () => void }) { return <button className="work-row" onClick={onClick}><div><strong>{work.hour} · {work.type}</strong><span>{clientName(work.clientId)} · {centerName(work.centerId)}</span><span>{work.equipmentId} · {technicianName(work.technicianId)}</span></div><div><Badge tone={work.priority} icon={iconForTone(work.priority)}>{work.priority}</Badge><Badge tone={toneForStatus(work.status)} icon={iconForTone(toneForStatus(work.status))}>{work.status}</Badge></div></button>; }
-function EquipmentList({ navigate }: { navigate: (path: string) => void }) { return <DetailPage title="Equipos" summary="Fichas de equipos compartidas por departamentos." back="/app/inicio" navigate={navigate}><div className="grid half">{equipment.map((item) => <Card key={item.id} title={item.id} icon={<Factory {...iconProps} />} action={<button onClick={() => navigate(`/app/equipos/${item.id}`)}>Abrir</button>}><InfoGrid items={[[ 'Cliente', clientName(item.clientId) ], [ 'Centro', centerName(item.centerId) ], [ 'Tipo', item.type ], [ 'Estado', item.status ], [ 'Próxima revisión', item.next ]]} /></Card>)}</div></DetailPage>; }
-function TechniciansPage() { return <DetailPage title="Técnicos" summary="Disponibilidad, cualificaciones y avisos no bloqueantes." back="/app/inicio"><div className="grid half">{technicians.map((tech) => <TechnicianCard key={tech.id} tech={tech} />)}</div></DetailPage>; }
-function TechnicianCard({ tech }: { tech: typeof technicians[number] }) { return <article className="tech-card"><div><strong>{tech.name}</strong><Badge tone={tech.availability.includes('Disponible') ? 'ok' : 'info'} icon={<UserRound size={14} />}>{tech.availability}</Badge></div><p>{tech.currentWorkId ?? 'Sin trabajo activo'} · fin {tech.eta}</p><span>Habilitación: {tech.enabledFor}</span><small>{tech.courses.map((course) => `${course.name} ${course.expires}`).join(' · ')}</small>{tech.warning && <Badge tone="warn" icon={<AlertTriangle size={14} />}>{tech.warning}</Badge>}</article>; }
-function JobDetail({ work, navigate, checks }: { work: Work; navigate: (path: string) => void; checks: CheckRecord[] }) { const workChecks = checks.filter((check) => check.workId === work.id && check.completed); return <section className="page"><Breadcrumb items={['Trabajos', work.id]} /><div className="detail-hero"><div><p className="eyebrow">Ficha de trabajo</p><h2>{work.type} · {work.id}</h2><p>{clientName(work.clientId)} · {centerName(work.centerId)} · {work.equipmentId}</p></div><Badge tone={work.priority} icon={iconForTone(work.priority)}>{work.status}</Badge></div><div className="actions"><button>Editar planificación</button><button>Abrir cliente</button><button onClick={() => navigate(`/app/equipos/${work.equipmentId}`)}>Abrir equipo</button><button>Revisar material</button><button>Validar parte</button></div><div className="grid two-one"><Card title="Datos principales" icon={<FileText {...iconProps} />}><InfoGrid items={[[ 'Expediente', work.caseId ], [ 'Parte', work.partId ], [ 'Cliente', clientName(work.clientId) ], [ 'Centro', centerName(work.centerId) ], [ 'Contacto', work.contact ], [ 'Dirección', work.address ], [ 'Equipo', work.equipmentId ], [ 'Técnico', technicianName(work.technicianId) ]]} /></Card><Card title="Recursos y pendientes" icon={<PackageCheck {...iconProps} />}><InfoGrid items={[[ 'Material previsto', work.material ], [ 'Proveedor', supplierName(work.supplierId) ], [ 'Acceso', work.access ], [ 'Información pendiente', work.pendingInfo ?? 'Sin bloqueos administrativos' ]]} /></Card></div><Card title="Documentación técnica" icon={<FileText {...iconProps} />}><TechnicalDocs equipmentId={work.equipmentId} /></Card><Card title="Checks realizados en este parte" icon={<ClipboardCheck {...iconProps} />}><CompactList items={workChecks.length ? workChecks.map((check) => [check.id, `${check.date} · ${check.technician} · ${check.result}`, check.result.includes('No favorable') ? 'danger' : 'ok']) : [[ 'Sin checks', 'Aún no hay checks completados en esta intervención', 'muted' ]]} /></Card><button className="link-button" onClick={() => navigate('/app/trabajos')}><ChevronLeft size={16} /> Volver</button></section>; }
-function EquipmentDetail({ item, navigate, checks }: { item: typeof equipment[number]; navigate: (path: string) => void; checks: CheckRecord[] }) { return <section className="page"><Breadcrumb items={['Equipos', item.id]} /><div className="detail-hero"><div><p className="eyebrow">Ficha de equipo</p><h2>{item.id} · {item.type}</h2><p>{clientName(item.clientId)} · {centerName(item.centerId)} · {item.location}</p></div><Badge tone={toneForEquipment(item.status)} icon={<Factory size={15} />}>{item.status}</Badge></div><div className="actions"><button className="primary" onClick={() => navigate('/app/tecnico/check')}>Abrir check provisional</button><button>Abrir cliente</button><button>Abrir expediente</button></div><Card title="Identificación" icon={<Factory {...iconProps} />}><InfoGrid items={[[ 'Código', item.id ], [ 'Cliente', clientName(item.clientId) ], [ 'Centro', centerName(item.centerId) ], [ 'Ubicación', item.location ], [ 'Fabricante', item.maker ], [ 'Modelo', item.model ], [ 'Serie', item.serial ], [ 'Última intervención', item.last ], [ 'Próxima revisión', item.next ]]} /></Card><Card title="Documentación técnica" icon={<FileText {...iconProps} />}><TechnicalDocs equipmentId={item.id} /></Card><Card title="Checks del equipo" icon={<ClipboardCheck {...iconProps} />}><CompactList items={checks.filter((check) => check.equipmentId === item.id).map((check) => [check.partId, `${check.date} · ${check.technician} · ${check.result}`, 'ok'])} /></Card></section>; }
-
-function Card({ title, icon, action, children }: { title: string; icon: ReactNode; action?: ReactNode; children: ReactNode }) { return <section className="card"><header><h3>{icon}{title}</h3>{action}</header>{children}</section>; }
-function CompactList({ items }: { items: (readonly [string, string, string])[] }) { return <div className="compact-list">{items.map(([title, text, tone]) => <article key={`${title}-${text}`}><Badge tone={tone as Severity} icon={iconForTone(tone as Severity)}>{title}</Badge><p>{text}</p></article>)}</div>; }
-function InfoGrid({ items }: { items: [string, string][] }) { return <dl className="info-grid">{items.map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value}</dd></div>)}</dl>; }
-function Timeline({ items }: { items: string[] }) { return <ol className="timeline">{items.map((item) => <li key={item}>{item}</li>)}</ol>; }
-function Breadcrumb({ items }: { items: string[] }) { return <div className="breadcrumb">{items.map((item, index) => <span key={`${item}-${index}`}>{index > 0 && '/'} {item}</span>)}</div>; }
-function Badge({ tone, icon, children }: { tone: Severity; icon: ReactNode; children: ReactNode }) { return <span className={`badge ${tone}`}>{icon}{typeof children === 'string' ? visibleLabel(children) : children}</span>; }
-function SidePanel({ title, subtitle, onClose, children }: { title: string; subtitle?: string; onClose: () => void; children: ReactNode }) { useEscape(onClose); return <div className="overlay" role="dialog" aria-modal="true"><aside className="side-panel"><header><div><p className="eyebrow">{subtitle}</p><h2>{title}</h2></div><button onClick={onClose} aria-label="Cerrar"><X size={18} /></button></header>{children}</aside></div>; }
-function BottomSheet({ onClose, children }: { onClose: () => void; children: ReactNode }) { useEscape(onClose); return <div className="sheet-backdrop" role="dialog" aria-modal="true"><div className="bottom-sheet"><button className="sheet-close" onClick={onClose}>Cerrar</button>{children}</div></div>; }
-function VisualCheckPlaceholder({ navigate }: { navigate: (path: string) => void }) { return <section className="page"><Breadcrumb items={['Técnico', 'Check provisional']} /><Card title="Prototipo técnico en desarrollo" icon={<ClipboardCheck {...iconProps} />}><p className="large-note">Esta pantalla conserva el acceso provisional. No representa el sistema definitivo de checks técnicos.</p><div className="component-photo"><Wrench size={42} /><span>Esquema provisional sustituible</span></div><button className="primary" onClick={() => navigate('/app/tecnico')}>Volver al trabajo</button></Card></section>; }
-
-function TechnicalDocs({ equipmentId }: { equipmentId: string }) {
-  const prioritized = [...technicalDocs].sort((a, b) => Number(b[2].includes(equipmentId)) - Number(a[2].includes(equipmentId)));
-  return <div className="doc-list">{prioritized.map(([title, type, scope]) => <article key={title}><FileText size={17} /><div><strong>{title}</strong><span>{type} · {scope}</span></div><button onClick={() => window.alert(`${title}\nTipo: ${type}\nÁmbito: ${scope}\nVista documental simulada sin PDF real.`)}>Abrir</button></article>)}</div>;
-}
-
-function BarChart({ values, labels, tone }: { values: number[]; labels: string[]; tone: Severity }) { const max = Math.max(...values); return <div className="bar-chart">{values.map((value, index) => <div key={labels[index]}><span style={{ height: `${(value / max) * 100}%` }} className={tone}></span><small>{labels[index]}</small><b>{value}</b></div>)}</div>; }
-function DualBars({ left, right, leftValue, rightValue }: { left: string; right: string; leftValue: number; rightValue: number }) { return <div className="dual-bars"><label>{left}<span><i style={{ width: `${leftValue}%` }} /></span><b>{leftValue}</b></label><label>{right}<span><i style={{ width: `${rightValue}%` }} /></span><b>{rightValue}</b></label></div>; }
-function useEscape(action: () => void) { useEffect(() => { const listener = (event: KeyboardEvent) => { if (event.key === 'Escape') action(); }; window.addEventListener('keydown', listener); return () => window.removeEventListener('keydown', listener); }, [action]); }
-
-function logout(setSession: (session: Session | null) => void, navigate: (path: string) => void) { setSession(null); navigate('/'); }
-function resetDemo(setSession: (session: Session | null) => void, navigate: (path: string) => void, actions: DemoActions) { if (!window.confirm('¿Restablecer demostración? Se eliminarán los cambios locales y se cargarán los datos iniciales.')) return; localStorage.removeItem(techStageKey); localStorage.removeItem(techHistoryKey); localStorage.removeItem(sidebarKey); actions.resetDemo(); setSession(null); navigate('/'); }
-function now() { return new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }); }
-function previousStageFromHistory(history: string[]): TechnicianStage | null { const stages: TechnicianStage[] = ['downloaded', 'traveling', 'working', 'review', 'readyToSend', 'sent']; const currentIndex = Math.max(0, history.filter((item) => item.includes('Estado cambiado')).length - 1); return stages[currentIndex] ?? null; }
-function previousStage(stage: TechnicianStage): TechnicianStage | null { const order: TechnicianStage[] = ['downloaded', 'traveling', 'working', 'review', 'readyToSend', 'sent']; const index = order.indexOf(stage); return index > 0 ? order[index - 1] : null; }
-function withRuntime(work: Work, runtime: WorkRuntime): Work { const state = runtime[work.id]; return state ? { ...work, status: stageLabel(state.stage), technicianStage: state.stage } : work; }
-function emptyBlocks(): Record<CheckBlockId, CheckStatus> { return { hoja: 'Sin revisar', guias: 'Sin revisar', muelles: 'Sin revisar', automatizacion: 'Sin revisar', estructura: 'Sin revisar', funcionamiento: 'Sin revisar' }; }
-function statusTone(status: CheckStatus): Severity { if (status === 'Todo favorable' || status === 'Favorable tras intervención') return 'ok'; if (status === 'Problema leve') return 'warn'; if (status === 'No favorable') return 'danger'; if (status === 'No aplicable') return 'muted'; return 'info'; }
-function primaryTechnicianAction(stage: TechnicianStage) { if (stage === 'downloaded') return 'Iniciar desplazamiento'; if (stage === 'traveling') return 'He llegado / Iniciar intervención'; if (stage === 'working') return 'Continuar trabajo'; if (stage === 'review') return 'Revisar y finalizar'; if (stage === 'readyToSend') return 'Enviar trabajo'; return 'Trabajo enviado'; }
-function nextStage(stage: TechnicianStage): TechnicianStage { if (stage === 'downloaded') return 'traveling'; if (stage === 'traveling') return 'working'; if (stage === 'working') return 'review'; if (stage === 'review') return 'readyToSend'; if (stage === 'readyToSend') return 'sent'; return 'sent'; }
-function stageLabel(stage: TechnicianStage) { const labels: Record<TechnicianStage, string> = { downloaded: 'Trabajo descargado', traveling: 'En desplazamiento', working: 'En intervención', review: 'Finalizado técnicamente', readyToSend: 'Pendiente de envío', sent: 'Enviado', returned: 'Devuelto por SAT', cancelled: 'Cancelado' }; return labels[stage]; }
-function toneForStage(stage: TechnicianStage): Severity { if (stage === 'sent') return 'ok'; if (stage === 'readyToSend' || stage === 'review') return 'warn'; if (stage === 'working' || stage === 'traveling') return 'info'; return 'muted'; }
-function toneForStatus(status: string): Severity { if (status.includes('cerrado') || status.includes('finalizado')) return 'ok'; if (status.includes('material') || status.includes('parcial')) return 'warn'; if (status.includes('pendiente')) return 'info'; if (status.includes('intervención') || status.includes('desplazamiento')) return 'info'; return 'muted'; }
-function toneForEquipment(status: string): Severity { if (status.includes('crítica') || status.includes('Crítica')) return 'danger'; if (status.includes('Pendiente') || status.includes('material')) return 'warn'; if (status.includes('Operativa')) return 'ok'; return 'info'; }
-function iconForTone(tone: Severity) { if (tone === 'ok') return <CheckCircle2 size={14} />; if (tone === 'danger' || tone === 'warn') return <AlertTriangle size={14} />; if (tone === 'maintenance') return <Wrench size={14} />; if (tone === 'commercial') return <BriefcaseBusiness size={14} />; return <Bell size={14} />; }
-function visibleLabel(value: string) { return ({ danger: 'Crítico', warn: 'Advertencia', info: 'Información', maintenance: 'Mantenimiento', commercial: 'Comercial', ok: 'Correcto', muted: 'Sin prioridad' } as Record<string, string>)[value] ?? value; }
-function initials(name: string) { return name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase(); }
-function formatCurrency(value: number) { return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value); }
+function ListPage({ title, summary, search, setSearch, action, loading, error, retry, empty, children }: any) { return <section className="page"><Breadcrumb items={['Listado', title]} /><div className="page-head"><div><h2>{title}</h2><p>{summary}</p></div>{action}</div><div className="filters local-filters"><label><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`Buscar en ${title.toLowerCase()}...`} /></label></div><StateBlock loading={loading} error={error} retry={retry} empty={empty}>{children}</StateBlock></section>; }
+function StateBlock({ loading, error, retry, empty, children }: any) { if (loading) return <Card title="Cargando"><p className="large-note">Consultando Supabase...</p></Card>; if (error) return <Card title="Error"><p className="form-error">{error}</p><button className="primary" onClick={retry}>Reintentar</button></Card>; if (empty) return <Card title="Sin registros"><p className="large-note">No hay datos para este filtro.</p>{retry && <button onClick={retry}>Reintentar</button>}</Card>; return <>{children}</>; }
+function Card({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) { return <section className="card"><header><h3>{title}</h3>{action}</header>{children}</section>; }
+function Badge({ tone, children }: { tone: Severity; children: ReactNode }) { return <span className={`badge ${tone}`}>{typeof children === 'string' ? visibleLabel(children) : children}</span>; }
+function InfoGrid({ items }: { items: [string, any][] }) { return <dl className="info-grid">{items.map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{String(value ?? '-')}</dd></div>)}</dl>; }
+function CompactRows({ rows, empty }: { rows: [string, string, Severity, string][]; empty: string }) { if (!rows.length) return <p className="large-note">{empty}</p>; return <div className="compact-list">{rows.map(([title, text, tone, route]) => <article key={`${title}-${text}`}><Badge tone={tone}>{title}</Badge><p>{text}</p><Link to={route}>Abrir</Link></article>)}</div>; }
+function WorkTable({ rows, columns, route }: { rows: any[]; columns: string[]; route: string }) { return <div className="table-card"><table><thead><tr>{columns.map((column) => <th key={column}>{column.split('.').at(-1)}</th>)}<th>Acción</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id}>{columns.map((column) => <td key={column}>{displayStatus(String(readPath(row, column) ?? '-'))}</td>)}<td><Link to={`${route}/${row.id}`}>Abrir</Link></td></tr>)}</tbody></table></div>; }
+function Breadcrumb({ items }: { items: string[] }) { return <div className="breadcrumb">{items.map((item, index) => <span key={item}>{index > 0 && '/'} {item}</span>)}</div>; }
+function BackButton() { const navigate = useNavigate(); return <button className="link-button" onClick={() => navigate(-1)}><ChevronLeft size={16} /> Volver</button>; }
+function Hero({ title, subtitle, tone }: { title: string; subtitle: string; tone: Severity }) { return <div className="detail-hero"><div><p className="eyebrow">Ficha</p><h2>{title}</h2><p>{subtitle}</p></div><Badge tone={tone}>{tone}</Badge></div>; }
+function Timeline({ items }: { items: string[] }) { return items.length ? <ol className="timeline">{items.map((item) => <li key={item}>{item}</li>)}</ol> : <p className="large-note">Sin eventos.</p>; }
+function Related({ title, groups }: { title: string; groups: [string, any[] | undefined, string][] }) { return <Card title={title}><div className="grid half">{groups.map(([label, rows, base]) => <Card key={label} title={label}><CompactRows rows={(rows ?? []).filter(Boolean).map((row: any) => [row.code ?? row.title ?? row.name ?? row.related_type ?? row.id, row.legal_name ?? row.description ?? row.status ?? row.related_id ?? 'Registro vinculado', severityForStatus(row.status), `${base}/${row.id ?? ''}`])} empty={`Sin ${label.toLowerCase()}.`} /></Card>)}</div></Card>; }
+function SidePanel({ title, subtitle, onClose, children }: any) { useEffect(() => { const listener = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); }; window.addEventListener('keydown', listener); return () => window.removeEventListener('keydown', listener); }, [onClose]); return <div className="overlay" role="dialog" aria-modal="true" onMouseDown={onClose}><aside className="side-panel" onMouseDown={(event) => event.stopPropagation()}><header><div><p className="eyebrow">{subtitle}</p><h2>{title}</h2></div><button onClick={onClose} aria-label="Cerrar"><X size={18} /></button></header>{children}</aside></div>; }
+function ConfirmModal({ title, text, onCancel, onConfirm }: any) { return <div className="mini-modal"><div><h3>{title}</h3><p>{text}</p><div className="modal-footer"><button onClick={onCancel}>Cancelar</button><button className="primary" onClick={onConfirm}>Confirmar</button></div></div></div>; }
+function metric(title: string, text: string, tone: Severity, route: string, icon: ReactNode) { return { title, text, tone, route, icon }; }
+function readPath(row: any, path: string) { return path.split('.').reduce((value, key) => value?.[key], row); }
+function normalize(value: string) { return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+function routeForAlert(alert: any) { if (!alert?.related_entity || !alert?.related_id) return '/app/avisos'; const map: Record<string, string> = { work_orders: '/app/partes', deficiencies: '/app/deficiencias', equipment: '/app/equipos', checks: '/app/checks', clients: '/app/clientes', sites: '/app/centros', cases: '/app/expedientes' }; return `${map[alert.related_entity] ?? '/app/avisos'}/${alert.related_id}`; }
 
 export default App;

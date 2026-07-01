@@ -1,0 +1,48 @@
+import { supabase } from '../lib/supabase/client';
+import { contains, currentCompanyId, currentProfileId, expectData } from './query';
+
+export const checksService = {
+  list(search = '') {
+    let query = supabase.from('checks').select('*, equipment!checks_equipment_id_fkey(code), work_orders!checks_work_order_id_fkey(code), profiles!checks_technician_id_fkey(first_name,last_name)').is('deleted_at', null).order('created_at', { ascending: false });
+    if (search) query = query.or(contains(['code', 'status', 'global_result', 'observations'], search));
+    return expectData<any[]>(query);
+  },
+  pending() {
+    return expectData<any[]>(supabase.from('v_pending_checks').select('*').order('created_at', { ascending: false }));
+  },
+  completed() {
+    return expectData<any[]>(supabase.from('v_completed_checks').select('*').order('finished_at', { ascending: false }));
+  },
+  get(id: string) {
+    return expectData<any>(supabase.from('checks').select('*, equipment!checks_equipment_id_fkey(*), work_orders!checks_work_order_id_fkey(*), check_templates(*, check_template_sections(*, check_template_items(*))), check_section_results(*, check_template_sections(*)), check_item_results(*, check_template_items(*)), check_photos(*)').eq('id', id).single());
+  },
+  templates() {
+    return expectData<any[]>(supabase.from('check_templates').select('*, check_template_sections(*, check_template_items(*))').eq('active', true));
+  },
+  async create(payload: Record<string, any>) {
+    const company_id = await currentCompanyId();
+    const technician_id = payload.technician_id || await currentProfileId();
+    return expectData<any>(supabase.from('checks').insert({ ...payload, company_id, technician_id }).select().single());
+  },
+  update(id: string, payload: Record<string, any>) {
+    return expectData<any>(supabase.from('checks').update(payload).eq('id', id).select().single());
+  },
+  async setSectionResult(check_id: string, section_id: string, result: string, observations?: string) {
+    const company_id = await currentCompanyId();
+    return expectData<any>(supabase.from('check_section_results').upsert({ company_id, check_id, section_id, result, observations: observations || null }, { onConflict: 'check_id,section_id' }).select().single());
+  },
+  async setItemsResult(check_id: string, sectionResultId: string, items: any[], result: string, observations?: string) {
+    const company_id = await currentCompanyId();
+    const rows = items.map((item) => ({ company_id, check_id, section_result_id: sectionResultId, item_id: item.id, result, observations: observations || null }));
+    return expectData<any[]>(supabase.from('check_item_results').upsert(rows, { onConflict: 'check_id,item_id' }).select());
+  },
+  async markSectionFavorable(check_id: string, section: any) {
+    const sectionResult = await this.setSectionResult(check_id, section.id, 'Todo favorable');
+    await this.setItemsResult(check_id, sectionResult.id, section.check_template_items ?? [], 'Todo favorable');
+    await supabase.from('checks').update({ status: 'En curso', global_result: 'Todo favorable', started_at: new Date().toISOString() }).eq('id', check_id).is('finished_at', null);
+  },
+  async finish(check_id: string, global_result: string, observations?: string) {
+    const profileId = await currentProfileId();
+    return expectData<void>(supabase.rpc('finish_check', { p_check_id: check_id, p_finished_by: profileId, p_global_result: global_result, p_observations: observations || null }));
+  },
+};

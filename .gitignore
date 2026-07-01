@@ -1,5 +1,6 @@
 node_modules/
 dist/
+.env.local
 *.tsbuildinfo
 Sesiones.gitignore
 public/checks/seccional-industrial22.png

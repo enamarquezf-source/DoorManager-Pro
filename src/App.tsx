@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type FormEvent
 import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Bell, BriefcaseBusiness, Building2, CalendarClock, CheckCircle2, ChevronLeft, ClipboardCheck, ClipboardList, Eye, EyeOff, Factory, FileText, Gauge, Home, LogOut, Menu, PackageCheck, PanelLeftClose, PanelLeftOpen, PieChart, Search, Settings, ShieldAlert, Truck, UserRound, UsersRound, Warehouse, Wrench, X } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
-import { authService, demoLogins } from './services/authService';
+import { authService } from './services/authService';
 import { profilesService } from './services/profilesService';
 import { clientsService } from './services/clientsService';
 import { sitesService } from './services/sitesService';
@@ -71,18 +71,14 @@ function useAuth() { const value = useContext(AuthContext); if (!value) throw ne
 function LoginPage() {
   const { session, profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
-  const [demoOpen, setDemoOpen] = useState(false);
-  const [selected, setSelected] = useState(demoLogins[0]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => { if (session && profile) navigate(profile.primary_area === 'Tecnico' ? '/app/tecnico' : '/app/inicio', { replace: true }); }, [session, profile, navigate]);
 
-  const pickDemo = (user = selected) => { setSelected(user); setEmail(user.email); setPassword(user.password); setError(''); };
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setLoading(true); setError('');
@@ -92,7 +88,7 @@ function LoginPage() {
     setLoading(false);
   };
 
-  return <main className="login-page"><section className="login-visual" aria-hidden="true"><div className="industrial-mark"><Factory size={42} /><span>DMP</span></div><div className="door-illustration"><span /><span /><span /><i /></div><h1>DoorManager Pro</h1><p>Operaciones, mantenimiento, SAT y gestión empresarial sobre un mismo núcleo de información.</p><div className="visual-tags"><Badge tone="maintenance">SAT</Badge><Badge tone="commercial">Comercial</Badge><Badge tone="info">Dirección</Badge></div></section><form className="login-card" aria-label="Acceso a DoorManager Pro" onSubmit={submit}><div className="login-brand"><Factory size={30} /><div><strong>DoorManager Pro</strong><span>Demo conectada a Supabase</span></div></div><label>Usuario o correo<input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="usuario@empresa.com" autoComplete="username" required /></label><label>Contraseña<div className="password-field"><input value={password} onChange={(event) => setPassword(event.target.value)} type={showPassword ? 'text' : 'password'} placeholder="Contraseña" autoComplete="current-password" required /><button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></label><div className="login-row"><label className="check"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} /> Recordarme</label><button type="button" className="text-button" disabled>Recuperación no configurada</button></div>{error && <p className="form-error"><AlertTriangle size={16} />{error}</p>}<button className="primary wide big" disabled={loading}>{loading ? 'Iniciando sesión...' : 'Iniciar sesión'}</button><button type="button" className="demo-toggle" onClick={() => setDemoOpen(!demoOpen)}><UsersRound size={17} /> Acceso de demostración</button>{demoOpen && <div className="demo-users">{demoLogins.map((user) => <button type="button" key={user.email} className={selected.email === user.email ? 'selected' : ''} onClick={() => pickDemo(user)}><span>{initials(user.name)}</span><strong>{user.name}</strong><small>{user.position} · {workspaceTitles[user.workspace]}</small></button>)}</div>}<footer>La sesión usa Supabase Auth. No se usa clave de servicio ni acceso anonimo.</footer></form></main>;
+  return <main className="login-page"><section className="login-visual" aria-hidden="true"><div className="industrial-mark"><Factory size={42} /><span>DMP</span></div><div className="door-illustration"><span /><span /><span /><i /></div><h1>DoorManager Pro</h1><p>Operaciones, mantenimiento, SAT y gestión empresarial sobre un mismo núcleo de información.</p><div className="visual-tags"><Badge tone="maintenance">SAT</Badge><Badge tone="commercial">Comercial</Badge><Badge tone="info">Dirección</Badge></div></section><form className="login-card" aria-label="Acceso a DoorManager Pro" onSubmit={submit}><div className="login-brand"><Factory size={30} /><div><strong>DoorManager Pro</strong><span>Acceso privado conectado a Supabase</span></div></div><label>Correo<input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="usuario@empresa.com" autoComplete="username" required /></label><label>Contraseña<div className="password-field"><input value={password} onChange={(event) => setPassword(event.target.value)} type={showPassword ? 'text' : 'password'} placeholder="Contraseña" autoComplete="current-password" required /><button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></label>{error && <p className="form-error"><AlertTriangle size={16} />{error}</p>}<button className="primary wide big" disabled={loading}>{loading ? 'Iniciando sesión...' : 'Iniciar sesión'}</button><footer>Las credenciales no se publican en la interfaz ni en el repositorio.</footer></form></main>;
 }
 
 function ProtectedLayout() {

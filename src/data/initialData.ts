@@ -1,19 +1,19 @@
 import type { DemoStore } from './models';
 
 const users = [
-  { id: 'marta', name: 'Marta López', email: 'marta.demo@doormanager.local', password: 'DemoSAT2026', position: 'Coordinación SAT y comercial', primary: 'sat', roles: ['sat', 'comercial'] },
-  { id: 'laura', name: 'Laura Sánchez', email: 'laura.demo@doormanager.local', password: 'DemoCOM2026', position: 'Gestión comercial', primary: 'comercial', roles: ['comercial'] },
-  { id: 'elena', name: 'Elena Ruiz', email: 'elena.demo@doormanager.local', password: 'DemoOFI2026', position: 'Administración', primary: 'oficina', roles: ['oficina'] },
-  { id: 'carlos', name: 'Carlos Navarro', email: 'carlos.demo@doormanager.local', password: 'DemoDIR2026', position: 'Dirección', primary: 'gerencia', roles: ['gerencia'] },
-  { id: 'diego', name: 'Diego Martín', email: 'diego.demo@doormanager.local', password: 'DemoTEC2026', position: 'Técnico de campo', primary: 'tecnico', roles: ['tecnico'] },
+  { id: 'marta', name: 'Marta López', email: 'marta@doormanager.local', position: 'Coordinación SAT y comercial', primary: 'sat', roles: ['sat', 'comercial'] },
+  { id: 'laura', name: 'Laura Sánchez', email: 'laura@doormanager.local', position: 'Gestión comercial', primary: 'comercial', roles: ['comercial'] },
+  { id: 'elena', name: 'Elena Ruiz', email: 'elena@doormanager.local', position: 'Administración', primary: 'oficina', roles: ['oficina'] },
+  { id: 'carlos', name: 'Carlos Navarro', email: 'carlos@doormanager.local', position: 'Dirección', primary: 'gerencia', roles: ['gerencia'] },
+  { id: 'diego', name: 'Diego Martín', email: 'diego@doormanager.local', position: 'Técnico de campo', primary: 'tecnico', roles: ['tecnico'], technicianId: 'tec-diego' },
 ] as DemoStore['users'];
 
 const clients = [
   { id: 'cli-ares', name: 'Logística Ares SL', segment: 'Logística', contact: 'Sergio Mesa' },
-  { id: 'cli-frio', name: 'Frío Norte Demo', segment: 'Alimentación', contact: 'Maite Robles' },
-  { id: 'cli-luma', name: 'Industrias Luma Test', segment: 'Industria', contact: 'Rita Sol' },
-  { id: 'cli-orbita', name: 'Centro Órbita Ficticio', segment: 'Retail', contact: 'Pablo Ríos' },
-  { id: 'cli-delta', name: 'Plataforma Delta Demo', segment: 'Distribución', contact: 'Alicia Pont' },
+  { id: 'cli-frio', name: 'Frío Norte SL', segment: 'Alimentación', contact: 'Maite Robles' },
+  { id: 'cli-luma', name: 'Industrias Luma', segment: 'Industria', contact: 'Rita Sol' },
+  { id: 'cli-orbita', name: 'Centro Órbita', segment: 'Retail', contact: 'Pablo Ríos' },
+  { id: 'cli-delta', name: 'Plataforma Delta', segment: 'Distribución', contact: 'Alicia Pont' },
 ] as DemoStore['clients'];
 
 const centers = [
@@ -23,31 +23,31 @@ const centers = [
   { id: 'cen-frio-exp', clientId: 'cli-frio', name: 'Expediciones', address: 'Av. Hielo 8' },
   { id: 'cen-luma-n4', clientId: 'cli-luma', name: 'Nave 4', address: 'Camino Prueba 4' },
   { id: 'cen-luma-taller', clientId: 'cli-luma', name: 'Taller', address: 'Camino Prueba 4' },
-  { id: 'cen-orbita-p1', clientId: 'cli-orbita', name: 'Parking P1', address: 'Calle Demo 12' },
-  { id: 'cen-orbita-este', clientId: 'cli-orbita', name: 'Acceso Este', address: 'Calle Demo 12' },
+  { id: 'cen-orbita-p1', clientId: 'cli-orbita', name: 'Parking P1', address: 'Calle Roble 12' },
+  { id: 'cen-orbita-este', clientId: 'cli-orbita', name: 'Acceso Este', address: 'Calle Roble 12' },
   { id: 'cen-delta-carga', clientId: 'cli-delta', name: 'Muelles Delta', address: 'Ronda Ficticia 22' },
 ] as DemoStore['centers'];
 
 const documents = [
-  { id: 'DOC-SEC-001', title: 'Manual instalación SD-420', type: 'manual', scope: 'Modelo SD-420', maker: 'NovoDemo', model: 'SD-420', equipmentId: 'EQ-SEC-001', family: 'Puerta seccional industrial' },
+  { id: 'DOC-SEC-001', title: 'Manual instalación SD-420', type: 'manual', scope: 'Modelo SD-420', maker: 'NovoDoor', model: 'SD-420', equipmentId: 'EQ-SEC-001', family: 'Puerta seccional industrial' },
   { id: 'DOC-SEC-002', title: 'Esquema eléctrico DM-CTRL', type: 'esquema eléctrico', scope: 'Cuadro de maniobra DM-CTRL', controlPanel: 'DM-CTRL', family: 'Cuadros de maniobra' },
   { id: 'DOC-SEC-003', title: 'Despiece hoja industrial', type: 'despiece', scope: 'Puerta seccional industrial', family: 'Puerta seccional industrial' },
-  { id: 'DOC-CE-001', title: 'Declaración CE NovoDemo', type: 'declaración CE', scope: 'Marca NovoDemo', maker: 'NovoDemo' },
+  { id: 'DOC-CE-001', title: 'Declaración CE NovoDoor', type: 'declaración CE', scope: 'Marca NovoDoor', maker: 'NovoDoor' },
   { id: 'DOC-INT-001', title: 'Procedimiento interno SAT-SEC', type: 'procedimiento interno', scope: 'Cliente Logística Ares', clientId: 'cli-ares' },
   { id: 'DOC-MAN-001', title: 'Mantenimiento trimestral puertas rápidas', type: 'mantenimiento', scope: 'Familia puertas rápidas', family: 'Puerta rápida' },
   { id: 'DOC-DES-001', title: 'Desbloqueo motor Nice X2', type: 'desbloqueo', scope: 'Motor Nice X2', motor: 'Nice X2', equipmentId: 'EQ-SEC-001' },
 ] as DemoStore['documents'];
 
 const equipment = [
-  { id: 'EQ-SEC-001', code: 'EQ-SEC-001', clientId: 'cli-ares', centerId: 'cen-ares-norte', location: 'Muelle 1', type: 'Puerta seccional industrial', maker: 'NovoDemo', model: 'SD-420', serial: 'ND-001-FIC', status: 'Operativa con aviso', installedAt: '2022-03-14', last: '2026-06-24', next: '2026-09-24', documentIds: ['DOC-SEC-001', 'DOC-SEC-002', 'DOC-SEC-003', 'DOC-DES-001'], history: ['2026-06-24 Ajuste de guías', '2026-06-30 Avería por térmico'] },
+  { id: 'EQ-SEC-001', code: 'EQ-SEC-001', clientId: 'cli-ares', centerId: 'cen-ares-norte', location: 'Muelle 1', type: 'Puerta seccional industrial', maker: 'NovoDoor', model: 'SD-420', serial: 'ND-001-FIC', status: 'Operativa con aviso', installedAt: '2022-03-14', last: '2026-06-24', next: '2026-09-24', documentIds: ['DOC-SEC-001', 'DOC-SEC-002', 'DOC-SEC-003', 'DOC-DES-001'], history: ['2026-06-24 Ajuste de guías', '2026-06-30 Avería por térmico'] },
   { id: 'EQ-RAP-010', code: 'EQ-RAP-010', clientId: 'cli-ares', centerId: 'cen-ares-exp', location: 'Paso producción', type: 'Puerta rápida', maker: 'RapidMock', model: 'RM-30', serial: 'RM-010', status: 'Incidencia crítica', installedAt: '2021-11-09', last: '2026-04-11', next: '2026-07-11', documentIds: ['DOC-MAN-001'], history: ['2026-04-11 Preventivo', '2026-06-30 Variador pendiente'] },
   { id: 'EQ-PLA-002', code: 'EQ-PLA-002', clientId: 'cli-frio', centerId: 'cen-frio-exp', location: 'Muelle 3', type: 'Muelle de carga', maker: 'HydroFake', model: 'HL-8', serial: 'HF-992', status: 'Pendiente reparación', installedAt: '2020-01-20', last: '2026-06-29', next: '2026-07-12', documentIds: [], history: ['2026-06-29 Revisión hidráulica incompleta'] },
   { id: 'EQ-RAP-004', code: 'EQ-RAP-004', clientId: 'cli-frio', centerId: 'cen-frio-c2', location: 'Paso frío', type: 'Puerta rápida', maker: 'RapidMock', model: 'RM-22', serial: 'RM-444', status: 'En revisión', installedAt: '2023-02-02', last: '2026-06-15', next: '2026-06-30', documentIds: ['DOC-MAN-001'], history: ['2026-06-15 Ajuste lona'] },
   { id: 'EQ-COR-003', code: 'EQ-COR-003', clientId: 'cli-luma', centerId: 'cen-luma-n4', location: 'Acceso camiones', type: 'Cancela corredera automática', maker: 'SlideTest', model: 'ST-900', serial: 'ST-003', status: 'Esperando material', installedAt: '2019-09-10', last: '2026-06-21', next: '2026-07-05', documentIds: [], history: ['2026-06-21 Deficiencia fotocélulas'] },
-  { id: 'EQ-SEC-009', code: 'EQ-SEC-009', clientId: 'cli-luma', centerId: 'cen-luma-taller', location: 'Puerta 2', type: 'Puerta seccional industrial', maker: 'NovoDemo', model: 'SD-360', serial: 'ND-009', status: 'Pendiente validación', installedAt: '2024-05-19', last: '2026-06-30', next: '2026-10-01', documentIds: ['DOC-SEC-003', 'DOC-CE-001'], history: ['2026-06-30 Intervención finalizada'] },
+  { id: 'EQ-SEC-009', code: 'EQ-SEC-009', clientId: 'cli-luma', centerId: 'cen-luma-taller', location: 'Puerta 2', type: 'Puerta seccional industrial', maker: 'NovoDoor', model: 'SD-360', serial: 'ND-009', status: 'Pendiente validación', installedAt: '2024-05-19', last: '2026-06-30', next: '2026-10-01', documentIds: ['DOC-SEC-003', 'DOC-CE-001'], history: ['2026-06-30 Intervención finalizada'] },
   { id: 'EQ-BAR-007', code: 'EQ-BAR-007', clientId: 'cli-orbita', centerId: 'cen-orbita-p1', location: 'Entrada', type: 'Barrera', maker: 'BarrierLab', model: 'BL-4', serial: 'BL-707', status: 'Operativa', installedAt: '2022-07-01', last: '2026-05-28', next: '2026-08-28', documentIds: [], history: ['2026-05-28 Preventivo'] },
-  { id: 'EQ-AUT-006', code: 'EQ-AUT-006', clientId: 'cli-orbita', centerId: 'cen-orbita-este', location: 'Recepción', type: 'Puerta automática', maker: 'AutoGlass Demo', model: 'AG-2', serial: 'AG-006', status: 'Información pendiente', installedAt: '2023-08-12', last: '2026-06-01', next: '2026-07-01', documentIds: [], history: ['2026-06-01 Mantenimiento'] },
-  { id: 'EQ-CUA-013', code: 'EQ-CUA-013', clientId: 'cli-delta', centerId: 'cen-delta-carga', location: 'Sala técnica', type: 'Cuadro de maniobra', maker: 'ControlDemo', model: 'DM-CTRL', serial: 'CTRL-013', status: 'Programada', installedAt: '2025-03-03', last: '2026-06-10', next: '2026-07-10', documentIds: ['DOC-SEC-002'], history: ['2026-06-10 Revisión visual'] },
+  { id: 'EQ-AUT-006', code: 'EQ-AUT-006', clientId: 'cli-orbita', centerId: 'cen-orbita-este', location: 'Recepción', type: 'Puerta automática', maker: 'AutoGlass', model: 'AG-2', serial: 'AG-006', status: 'Información pendiente', installedAt: '2023-08-12', last: '2026-06-01', next: '2026-07-01', documentIds: [], history: ['2026-06-01 Mantenimiento'] },
+  { id: 'EQ-CUA-013', code: 'EQ-CUA-013', clientId: 'cli-delta', centerId: 'cen-delta-carga', location: 'Sala técnica', type: 'Cuadro de maniobra', maker: 'ControlDoor', model: 'DM-CTRL', serial: 'CTRL-013', status: 'Programada', installedAt: '2025-03-03', last: '2026-06-10', next: '2026-07-10', documentIds: ['DOC-SEC-002'], history: ['2026-06-10 Revisión visual'] },
 ] as DemoStore['equipment'];
 
 const technicians = [
@@ -60,7 +60,7 @@ const technicians = [
 ] as DemoStore['technicians'];
 
 const suppliers = [
-  { id: 'sup-nord', name: 'Nordic Components Demo', contact: 'Entrega 24/48 h' },
+  { id: 'sup-nord', name: 'Nordic Components', contact: 'Entrega 24/48 h' },
   { id: 'sup-porta', name: 'PortaParts Ficticio', contact: 'Raúl Sanz' },
   { id: 'sup-hydro', name: 'HydroFake Service', contact: 'Lucía Mar' },
 ] as DemoStore['suppliers'];
@@ -68,14 +68,14 @@ const suppliers = [
 const works = [
   { id: 'TR-2401', caseId: 'EXP-2026-118', partId: 'PAR-8812', type: 'Avería urgente', clientId: 'cli-ares', centerId: 'cen-ares-norte', equipmentId: 'EQ-SEC-001', date: '2026-07-01', hour: '08:15', technicianId: 'tec-diego', material: 'Motor Nice X2 reservado', access: 'Garita avisada', priority: 'danger', status: 'En intervención', address: 'Polígono Beta 14', contact: 'Sergio Mesa 600 111 201', fault: 'La puerta se queda a media altura y salta térmico.', supplierId: 'sup-nord', technicianStage: 'working', budgetId: 'PRE-3044', history: ['Trabajo descargado', 'En desplazamiento', 'En intervención'] },
   { id: 'TR-2402', caseId: 'EXP-2026-119', partId: 'PAR-8813', type: 'Preventivo', clientId: 'cli-frio', centerId: 'cen-frio-c2', equipmentId: 'EQ-RAP-004', date: '2026-07-01', hour: '09:00', technicianId: 'tec-leo', material: 'Kit bandas + tornillería', access: 'Permiso frío confirmado', priority: 'maintenance', status: 'Trabajo descargado', address: 'Av. Hielo 8', contact: 'Maite Robles 600 111 202', fault: 'Revisión trimestral y ajuste de lona.', supplierId: 'sup-porta', technicianStage: 'downloaded', history: ['Trabajo descargado'] },
-  { id: 'TR-2403', caseId: 'EXP-2026-120', partId: 'PAR-8814', type: 'Inspección', clientId: 'cli-orbita', centerId: 'cen-orbita-p1', equipmentId: 'EQ-BAR-007', date: '2026-07-01', hour: '10:30', technicianId: 'tec-iris', material: 'Sin material previsto', access: 'Mando en recepción', priority: 'info', status: 'En desplazamiento', address: 'Calle Demo 12', contact: 'Pablo Ríos 600 111 203', fault: 'Inspección visual por golpe en brazo.', technicianStage: 'traveling', history: ['Trabajo descargado', 'En desplazamiento'] },
+  { id: 'TR-2403', caseId: 'EXP-2026-120', partId: 'PAR-8814', type: 'Inspección', clientId: 'cli-orbita', centerId: 'cen-orbita-p1', equipmentId: 'EQ-BAR-007', date: '2026-07-01', hour: '10:30', technicianId: 'tec-iris', material: 'Sin material previsto', access: 'Mando en recepción', priority: 'info', status: 'En desplazamiento', address: 'Calle Roble 12', contact: 'Pablo Ríos 600 111 203', fault: 'Inspección visual por golpe en brazo.', technicianStage: 'traveling', history: ['Trabajo descargado', 'En desplazamiento'] },
   { id: 'TR-2404', caseId: 'EXP-2026-121', partId: 'PAR-8815', type: 'Correctivo', clientId: 'cli-luma', centerId: 'cen-luma-n4', equipmentId: 'EQ-COR-003', date: '2026-07-01', hour: '11:00', technicianId: 'tec-mara', material: 'Fotocélulas pendientes proveedor', access: 'Ubicación entrega sin confirmar', priority: 'warn', status: 'Pendiente', address: 'Camino Prueba 4', contact: 'Rita Sol 600 111 204', fault: 'Fotocélulas fallan de forma intermitente.', pendingInfo: 'Confirmar recepción y franja de trabajo', supplierId: 'sup-porta', budgetId: 'PRE-3042', technicianStage: 'downloaded', history: ['Pendiente de material'] },
   { id: 'TR-2405', caseId: 'EXP-2026-122', partId: 'PAR-8816', type: 'Visita comercial', clientId: 'cli-ares', centerId: 'cen-ares-exp', equipmentId: 'EQ-RAP-010', date: '2026-07-01', hour: '12:30', technicianId: 'tec-dani', material: 'Medidor láser', access: 'Con cita', priority: 'commercial', status: 'Pendiente', address: 'Polígono Beta 16', contact: 'Alicia Pont 600 111 205', fault: 'Toma de medidas para presupuesto.', budgetId: 'PRE-3041', history: ['Visita planificada'] },
   { id: 'TR-2406', caseId: 'EXP-2026-123', partId: 'PAR-8817', type: 'Trabajo no terminado', clientId: 'cli-frio', centerId: 'cen-frio-exp', equipmentId: 'EQ-PLA-002', date: '2026-07-01', hour: '13:30', technicianId: 'tec-nora', material: 'Latiguillo confirmado', access: 'Muelle libre desde 13:00', priority: 'warn', status: 'Finalizado técnicamente', address: 'Av. Hielo 8', contact: 'Maite Robles 600 111 202', fault: 'Plataforma baja con velocidad irregular.', supplierId: 'sup-hydro', technicianStage: 'review', history: ['Trabajo descargado', 'En intervención', 'Finalizado técnicamente'] },
   { id: 'TR-2408', caseId: 'EXP-2026-125', partId: 'PAR-8819', type: 'Mantenimiento', clientId: 'cli-luma', centerId: 'cen-luma-taller', equipmentId: 'EQ-SEC-009', date: '2026-06-30', hour: '16:00', technicianId: 'tec-mara', material: 'Usado: polea 120 mm', access: 'Completo', priority: 'ok', status: 'Pendiente de envío', address: 'Camino Prueba 4', contact: 'Rita Sol 600 111 204', fault: 'Parte finalizado por técnico.', technicianStage: 'readyToSend', history: ['Finalizado técnicamente', 'Pendiente de envío'] },
   { id: 'TR-2409', caseId: 'EXP-2026-126', partId: 'PAR-8820', type: 'Avería', clientId: 'cli-ares', centerId: 'cen-ares-norte', equipmentId: 'EQ-RAP-010', date: '2026-07-01', hour: '17:00', technicianId: 'tec-dani', material: 'Variador sin confirmar', access: 'Responsable ausente', priority: 'danger', status: 'Devolución solicitada', address: 'Polígono Beta 14', contact: 'Sergio Mesa 600 111 201', fault: 'No abre, posible variador.', pendingInfo: 'Responsable ausente', supplierId: 'sup-nord', budgetId: 'PRE-3043', history: ['Enviado', 'Devolución solicitada por técnico'] },
   { id: 'TR-2410', caseId: 'EXP-2026-127', partId: 'PAR-8821', type: 'Preventivo', clientId: 'cli-frio', centerId: 'cen-frio-exp', equipmentId: 'EQ-PLA-002', date: '2026-06-30', hour: '18:00', technicianId: 'tec-iris', material: 'Sin material', access: 'Confirmado', priority: 'info', status: 'Enviado', address: 'Av. Hielo 8', contact: 'Maite Robles 600 111 202', fault: 'Preventivo anual completado.', technicianStage: 'sent', history: ['Enviado'] },
-  { id: 'TR-2411', caseId: 'EXP-2026-128', partId: 'PAR-8822', type: 'Correctivo exterior', clientId: 'cli-orbita', centerId: 'cen-orbita-p1', equipmentId: 'EQ-BAR-007', date: '2026-07-01', hour: '19:00', technicianId: 'tec-diego', material: 'Brazo 4 m', access: 'Vigilancia pendiente', priority: 'warn', status: 'Trabajo descargado', address: 'Calle Demo 12', contact: 'Pablo Ríos 600 111 203', fault: 'Alerta meteorológica simulada por viento.', pendingInfo: 'Vigilancia debe emitir pase temporal', technicianStage: 'downloaded', history: ['Trabajo descargado'] },
+  { id: 'TR-2411', caseId: 'EXP-2026-128', partId: 'PAR-8822', type: 'Correctivo exterior', clientId: 'cli-orbita', centerId: 'cen-orbita-p1', equipmentId: 'EQ-BAR-007', date: '2026-07-01', hour: '19:00', technicianId: 'tec-diego', material: 'Brazo 4 m', access: 'Vigilancia pendiente', priority: 'warn', status: 'Trabajo descargado', address: 'Calle Roble 12', contact: 'Pablo Ríos 600 111 203', fault: 'Alerta meteorológica simulada por viento.', pendingInfo: 'Vigilancia debe emitir pase temporal', technicianStage: 'downloaded', history: ['Trabajo descargado'] },
 ] as DemoStore['works'];
 
 const parts = works.map((work) => ({ id: work.partId, workId: work.id, clientId: work.clientId, centerId: work.centerId, equipmentId: work.equipmentId, title: work.type, description: work.fault, status: work.status, createdAt: work.date, updatedAt: work.date })) as DemoStore['parts'];

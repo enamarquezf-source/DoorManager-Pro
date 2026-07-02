@@ -7,8 +7,10 @@ export const clientsService = {
     if (search) query = query.or(contains(['code', 'legal_name', 'trade_name', 'tax_id', 'email', 'phone'], search));
     return expectData<any[]>(query);
   },
-  get(id: string) {
-    return expectData<any>(supabase.from('clients').select('*, client_contacts(*), sites(*), equipment(*), cases(*), work_orders(*)').eq('id', id).single());
+  async get(id: string) {
+    const row = await expectData<any>(supabase.from('clients').select('*, client_contacts(*), sites(*), equipment(*), cases(*), work_orders(*)').eq('id', id).maybeSingle());
+    if (!row) throw new Error('No se ha encontrado el cliente solicitado.');
+    return row;
   },
   async create(payload: Record<string, any>) {
     const company_id = await currentCompanyId();

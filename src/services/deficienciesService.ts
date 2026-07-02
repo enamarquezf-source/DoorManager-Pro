@@ -15,8 +15,8 @@ export const deficienciesService = {
     if (search) query = query.or(contains(['code', 'description', 'recommended_action', 'status', 'severity'], search));
     return expectData<any[]>(query);
   },
-  get(id: string) {
-    return expectData<any>(supabase.from('deficiencies').select(`
+  async get(id: string) {
+    const row = await expectData<any>(supabase.from('deficiencies').select(`
       *,
       corrective_actions(*),
       clients!deficiencies_client_id_fkey(*),
@@ -25,7 +25,9 @@ export const deficienciesService = {
       work_orders!deficiencies_work_order_id_fkey(*),
       checks!deficiencies_check_id_fkey(*),
       profiles!deficiencies_responsible_profile_id_fkey(first_name,last_name)
-    `).eq('id', id).single());
+    `).eq('id', id).maybeSingle());
+    if (!row) throw new Error('No se ha encontrado la deficiencia solicitada.');
+    return row;
   },
   async createFromCheck(checkId: string, itemId: string, severity: string, description: string, recommendedAction: string, responsible?: string | null) {
     return expectData<string>(supabase.rpc('create_deficiency_from_check', { p_check_id: checkId, p_item_id: itemId, p_severity: severity, p_description: description, p_recommended_action: recommendedAction, p_responsible: responsible || null }));

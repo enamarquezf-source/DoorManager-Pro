@@ -7,8 +7,10 @@ export const documentsService = {
     if (search) query = query.or(contains(['title', 'type', 'origin', 'observations'], search));
     return expectData<any[]>(query);
   },
-  get(id: string) {
-    return expectData<any>(supabase.from('documents').select('*, files(*), document_links(*)').eq('id', id).single());
+  async get(id: string) {
+    const row = await expectData<any>(supabase.from('documents').select('*, files(*), document_links(*)').eq('id', id).maybeSingle());
+    if (!row) throw new Error('No se ha encontrado el documento solicitado.');
+    return row;
   },
   async create(payload: Record<string, any>) {
     const company_id = await currentCompanyId();

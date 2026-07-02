@@ -2,7 +2,7 @@
 
 DoorManager Pro es una plataforma web profesional para empresas instaladoras y mantenedoras de puertas industriales y automaticas. Centraliza SAT, tecnico en campo, gestion comercial, oficina y gerencia sobre una unica base de datos conectada a Supabase.
 
-## Demo publica
+## Web publica
 
 https://doormanager-pro.pages.dev/
 
@@ -27,7 +27,8 @@ Muchas empresas de mantenimiento gestionan clientes, partes, checks, incidencias
 - Mi jornada del tecnico con partes asignados.
 - Detalle completo del parte con cliente, centro, equipo, asignaciones, historial, materiales, checks, avisos, documentos y deficiencias.
 - Cambio de estado del parte mediante RPC de Supabase.
-- Creacion de partes, checks, avisos y documentos segun permisos.
+- Creacion de partes, expedientes, checks, avisos y documentos segun permisos.
+- Codigos de partes y expedientes generados en base de datos.
 - Check visual de puerta seccional con hotspots sobre imagen limpia de produccion.
 - Resumen de estados e incidencias del check sin duplicar navegacion.
 - Avisos con filtros, lectura, apertura, cierre y reapertura.
@@ -67,6 +68,14 @@ El frontend utiliza Supabase para autenticacion, perfiles, datos de negocio y RP
 - `VITE_SUPABASE_PUBLISHABLE_KEY`
 
 No se usa clave de servicio en frontend. Las claves reales se configuran fuera del repositorio, por ejemplo en Cloudflare Pages y `.env.local` local ignorado por Git.
+
+La aplicacion usa RLS, vistas y RPC para mantener permisos por empresa y rol. El frontend no debe sustituir Supabase por datos locales salvo en la cola offline del tecnico.
+
+## Offline y sincronizacion manual
+
+El modo offline esta reservado al trabajo tecnico en campo. Los datos operativos que se capturen sin cobertura deben guardarse primero en almacenamiento persistente del dispositivo y sincronizarse manualmente con el boton `Sincronizar` cuando el tecnico lo decida.
+
+La sincronizacion manual debe mostrar pendientes, progreso, sincronizados y fallidos. Si falla, no debe borrar datos locales y debe permitir reintento sin duplicados.
 
 ## Despliegue
 
@@ -142,6 +151,10 @@ Las referencias anotadas de desarrollo, si se versionan, deben ir en `docs/refer
 
 El proyecto ya esta conectado a Supabase y Cloudflare Pages. La version actual incluye autenticacion real, servicios por dominio, dashboards por rol, permisos centralizados, rutas protegidas, detalle completo de parte y check visual responsive.
 
+## Estado actual del desarrollo
+
+El proyecto esta conectado a Supabase y Cloudflare Pages. La version actual incluye autenticacion real, servicios por dominio, dashboards por rol, permisos centralizados, rutas protegidas, detalle completo de parte, codigos automaticos de expedientes mediante RPC y check visual responsive.
+
 ## Funciones nuevas recientes
 
 - Permisos centralizados en `src/auth/permissions.ts`.
@@ -152,6 +165,9 @@ El proyecto ya esta conectado a Supabase y Cloudflare Pages. La version actual i
 - Lista inferior del check convertida en resumen no navegable.
 - Botones primarios y modales ajustados para visibilidad y uso tactil.
 - Avisos con layout mas legible y sin solapes.
+- Login publico sin accesos demo ni credenciales precargadas.
+- Asignacion de tecnico mediante desplegable legible que guarda internamente el UUID.
+- Bloqueo de scroll de fondo en modales y paneles laterales.
 
 ## Limitaciones conocidas
 
@@ -166,7 +182,7 @@ El proyecto ya esta conectado a Supabase y Cloudflare Pages. La version actual i
 - Separar `App.tsx` en modulos por dominio.
 - Anadir code splitting por rutas.
 - Ampliar pruebas automatizadas de permisos, servicios y responsive.
-- Completar soporte offline-first real para tecnico de campo.
+- Completar IndexedDB para fotografias, firmas y cola offline completa del tecnico.
 
 ## Seguridad
 

@@ -15,14 +15,6 @@ export type Profile = {
   roles: RoleName[];
 };
 
-export type DemoLogin = {
-  name: string;
-  email: string;
-  password: string;
-  position: string;
-  workspace: Workspace;
-};
-
 export type ClientRow = Record<string, any>;
 export type SiteRow = Record<string, any>;
 export type EquipmentRow = Record<string, any>;

@@ -13,8 +13,10 @@ export const checksService = {
   completed() {
     return expectData<any[]>(supabase.from('v_completed_checks').select('*').order('finished_at', { ascending: false }));
   },
-  get(id: string) {
-    return expectData<any>(supabase.from('checks').select('*, equipment!checks_equipment_id_fkey(*), work_orders!checks_work_order_id_fkey(*), check_templates(*, check_template_sections(*, check_template_items(*))), check_section_results(*, check_template_sections(*)), check_item_results(*, check_template_items(*)), check_photos(*)').eq('id', id).single());
+  async get(id: string) {
+    const row = await expectData<any>(supabase.from('checks').select('*, equipment!checks_equipment_id_fkey(*), work_orders!checks_work_order_id_fkey(*), check_templates(*, check_template_sections(*, check_template_items(*))), check_section_results(*, check_template_sections(*)), check_item_results(*, check_template_items(*)), check_photos(*)').eq('id', id).maybeSingle());
+    if (!row) throw new Error('No se ha encontrado el check solicitado.');
+    return row;
   },
   templates() {
     return expectData<any[]>(supabase.from('check_templates').select('*, check_template_sections(*, check_template_items(*))').eq('active', true));

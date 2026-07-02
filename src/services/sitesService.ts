@@ -7,8 +7,10 @@ export const sitesService = {
     if (search) query = query.or(contains(['code', 'name', 'address', 'city'], search));
     return expectData<any[]>(query);
   },
-  get(id: string) {
-    return expectData<any>(supabase.from('sites').select('*, clients(*), site_contacts(*), equipment(*), cases(*), work_orders(*), access_requirements(*)').eq('id', id).single());
+  async get(id: string) {
+    const row = await expectData<any>(supabase.from('sites').select('*, clients(*), site_contacts(*), equipment(*), cases(*), work_orders(*), access_requirements(*)').eq('id', id).maybeSingle());
+    if (!row) throw new Error('No se ha encontrado el centro solicitado.');
+    return row;
   },
   async create(payload: Record<string, any>) {
     const company_id = await currentCompanyId();

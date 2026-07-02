@@ -46,7 +46,8 @@ export const workOrdersService = {
         access_requirement:access_requirements!work_orders_access_requirement_id_fkey(*),
         primary_technician:profiles!work_orders_main_technician_id_fkey(*),
         creator:profiles!work_orders_created_by_fkey(*)
-      `).eq('id', workOrderId).single());
+      `).eq('id', workOrderId).maybeSingle());
+      if (!workOrder) throw new Error('No se ha encontrado el parte solicitado.');
 
       const [additional, assignments, history, notes, materials, checks, deficiencies, alertRows, documents, signatures, photos] = await Promise.all([
         expectData<any[]>(supabase.from('work_order_equipment').select('*, equipment!work_order_equipment_equipment_id_fkey(*, equipment_types(*))').eq('work_order_id', workOrderId).eq('is_primary', false)),
@@ -123,6 +124,7 @@ export const workOrdersService = {
       planned_material: payload.planned_material || null,
     }).eq('id', data);
     if (payload.technician_id) await this.assign(data, payload.technician_id, payload.scheduled_date || new Date().toISOString().slice(0, 10), payload.scheduled_time || null, null, 'Principal');
+    if (role === 'Comercial' && payload.type === 'Visita comercial' && !payload.technician_id) await this.assign(data, profileId, payload.scheduled_date || new Date().toISOString().slice(0, 10), payload.scheduled_time || null, null, 'Principal');
     return data;
   },
   update(id: string, payload: Record<string, any>) {

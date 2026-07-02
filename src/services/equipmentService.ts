@@ -10,8 +10,8 @@ export const equipmentService = {
   types() {
     return expectData<any[]>(supabase.from('equipment_types').select('*').eq('active', true).order('name'));
   },
-  get(id: string) {
-    return expectData<any>(supabase.from('equipment').select(`
+  async get(id: string) {
+    const row = await expectData<any>(supabase.from('equipment').select(`
       *,
       clients(*),
       sites(*),
@@ -20,7 +20,9 @@ export const equipmentService = {
       checks!checks_equipment_id_fkey(*),
       work_orders!work_orders_main_equipment_id_fkey(*),
       deficiencies!deficiencies_equipment_id_fkey(*)
-    `).eq('id', id).single());
+    `).eq('id', id).maybeSingle());
+    if (!row) throw new Error('No se ha encontrado el equipo solicitado.');
+    return row;
   },
   history(id: string) {
     return expectData<any[]>(supabase.from('v_equipment_history').select('*').eq('equipment_id', id).order('event_at', { ascending: false }));

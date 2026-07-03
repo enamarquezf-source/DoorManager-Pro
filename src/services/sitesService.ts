@@ -1,6 +1,11 @@
 import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, expectData } from './query';
 
+const siteColumns = ['client_id', 'name', 'address', 'city', 'province', 'postal_code', 'country', 'schedule', 'access_requirement_id', 'primary_contact_id', 'active', 'notes'];
+function sitePayload(payload: Record<string, any>) {
+  return Object.fromEntries(siteColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
+}
+
 export const sitesService = {
   list(search = '') {
     let query = supabase.from('sites').select('*, clients(code, legal_name), site_contacts(*), equipment(id, code), cases(id, code), work_orders(id, code), access_requirements(*)').is('deleted_at', null).order('name');
@@ -14,10 +19,10 @@ export const sitesService = {
   },
   async create(payload: Record<string, any>) {
     const company_id = await currentCompanyId();
-    return expectData<any>(supabase.from('sites').insert({ ...payload, company_id }).select().single());
+    return expectData<any>(supabase.from('sites').insert({ ...sitePayload(payload), company_id }).select().maybeSingle());
   },
   update(id: string, payload: Record<string, any>) {
-    return expectData<any>(supabase.from('sites').update(payload).eq('id', id).select().single());
+    return expectData<any>(supabase.from('sites').update(sitePayload(payload)).eq('id', id).select().maybeSingle());
   },
   async addContact(site_id: string, payload: Record<string, any>) {
     const company_id = await currentCompanyId();

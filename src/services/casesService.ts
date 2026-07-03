@@ -1,6 +1,11 @@
 import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, currentProfileId, expectData } from './query';
 
+const caseColumns = ['title', 'description', 'type', 'priority', 'status', 'client_id', 'site_id', 'origin', 'responsible_profile_id'];
+function casePayload(payload: Record<string, any>) {
+  return Object.fromEntries(caseColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
+}
+
 export const casesService = {
   list(search = '') {
     let query = supabase.from('cases').select('*, clients(code, legal_name), sites(code, name), case_links(*)').is('deleted_at', null).order('created_at', { ascending: false });
@@ -29,7 +34,7 @@ export const casesService = {
     }));
   },
   update(id: string, payload: Record<string, any>) {
-    return expectData<any>(supabase.from('cases').update(payload).eq('id', id).select().single());
+    return expectData<any>(supabase.from('cases').update(casePayload(payload)).eq('id', id).select().maybeSingle());
   },
   async link(case_id: string, related_type: string, related_id: string) {
     const company_id = await currentCompanyId();

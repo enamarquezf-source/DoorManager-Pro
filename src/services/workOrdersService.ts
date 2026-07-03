@@ -1,6 +1,11 @@
 import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, currentProfileId, expectData } from './query';
 
+const workOrderColumns = ['case_id', 'client_id', 'site_id', 'main_equipment_id', 'contact_id', 'access_requirement_id', 'title', 'description', 'type', 'priority', 'status', 'origin', 'scheduled_date', 'scheduled_time', 'estimated_duration_minutes', 'planned_material', 'technical_team', 'diagnosis', 'work_performed', 'result'];
+function workOrderPayload(payload: Record<string, any>) {
+  return Object.fromEntries(workOrderColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
+}
+
 export type WorkOrderFullDetail = {
   work_order: any;
   client: any;
@@ -128,7 +133,7 @@ export const workOrdersService = {
     return data;
   },
   update(id: string, payload: Record<string, any>) {
-    return expectData<any>(supabase.from('work_orders').update(payload).eq('id', id).select().single());
+    return expectData<any>(supabase.from('work_orders').update(workOrderPayload(payload)).eq('id', id).select().maybeSingle());
   },
   async assign(workOrderId: string, technicianId: string, assignmentDate: string, start: string | null, end: string | null, role = 'Principal') {
     const profileId = await currentProfileId();

@@ -1,6 +1,11 @@
 import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, currentProfileId, expectData } from './query';
 
+const checkColumns = ['work_order_id', 'equipment_id', 'template_id', 'technician_id', 'status', 'global_result', 'observations'];
+function checkPayload(payload: Record<string, any>) {
+  return Object.fromEntries(checkColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
+}
+
 export const checksService = {
   list(search = '') {
     let query = supabase.from('checks').select('*, equipment!checks_equipment_id_fkey(code), work_orders!checks_work_order_id_fkey(code), profiles!checks_technician_id_fkey(first_name,last_name)').is('deleted_at', null).order('created_at', { ascending: false });
@@ -24,10 +29,10 @@ export const checksService = {
   async create(payload: Record<string, any>) {
     const company_id = await currentCompanyId();
     const technician_id = payload.technician_id || await currentProfileId();
-    return expectData<any>(supabase.from('checks').insert({ ...payload, company_id, technician_id }).select().single());
+    return expectData<any>(supabase.from('checks').insert({ ...checkPayload(payload), company_id, technician_id }).select().maybeSingle());
   },
   update(id: string, payload: Record<string, any>) {
-    return expectData<any>(supabase.from('checks').update(payload).eq('id', id).select().single());
+    return expectData<any>(supabase.from('checks').update(checkPayload(payload)).eq('id', id).select().maybeSingle());
   },
   async setSectionResult(check_id: string, section_id: string, result: string, observations?: string) {
     const company_id = await currentCompanyId();

@@ -28,11 +28,12 @@ Muchas empresas de mantenimiento gestionan clientes, partes, checks, incidencias
 - Detalle completo del parte con cliente, centro, equipo, asignaciones, historial, materiales, checks, avisos, documentos y deficiencias.
 - Cambio de estado del parte mediante RPC de Supabase.
 - Creacion de partes, expedientes, checks, avisos y documentos segun permisos.
-- Codigos de partes y expedientes generados en base de datos.
+- Codigos automaticos generados en base de datos para clientes, centros, equipos, expedientes, partes, checks, deficiencias, avisos, materiales, oportunidades y presupuestos.
 - Check visual de puerta seccional con hotspots sobre imagen limpia de produccion.
 - Resumen de estados e incidencias del check sin duplicar navegacion.
 - Avisos con filtros, lectura, apertura, cierre y reapertura.
 - Rutas protegidas y menus adaptados por espacio de trabajo.
+- Modulo SAT de tecnicos con perfiles reales, disponibilidad, carga diaria, partes, checks pendientes y accesos operativos.
 - Paginas propias para modulos en preparacion, evitando redirecciones falsas a Partes.
 
 ## Modulos principales
@@ -149,11 +150,7 @@ Las referencias anotadas de desarrollo, si se versionan, deben ir en `docs/refer
 
 ## Estado actual del desarrollo
 
-El proyecto ya esta conectado a Supabase y Cloudflare Pages. La version actual incluye autenticacion real, servicios por dominio, dashboards por rol, permisos centralizados, rutas protegidas, detalle completo de parte y check visual responsive.
-
-## Estado actual del desarrollo
-
-El proyecto esta conectado a Supabase y Cloudflare Pages. La version actual incluye autenticacion real, servicios por dominio, dashboards por rol, permisos centralizados, rutas protegidas, detalle completo de parte, codigos automaticos de expedientes mediante RPC y check visual responsive.
+El proyecto esta conectado a Supabase y Cloudflare Pages. La version actual incluye autenticacion real, servicios por dominio, dashboards por rol, permisos centralizados, rutas protegidas, detalle completo de parte, codigos automaticos mediante triggers/RPC y check visual responsive.
 
 ## Funciones nuevas recientes
 
@@ -168,6 +165,10 @@ El proyecto esta conectado a Supabase y Cloudflare Pages. La version actual incl
 - Login publico sin accesos demo ni credenciales precargadas.
 - Asignacion de tecnico mediante desplegable legible que guarda internamente el UUID.
 - Bloqueo de scroll de fondo en modales y paneles laterales.
+- Formularios de cliente, centro, equipo y check sin campo de codigo manual.
+- Payloads de cliente, centro, equipo, parte y check filtrados para no enviar relaciones agregadas como columnas.
+- Modulo SAT `Tecnicos` conectado a perfiles, partes y checks reales de Supabase.
+- Checks con seleccion visual previa y persistencia solo al confirmar seleccion o guardar bloque.
 
 ## Limitaciones conocidas
 
@@ -175,6 +176,8 @@ El proyecto esta conectado a Supabase y Cloudflare Pages. La version actual incl
 - La verificacion manual completa depende de usuarios reales existentes en Supabase Auth.
 - El warning de Vite por chunk superior a 500 kB no bloquea el despliegue, pero recomienda code splitting futuro.
 - No existe script `lint` en `package.json` actualmente.
+- La cola offline persistente completa en IndexedDB para fotos, firmas y materiales sigue pendiente; el check actual persiste en Supabase al confirmar/guardar.
+- Los documentos no tienen columna `code` en el esquema actual; no se ha inventado un codigo sin migracion estructural especifica.
 
 ## Proximos pasos
 

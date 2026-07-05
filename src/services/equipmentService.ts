@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, expectData } from './query';
+import { codesService } from './codesService';
 
 const equipmentColumns = ['client_id', 'site_id', 'equipment_type_id', 'brand', 'model', 'serial_number', 'installation_date', 'internal_location', 'status', 'criticality', 'last_review_date', 'next_review_date', 'technical_config', 'notes'];
 function equipmentPayload(payload: Record<string, any>) {
@@ -34,7 +35,8 @@ export const equipmentService = {
   },
   async create(payload: Record<string, any>) {
     const company_id = await currentCompanyId();
-    return expectData<any>(supabase.from('equipment').insert({ ...equipmentPayload(payload), company_id }).select().maybeSingle());
+    const code = await codesService.equipment(payload.equipment_type_id);
+    return expectData<any>(supabase.from('equipment').insert({ ...equipmentPayload(payload), company_id, code }).select().maybeSingle());
   },
   update(id: string, payload: Record<string, any>) {
     return expectData<any>(supabase.from('equipment').update(equipmentPayload(payload)).eq('id', id).select().maybeSingle());

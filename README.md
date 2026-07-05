@@ -28,7 +28,8 @@ Muchas empresas de mantenimiento gestionan clientes, partes, checks, incidencias
 - Detalle completo del parte con cliente, centro, equipo, asignaciones, historial, materiales, checks, avisos, documentos y deficiencias.
 - Cambio de estado del parte mediante RPC de Supabase.
 - Creacion de partes, expedientes, checks, avisos y documentos segun permisos.
-- Codigos automaticos generados en base de datos para clientes, centros, equipos, expedientes, partes, checks, deficiencias, avisos, materiales, oportunidades y presupuestos.
+- Codigos automaticos generados antes de insertar y reforzados en base de datos para clientes, centros, equipos, expedientes, partes, checks, deficiencias, avisos, materiales, almacenes, oportunidades y presupuestos.
+- Checks por tipo de equipo con plantillas compatibles y placeholders profesionales cuando no existe imagen final.
 - Check visual de puerta seccional con hotspots sobre imagen limpia de produccion.
 - Resumen de estados e incidencias del check sin duplicar navegacion.
 - Avisos con filtros, lectura, apertura, cierre y reapertura.
@@ -77,6 +78,8 @@ La aplicacion usa RLS, vistas y RPC para mantener permisos por empresa y rol. El
 El modo offline esta reservado al trabajo tecnico en campo. Los datos operativos que se capturen sin cobertura deben guardarse primero en almacenamiento persistente del dispositivo y sincronizarse manualmente con el boton `Sincronizar` cuando el tecnico lo decida.
 
 La sincronizacion manual debe mostrar pendientes, progreso, sincronizados y fallidos. Si falla, no debe borrar datos locales y debe permitir reintento sin duplicados.
+
+La cola tecnica usa IndexedDB (`doormanager-pro-tecnico`) y consolida cambios por tipo, parte, check y bloque para que la ultima confirmacion prevalezca antes de sincronizar.
 
 ## Despliegue
 
@@ -166,6 +169,8 @@ El proyecto esta conectado a Supabase y Cloudflare Pages. La version actual incl
 - Asignacion de tecnico mediante desplegable legible que guarda internamente el UUID.
 - Bloqueo de scroll de fondo en modales y paneles laterales.
 - Formularios de cliente, centro, equipo y check sin campo de codigo manual.
+- Generacion previa de codigo automatico en el frontend para inserts directos y triggers/RPC transaccionales como refuerzo en Supabase.
+- Formulario de check filtrado por tipo de equipo para evitar plantillas incompatibles.
 - Payloads de cliente, centro, equipo, parte y check filtrados para no enviar relaciones agregadas como columnas.
 - Modulo SAT `Tecnicos` conectado a perfiles, partes y checks reales de Supabase.
 - Checks con seleccion visual previa y persistencia solo al confirmar seleccion o guardar bloque.
@@ -176,7 +181,7 @@ El proyecto esta conectado a Supabase y Cloudflare Pages. La version actual incl
 - La verificacion manual completa depende de usuarios reales existentes en Supabase Auth.
 - El warning de Vite por chunk superior a 500 kB no bloquea el despliegue, pero recomienda code splitting futuro.
 - No existe script `lint` en `package.json` actualmente.
-- La cola offline persistente completa en IndexedDB para fotos, firmas y materiales sigue pendiente; el check actual persiste en Supabase al confirmar/guardar.
+- La cola offline persistente sincroniza bloques de check. Fotos, firmas y materiales quedan guardados localmente y preparados para completar la sincronizacion remota especifica de archivos/materiales.
 - Los documentos no tienen columna `code` en el esquema actual; no se ha inventado un codigo sin migracion estructural especifica.
 
 ## Proximos pasos

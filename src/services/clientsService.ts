@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, expectData } from './query';
+import { codesService } from './codesService';
 
 const clientColumns = ['legal_name', 'trade_name', 'tax_id', 'status', 'address', 'city', 'province', 'postal_code', 'country', 'phone', 'email', 'notes'];
 function clientPayload(payload: Record<string, any>) {
@@ -19,7 +20,8 @@ export const clientsService = {
   },
   async create(payload: Record<string, any>) {
     const company_id = await currentCompanyId();
-    return expectData<any>(supabase.from('clients').insert({ ...clientPayload(payload), company_id }).select().maybeSingle());
+    const code = await codesService.next('clients', 'CLI');
+    return expectData<any>(supabase.from('clients').insert({ ...clientPayload(payload), company_id, code }).select().maybeSingle());
   },
   update(id: string, payload: Record<string, any>) {
     return expectData<any>(supabase.from('clients').update(clientPayload(payload)).eq('id', id).select().maybeSingle());

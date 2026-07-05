@@ -15,7 +15,9 @@ export function toSpanishSupabaseError(error: any) {
   if (message.includes('permission denied') || message.includes('row-level security')) return 'No tienes permisos para realizar esta operación con tu rol actual.';
   if (message.includes('duplicate key')) return 'Ya existe un registro con esos datos.';
   if (message.includes('violates foreign key')) return 'El registro relacionado seleccionado no existe o no pertenece a tu empresa.';
-  return error?.message ? `Error de Supabase: ${error.message}` : 'Error de Supabase.';
+  if (message.includes('null value') && message.includes('code')) return 'No se ha podido generar el código automático. Inténtalo de nuevo.';
+  if (message.includes('not-null')) return 'Falta un dato obligatorio para guardar el registro.';
+  return 'No se ha podido completar la operación. Revisa los datos e inténtalo de nuevo.';
 }
 
 export async function currentCompanyId() {

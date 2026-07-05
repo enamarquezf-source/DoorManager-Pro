@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, currentProfileId, expectData } from './query';
+import { codesService } from './codesService';
 
 export const alertsService = {
   list(search = '') {
@@ -13,7 +14,8 @@ export const alertsService = {
   async create(payload: Record<string, any>, recipients: { role?: string; profile_id?: string }[]) {
     const company_id = await currentCompanyId();
     const created_by = await currentProfileId();
-    const alert = await expectData<any>(supabase.from('alerts').insert({ ...payload, company_id, created_by }).select().single());
+    const code = await codesService.next('alerts', 'AVI', true);
+    const alert = await expectData<any>(supabase.from('alerts').insert({ ...payload, company_id, created_by, code }).select().single());
     if (recipients.length) await supabase.from('alert_recipients').insert(recipients.map((item) => ({ company_id, alert_id: alert.id, recipient_role: item.role, recipient_profile_id: item.profile_id })));
     return alert;
   },

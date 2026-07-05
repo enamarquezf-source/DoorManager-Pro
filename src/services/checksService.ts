@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, currentProfileId, expectData } from './query';
 import type { OfflineChange } from './technicianOfflineService';
+import { codesService } from './codesService';
 
 const checkColumns = ['work_order_id', 'equipment_id', 'template_id', 'technician_id', 'status', 'global_result', 'observations'];
 function checkPayload(payload: Record<string, any>) {
@@ -41,13 +42,16 @@ export const checksService = {
     if (!assignment) throw new Error('No tienes permiso para acceder a este trabajo');
     return this.get(id);
   },
-  templates() {
-    return expectData<any[]>(supabase.from('check_templates').select('*, check_template_sections(*, check_template_items(*))').eq('active', true));
+  templates(equipmentTypeId?: string) {
+    let query = supabase.from('check_templates').select('*, check_template_sections(*, check_template_items(*))').eq('active', true);
+    if (equipmentTypeId) query = query.or(`equipment_type_id.eq.${equipmentTypeId},equipment_type_id.is.null`);
+    return expectData<any[]>(query.order('name'));
   },
   async create(payload: Record<string, any>) {
     const company_id = await currentCompanyId();
     const technician_id = payload.technician_id || await currentProfileId();
-    return expectData<any>(supabase.from('checks').insert({ ...checkPayload(payload), company_id, technician_id }).select().maybeSingle());
+    const code = await codesService.next('checks', 'CHK', true);
+    return expectData<any>(supabase.from('checks').insert({ ...checkPayload(payload), company_id, technician_id, code }).select().maybeSingle());
   },
   update(id: string, payload: Record<string, any>) {
     return expectData<any>(supabase.from('checks').update(checkPayload(payload)).eq('id', id).select().maybeSingle());

@@ -256,6 +256,9 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
 .hotspot.muted { background: rgba(100,116,139,.22); }
 .block-list { display: grid; gap: 8px; }
 .block-list button, .block-list a, .block-list article { min-height: 52px; border: 1px solid var(--line); border-radius: 15px; background: white; padding: 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; font-weight: 900; text-align: left; color: var(--dark); text-decoration: none; }
+.block-list article div:first-child { display: grid; gap: 4px; }
+.block-list article small { color: var(--text-soft); font-weight: 700; }
+.summary-badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .status-summary article { cursor: default; }
 .sticky-back { position: sticky; top: 8px; z-index: 4; background: white; }
 .status-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }

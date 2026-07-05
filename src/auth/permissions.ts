@@ -16,8 +16,10 @@ export function canViewWorkOrder(profile: Profile | null | undefined, workOrder?
   if (!profile) return false;
   if (hasAny(profile, ['SAT', 'Gerencia', 'Oficina', 'Comercial'])) return true;
   if (!hasAny(profile, ['Tecnico'])) return false;
+  const profileIds = new Set([profile.id, profile.auth_user_id].filter(Boolean));
+  if (profileIds.has(workOrder?.main_technician_id) || profileIds.has(workOrder?.technician_id) || profileIds.has(workOrder?.primary_technician?.id) || profileIds.has(workOrder?.primary_technician?.auth_user_id)) return true;
   const assignments = workOrder?.assignments ?? workOrder?.work_order_assignments ?? [];
-  return assignments.some((item: any) => item.technician_id === profile.id || item.profiles?.id === profile.id || item.technician_profile_id === profile.id);
+  return assignments.some((item: any) => [item.technician_id, item.technician_profile_id, item.profile_id, item.assigned_profile_id, item.profiles?.id, item.profiles?.auth_user_id, item.technician?.id, item.technician?.auth_user_id].some((value) => profileIds.has(value)));
 }
 
 export function canEditWorkOrder(profile: Profile | null | undefined) { return hasAny(profile, adminRoles); }

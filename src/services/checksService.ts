@@ -16,13 +16,30 @@ export const checksService = {
   pending() {
     return expectData<any[]>(supabase.from('v_pending_checks').select('*').order('created_at', { ascending: false }));
   },
+  async pendingForCurrentTechnician() {
+    const profileId = await currentProfileId();
+    return expectData<any[]>(supabase.from('v_pending_checks').select('*').eq('technician_id', profileId).order('created_at', { ascending: false }));
+  },
   completed() {
     return expectData<any[]>(supabase.from('v_completed_checks').select('*').order('finished_at', { ascending: false }));
+  },
+  async completedForCurrentTechnician() {
+    const profileId = await currentProfileId();
+    return expectData<any[]>(supabase.from('v_completed_checks').select('*').eq('technician_id', profileId).order('finished_at', { ascending: false }));
   },
   async get(id: string) {
     const row = await expectData<any>(supabase.from('checks').select('*, equipment!checks_equipment_id_fkey(*), work_orders!checks_work_order_id_fkey(*), check_templates(*, check_template_sections(*, check_template_items(*))), check_section_results(*, check_template_sections(*)), check_item_results(*, check_template_items(*)), check_photos(*)').eq('id', id).maybeSingle());
     if (!row) throw new Error('No se ha encontrado el check solicitado.');
     return row;
+  },
+  async getTechnicianAssigned(id: string) {
+    const profileId = await currentProfileId();
+    const check = await expectData<any>(supabase.from('checks').select('id, technician_id, work_order_id').eq('id', id).is('deleted_at', null).maybeSingle());
+    if (!check) throw new Error('No tienes permiso para acceder a este trabajo');
+    if (check.technician_id === profileId) return this.get(id);
+    const assignment = await expectData<any>(supabase.from('work_order_assignments').select('id').eq('work_order_id', check.work_order_id).eq('technician_id', profileId).is('deleted_at', null).maybeSingle());
+    if (!assignment) throw new Error('No tienes permiso para acceder a este trabajo');
+    return this.get(id);
   },
   templates() {
     return expectData<any[]>(supabase.from('check_templates').select('*, check_template_sections(*, check_template_items(*))').eq('active', true));
@@ -55,6 +72,7 @@ export const checksService = {
   },
   async syncOfflineBlock(change: OfflineChange) {
     const payload = change.payload;
+    if (!payload.sectionId || String(payload.sectionId).startsWith('local-')) throw new Error('La plantilla remota de este bloque no está enlazada. El cambio queda guardado localmente.');
     const sectionResult = await this.setSectionResult(change.checkId!, payload.sectionId, payload.persistedStatus, payload.observations);
     await this.setItemsResult(change.checkId!, sectionResult.id, payload.items ?? [], payload.persistedStatus, payload.observations);
     await supabase.from('checks').update({ status: 'En curso', global_result: payload.persistedStatus, started_at: new Date().toISOString() }).eq('id', change.checkId).is('finished_at', null);

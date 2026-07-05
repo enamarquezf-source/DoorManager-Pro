@@ -33,6 +33,20 @@ export const workOrdersService = {
     if (search) query = query.or(contains(['code', 'title', 'description', 'client_name', 'site_name', 'equipment_code', 'status'], search));
     return expectData<any[]>(query);
   },
+  async listWithAssignments(search = '') {
+    const workOrders = await this.list(search);
+    const ids = workOrders.map((item) => item.id).filter(Boolean);
+    if (!ids.length) return [];
+    const [assignments, checks] = await Promise.all([
+      expectData<any[]>(supabase.from('work_order_assignments').select('*, profiles!work_order_assignments_technician_id_fkey(first_name,last_name,primary_area)').in('work_order_id', ids).is('deleted_at', null).order('planned_start_time')),
+      expectData<any[]>(supabase.from('checks').select('id, code, work_order_id, status, global_result, technician_id, equipment!checks_equipment_id_fkey(code), profiles!checks_technician_id_fkey(first_name,last_name)').in('work_order_id', ids).is('deleted_at', null).order('created_at', { ascending: false })),
+    ]);
+    return workOrders.map((work) => ({
+      ...work,
+      assignments: assignments.filter((item) => item.work_order_id === work.id),
+      checks: checks.filter((item) => item.work_order_id === work.id),
+    }));
+  },
   options() {
     return expectData<any[]>(supabase.from('work_orders').select('id, code, title, client_id, site_id, main_equipment_id, status').is('deleted_at', null).order('scheduled_date', { ascending: false }));
   },

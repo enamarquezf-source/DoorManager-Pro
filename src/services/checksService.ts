@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, currentProfileId, expectData } from './query';
+import type { OfflineChange } from './technicianOfflineService';
 
 const checkColumns = ['work_order_id', 'equipment_id', 'template_id', 'technician_id', 'status', 'global_result', 'observations'];
 function checkPayload(payload: Record<string, any>) {
@@ -51,5 +52,11 @@ export const checksService = {
   async finish(check_id: string, global_result: string, observations?: string) {
     const profileId = await currentProfileId();
     return expectData<void>(supabase.rpc('finish_check', { p_check_id: check_id, p_finished_by: profileId, p_global_result: global_result, p_observations: observations || null }));
+  },
+  async syncOfflineBlock(change: OfflineChange) {
+    const payload = change.payload;
+    const sectionResult = await this.setSectionResult(change.checkId!, payload.sectionId, payload.persistedStatus, payload.observations);
+    await this.setItemsResult(change.checkId!, sectionResult.id, payload.items ?? [], payload.persistedStatus, payload.observations);
+    await supabase.from('checks').update({ status: 'En curso', global_result: payload.persistedStatus, started_at: new Date().toISOString() }).eq('id', change.checkId).is('finished_at', null);
   },
 };

@@ -39,6 +39,12 @@ export const workOrdersService = {
   get(id: string) {
     return this.getWorkOrderFullDetail(id);
   },
+  async getTechnicianAssigned(id: string) {
+    const profileId = await currentProfileId();
+    const assignment = await expectData<any>(supabase.from('work_order_assignments').select('id').eq('work_order_id', id).eq('technician_id', profileId).is('deleted_at', null).maybeSingle());
+    if (!assignment) throw new Error('No tienes permiso para acceder a este parte');
+    return this.getWorkOrderFullDetail(id);
+  },
   async getWorkOrderFullDetail(workOrderId: string): Promise<WorkOrderFullDetail> {
     try {
       const workOrder = await expectData<any>(supabase.from('work_orders').select(`

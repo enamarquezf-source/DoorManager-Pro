@@ -1,4 +1,5 @@
 import { checksService } from './checksService';
+import { workOrdersService } from './workOrdersService';
 
 export type OfflineChangeType = 'check-block' | 'work-note' | 'material' | 'photo' | 'signature';
 
@@ -13,6 +14,7 @@ export type OfflineChange = {
   updatedAt: string;
   status: 'pending' | 'syncing' | 'synced' | 'failed';
   error?: string;
+  attempts?: number;
 };
 
 const dbName = 'doormanager-pro-tecnico';
@@ -97,12 +99,14 @@ export const technicianOfflineService = {
         onProgress?.(`Sincronizando ${item.type} ${item.blockId ?? item.workOrderId ?? ''}`.trim());
         await withStore('readwrite', (store) => { store.put({ ...item, status: 'syncing', error: undefined }); });
         if (item.type === 'check-block') await checksService.syncOfflineBlock(item);
-        else throw new Error('Este cambio queda preparado para sincronización cuando el almacenamiento remoto esté disponible.');
+        else if (item.type === 'work-note' && item.workOrderId) await workOrdersService.syncOfflineNote(item.workOrderId, item.payload);
+        else if (item.type === 'material' && item.workOrderId) await workOrdersService.syncOfflineMaterial(item.workOrderId, item.payload);
+        else throw new Error('Este tipo de cambio todavía no tiene almacenamiento remoto disponible.');
         await withStore('readwrite', (store) => { store.delete(item.id); });
         result.synced += 1;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'No se ha podido sincronizar el cambio.';
-        await withStore('readwrite', (store) => { store.put({ ...item, status: 'failed', error: message }); });
+        await withStore('readwrite', (store) => { store.put({ ...item, status: 'failed', error: message, attempts: (item.attempts ?? 0) + 1 }); });
         result.failed += 1;
         result.errors.push(message);
       }

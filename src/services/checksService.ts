@@ -44,7 +44,7 @@ export const checksService = {
   },
   templates(equipmentTypeId?: string) {
     let query = supabase.from('check_templates').select('*, check_template_sections(*, check_template_items(*))').eq('active', true);
-    if (equipmentTypeId) query = query.or(`equipment_type_id.eq.${equipmentTypeId},equipment_type_id.is.null`);
+    if (equipmentTypeId) query = query.eq('equipment_type_id', equipmentTypeId);
     return expectData<any[]>(query.order('name'));
   },
   async create(payload: Record<string, any>) {

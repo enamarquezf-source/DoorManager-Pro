@@ -174,6 +174,8 @@ El proyecto esta conectado a Supabase y Cloudflare Pages. La version actual incl
 - Payloads de cliente, centro, equipo, parte y check filtrados para no enviar relaciones agregadas como columnas.
 - Modulo SAT `Tecnicos` conectado a perfiles, partes y checks reales de Supabase.
 - Checks con seleccion visual previa y persistencia solo al confirmar seleccion o guardar bloque.
+- Pantalla `Pendientes de sincronizar` para revisar cola local, errores, intentos y reintentar cambios tecnicos.
+- Sincronizacion manual de bloques de check, intervencion tecnica y materiales usados contra Supabase.
 
 ## Limitaciones conocidas
 
@@ -181,7 +183,7 @@ El proyecto esta conectado a Supabase y Cloudflare Pages. La version actual incl
 - La verificacion manual completa depende de usuarios reales existentes en Supabase Auth.
 - El warning de Vite por chunk superior a 500 kB no bloquea el despliegue, pero recomienda code splitting futuro.
 - No existe script `lint` en `package.json` actualmente.
-- La cola offline persistente sincroniza bloques de check. Fotos, firmas y materiales quedan guardados localmente y preparados para completar la sincronizacion remota especifica de archivos/materiales.
+- La cola offline persistente sincroniza bloques de check, intervencion tecnica y materiales usados. Fotos y firmas quedan guardadas localmente y preparadas para completar la sincronizacion remota especifica de archivos.
 - Los documentos no tienen columna `code` en el esquema actual; no se ha inventado un codigo sin migracion estructural especifica.
 
 ## Proximos pasos

@@ -167,4 +167,23 @@ export const workOrdersService = {
     const profileId = await currentProfileId();
     return expectData<void>(supabase.rpc('request_work_order_return', { p_work_order_id: workOrderId, p_changed_by: profileId, p_reason: reason }));
   },
+  async syncOfflineNote(workOrderId: string, payload: Record<string, any>) {
+    const companyId = await currentCompanyId();
+    const profileId = await currentProfileId();
+    const note = [
+      payload.diagnosis ? `Diagnóstico: ${payload.diagnosis}` : '',
+      payload.work ? `Trabajo realizado: ${payload.work}` : '',
+      payload.observations ? `Observaciones: ${payload.observations}` : '',
+    ].filter(Boolean).join('\n');
+    if (!note.trim()) throw new Error('No hay datos de intervención para sincronizar.');
+    return expectData<any>(supabase.from('work_order_notes').insert({ company_id: companyId, work_order_id: workOrderId, note, visibility: 'Tecnica', created_by: profileId }).select().single());
+  },
+  async syncOfflineMaterial(workOrderId: string, payload: Record<string, any>) {
+    const companyId = await currentCompanyId();
+    const profileId = await currentProfileId();
+    const description = String(payload.material ?? '').trim();
+    const quantity = Number(payload.quantity || 1);
+    if (!description) throw new Error('Indica el material usado antes de sincronizar.');
+    return expectData<string>(supabase.rpc('record_work_order_material_usage', { p_company_id: companyId, p_work_order_id: workOrderId, p_description: description, p_quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1, p_created_by: profileId }));
+  },
 };

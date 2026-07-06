@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 
-export type CheckBlockId = 'muelles' | 'guias' | 'hoja' | 'peatonal' | 'automatizacion' | 'funcionamiento';
+export type CheckBlockId = string;
 
 export type CheckZone = {
   id: CheckBlockId;
@@ -28,22 +28,31 @@ export const sectionalZones: CheckZone[] = [
   { id: 'funcionamiento', name: 'Funcionamiento general', components: ['Apertura y cierre', 'Equilibrado', 'Suavidad de marcha', 'Ruidos o rozamientos', 'Maniobra manual'] },
 ];
 
-const placeholderZones: CheckZone[] = [
-  { id: 'hoja', name: 'Estructura principal', components: ['Estructura', 'Fijaciones', 'Elementos móviles', 'Juntas', 'Seguridad'], area: { left: '18%', top: '24%', width: '64%', height: '42%' }, zIndex: 20 },
-  { id: 'automatizacion', name: 'Automatización y seguridad', components: ['Motor', 'Cuadro', 'Cableado', 'Fotocélulas', 'Activación'], area: { left: '18%', top: '70%', width: '64%', height: '16%' }, zIndex: 30 },
-];
+function zone(id: string, name: string, components: string[], area?: CSSProperties): CheckZone {
+  return { id, name, components, area, zIndex: area ? 20 : undefined };
+}
+
+const rapidZones = [zone('lona', 'Lona', ['Lona', 'Ventanas', 'Soldaduras', 'Contrapesos']), zone('guias', 'Guías', ['Guías', 'Cepillos', 'Fijaciones']), zone('motor', 'Motor', ['Motor', 'Reductor', 'Desbloqueo']), zone('cuadro', 'Cuadro eléctrico', ['Cuadro', 'Cableado', 'Protecciones']), zone('seguridad', 'Fotocélulas y seguridad', ['Fotocélulas', 'Banda', 'Señalización']), zone('funcionamiento', 'Funcionamiento general', ['Apertura', 'Cierre', 'Velocidad', 'Ruidos'])];
+const rollUpZones = [zone('lamas', 'Lamas', ['Lamas', 'Terminal', 'Topes']), zone('eje', 'Eje y compensación', ['Eje', 'Muelles', 'Soportes']), zone('guias', 'Guías laterales', ['Guías', 'Anclajes']), zone('motor', 'Motor', ['Motor', 'Desbloqueo']), zone('seguridad', 'Cuadro eléctrico y seguridad', ['Cuadro', 'Fotocélulas', 'Banda']), zone('funcionamiento', 'Funcionamiento general', ['Maniobra', 'Ruidos', 'Equilibrado'])];
+const barrierZones = [zone('mastil', 'Mástil', ['Mástil', 'Goma', 'Luces']), zone('motorreductor', 'Motorreductor', ['Motor', 'Reductor', 'Soporte']), zone('equilibrado', 'Muelle/equilibrado', ['Muelle', 'Tensión', 'Compensación']), zone('finales', 'Finales de carrera', ['Finales', 'Encoder']), zone('seguridad', 'Fotocélulas/lazo magnético', ['Fotocélulas', 'Lazo', 'Señalización']), zone('funcionamiento', 'Funcionamiento general', ['Subida', 'Bajada', 'Parada'])];
+const slidingZones = [zone('hoja', 'Hoja', ['Hoja', 'Bastidor', 'Cerramiento']), zone('carril', 'Guía/carril', ['Carril', 'Limpieza', 'Topes']), zone('ruedas', 'Ruedas', ['Ruedas', 'Rodamientos']), zone('cremallera', 'Cremallera', ['Cremallera', 'Piñón']), zone('motor', 'Motor', ['Motor', 'Desbloqueo']), zone('seguridad', 'Fotocélulas y seguridad', ['Fotocélulas', 'Bandas']), zone('funcionamiento', 'Funcionamiento general', ['Apertura', 'Cierre', 'Ruidos'])];
+const swingZones = [zone('hojas', 'Hojas', ['Hojas', 'Bastidor', 'Topes']), zone('bisagras', 'Bisagras', ['Bisagras', 'Anclajes']), zone('motores', 'Brazos/motores', ['Brazos', 'Motores', 'Soportes']), zone('cerradura', 'Cerradura/tope', ['Cerradura', 'Tope', 'Electrocerradura']), zone('seguridad', 'Fotocélulas y seguridad', ['Fotocélulas', 'Bandas']), zone('funcionamiento', 'Funcionamiento general', ['Apertura', 'Cierre', 'Sincronización'])];
+const dockZones = [zone('plataforma', 'Plataforma', ['Plataforma', 'Chapa', 'Refuerzos']), zone('labio', 'Uña/labio', ['Labio', 'Uña', 'Articulación']), zone('bisagras', 'Bisagras', ['Bisagras', 'Pasadores']), zone('hidraulico', 'Grupo hidráulico', ['Bomba', 'Cilindros', 'Latiguillos']), zone('cuadro', 'Cuadro eléctrico', ['Cuadro', 'Pulsadores']), zone('seguridad', 'Seguridad', ['Faldones', 'Señalización', 'Topes']), zone('funcionamiento', 'Funcionamiento general', ['Subida', 'Bajada', 'Reposo'])];
+const shelterZones = [zone('lonas', 'Lona/cortinas', ['Lonas', 'Cortinas', 'Desgarros']), zone('estructura', 'Estructura', ['Estructura', 'Perfiles']), zone('brazos', 'Brazos/articulaciones', ['Brazos', 'Articulaciones']), zone('fijaciones', 'Fijaciones', ['Tornillería', 'Anclajes']), zone('sellado', 'Estado de sellado', ['Sellado', 'Ajuste', 'Contacto vehículo']), zone('funcionamiento', 'Funcionamiento general', ['Entrada', 'Retorno', 'Alineación'])];
+const pedestrianZones = [zone('hojas', 'Hojas', ['Hojas', 'Vidrios', 'Perfiles']), zone('guias', 'Guías/carro', ['Guías', 'Carros', 'Rodamientos']), zone('motor', 'Motor', ['Motor', 'Correa', 'Batería']), zone('sensores', 'Sensores', ['Radar', 'Presencia', 'Pulsadores']), zone('seguridad', 'Seguridad', ['Anti-aplastamiento', 'Emergencia']), zone('funcionamiento', 'Funcionamiento general', ['Apertura', 'Cierre', 'Velocidad'])];
+const gateZones = [zone('hoja', 'Hoja', ['Hoja', 'Bastidor', 'Cerramiento']), zone('guias', 'Guías/bisagras', ['Guías', 'Bisagras', 'Anclajes']), zone('motor', 'Motor', ['Motor', 'Desbloqueo']), zone('finales', 'Finales de carrera', ['Finales', 'Encoder']), zone('seguridad', 'Seguridad', ['Fotocélulas', 'Bandas', 'Señalización']), zone('funcionamiento', 'Funcionamiento general', ['Apertura', 'Cierre', 'Ruidos'])];
 
 export const equipmentCheckTemplates: EquipmentCheckTemplate[] = [
   { key: 'puerta-seccional-industrial', name: 'Puerta seccional industrial', image: '/checks/seccional-industrial.png', zones: sectionalZones },
-  { key: 'puerta-rapida', name: 'Puerta rápida', image: '', placeholder: true, zones: placeholderZones },
-  { key: 'puerta-enrollable', name: 'Puerta enrollable', image: '', placeholder: true, zones: placeholderZones },
-  { key: 'barrera-automatica', name: 'Barrera automática', image: '', placeholder: true, zones: placeholderZones },
-  { key: 'puerta-corredera', name: 'Puerta corredera', image: '', placeholder: true, zones: placeholderZones },
-  { key: 'puerta-batiente', name: 'Puerta batiente', image: '', placeholder: true, zones: placeholderZones },
-  { key: 'muelle-de-carga', name: 'Muelle de carga', image: '', placeholder: true, zones: placeholderZones },
-  { key: 'abrigo-de-muelle', name: 'Abrigo de muelle', image: '', placeholder: true, zones: placeholderZones },
-  { key: 'puerta-peatonal-automatica', name: 'Puerta peatonal automática', image: '', placeholder: true, zones: placeholderZones },
-  { key: 'cancela-o-porton', name: 'Cancela o portón', image: '', placeholder: true, zones: placeholderZones },
+  { key: 'puerta-rapida', name: 'Puerta rápida', image: '', placeholder: true, zones: rapidZones },
+  { key: 'puerta-enrollable', name: 'Puerta enrollable', image: '', placeholder: true, zones: rollUpZones },
+  { key: 'barrera-automatica', name: 'Barrera automática', image: '', placeholder: true, zones: barrierZones },
+  { key: 'puerta-corredera', name: 'Puerta corredera', image: '', placeholder: true, zones: slidingZones },
+  { key: 'puerta-batiente', name: 'Puerta batiente', image: '', placeholder: true, zones: swingZones },
+  { key: 'muelle-de-carga', name: 'Muelle de carga', image: '', placeholder: true, zones: dockZones },
+  { key: 'abrigo-de-muelle', name: 'Abrigo de muelle', image: '', placeholder: true, zones: shelterZones },
+  { key: 'puerta-peatonal-automatica', name: 'Puerta peatonal automática', image: '', placeholder: true, zones: pedestrianZones },
+  { key: 'cancela-o-porton', name: 'Cancela o portón', image: '', placeholder: true, zones: gateZones },
 ];
 
 export function templateForEquipment(equipment?: any) {

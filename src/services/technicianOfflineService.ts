@@ -84,6 +84,8 @@ export const technicianOfflineService = {
   summarize(changes: OfflineChange[]) {
     return {
       total: changes.length,
+      pending: changes.filter((item) => item.status === 'pending').length,
+      failed: changes.filter((item) => item.status === 'failed').length,
       blocks: changes.filter((item) => item.type === 'check-block').length,
       incidences: changes.filter((item) => item.payload.incidence).length,
       photos: changes.filter((item) => item.type === 'photo' || item.payload.photos?.length).length,
@@ -111,7 +113,7 @@ export const technicianOfflineService = {
         result.errors.push(message);
       }
     }
-    result.pending = (await this.pending()).length;
+    result.pending = (await allChanges()).filter((item) => item.status === 'pending').length;
     window.dispatchEvent(new Event('dmp-offline-queue-changed'));
     return result;
   },

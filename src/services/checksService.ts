@@ -8,6 +8,10 @@ function checkPayload(payload: Record<string, any>) {
   return Object.fromEntries(checkColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
 }
 
+function normalize(value?: string | null) {
+  return (value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
 export const checksService = {
   list(search = '') {
     let query = supabase.from('checks').select('*, equipment!checks_equipment_id_fkey(code), work_orders!checks_work_order_id_fkey(code), profiles!checks_technician_id_fkey(first_name,last_name)').is('deleted_at', null).order('created_at', { ascending: false });
@@ -61,6 +65,7 @@ export const checksService = {
     return expectData<any>(supabase.from('check_section_results').upsert({ company_id, check_id, section_id, result, observations: observations || null }, { onConflict: 'check_id,section_id' }).select().single());
   },
   async setItemsResult(check_id: string, sectionResultId: string, items: any[], result: string, observations?: string) {
+    if (!items.length) return [];
     const company_id = await currentCompanyId();
     const rows = items.map((item) => ({ company_id, check_id, section_result_id: sectionResultId, item_id: item.id, result, observations: observations || null }));
     return expectData<any[]>(supabase.from('check_item_results').upsert(rows, { onConflict: 'check_id,item_id' }).select());
@@ -76,9 +81,25 @@ export const checksService = {
   },
   async syncOfflineBlock(change: OfflineChange) {
     const payload = change.payload;
-    if (!payload.sectionId || String(payload.sectionId).startsWith('local-')) throw new Error('La plantilla remota de este bloque no está enlazada. El cambio queda guardado localmente.');
-    const sectionResult = await this.setSectionResult(change.checkId!, payload.sectionId, payload.persistedStatus, payload.observations);
-    await this.setItemsResult(change.checkId!, sectionResult.id, payload.items ?? [], payload.persistedStatus, payload.observations);
-    await supabase.from('checks').update({ status: 'En curso', global_result: payload.persistedStatus, started_at: new Date().toISOString() }).eq('id', change.checkId).is('finished_at', null);
+    if (!change.checkId) throw new Error('Falta el check asociado. El cambio queda guardado localmente.');
+    if (!change.workOrderId) throw new Error('Falta el parte asociado. El cambio queda guardado localmente.');
+    if (!change.blockId) throw new Error('Falta el bloque revisado. El cambio queda guardado localmente.');
+    if (!payload.persistedStatus || payload.persistedStatus === 'Sin revisar') throw new Error('Falta un estado confirmado válido. El cambio queda guardado localmente.');
+
+    let sectionId = payload.sectionId as string | undefined;
+    let items = payload.items ?? [];
+    if (!sectionId || String(sectionId).startsWith('local-')) {
+      const check = await this.get(change.checkId);
+      const sections = check.check_templates?.check_template_sections ?? [];
+      const section = sections.find((item: any) => normalize(item.title) === normalize(payload.sectionTitle)) ?? sections.find((item: any) => normalize(item.title).includes(normalize(payload.sectionTitle)) || normalize(payload.sectionTitle).includes(normalize(item.title)));
+      if (!section?.id) throw new Error(`No se ha encontrado la sección remota de ${payload.sectionTitle ?? change.blockId}. El cambio queda guardado localmente.`);
+      sectionId = section.id;
+      items = section.check_template_items ?? items;
+    }
+    if (!sectionId) throw new Error('Falta la sección remota del bloque. El cambio queda guardado localmente.');
+
+    const sectionResult = await this.setSectionResult(change.checkId, sectionId, payload.persistedStatus, payload.observations);
+    await this.setItemsResult(change.checkId, sectionResult.id, items, payload.persistedStatus, payload.observations);
+    await expectData<any>(supabase.from('checks').update({ status: 'En curso', global_result: payload.persistedStatus, started_at: new Date().toISOString() }).eq('id', change.checkId).is('finished_at', null).select('id').single());
   },
 };

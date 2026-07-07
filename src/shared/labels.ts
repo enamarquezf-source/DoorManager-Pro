@@ -1,6 +1,7 @@
 import type { RoleName, Severity, Workspace } from './types';
 
 export const workspaceTitles: Record<Workspace, string> = {
+  superadmin: 'Propietario DMP',
   sat: 'Panel SAT',
   comercial: 'Panel comercial',
   oficina: 'Panel oficina',
@@ -9,6 +10,7 @@ export const workspaceTitles: Record<Workspace, string> = {
 };
 
 export const roleToWorkspace: Record<RoleName, Workspace> = {
+  superadmin: 'superadmin',
   SAT: 'sat',
   Comercial: 'comercial',
   Oficina: 'oficina',
@@ -17,6 +19,7 @@ export const roleToWorkspace: Record<RoleName, Workspace> = {
 };
 
 export const workspaceToRole: Record<Workspace, RoleName> = {
+  superadmin: 'superadmin',
   sat: 'SAT',
   comercial: 'Comercial',
   oficina: 'Oficina',

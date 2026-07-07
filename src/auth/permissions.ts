@@ -1,8 +1,8 @@
 import type { Profile, RoleName, Workspace } from '../shared/types';
 
-const adminRoles: RoleName[] = ['SAT', 'Gerencia'];
-const backOfficeRoles: RoleName[] = ['SAT', 'Gerencia', 'Oficina'];
-const operationalRoles: RoleName[] = ['SAT', 'Gerencia', 'Tecnico'];
+const adminRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia'];
+const backOfficeRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia', 'Oficina'];
+const operationalRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia', 'Tecnico'];
 
 function rolesOf(profile?: Profile | null) {
   return profile?.roles?.length ? profile.roles : profile?.primary_area ? [profile.primary_area] : [];
@@ -37,6 +37,7 @@ export function canReopenWorkOrder(profile: Profile | null | undefined) { return
 
 export function canAccessModule(profile: Profile | null | undefined, workspace: Workspace, moduleId: string) {
   if (!profile) return false;
+  if (workspace === 'superadmin') return hasAny(profile, ['superadmin']);
   if (workspace === 'tecnico') return ['jornada', 'checks', 'avisos'].includes(moduleId);
   if (workspace === 'sat') return hasAny(profile, ['SAT', 'Gerencia']);
   if (workspace === 'comercial') return hasAny(profile, ['Comercial', 'Gerencia', 'SAT']);
@@ -44,6 +45,9 @@ export function canAccessModule(profile: Profile | null | undefined, workspace: 
   if (workspace === 'gerencia') return hasAny(profile, ['Gerencia']);
   return false;
 }
+
+export function isSuperadmin(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin']); }
+export function canManageUsers(profile: Profile | null | undefined) { return isSuperadmin(profile); }
 
 export function canViewDashboardBlock(profile: Profile | null | undefined, workspace: Workspace, blockId: string) {
   return canAccessModule(profile, workspace, blockId) || ['inicio', 'resumen'].includes(blockId);

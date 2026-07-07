@@ -1,5 +1,5 @@
-export type RoleName = 'SAT' | 'Comercial' | 'Oficina' | 'Gerencia' | 'Tecnico';
-export type Workspace = 'sat' | 'comercial' | 'oficina' | 'gerencia' | 'tecnico';
+export type RoleName = 'superadmin' | 'SAT' | 'Comercial' | 'Oficina' | 'Gerencia' | 'Tecnico';
+export type Workspace = 'superadmin' | 'sat' | 'comercial' | 'oficina' | 'gerencia' | 'tecnico';
 export type Severity = 'ok' | 'info' | 'warn' | 'danger' | 'commercial' | 'maintenance' | 'muted';
 
 export type Profile = {

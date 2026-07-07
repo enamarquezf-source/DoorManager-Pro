@@ -76,6 +76,12 @@ export function previousWorkOrderStatus(status: string) {
 
 export function displayStatus(status?: string | null) {
   return (status ?? 'Sin estado')
+    .replace('superadmin', 'Propietario DMP')
+    .replace('tecnico', 'Técnico')
+    .replace('sat', 'SAT')
+    .replace('comercial', 'Comercial')
+    .replace('oficina', 'Oficina')
+    .replace('gerencia', 'Gerencia')
     .replace('En intervencion', 'En intervención')
     .replace('Finalizado tecnicamente', 'Finalizado técnicamente')
     .replace('Pendiente de envio', 'Pendiente de envío')

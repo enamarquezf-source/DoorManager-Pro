@@ -35,6 +35,9 @@ export const superadminService = {
   async setActive(profileId: string, active: boolean) {
     return expectData<any>(supabase.rpc('superadmin_update_profile', { p_profile_id: profileId, p_profile: { active } }).single());
   },
+  async softDeleteProfile(profileId: string) {
+    return expectData<any>(supabase.rpc('superadmin_update_profile', { p_profile_id: profileId, p_profile: { deleted_at: new Date().toISOString(), active: false } }).single());
+  },
   templates() {
     return expectData<any[]>(supabase.from('check_templates').select('*, equipment_types(name), check_template_sections(*, check_template_items(*))').order('updated_at', { ascending: false }));
   },

@@ -5,7 +5,7 @@ const backOfficeRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia', 'Oficina']
 const operationalRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia', 'Tecnico'];
 
 function rolesOf(profile?: Profile | null) {
-  return profile?.roles?.length ? profile.roles : profile?.primary_area ? [profile.primary_area] : [];
+  return [...new Set([profile?.primary_area, ...(profile?.roles ?? [])].filter(Boolean))] as RoleName[];
 }
 
 function hasAny(profile: Profile | null | undefined, roles: RoleName[]) {

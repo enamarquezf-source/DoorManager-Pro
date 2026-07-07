@@ -13,6 +13,7 @@ export type Profile = {
   primary_area: RoleName;
   active: boolean;
   roles: RoleName[];
+  deleted_at?: string | null;
 };
 
 export type ClientRow = Record<string, any>;

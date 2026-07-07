@@ -47,8 +47,10 @@ function AuthProvider({ children }: { children: ReactNode }) {
     const nextProfile = await profilesService.getCurrentProfile();
     setProfile(nextProfile);
     const saved = localStorage.getItem(workspaceKey) as Workspace | null;
-    const firstWorkspace = roleToWorkspace[nextProfile.roles[0] ?? nextProfile.primary_area];
-    const allowed = saved && nextProfile.roles.some((role) => roleToWorkspace[role] === saved) ? saved : firstWorkspace;
+    const primaryWorkspace = roleToWorkspace[nextProfile.primary_area] ?? 'sat';
+    const profileWorkspaces = new Set([primaryWorkspace, ...nextProfile.roles.map((role) => roleToWorkspace[role]).filter(Boolean)]);
+    const allowed = nextProfile.primary_area === 'superadmin' ? 'superadmin' : saved && profileWorkspaces.has(saved) ? saved : primaryWorkspace;
+    localStorage.setItem(workspaceKey, allowed);
     setWorkspaceState(allowed);
   };
 
@@ -115,17 +117,17 @@ function ProtectedLayout() {
 
   if (!session) return <Navigate to="/" replace />;
   if (!profile) return <main className="page"><Card title="Perfil no enlazado"><p className="form-error">La sesión existe, pero no hay perfil activo enlazado a este usuario Auth.</p><button className="primary" onClick={() => signOut()}>Cerrar sesión</button></Card></main>;
-  const allowedWorkspaces = profile.roles.map((role) => roleToWorkspace[role]);
+  const allowedWorkspaces = profile.primary_area === 'superadmin' ? ['superadmin' as Workspace] : [...new Set([roleToWorkspace[profile.primary_area], ...profile.roles.map((role) => roleToWorkspace[role])].filter(Boolean))] as Workspace[];
   if (!allowedWorkspaces.includes(workspace)) setWorkspace(allowedWorkspaces[0]);
 
   const toggleSidebar = () => { localStorage.setItem(sidebarKey, String(!collapsed)); setCollapsed(!collapsed); };
-  const doSignOut = async () => { const pending = await technicianOfflineService.pending(); if (pending.length && !window.confirm(`Hay ${pending.length} cambios técnicos pendientes de sincronizar. Si sales, seguirán guardados en este dispositivo. Acepta para salir o cancela para revisar pendientes.`)) { navigate('/app/pendientes'); return; } setAlertsOpen(false); await signOut(); navigate('/', { replace: true }); };
+  const doSignOut = async () => { const pending = workspace === 'tecnico' ? await technicianOfflineService.pending() : []; if (pending.length && !window.confirm(`Hay ${pending.length} cambios técnicos pendientes de sincronizar. Si sales, seguirán guardados en este dispositivo. Acepta para salir o cancela para revisar pendientes.`)) { navigate('/app/pendientes'); return; } setAlertsOpen(false); await signOut(); navigate('/', { replace: true }); };
 
   return <div className="shell"><aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}><div className="brand-row"><Link className="brand" to={workspace === 'tecnico' ? '/app/tecnico' : '/app/inicio'}><Factory {...iconProps} /><span>DoorManager</span></Link><button className="side-toggle" onClick={toggleSidebar} title={collapsed ? 'Expandir menú' : 'Contraer menú'}>{collapsed ? <PanelLeftOpen {...iconProps} /> : <PanelLeftClose {...iconProps} />}</button></div><nav>{nav.map((item) => { const Icon = item.icon; return <Link key={item.id} className={active?.id === item.id ? 'active' : ''} to={item.path}><Icon {...iconProps} /><span>{item.label}</span></Link>; })}</nav></aside><div className="workspace"><header className="topbar"><button className="mobile-menu" onClick={toggleSidebar} title="Menú"><Menu {...iconProps} /></button><div className="top-title"><p className="eyebrow">{workspaceTitles[workspace]}</p><h1>{active?.label ?? 'DoorManager Pro'}</h1></div><GlobalSearch query={query} setQuery={setQuery} /><button className="icon-btn" onClick={() => setAlertsOpen(true)} title="Centro de avisos" aria-label="Abrir centro de avisos"><Bell {...iconProps} /><b>{unread}</b></button><div className="user-menu-wrap"><button className="user user-button" onClick={() => setUserOpen(!userOpen)}><span>{initials(fullName(profile))}</span><div><strong>{fullName(profile)}</strong><small>{profile.primary_area}</small></div></button>{userOpen && <><button className="popover-backdrop" aria-label="Cerrar menú" onClick={() => setUserOpen(false)} /><div className="user-popover" role="menu"><button disabled><UserRound size={16} /> Mi perfil</button>{allowedWorkspaces.length > 1 && <div className="workspace-switch"><strong>Cambiar espacio de trabajo</strong>{allowedWorkspaces.map((item) => <button key={item} className={workspace === item ? 'active' : ''} onClick={() => { setWorkspace(item); navigate(item === 'tecnico' ? '/app/tecnico' : '/app/inicio'); }}>{workspaceTitles[item]}</button>)}</div>}<button disabled><Settings size={16} /> Preferencias locales</button><button onClick={doSignOut}><LogOut size={16} /> Cerrar sesión</button></div></>}</div><div className="mobile-session-actions"><button onClick={doSignOut}><LogOut size={16} /> Salir</button></div></header><main><Outlet /></main></div>{alertsOpen && <SidePanel title="Centro de avisos" subtitle={workspaceTitles[workspace]} onClose={() => setAlertsOpen(false)}><AlertsPanel onClose={() => setAlertsOpen(false)} /></SidePanel>}</div>;
 }
 
 function navForWorkspace(workspace: Workspace) {
-  const superadmin = [{ id: 'inicio', label: 'Inicio', path: '/app/superadmin', icon: ShieldAlert }, { id: 'usuarios', label: 'Usuarios', path: '/app/superadmin/usuarios', icon: UsersRound }, { id: 'roles', label: 'Roles y permisos', path: '/app/superadmin/roles', icon: Settings }, { id: 'clientes', label: 'Clientes', path: '/app/clientes', icon: Building2 }, { id: 'centros', label: 'Centros', path: '/app/centros', icon: Factory }, { id: 'equipos', label: 'Equipos', path: '/app/equipos', icon: Warehouse }, { id: 'partes', label: 'Partes', path: '/app/partes', icon: ClipboardList }, { id: 'checks', label: 'Checks', path: '/app/checks', icon: ClipboardCheck }, { id: 'plantillas', label: 'Plantillas de checks', path: '/app/superadmin/plantillas', icon: PackageCheck }, { id: 'sincronizacion', label: 'Sincronización', path: '/app/superadmin/sincronizacion', icon: Truck }, { id: 'auditoria', label: 'Auditoría', path: '/app/superadmin/auditoria', icon: FileText }, { id: 'configuracion', label: 'Configuración', path: '/app/superadmin/roles', icon: Settings }];
+  const superadmin = [{ id: 'inicio', label: 'Inicio', path: '/app/superadmin', icon: ShieldAlert }, { id: 'usuarios', label: 'Usuarios', path: '/app/superadmin/users', icon: UsersRound }, { id: 'crear-usuario', label: 'Crear usuario', path: '/app/superadmin/users/new', icon: UserRound }, { id: 'roles', label: 'Roles y permisos', path: '/app/superadmin/roles', icon: Settings }, { id: 'clientes', label: 'Clientes', path: '/app/superadmin/clients', icon: Building2 }, { id: 'centros', label: 'Centros', path: '/app/superadmin/centers', icon: Factory }, { id: 'equipos', label: 'Equipos', path: '/app/superadmin/equipment', icon: Warehouse }, { id: 'partes', label: 'Partes', path: '/app/superadmin/work-orders', icon: ClipboardList }, { id: 'checks', label: 'Checks', path: '/app/superadmin/checks', icon: ClipboardCheck }, { id: 'plantillas', label: 'Plantillas de checks', path: '/app/superadmin/check-templates', icon: PackageCheck }, { id: 'sincronizacion', label: 'Sincronización', path: '/app/superadmin/sync', icon: Truck }, { id: 'auditoria', label: 'Auditoría', path: '/app/superadmin/audit', icon: FileText }, { id: 'configuracion', label: 'Configuración', path: '/app/superadmin/settings', icon: Settings }];
   const sat = [{ id: 'inicio', label: 'Inicio', path: '/app/inicio', icon: Home }, { id: 'planificacion', label: 'Planificación', path: '/app/modulos/planificacion', icon: CalendarClock }, { id: 'trabajos', label: 'Trabajos', path: '/app/partes', icon: ClipboardList }, { id: 'tecnicos', label: 'Técnicos', path: '/app/modulos/tecnicos', icon: UsersRound }, { id: 'clientes', label: 'Clientes', path: '/app/clientes', icon: Building2 }, { id: 'centros', label: 'Centros', path: '/app/centros', icon: Factory }, { id: 'equipos', label: 'Equipos', path: '/app/equipos', icon: Warehouse }, { id: 'expedientes', label: 'Expedientes', path: '/app/expedientes', icon: FileText }, { id: 'partes', label: 'Partes', path: '/app/partes', icon: ClipboardList }, { id: 'checks', label: 'Checks', path: '/app/checks', icon: ClipboardCheck }, { id: 'deficiencias', label: 'Deficiencias', path: '/app/deficiencias', icon: ShieldAlert }, { id: 'documentos', label: 'Documentación', path: '/app/documentos', icon: FileText }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }];
   const comercial = [{ id: 'inicio', label: 'Inicio', path: '/app/inicio', icon: Home }, { id: 'clientes', label: 'Clientes', path: '/app/clientes', icon: Building2 }, { id: 'oportunidades', label: 'Oportunidades', path: '/app/modulos/oportunidades', icon: BriefcaseBusiness }, { id: 'presupuestos', label: 'Presupuestos', path: '/app/modulos/presupuestos', icon: FileText }, { id: 'contratos', label: 'Contratos', path: '/app/modulos/contratos', icon: ClipboardList }, { id: 'visitas', label: 'Visitas', path: '/app/modulos/visitas', icon: CalendarClock }, { id: 'expedientes', label: 'Expedientes', path: '/app/expedientes', icon: FileText }, { id: 'partes', label: 'Partes', path: '/app/partes', icon: ClipboardList }, { id: 'informes', label: 'Informes comerciales', path: '/app/modulos/informes-comerciales', icon: PieChart }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }];
   const oficina = [{ id: 'inicio', label: 'Inicio', path: '/app/inicio', icon: Home }, { id: 'administracion', label: 'Administración', path: '/app/modulos/administracion', icon: ClipboardCheck }, { id: 'facturacion', label: 'Facturación', path: '/app/modulos/facturacion', icon: FileText }, { id: 'cobros', label: 'Cobros', path: '/app/modulos/cobros', icon: Bell }, { id: 'compras', label: 'Compras', path: '/app/modulos/compras', icon: Truck }, { id: 'proveedores', label: 'Proveedores', path: '/app/modulos/proveedores', icon: Warehouse }, { id: 'prl', label: 'PRL y personal', path: '/app/modulos/prl', icon: ShieldAlert }, { id: 'vehiculos', label: 'Vehículos', path: '/app/modulos/vehiculos', icon: Truck }, { id: 'documentos', label: 'Documentos', path: '/app/documentos', icon: FileText }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }];
@@ -147,6 +149,7 @@ function useLoad<T>(loader: () => Promise<T>, deps: unknown[] = [], empty: T) {
 
 function HomePage() {
   const { workspace } = useAuth();
+  if (workspace === 'superadmin') return <Navigate to="/app/superadmin" replace />;
   if (workspace === 'sat') return <SatDashboard />;
   if (workspace === 'comercial') return <CommercialDashboard />;
   if (workspace === 'oficina') return <OfficeDashboard />;
@@ -235,7 +238,7 @@ function DashboardList({ title, rows, empty }: { title: string; rows: [string, s
 
 function SuperadminGuard({ children }: { children: ReactNode }) {
   const { profile } = useAuth();
-  if (!isSuperadmin(profile)) return <section className="page"><Card title="No tienes permiso para acceder a esta zona"><p className="form-error"><ShieldAlert size={16} />No tienes permiso para acceder a esta zona</p><Link className="primary" to="/app/inicio">Volver al inicio</Link></Card></section>;
+  if (profile?.primary_area !== 'superadmin') return <section className="page"><Card title="No tienes permiso para acceder a esta zona"><p className="form-error"><ShieldAlert size={16} />No tienes permiso para acceder a esta zona</p><Link className="primary" to="/app/inicio">Volver al inicio</Link></Card></section>;
   return <>{children}</>;
 }
 
@@ -246,17 +249,17 @@ function SuperadminHome() {
   const openWorkOrders = data.workOrders.filter((row: any) => !['Enviado', 'Cerrado', 'Cancelado'].includes(row.status));
   const pendingChecks = data.checks.filter((row: any) => ['Por realizar', 'En curso'].includes(row.status));
   const kpis = [
-    kpiCard('Usuarios totales', data.profiles.length, 'Global', 'Perfiles visibles por RLS', '/app/superadmin/usuarios', 'info'),
-    kpiCard('Usuarios activos', data.profiles.filter((row: any) => row.active).length, 'Global', 'Activos en profiles', '/app/superadmin/usuarios', 'ok'),
-    kpiCard('Usuarios inactivos', data.profiles.filter((row: any) => !row.active).length, 'Global', 'Desactivados en profiles', '/app/superadmin/usuarios', 'warn'),
-    kpiCard('Clientes', data.clients.length, 'Global', 'Clientes no eliminados', '/app/clientes', 'commercial'),
-    kpiCard('Centros', data.sites.length, 'Global', 'Centros no eliminados', '/app/centros', 'maintenance'),
-    kpiCard('Equipos', data.equipment.length, 'Global', 'Equipos no eliminados', '/app/equipos', 'info'),
-    kpiCard('Partes abiertos', openWorkOrders.length, 'Global', 'Carga operativa abierta', '/app/partes', 'warn'),
-    kpiCard('Checks pendientes', pendingChecks.length, 'Global', 'Checks por realizar/en curso', '/app/checks', 'danger'),
-    kpiCard('Errores sync', 0, 'Local', 'Solo visibles en cada dispositivo', '/app/superadmin/sincronizacion', 'muted'),
+    kpiCard('Usuarios totales', data.profiles.length, 'Global', 'Perfiles visibles por RLS', '/app/superadmin/users', 'info'),
+    kpiCard('Usuarios activos', data.profiles.filter((row: any) => row.active).length, 'Global', 'Activos en profiles', '/app/superadmin/users', 'ok'),
+    kpiCard('Usuarios inactivos', data.profiles.filter((row: any) => !row.active).length, 'Global', 'Desactivados en profiles', '/app/superadmin/users', 'warn'),
+    kpiCard('Clientes', data.clients.length, 'Global', 'Clientes no eliminados', '/app/superadmin/clients', 'commercial'),
+    kpiCard('Centros', data.sites.length, 'Global', 'Centros no eliminados', '/app/superadmin/centers', 'maintenance'),
+    kpiCard('Equipos', data.equipment.length, 'Global', 'Equipos no eliminados', '/app/superadmin/equipment', 'info'),
+    kpiCard('Partes abiertos', openWorkOrders.length, 'Global', 'Carga operativa abierta', '/app/superadmin/work-orders', 'warn'),
+    kpiCard('Checks pendientes', pendingChecks.length, 'Global', 'Checks por realizar/en curso', '/app/superadmin/checks', 'danger'),
+    kpiCard('Errores sync', 0, 'No configurado', 'Todavía no existe tabla de sincronización global', '/app/superadmin/sync', 'muted'),
   ];
-  return <RoleDashboard title="Panel Superadmin / Propietario DMP" subtitle="Zona separada para gobierno global de usuarios, roles, permisos y datos maestros." kpis={kpis} quickActions={<><Link to="/app/superadmin/usuarios">Gestionar usuarios</Link><Link to="/app/superadmin/roles">Roles y permisos</Link><Link to="/app/superadmin/plantillas">Plantillas de checks</Link><Link to="/app/superadmin/auditoria">Auditoría</Link><Link to="/app/clientes">Clientes</Link><Link to="/app/partes">Partes</Link></>}><InteractiveBars title="Usuarios por rol" values={roleCounts.length ? roleCounts : [['Sin roles', 0, '/app/superadmin/roles']]} /><DashboardList title="Últimos usuarios creados" rows={data.profiles.slice(0, 8).map((profile: any) => [fullName(profile) || profile.email, `${profile.email} · ${profile.active ? 'Activo' : 'Inactivo'} · ${rolesText(profile)}`, profile.active ? 'ok' : 'warn', '/app/superadmin/usuarios'])} empty="No hay usuarios visibles." /><DashboardList title="Última actividad relevante" rows={[...data.activity, ...data.audit].slice(0, 8).map((item: any) => [item.action ?? item.operation ?? 'Evento', `${item.entity_type ?? item.table_name ?? 'Sistema'} · ${formatDate(item.created_at ?? item.changed_at)}`, 'info', '/app/superadmin/auditoria'])} empty="Sin actividad registrada." /><Card title="Seguridad de contraseñas"><p className="large-note">Las contraseñas no se muestran ni se leen. Crear usuarios Auth, invitar y resetear contraseñas debe ejecutarse mediante Supabase Auth desde backend seguro o Edge Function, nunca con una clave de servicio en el navegador.</p></Card></RoleDashboard>;
+  return <RoleDashboard title="Panel Superadmin / Propietario DMP" subtitle="Zona separada para gobierno global de usuarios, roles, permisos y datos maestros." kpis={kpis} quickActions={<><Link to="/app/superadmin/users">Gestionar usuarios</Link><Link to="/app/superadmin/users/new">Crear usuario</Link><Link to="/app/superadmin/roles">Roles y permisos</Link><Link to="/app/superadmin/check-templates">Plantillas de checks</Link><Link to="/app/superadmin/audit">Auditoría</Link><Link to="/app/superadmin/clients">Clientes</Link><Link to="/app/superadmin/work-orders">Partes</Link></>}><InteractiveBars title="Usuarios por rol" values={roleCounts.length ? roleCounts : [['Sin roles', 0, '/app/superadmin/roles']]} /><DashboardList title="Últimos usuarios creados" rows={data.profiles.slice(0, 8).map((profile: any) => [fullName(profile) || profile.email, `${profile.email} · ${profile.active ? 'Activo' : 'Inactivo'} · ${rolesText(profile)} · ${profile.primary_area}`, profile.active ? 'ok' : 'warn', '/app/superadmin/users'])} empty="No hay usuarios visibles." /><DashboardList title="Última actividad relevante" rows={[...data.activity, ...data.audit].slice(0, 8).map((item: any) => [item.action ?? item.operation ?? 'Evento', `${item.entity_type ?? item.table_name ?? 'Sistema'} · ${formatDate(item.created_at ?? item.changed_at)}`, 'info', '/app/superadmin/audit'])} empty="Sin actividad registrada." /><Card title="Sincronización global"><p className="large-note">No configurado todavía: no existe una tabla global de errores de sincronización. La cola técnica local sigue en IndexedDB por dispositivo.</p></Card><Card title="Seguridad de contraseñas"><p className="large-note">Las contraseñas no se muestran ni se leen. Crear usuarios Auth, invitar y resetear contraseñas debe ejecutarse mediante Supabase Auth desde backend seguro o Edge Function, nunca con una clave de servicio en el navegador.</p></Card></RoleDashboard>;
 }
 
 function SuperadminUsers() {
@@ -268,6 +271,53 @@ function SuperadminUsers() {
   const rows = data.filter((user) => `${fullName(user)} ${user.email} ${rolesText(user)}`.toLowerCase().includes(filter.toLowerCase()));
   const toggle = async (user: any) => { await superadminService.setActive(user.id, !user.active); setMessage(user.active ? 'Usuario desactivado.' : 'Usuario activado.'); reload(); };
   return <section className="page"><Breadcrumb items={['Propietario DMP', 'Usuarios']} /><div className="page-head"><div><h2>Usuarios</h2><p>Gestión de perfiles, roles y estado. Las contraseñas están protegidas y no se listan.</p></div><button className="primary" onClick={() => setCreating(true)}>Crear usuario</button></div>{message && <p className="success-note">{message}</p>}<div className="filters local-filters"><label><Search size={16} /><input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Buscar usuario, email o rol..." /></label></div><StateBlock loading={loading} error={error} retry={reload} empty={!rows.length}><div className="table-card"><table><thead><tr><th>Nombre</th><th>Email/login</th><th>Rol principal</th><th>Roles adicionales</th><th>Estado</th><th>Contraseña</th><th>Fechas</th><th>Acciones</th></tr></thead><tbody>{rows.map((user: any) => <tr key={user.id}><td>{fullName(user)}<span>Técnico/comercial asociado: perfil DMP</span></td><td>{user.email}<span>{user.username ?? 'Login no informado'}</span></td><td>{displayStatus(user.primary_area)}</td><td>{rolesText(user)}</td><td>{user.active ? 'Activo' : 'Inactivo'}</td><td><Badge tone="muted">Contraseña protegida</Badge><span>No visible por seguridad</span></td><td>{formatDate(user.created_at)}<span>Último cambio: {formatDate(user.updated_at)}</span><span>Último acceso: no disponible sin backend Auth</span></td><td><div className="row-actions"><button onClick={() => setEditing(user)}>Editar</button><button onClick={() => toggle(user)}>{user.active ? 'Desactivar' : 'Activar'}</button><button onClick={() => setMessage('Reset seguro pendiente de Edge Function/Supabase Auth backend. No se puede usar una clave de servicio en frontend.')}>Enviar restablecimiento</button><button onClick={() => setMessage('Cambio de contraseña preparado para backend seguro. No se muestran contraseñas existentes.')}>Cambiar contraseña</button></div></td></tr>)}</tbody></table></div></StateBlock>{creating && <SuperadminUserForm onClose={() => setCreating(false)} onSaved={() => { setCreating(false); setMessage('Perfil creado. Crea o invita el usuario en Supabase Auth desde backend seguro y enlaza auth_user_id.'); reload(); }} />}{editing && <SuperadminUserForm initial={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); setMessage('Usuario actualizado.'); reload(); }} />}</section>;
+}
+
+function SuperadminUsersV2() {
+  const { data, loading, error, reload } = useLoad(() => superadminService.users(), [], [] as any[]);
+  const [editing, setEditing] = useState<any | null>(null);
+  const [message, setMessage] = useState('');
+  const [search, setSearch] = useState('');
+  const [area, setArea] = useState('todas');
+  const [active, setActive] = useState('todos');
+  const rows = data.filter((user) => {
+    const haystack = `${user.first_name ?? ''} ${user.last_name ?? ''} ${user.email ?? ''} ${user.phone ?? ''} ${user.auth_user_id ?? ''} ${user.company_id ?? ''} ${user.primary_area ?? ''} ${rolesText(user)}`.toLowerCase();
+    const areaOk = area === 'todas' || normalizeArea(user.primary_area) === area;
+    const activeOk = active === 'todos' || (active === 'activos' ? user.active : !user.active);
+    return haystack.includes(search.toLowerCase()) && areaOk && activeOk;
+  });
+  const toggle = async (user: any) => { try { await superadminService.setActive(user.id, !user.active); setMessage(user.active ? 'Usuario desactivado. No podrá entrar aunque conserve cuenta Auth.' : 'Usuario activado.'); reload(); } catch (err) { console.error(err); setMessage(err instanceof Error ? err.message : 'No se ha podido cambiar el estado.'); } };
+  const remove = async (user: any) => { if (!window.confirm(`Eliminar lógicamente a ${user.email}?`)) return; try { await superadminService.softDeleteProfile(user.id); setMessage('Usuario eliminado lógicamente y desactivado.'); reload(); } catch (err) { console.error(err); setMessage(err instanceof Error ? err.message : 'No se ha podido eliminar lógicamente.'); } };
+  return <section className="page"><Breadcrumb items={['Propietario DMP', 'Usuarios']} /><div className="page-head"><div><h2>Usuarios</h2><p>Listado completo de perfiles en public.profiles. No se muestran ni se guardan contraseñas.</p></div><Link className="primary" to="/app/superadmin/users/new">Crear usuario</Link></div>{message && <p className="success-note">{message}</p>}<div className="filters local-filters"><label><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, email, UID, empresa o rol..." /></label><FormSelect label="Área" value={area} onChange={setArea} options={[{ value: 'todas', label: 'Todas' }, ...areaOptions().map((item) => ({ value: normalizeArea(item), label: areaLabel(item) }))]} /><FormSelect label="Estado" value={active} onChange={setActive} options={[{ value: 'todos', label: 'Todos' }, { value: 'activos', label: 'Activos' }, { value: 'inactivos', label: 'Inactivos' }]} /></div><StateBlock loading={loading} error={error} retry={reload} empty={!rows.length}><div className="table-card"><table><thead><tr><th>Nombre</th><th>Apellidos</th><th>Email</th><th>Teléfono</th><th>Área/rol principal</th><th>Activo</th><th>auth_user_id</th><th>company_id</th><th>Fechas</th><th>Acciones</th></tr></thead><tbody>{rows.map((user: any) => <tr key={user.id}><td>{user.first_name}<span>{rolesText(user)}</span></td><td>{user.last_name}</td><td>{user.email}</td><td>{user.phone ?? '-'}</td><td>{areaLabel(user.primary_area)}</td><td>{user.active ? 'Activo' : 'Inactivo'}</td><td><small>{user.auth_user_id ?? 'Sin enlazar'}</small></td><td><small>{user.company_id}</small></td><td>{formatDate(user.created_at)}<span>Actualizado: {formatDate(user.updated_at)}</span>{user.deleted_at && <span>Eliminado: {formatDate(user.deleted_at)}</span>}</td><td><div className="row-actions"><button onClick={() => setEditing(user)}>Ver / editar</button><button onClick={() => toggle(user)}>{user.active ? 'Desactivar' : 'Activar'}</button><button onClick={() => setEditing({ ...user, mode: 'roles' })}>Cambiar área/rol</button><button onClick={() => setEditing({ ...user, mode: 'auth' })}>Vincular Auth UID</button><button onClick={() => setMessage('Reset o invitación requiere backend seguro o Edge Function. No se usa clave de servicio en frontend.')}>Reset contraseña</button><button onClick={() => remove(user)}>Eliminar lógico</button></div></td></tr>)}</tbody></table></div></StateBlock>{editing && <SuperadminProfileForm initial={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); setMessage('Usuario guardado.'); reload(); }} />}</section>;
+}
+
+function SuperadminUserCreate() {
+  const navigate = useNavigate();
+  return <section className="page"><Breadcrumb items={['Propietario DMP', 'Crear usuario']} /><Hero title="Crear usuario" subtitle="Crea un perfil DMP. Para acceso real, crea antes el usuario en Supabase Auth y pega aquí su UID." tone="info" /><SuperadminProfileForm onClose={() => navigate('/app/superadmin/users')} onSaved={() => navigate('/app/superadmin/users')} /></section>;
+}
+
+function SuperadminProfileForm({ initial, onClose, onSaved }: any) {
+  const [values, setValues] = useState<Record<string, any>>({ first_name: '', last_name: '', email: '', phone: '', primary_area: 'SAT', active: true, auth_user_id: '', company_id: '', roles: initial ? rolesList(initial) : ['SAT'], ...initial });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const set = (key: string, value: any) => setValues((current) => ({ ...current, [key]: value }));
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setSaving(true); setError('');
+    try {
+      const payload = { first_name: values.first_name, last_name: values.last_name, email: values.email, phone: values.phone || null, primary_area: values.primary_area, active: values.active === true || values.active === 'true', auth_user_id: values.auth_user_id || null, company_id: values.company_id || null };
+      const saved = initial?.id ? await superadminService.updateProfile(initial.id, payload) : await superadminService.createProfile(payload);
+      await superadminService.setRoles(initial?.id ?? saved.id, values.roles?.length ? values.roles : [values.primary_area]);
+      onSaved?.();
+    } catch (err) { console.error(err); setError(err instanceof Error ? err.message : 'No se ha podido guardar el usuario.'); }
+    finally { setSaving(false); }
+  };
+  const toggleRole = (role: string) => set('roles', values.roles.includes(role) ? values.roles.filter((item: string) => item !== role) : [...values.roles, role]);
+  return <ModalForm title={initial?.id ? 'Editar usuario' : 'Crear usuario'} onClose={onClose} onSubmit={submit} saving={saving} error={error} submitLabel={initial?.id ? 'Guardar usuario' : 'Crear perfil'}><p className="large-note">No se guarda ni se muestra ninguna contraseña. Crea el usuario en Supabase Auth y pega el UID, o usa una Edge Function segura si existe.</p><div className="form-grid"><label>Nombre *<input value={values.first_name ?? ''} onChange={(event) => set('first_name', event.target.value)} required /></label><label>Apellidos *<input value={values.last_name ?? ''} onChange={(event) => set('last_name', event.target.value)} required /></label><label>Email *<input type="email" value={values.email ?? ''} onChange={(event) => set('email', event.target.value)} required /></label><label>Teléfono<input value={values.phone ?? ''} onChange={(event) => set('phone', event.target.value)} /></label><FormSelect label="Área/rol principal" value={values.primary_area} onChange={(value) => { set('primary_area', value); if (!values.roles.includes(value)) set('roles', [...values.roles, value]); }} required options={areaOptions().map((value) => ({ value, label: areaLabel(value) }))} /><FormSelect label="Estado" value={String(values.active)} onChange={(value) => set('active', value)} options={[{ value: 'true', label: 'Activo' }, { value: 'false', label: 'Inactivo' }]} /><label>company_id<input value={values.company_id ?? ''} onChange={(event) => set('company_id', event.target.value)} placeholder="Se usa tu empresa si queda vacío" /></label><label>auth_user_id<input value={values.auth_user_id ?? ''} onChange={(event) => set('auth_user_id', event.target.value)} placeholder="UUID de auth.users.id" /></label></div><Card title="Roles adicionales"><div className="component-select">{areaOptions().map((role) => <label key={role}><input type="checkbox" checked={values.roles.includes(role)} onChange={() => toggleRole(role)} /> {areaLabel(role)}</label>)}</div></Card><Card title="Contraseñas"><p className="large-note">Preparado para reset/invitación vía backend seguro. No se usa clave de servicio en frontend y no se muestran contraseñas existentes.</p></Card></ModalForm>;
+}
+
+function SuperadminSettings() {
+  return <section className="page"><Breadcrumb items={['Propietario DMP', 'Configuración']} /><Hero title="Configuración superadmin" subtitle="Ajustes globales preparados para gestión segura por propietario DMP." tone="info" /><Card title="Estado"><p className="large-note">No configurado todavía: no existe una tabla específica de configuración global editable desde frontend. La gestión de usuarios, roles, plantillas y auditoría ya está separada en sus módulos.</p></Card></section>;
 }
 
 function SuperadminRoles() {
@@ -579,7 +629,27 @@ const moduleMeta: Record<string, { title: string; description: string; links: { 
   informes: { title: 'Informes', description: 'Informes de dirección e indicadores agregados.', links: [{ label: 'Métricas', to: '/app/gerencia' }] },
 };
 
-function NotFound() { return <section className="page"><Card title="Página no encontrada"><p className="large-note">La ruta no existe o no está disponible para este perfil.</p><Link className="primary" to="/app/inicio">Volver al inicio</Link></Card></section>; }
+function NotFound() {
+  const location = useLocation();
+  const superadminRoutes: Record<string, ReactNode> = {
+    '/app/superadmin/users': <SuperadminUsersV2 />,
+    '/app/superadmin/users/new': <SuperadminUserCreate />,
+    '/app/superadmin/roles': <SuperadminRoles />,
+    '/app/superadmin/permissions': <SuperadminRoles />,
+    '/app/superadmin/clients': <ClientsPage />,
+    '/app/superadmin/centers': <SitesPage />,
+    '/app/superadmin/equipment': <EquipmentPage />,
+    '/app/superadmin/work-orders': <WorkOrdersPage />,
+    '/app/superadmin/checks': <ChecksPage />,
+    '/app/superadmin/check-templates': <SuperadminTemplates />,
+    '/app/superadmin/sync': <SuperadminSync />,
+    '/app/superadmin/audit': <SuperadminAudit />,
+    '/app/superadmin/settings': <SuperadminSettings />,
+  };
+  const page = superadminRoutes[location.pathname];
+  if (page) return <SuperadminGuard>{page}</SuperadminGuard>;
+  return <section className="page"><Card title="Página no encontrada"><p className="large-note">La ruta no existe o no está disponible para este perfil.</p><Link className="primary" to="/app/inicio">Volver al inicio</Link></Card></section>;
+}
 
 function GlobalSearch({ query, setQuery }: { query: string; setQuery: (value: string) => void }) { const navigate = useNavigate(); const { data } = useLoad(async () => query.trim() ? [...await clientsService.list(query), ...await equipmentService.list(query), ...await workOrdersService.list(query)] : [], [query], [] as any[]); return <div className="search-wrap"><label className="search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar cliente, equipo, expediente, parte..." /></label>{query && <div className="search-results">{data.slice(0, 8).map((item) => { const route = item.legal_name ? `/app/clientes/${item.id}` : item.equipment_type_id ? `/app/equipos/${item.id}` : `/app/partes/${item.id}`; return <button key={`${route}-${item.id}`} onClick={() => { setQuery(''); navigate(route); }}><Badge tone="info">Resultado</Badge><span>{item.legal_name ?? item.code ?? item.title}</span><small>{item.trade_name ?? item.model ?? item.client_name ?? 'Registro Supabase'}</small></button>; })}{!data.length && <p>Sin resultados.</p>}</div>}</div>; }
 
@@ -594,7 +664,7 @@ function SuperadminUserForm({ initial, onClose, onSaved }: any) {
     event.preventDefault();
     setSaving(true); setError('');
     try {
-      const profilePayload = { first_name: values.first_name, last_name: values.last_name, email: values.email, phone: values.phone || null, primary_area: values.primary_area, active: values.active === true || values.active === 'true' };
+      const profilePayload = { first_name: values.first_name, last_name: values.last_name, email: values.email, phone: values.phone || null, primary_area: values.primary_area, active: values.active === true || values.active === 'true', auth_user_id: values.auth_user_id || null, company_id: values.company_id || null };
       const saved = initial?.id ? await superadminService.updateProfile(initial.id, profilePayload) : await superadminService.createProfile(profilePayload);
       await superadminService.setRoles(initial?.id ?? saved.id, values.roles?.length ? values.roles : [values.primary_area]);
       onSaved?.();
@@ -778,6 +848,9 @@ function metric(title: string, text: string, tone: Severity, route: string, icon
 function readPath(row: any, path: string) { return path.split('.').reduce((value, key) => value?.[key], row); }
 function rolesList(profile: any) { return (profile.profile_roles ?? []).map((item: any) => item.roles?.name).filter(Boolean); }
 function rolesText(profile: any) { const roles = rolesList(profile); return roles.length ? roles.join(', ') : 'Sin roles'; }
+function areaOptions() { return ['superadmin','Gerencia','SAT','Comercial','Oficina','Tecnico']; }
+function normalizeArea(value?: string | null) { return normalize(value ?? '').replace('tecnico', 'tecnico'); }
+function areaLabel(value?: string | null) { const labels: Record<string, string> = { superadmin: 'Propietario DMP', gerencia: 'Gerencia', sat: 'SAT', comercial: 'Comercial', oficina: 'Oficina', tecnico: 'Técnico' }; return labels[normalizeArea(value)] ?? displayStatus(value); }
 function permissionForRole(role: string, permission: string) {
   if (role === 'superadmin') return true;
   if (role === 'Gerencia') return ['ver clientes','ver centros','ver equipos','ver partes','crear partes','editar partes','ver checks','ver facturación','ver documentación','ver auditoría'].includes(permission);

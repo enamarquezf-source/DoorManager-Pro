@@ -28,6 +28,9 @@ export const superadminService = {
   async createProfile(payload: Record<string, any>) {
     return expectData<any>(supabase.rpc('superadmin_create_profile', { p_profile: payload }).single());
   },
+  async saveProfileWithRoles(profileId: string | null, payload: Record<string, any>, roleNames: string[]) {
+    return expectData<any>(supabase.rpc('superadmin_save_profile_with_roles', { p_profile_id: profileId, p_profile: payload, p_role_names: roleNames }).single());
+  },
   async updateProfile(profileId: string, payload: Record<string, any>) {
     return expectData<any>(supabase.rpc('superadmin_update_profile', { p_profile_id: profileId, p_profile: payload }).single());
   },

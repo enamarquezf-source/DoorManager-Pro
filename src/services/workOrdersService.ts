@@ -146,12 +146,10 @@ export const workOrdersService = {
     return expectData<void>(supabase.rpc('assign_commercial_work_order', { p_work_order_id: workOrderId, p_commercial_id: commercialId, p_changed_by: profileId }));
   },
   async changeStatus(workOrderId: string, status: string, reason: string, manualCorrection = false) {
-    const profileId = await currentProfileId();
-    return expectData<void>(supabase.rpc('change_work_order_status', { p_work_order_id: workOrderId, p_new_status: status, p_changed_by: profileId, p_reason: reason, p_manual_correction: manualCorrection, p_lat: null, p_lng: null }));
+    return expectData<void>(supabase.rpc('change_work_order_status', { p_work_order_id: workOrderId, p_new_status: status, p_changed_by: null, p_reason: reason, p_manual_correction: manualCorrection, p_lat: null, p_lng: null }));
   },
   async requestReturn(workOrderId: string, reason: string) {
-    const profileId = await currentProfileId();
-    return expectData<void>(supabase.rpc('request_work_order_return', { p_work_order_id: workOrderId, p_changed_by: profileId, p_reason: reason }));
+    return expectData<void>(supabase.rpc('request_work_order_return', { p_work_order_id: workOrderId, p_changed_by: null, p_reason: reason }));
   },
   async syncOfflineNote(workOrderId: string, payload: Record<string, any>) {
     const companyId = await currentCompanyId();
@@ -165,11 +163,9 @@ export const workOrdersService = {
     return expectData<any>(supabase.from('work_order_notes').insert({ company_id: companyId, work_order_id: workOrderId, note, visibility: 'Tecnica', created_by: profileId }).select().single());
   },
   async syncOfflineMaterial(workOrderId: string, payload: Record<string, any>) {
-    const companyId = await currentCompanyId();
-    const profileId = await currentProfileId();
     const description = String(payload.material ?? '').trim();
     const quantity = Number(payload.quantity || 1);
     if (!description) throw new Error('Indica el material usado antes de sincronizar.');
-    return expectData<string>(supabase.rpc('record_work_order_material_usage', { p_company_id: companyId, p_work_order_id: workOrderId, p_description: description, p_quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1, p_created_by: profileId }));
+    return expectData<string>(supabase.rpc('record_work_order_material_usage', { p_company_id: null, p_work_order_id: workOrderId, p_description: description, p_quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1, p_created_by: null }));
   },
 };

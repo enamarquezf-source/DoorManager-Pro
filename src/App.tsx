@@ -87,8 +87,8 @@ function LoginPage() {
     event.preventDefault();
     setLoading(true); setError('');
     const { error: signError } = await authService.signIn(email, password);
-    if (signError) { setError('No se ha podido iniciar sesión. Comprueba que el usuario existe en Supabase Auth y que profiles.auth_user_id está enlazado.'); setLoading(false); return; }
-    try { await refreshProfile(); } catch (err) { setError(err instanceof Error ? err.message : 'Perfil no enlazado.'); await authService.signOut(); }
+    if (signError) { console.error(signError); setError('Correo o contraseña incorrectos.'); setLoading(false); return; }
+    try { await refreshProfile(); } catch (err) { console.error(err); setError('Correo o contraseña incorrectos.'); await authService.signOut(); }
     setLoading(false);
   };
 
@@ -149,6 +149,15 @@ function useLoad<T>(loader: () => Promise<T>, deps: unknown[] = [], empty: T) {
   const reload = async () => { setState((prev) => ({ ...prev, loading: true, error: '' })); try { setState({ data: await loader(), loading: false, error: '' }); } catch (err) { setState({ data: empty, loading: false, error: err instanceof Error ? err.message : 'Error inesperado' }); } };
   useEffect(() => { reload(); }, deps);
   return { ...state, reload };
+}
+
+function fileToLocalPhoto(file: File): Promise<Record<string, string | number>> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = () => resolve({ id: crypto.randomUUID(), name: file.name, type: file.type, size: file.size, dataUrl: String(reader.result), syncStatus: 'pending' });
+    reader.readAsDataURL(file);
+  });
 }
 
 function HomePage() {
@@ -263,7 +272,7 @@ function SuperadminHome() {
     kpiCard('Checks pendientes', pendingChecks.length, 'Global', 'Checks por realizar/en curso', '/app/superadmin/checks', 'danger'),
     kpiCard('Errores sync', 0, 'No configurado', 'Todavía no existe tabla de sincronización global', '/app/superadmin/sincronizacion', 'muted'),
   ];
-  return <RoleDashboard title="Panel Superadmin / Propietario DMP" subtitle="Zona separada para gobierno global de usuarios, roles, permisos y datos maestros." kpis={kpis} quickActions={<><Link to="/app/superadmin/users">Gestionar usuarios</Link><Link to="/app/superadmin/users/new">Crear usuario</Link><Link to="/app/superadmin/roles">Roles y permisos</Link><Link to="/app/superadmin/check-templates">Plantillas de checks</Link><Link to="/app/superadmin/audit">Auditoría</Link><Link to="/app/superadmin/clients">Clientes</Link><Link to="/app/superadmin/work-orders">Partes</Link></>}><InteractiveBars title="Usuarios por rol" values={roleCounts.length ? roleCounts : [['Sin roles', 0, '/app/superadmin/roles']]} /><DashboardList title="Últimos usuarios creados" rows={data.profiles.slice(0, 8).map((profile: any) => [fullName(profile) || profile.email, `${profile.email} · ${profile.active ? 'Activo' : 'Inactivo'} · ${rolesText(profile)} · ${profile.primary_area}`, profile.active ? 'ok' : 'warn', '/app/superadmin/users'])} empty="No hay usuarios visibles." /><DashboardList title="Última actividad relevante" rows={[...data.activity, ...data.audit].slice(0, 8).map((item: any) => [item.action ?? item.operation ?? 'Evento', `${item.entity_type ?? item.table_name ?? 'Sistema'} · ${formatDate(item.created_at ?? item.changed_at)}`, 'info', '/app/superadmin/audit'])} empty="Sin actividad registrada." /><Card title="Sincronización global"><p className="large-note">No configurado todavía: no existe una tabla global de errores de sincronización. La cola técnica local sigue en IndexedDB por dispositivo.</p></Card><Card title="Seguridad de contraseñas"><p className="large-note">Las contraseñas no se muestran ni se leen. Crear usuarios Auth, invitar y resetear contraseñas debe ejecutarse mediante Supabase Auth desde backend seguro o Edge Function, nunca con una clave de servicio en el navegador.</p></Card></RoleDashboard>;
+  return <RoleDashboard title="Panel Superadmin / Propietario DMP" subtitle="Zona separada para gobierno global de usuarios, roles, permisos y datos maestros." kpis={kpis} quickActions={<><Link to="/app/superadmin/usuarios">Gestionar usuarios</Link><Link to="/app/superadmin/usuarios/nuevo">Crear usuario</Link><Link to="/app/superadmin/roles">Roles y permisos</Link><Link to="/app/superadmin/plantillas">Plantillas de checks</Link><Link to="/app/superadmin/auditoria">Auditoría</Link><Link to="/app/superadmin/clientes">Clientes</Link><Link to="/app/superadmin/partes">Partes</Link></>}><InteractiveBars title="Usuarios por rol" values={roleCounts.length ? roleCounts : [['Sin roles', 0, '/app/superadmin/roles']]} /><DashboardList title="Últimos usuarios creados" rows={data.profiles.slice(0, 8).map((profile: any) => [fullName(profile) || profile.email, `${profile.email} · ${profile.active ? 'Activo' : 'Inactivo'} · ${rolesText(profile)} · ${profile.primary_area}`, profile.active ? 'ok' : 'warn', '/app/superadmin/usuarios'])} empty="Sin registros" /><DashboardList title="Última actividad relevante" rows={[...data.activity, ...data.audit].slice(0, 8).map((item: any) => [item.action ?? item.operation ?? 'Evento', `${item.entity_type ?? item.table_name ?? 'Sistema'} · ${formatDate(item.created_at ?? item.changed_at)}`, 'info', '/app/superadmin/auditoria'])} empty="Sin registros" /><Card title="Sincronización global"><p className="large-note">Módulo en preparación: no existe una tabla global de errores de sincronización. La cola técnica local sigue en IndexedDB por dispositivo.</p></Card><Card title="Seguridad de contraseñas"><p className="large-note">Las contraseñas no se muestran ni se leen. Crear usuarios Auth, invitar y resetear contraseñas debe ejecutarse mediante Supabase Auth desde backend seguro o Edge Function, nunca con una clave de servicio en el navegador.</p></Card></RoleDashboard>;
 }
 
 function SuperadminUsers() {
@@ -310,8 +319,7 @@ function SuperadminProfileForm({ initial, onClose, onSaved }: any) {
     setSaving(true); setError('');
     try {
       const payload = { first_name: values.first_name, last_name: values.last_name, email: values.email, phone: values.phone || null, primary_area: values.primary_area, active: values.active === true || values.active === 'true', auth_user_id: values.auth_user_id || null, company_id: values.company_id || null };
-      const saved = initial?.id ? await superadminService.updateProfile(initial.id, payload) : await superadminService.createProfile(payload);
-      await superadminService.setRoles(initial?.id ?? saved.id, values.roles?.length ? values.roles : [values.primary_area]);
+      await superadminService.saveProfileWithRoles(initial?.id ?? null, payload, values.roles?.length ? values.roles : [values.primary_area]);
       onSaved?.();
     } catch (err) { console.error(err); setError(err instanceof Error ? err.message : 'No se ha podido guardar el usuario.'); }
     finally { setSaving(false); }
@@ -327,7 +335,7 @@ function SuperadminSettings() {
 function SuperadminRoles() {
   const permissions = ['ver clientes','crear clientes','editar clientes','ver centros','crear centros','editar centros','ver equipos','crear equipos','editar equipos','ver partes','crear partes','editar partes','asignar técnicos','ver checks','crear checks','ejecutar checks','sincronizar trabajo técnico','ver facturación','ver documentación','gestionar usuarios','gestionar plantillas','ver auditoría'];
   const roles = ['superadmin','Gerencia','SAT','Comercial','Oficina','Tecnico'];
-  return <section className="page"><Breadcrumb items={['Propietario DMP', 'Roles y permisos']} /><Hero title="Roles y permisos" subtitle="Matriz preparada para el modelo de permisos de DoorManager Pro." tone="info" /><Card title="Matriz de permisos"><div className="table-card slim"><table><thead><tr><th>Rol</th>{permissions.map((permission) => <th key={permission}>{permission}</th>)}</tr></thead><tbody>{roles.map((role) => <tr key={role}><td>{role === 'superadmin' ? 'Propietario DMP' : role}</td>{permissions.map((permission) => <td key={`${role}-${permission}`}>{permissionForRole(role, permission) ? 'Sí' : 'No'}</td>)}</tr>)}</tbody></table></div><p className="large-note">La edición granular queda preparada. Si se añade una tabla de permisos dinámica, solo `superadmin` debe poder modificarla.</p></Card></section>;
+  return <section className="page"><Breadcrumb items={['Propietario DMP', 'Roles y permisos']} /><Hero title="Roles y permisos" subtitle="Matriz preparada para el modelo de permisos de DoorManager Pro." tone="info" /><Card title="Matriz de permisos"><div className="table-card slim"><table><thead><tr><th>Rol</th>{permissions.map((permission) => <th key={permission}>{permission}</th>)}</tr></thead><tbody>{roles.map((role) => <tr key={role}><td>{role === 'superadmin' ? 'Propietario DMP' : role}</td>{permissions.map((permission) => <td key={`${role}-${permission}`}>{permissionForRole(role, permission) ? 'Sí' : 'No'}</td>)}</tr>)}</tbody></table></div><p className="large-note">Matriz informativa. La seguridad real depende de RLS y de las RPC `SECURITY DEFINER` endurecidas.</p></Card></section>;
 }
 
 function SuperadminTemplates() {
@@ -500,6 +508,67 @@ function CheckDetailPage() {
 }
 
 function CheckBlockPage() {
+  const { id = '', blockId = 'hoja' } = useParams();
+  const navigate = useNavigate();
+  const { workspace } = useAuth();
+  const { data, loading, error } = useLoad(() => workspace === 'tecnico' ? checksService.getTechnicianAssigned(id) : checksService.get(id), [id, workspace], null as any);
+  const [status, setStatus] = useState('Sin revisar');
+  const [confirmedStatus, setConfirmedStatus] = useState('Sin revisar');
+  const [observations, setObservations] = useState('');
+  const [intervention, setIntervention] = useState('');
+  const [severity, setSeverity] = useState('Leve');
+  const [components, setComponents] = useState<string[]>([]);
+  const [photos, setPhotos] = useState<Record<string, any>[]>([]);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saving, setSaving] = useState(false);
+  const [localLoaded, setLocalLoaded] = useState(false);
+  const zones = data ? visibleTemplateZones(data.equipment) : sectionalZones;
+  const zone = zones.find((item) => item.id === blockId as CheckBlockId) ?? zones[0];
+  const zoneIndex = zones.findIndex((item) => item.id === zone.id);
+  const section = data?.check_templates?.check_template_sections?.find((item: any) => normalize(item.title) === normalize(zone.name)) ?? data?.check_templates?.check_template_sections?.[zoneIndex] ?? { id: `local-${zone.id}`, check_template_items: zone.components.map((component) => ({ id: `local-${zone.id}-${component}`, title: component })) };
+  const existing = data?.check_section_results?.find((item: any) => item.section_id === section?.id);
+  useEffect(() => {
+    setLocalLoaded(false);
+    technicianOfflineService.sectionState(id, blockId).then((local) => {
+      if (local) {
+        const normalized = normalizeCheckStatus(local.status);
+        setStatus(normalized); setConfirmedStatus(normalized); setObservations(local.observations ?? ''); setIntervention(local.intervention ?? ''); setSeverity(local.severity ?? 'Leve'); setComponents(local.components ?? []); setPhotos(local.photos ?? []);
+      } else if (existing) {
+        const normalized = normalizeCheckStatus(existing.result);
+        setStatus(normalized); setConfirmedStatus(normalized); setObservations(existing.observations ?? ''); setIntervention(''); setSeverity('Leve'); setComponents([]); setPhotos([]);
+      } else {
+        setStatus('Sin revisar'); setConfirmedStatus('Sin revisar'); setObservations(''); setIntervention(''); setSeverity('Leve'); setComponents([]); setPhotos([]);
+      }
+      setLocalLoaded(true);
+    });
+  }, [id, blockId, existing?.id, existing?.result]);
+  if (workspace === 'tecnico' && (error || (!loading && !data))) return <AccessDenied />;
+  if (loading || error || !data) return <StateBlock loading={loading} error={error} retry={undefined} empty={!data} />;
+  const needsDetail = checkProblemStatuses.includes(status);
+  const hasChanges = localLoaded && status !== 'Sin revisar' && (status !== confirmedStatus || observations.trim() || intervention.trim() || components.length || photos.length);
+  const toggleComponent = (component: string) => setComponents((current) => current.includes(component) ? current.filter((item) => item !== component) : [...current, component]);
+  const selectStatus = (nextStatus: string) => { setStatus(nextStatus); setSaveState('idle'); if (!checkProblemStatuses.includes(nextStatus)) { setObservations(''); setIntervention(''); setComponents([]); setPhotos([]); } };
+  const addPhotos = async (files: FileList | null) => {
+    if (!files?.length) return;
+    const nextPhotos = await Promise.all(Array.from(files).map(fileToLocalPhoto));
+    setPhotos((current) => [...current, ...nextPhotos]);
+    setSaveState('idle');
+  };
+  const save = async () => {
+    if (!section || !hasChanges || status === 'Sin revisar') return;
+    setSaving(true); setSaveState('saving');
+    const persisted = status.replace('Favorable tras intervención', 'Favorable tras intervencion');
+    try {
+      await technicianOfflineService.upsert({ type: 'check-block', workOrderId: data.work_order_id, checkId: id, blockId: zone.id, payload: { blockId: zone.id, sectionId: section.id, sectionTitle: zone.name, status, persistedStatus: persisted, items: section.check_template_items ?? [], components: status === 'Todo favorable' ? (zone.components ?? []) : components, observations: needsDetail ? observations : '', intervention: needsDetail ? intervention : '', incidence: needsDetail, severity, photos: needsDetail ? photos : [], date: new Date().toISOString(), user: data.technician_id } });
+      setConfirmedStatus(status); setSaveState('saved');
+      setTimeout(() => navigate(`/app/checks/${id}`), 450);
+    } catch { setSaveState('error'); }
+    finally { setSaving(false); }
+  };
+  return <section className="check-mobile block-page"><button className="link-button sticky-back" onClick={() => navigate(`/app/checks/${id}`)}><ChevronLeft size={16} /> Volver a la puerta</button><header><p className="eyebrow">Detalle del bloque</p><h2>{zone.name}</h2><Badge tone={severityForStatus(status)}>{displayStatus(status)}</Badge></header><div className="status-grid">{checkStatuses.map((item) => <button type="button" key={item} className={status === item ? 'active' : ''} onClick={() => selectStatus(item)}>{item}</button>)}</div>{status === 'Sin revisar' && <p className="large-note">Selecciona un estado. No se guardará hasta pulsar Confirmar selección.</p>}{needsDetail && <Card title="Observación e intervención"><label>Observación<textarea value={observations} onChange={(event) => { setObservations(event.target.value); setSaveState('idle'); }} /></label><label>Intervención<textarea value={intervention} onChange={(event) => { setIntervention(event.target.value); setSaveState('idle'); }} placeholder="Intervención realizada si aplica" /></label></Card>}{needsDetail && <Card title="Incidencia del bloque"><div className="component-select">{zone.components.map((component) => <label key={component}><input type="checkbox" checked={components.includes(component)} onChange={() => { toggleComponent(component); setSaveState('idle'); }} /> {component}</label>)}</div><FormSelect label="Gravedad" value={severity} onChange={(value) => { setSeverity(value); setSaveState('idle'); }} options={['Leve','Media','Alta','Critica'].map((value) => ({ value, label: displayStatus(value) }))} /><div className="photo-strip"><label className="component-photo">Añadir foto real<input type="file" accept="image/*" capture="environment" multiple onChange={(event) => addPhotos(event.target.files)} /></label></div>{photos.length > 0 && <div className="photo-list">{photos.map((photo) => <span key={photo.id ?? photo.name}>{photo.name ?? 'Foto'} · Foto pendiente de sincronizar<button type="button" onClick={() => { setPhotos((current) => current.filter((item) => item !== photo)); setSaveState('idle'); }}>Quitar</button></span>)}</div>}<p className="large-note">Las fotos quedan guardadas en este dispositivo. Foto pendiente de sincronizar hasta configurar subida segura a Supabase Storage.</p></Card>}<button className="primary wide sticky-save" disabled={!hasChanges || saving} onClick={save}>{saving ? 'Guardando...' : saveState === 'saved' ? 'Guardado localmente' : 'Confirmar selección'}</button>{saveState === 'saved' && <p className="success-note">Bloque guardado localmente y pendiente de sincronización segura.</p>}{saveState === 'error' && <p className="form-error">No se ha podido guardar el bloque localmente.</p>}</section>;
+}
+
+function CheckBlockPageLegacy() {
   const { id = '', blockId = 'hoja' } = useParams();
   const navigate = useNavigate();
   const { workspace } = useAuth();
@@ -738,8 +807,7 @@ function SuperadminUserForm({ initial, onClose, onSaved }: any) {
     setSaving(true); setError('');
     try {
       const profilePayload = { first_name: values.first_name, last_name: values.last_name, email: values.email, phone: values.phone || null, primary_area: values.primary_area, active: values.active === true || values.active === 'true', auth_user_id: values.auth_user_id || null, company_id: values.company_id || null };
-      const saved = initial?.id ? await superadminService.updateProfile(initial.id, profilePayload) : await superadminService.createProfile(profilePayload);
-      await superadminService.setRoles(initial?.id ?? saved.id, values.roles?.length ? values.roles : [values.primary_area]);
+      await superadminService.saveProfileWithRoles(initial?.id ?? null, profilePayload, values.roles?.length ? values.roles : [values.primary_area]);
       onSaved?.();
     } catch (err) { setError(err instanceof Error ? err.message : 'No se ha podido guardar el usuario.'); }
     finally { setSaving(false); }
@@ -751,7 +819,26 @@ function ClientForm({ title, initial, onClose, onSaved }: any) { const fields = 
 function ContactForm({ clientId, onClose, onSaved }: any) { return <EntityForm title="Añadir contacto" fields={[[ 'first_name','Nombre',true ],[ 'last_name','Apellidos' ],[ 'role','Cargo' ],[ 'email','Correo' ],[ 'phone','Teléfono' ],[ 'notes','Observaciones' ]]} onClose={onClose} onSubmit={(values: any) => clientsService.addContact(clientId, values)} onSaved={onSaved} />; }
 function SiteForm({ title, initial, onClose, onSaved }: any) { const clients = useLoad(() => clientsService.list(), [], [] as any[]); return <EntityForm title={title} fields={[[ 'client_id','Cliente',true ],[ 'name','Nombre',true ],[ 'address','Dirección' ],[ 'city','Localidad' ],[ 'province','Provincia' ],[ 'postal_code','Código postal' ],[ 'country','País' ],[ 'schedule','Horario' ],[ 'notes','Observaciones' ]]} selects={{ client_id: clients.data.map((client) => ({ value: client.id, label: `${client.code} · ${client.legal_name}` })) }} initial={{ country: 'Espana', ...initial }} help={!initial?.id ? 'El código de centro se generará automáticamente al guardar.' : undefined} onClose={onClose} onSubmit={(values: any) => initial?.id ? sitesService.update(initial.id, values) : sitesService.create(values)} onSaved={onSaved} />; }
 function SiteContactForm({ siteId, onClose, onSaved }: any) { return <EntityForm title="Añadir contacto de centro" fields={[[ 'first_name','Nombre',true ],[ 'last_name','Apellidos' ],[ 'role','Cargo' ],[ 'email','Correo' ],[ 'phone','Teléfono' ]]} onClose={onClose} onSubmit={(values: any) => sitesService.addContact(siteId, values)} onSaved={onSaved} />; }
-function EquipmentForm({ initial, onClose, onSaved }: any) { const clients = useLoad(() => clientsService.list(), [], [] as any[]); const sites = useLoad(() => sitesService.list(), [], [] as any[]); const types = useLoad(() => equipmentService.types(), [], [] as any[]); return <EntityForm title={initial?.id ? 'Modificar equipo' : 'Crear equipo'} fields={[[ 'client_id','Cliente',true ],[ 'site_id','Centro',true ],[ 'equipment_type_id','Tipo de equipo',true ],[ 'brand','Marca' ],[ 'model','Modelo' ],[ 'serial_number','Serie' ],[ 'installation_date','Fecha instalación' ],[ 'internal_location','Ubicación' ],[ 'status','Estado' ],[ 'criticality','Criticidad' ],[ 'notes','Observaciones' ]]} selects={{ client_id: clients.data.map((client) => ({ value: client.id, label: `${client.code} · ${client.legal_name}` })), site_id: sites.data.filter((site) => !initial?.client_id || site.client_id === initial.client_id).map((site) => ({ value: site.id, label: `${site.code} · ${site.name}` })), equipment_type_id: types.data.map((type) => ({ value: type.id, label: type.name })) }} initial={{ status: 'Operativo', criticality: 'Media', ...initial }} help={!initial?.id ? 'El código de equipo se generará automáticamente al guardar.' : undefined} onClose={onClose} onSubmit={(values: any) => initial?.id ? equipmentService.update(initial.id, values) : equipmentService.create(values)} onSaved={onSaved} />; }
+function EquipmentForm({ initial, onClose, onSaved }: any) {
+  const clients = useLoad(() => clientsService.list(), [], [] as any[]);
+  const sites = useLoad(() => sitesService.list(), [], [] as any[]);
+  const types = useLoad(() => equipmentService.types(), [], [] as any[]);
+  const [values, setValues] = useState<Record<string, any>>({ status: 'Operativo', criticality: 'Media', ...initial });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const filteredSites = sites.data.filter((site) => !values.client_id || site.client_id === values.client_id);
+  const set = (key: string, value: any) => setValues((current) => ({ ...current, [key]: value }));
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setSaving(true); setError('');
+    try {
+      await (initial?.id ? equipmentService.update(initial.id, values) : equipmentService.create(values));
+      onSaved?.();
+    } catch (err) { setError(err instanceof Error ? err.message : 'No se ha podido guardar el equipo.'); }
+    finally { setSaving(false); }
+  };
+  return <ModalForm title={initial?.id ? 'Modificar equipo' : 'Crear equipo'} onClose={onClose} onSubmit={submit} saving={saving} error={error}><p className="large-note">{!initial?.id ? 'El código de equipo se generará automáticamente al guardar.' : 'El centro disponible depende del cliente seleccionado.'}</p><FormSelect label="Cliente" value={values.client_id} onChange={(value) => setValues((current) => ({ ...current, client_id: value, site_id: '' }))} required options={clients.data.map((client) => ({ value: client.id, label: `${client.code} · ${client.legal_name}` }))} loading={clients.loading} /><FormSelect label="Centro" value={values.site_id} onChange={(value) => set('site_id', value)} required options={filteredSites.map((site) => ({ value: site.id, label: `${site.code} · ${site.name}` }))} loading={sites.loading} disabled={!values.client_id} /><FormSelect label="Tipo de equipo" value={values.equipment_type_id} onChange={(value) => set('equipment_type_id', value)} required options={types.data.map((type) => ({ value: type.id, label: type.name }))} loading={types.loading} /><div className="form-grid"><label>Marca<input value={values.brand ?? ''} onChange={(event) => set('brand', event.target.value)} /></label><label>Modelo<input value={values.model ?? ''} onChange={(event) => set('model', event.target.value)} /></label><label>Serie<input value={values.serial_number ?? ''} onChange={(event) => set('serial_number', event.target.value)} /></label><label>Fecha instalación<input type="date" value={values.installation_date ?? ''} onChange={(event) => set('installation_date', event.target.value)} /></label><label>Ubicación<input value={values.internal_location ?? ''} onChange={(event) => set('internal_location', event.target.value)} /></label><FormSelect label="Estado" value={values.status} onChange={(value) => set('status', value)} options={['Operativo','En revision','Averiado','Retirado'].map((value) => ({ value, label: displayStatus(value) }))} /><FormSelect label="Criticidad" value={values.criticality} onChange={(value) => set('criticality', value)} options={['Baja','Media','Alta','Critica'].map((value) => ({ value, label: displayStatus(value) }))} /></div><label>Observaciones<textarea value={values.notes ?? ''} onChange={(event) => set('notes', event.target.value)} /></label></ModalForm>;
+}
 function ComponentForm({ equipmentId, onClose, onSaved }: any) { return <EntityForm title="Añadir componente" fields={[[ 'component_type','Tipo',true ],[ 'brand','Marca' ],[ 'model','Modelo' ],[ 'serial_number','Serie' ],[ 'status','Estado' ],[ 'notes','Observaciones' ]]} initial={{ status: 'Operativo' }} onClose={onClose} onSubmit={(values: any) => equipmentService.addComponent(equipmentId, values)} onSaved={onSaved} />; }
 function CaseForm({ title, initial, onClose, onSaved }: any) { const clients = useLoad(() => clientsService.list(), [], [] as any[]); const sites = useLoad(() => sitesService.list(), [], [] as any[]); const fields = [[ 'title','Título',true ],[ 'description','Descripción' ],[ 'type','Tipo',true ],[ 'priority','Prioridad' ],[ 'status','Estado' ],[ 'client_id','Cliente',true ],[ 'site_id','Centro' ],[ 'origin','Origen',true ]]; return <EntityForm title={title} fields={fields} selects={{ client_id: clients.data.map((client) => ({ value: client.id, label: `${client.code} · ${client.legal_name}` })), site_id: sites.data.filter((site) => !initial?.client_id || site.client_id === initial.client_id).map((site) => ({ value: site.id, label: `${site.code} · ${site.name}` })) }} initial={{ type: 'Averia', priority: 'Normal', status: 'Abierto', origin: 'SAT', ...initial }} help={!initial?.id ? 'El código de expediente se generará automáticamente al guardar.' : undefined} onClose={onClose} onSubmit={(values: any) => initial?.id ? casesService.update(initial.id, values) : casesService.create(values)} onSaved={onSaved} />; }
 

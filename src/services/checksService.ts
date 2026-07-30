@@ -81,8 +81,7 @@ export const checksService = {
     await supabase.from('checks').update({ status: 'En curso', global_result: 'Todo favorable', started_at: new Date().toISOString() }).eq('id', check_id).is('finished_at', null);
   },
   async finish(check_id: string, global_result: string, observations?: string) {
-    const profileId = await currentProfileId();
-    return expectData<void>(supabase.rpc('finish_check', { p_check_id: check_id, p_finished_by: profileId, p_global_result: global_result, p_observations: observations || null }));
+    return expectData<void>(supabase.rpc('finish_check', { p_check_id: check_id, p_finished_by: null, p_global_result: global_result, p_observations: observations || null }));
   },
   async syncOfflineBlock(change: OfflineChange) {
     const payload = change.payload;

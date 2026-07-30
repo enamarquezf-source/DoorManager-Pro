@@ -2,7 +2,8 @@ import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, expectData } from './query';
 
 export const deficienciesService = {
-  list(search = '') {
+  async list(search = '') {
+    const companyId = await currentCompanyId();
     let query = supabase.from('deficiencies').select(`
       *,
       clients!deficiencies_client_id_fkey(code, legal_name),
@@ -11,7 +12,7 @@ export const deficienciesService = {
       work_orders!deficiencies_work_order_id_fkey(code),
       checks!deficiencies_check_id_fkey(code),
       profiles!deficiencies_responsible_profile_id_fkey(first_name,last_name)
-    `).is('deleted_at', null).order('created_at', { ascending: false });
+    `).eq('company_id', companyId).is('deleted_at', null).order('created_at', { ascending: false });
     if (search) query = query.or(contains(['code', 'description', 'recommended_action', 'status', 'severity'], search));
     return expectData<any[]>(query);
   },

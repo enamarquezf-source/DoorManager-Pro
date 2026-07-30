@@ -1,24 +1,26 @@
 import { supabase } from '../lib/supabase/client';
-import { expectData } from './query';
+import { currentCompanyId, expectData } from './query';
 
 export const superadminService = {
   async overview() {
+    const companyId = await currentCompanyId();
     const [profiles, roles, clients, sites, equipment, workOrders, checks, templates, activity, audit] = await Promise.all([
-      expectData<any[]>(supabase.from('profiles').select('*, profile_roles(roles(name))').order('created_at', { ascending: false })),
+      expectData<any[]>(supabase.from('profiles').select('*, profile_roles(roles(name))').eq('company_id', companyId).order('created_at', { ascending: false })),
       expectData<any[]>(supabase.from('roles').select('*').order('name')),
-      expectData<any[]>(supabase.from('clients').select('id,status,created_at').is('deleted_at', null)),
-      expectData<any[]>(supabase.from('sites').select('id,active,created_at').is('deleted_at', null)),
-      expectData<any[]>(supabase.from('equipment').select('id,status,created_at').is('deleted_at', null)),
-      expectData<any[]>(supabase.from('work_orders').select('id,status,created_at').is('deleted_at', null)),
-      expectData<any[]>(supabase.from('checks').select('id,status,global_result,created_at').is('deleted_at', null)),
-      expectData<any[]>(supabase.from('check_templates').select('*, equipment_types(name), check_template_sections(*, check_template_items(*))').order('updated_at', { ascending: false })),
-      expectData<any[]>(supabase.from('activity_log').select('*, profiles(first_name,last_name,email)').order('created_at', { ascending: false }).limit(20)),
-      expectData<any[]>(supabase.from('audit_log').select('*, profiles(first_name,last_name,email)').order('changed_at', { ascending: false }).limit(20)),
+      expectData<any[]>(supabase.from('clients').select('id,status,created_at').eq('company_id', companyId).is('deleted_at', null)),
+      expectData<any[]>(supabase.from('sites').select('id,active,created_at').eq('company_id', companyId).is('deleted_at', null)),
+      expectData<any[]>(supabase.from('equipment').select('id,status,created_at').eq('company_id', companyId).is('deleted_at', null)),
+      expectData<any[]>(supabase.from('work_orders').select('id,status,created_at').eq('company_id', companyId).is('deleted_at', null)),
+      expectData<any[]>(supabase.from('checks').select('id,status,global_result,created_at').eq('company_id', companyId).is('deleted_at', null)),
+      expectData<any[]>(supabase.from('check_templates').select('*, equipment_types(name), check_template_sections(*, check_template_items(*))').eq('company_id', companyId).order('updated_at', { ascending: false })),
+      expectData<any[]>(supabase.from('activity_log').select('*, profiles(first_name,last_name,email)').eq('company_id', companyId).order('created_at', { ascending: false }).limit(20)),
+      expectData<any[]>(supabase.from('audit_log').select('*, profiles(first_name,last_name,email)').eq('company_id', companyId).order('changed_at', { ascending: false }).limit(20)),
     ]);
     return { profiles, roles, clients, sites, equipment, workOrders, checks, templates, activity, audit };
   },
   async users() {
-    return expectData<any[]>(supabase.from('profiles').select('*, profile_roles(roles(id,name))').order('created_at', { ascending: false }));
+    const companyId = await currentCompanyId();
+    return expectData<any[]>(supabase.from('profiles').select('*, profile_roles(roles(id,name))').eq('company_id', companyId).order('created_at', { ascending: false }));
   },
   roles() {
     return expectData<any[]>(supabase.from('roles').select('*').order('name'));
@@ -39,12 +41,12 @@ export const superadminService = {
     return expectData<any>(supabase.rpc('superadmin_update_profile', { p_profile_id: profileId, p_profile: { deleted_at: new Date().toISOString(), active: false } }).single());
   },
   templates() {
-    return expectData<any[]>(supabase.from('check_templates').select('*, equipment_types(name), check_template_sections(*, check_template_items(*))').order('updated_at', { ascending: false }));
+    return currentCompanyId().then((companyId) => expectData<any[]>(supabase.from('check_templates').select('*, equipment_types(name), check_template_sections(*, check_template_items(*))').eq('company_id', companyId).order('updated_at', { ascending: false })));
   },
   toggleTemplate(templateId: string, active: boolean) {
     return expectData<any>(supabase.from('check_templates').update({ active }).eq('id', templateId).select().single());
   },
   audit() {
-    return expectData<any[]>(supabase.from('audit_log').select('*, profiles(first_name,last_name,email)').order('changed_at', { ascending: false }).limit(100));
+    return currentCompanyId().then((companyId) => expectData<any[]>(supabase.from('audit_log').select('*, profiles(first_name,last_name,email)').eq('company_id', companyId).order('changed_at', { ascending: false }).limit(100)));
   },
 };

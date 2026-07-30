@@ -13,20 +13,23 @@ function normalize(value?: string | null) {
 }
 
 export const checksService = {
-  list(search = '') {
-    let query = supabase.from('checks').select('*, equipment!checks_equipment_id_fkey(code), work_orders!checks_work_order_id_fkey(code), profiles!checks_technician_id_fkey(first_name,last_name)').is('deleted_at', null).order('created_at', { ascending: false });
+  async list(search = '') {
+    const companyId = await currentCompanyId();
+    let query = supabase.from('checks').select('*, equipment!checks_equipment_id_fkey(code), work_orders!checks_work_order_id_fkey(code), profiles!checks_technician_id_fkey(first_name,last_name)').eq('company_id', companyId).is('deleted_at', null).order('created_at', { ascending: false });
     if (search) query = query.or(contains(['code', 'status', 'global_result', 'observations'], search));
     return expectData<any[]>(query);
   },
-  pending() {
-    return expectData<any[]>(supabase.from('v_pending_checks').select('*').order('created_at', { ascending: false }));
+  async pending() {
+    const companyId = await currentCompanyId();
+    return expectData<any[]>(supabase.from('v_pending_checks').select('*').eq('company_id', companyId).order('created_at', { ascending: false }));
   },
   async pendingForCurrentTechnician() {
     const profileId = await currentProfileId();
     return expectData<any[]>(supabase.from('v_pending_checks').select('*').eq('technician_id', profileId).order('created_at', { ascending: false }));
   },
-  completed() {
-    return expectData<any[]>(supabase.from('v_completed_checks').select('*').order('finished_at', { ascending: false }));
+  async completed() {
+    const companyId = await currentCompanyId();
+    return expectData<any[]>(supabase.from('v_completed_checks').select('*').eq('company_id', companyId).order('finished_at', { ascending: false }));
   },
   async completedForCurrentTechnician() {
     const profileId = await currentProfileId();
@@ -46,9 +49,11 @@ export const checksService = {
     if (!assignment) throw new Error('No tienes permiso para acceder a este trabajo');
     return this.get(id);
   },
-  templates(equipmentTypeId?: string) {
-    let query = supabase.from('check_templates').select('*, check_template_sections(*, check_template_items(*))').eq('active', true);
+  async templates(equipmentTypeId?: string) {
+    const companyId = await currentCompanyId();
+    let query = supabase.from('check_templates').select('*, check_template_sections(*, check_template_items(*))').eq('company_id', companyId).eq('active', true);
     if (equipmentTypeId) query = query.eq('equipment_type_id', equipmentTypeId);
+    else query = query.is('equipment_type_id', null);
     return expectData<any[]>(query.order('name'));
   },
   async create(payload: Record<string, any>) {

@@ -7,8 +7,9 @@ function casePayload(payload: Record<string, any>) {
 }
 
 export const casesService = {
-  list(search = '') {
-    let query = supabase.from('cases').select('*, clients(code, legal_name), sites(code, name), case_links(*)').is('deleted_at', null).order('created_at', { ascending: false });
+  async list(search = '') {
+    const companyId = await currentCompanyId();
+    let query = supabase.from('cases').select('*, clients(code, legal_name), sites(code, name), case_links(*)').eq('company_id', companyId).is('deleted_at', null).order('created_at', { ascending: false });
     if (search) query = query.or(contains(['code', 'title', 'description', 'status', 'type'], search));
     return expectData<any[]>(query);
   },

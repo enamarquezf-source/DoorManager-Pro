@@ -14,7 +14,7 @@ function hasAny(profile: Profile | null | undefined, roles: RoleName[]) {
 
 export function canViewWorkOrder(profile: Profile | null | undefined, workOrder?: any) {
   if (!profile) return false;
-  if (hasAny(profile, ['SAT', 'Gerencia', 'Oficina', 'Comercial'])) return true;
+  if (hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina', 'Comercial'])) return true;
   if (!hasAny(profile, ['Tecnico'])) return false;
   const profileIds = new Set([profile.id, profile.auth_user_id].filter(Boolean));
   if (profileIds.has(workOrder?.main_technician_id) || profileIds.has(workOrder?.technician_id) || profileIds.has(workOrder?.primary_technician?.id) || profileIds.has(workOrder?.primary_technician?.auth_user_id)) return true;
@@ -23,7 +23,7 @@ export function canViewWorkOrder(profile: Profile | null | undefined, workOrder?
 }
 
 export function canEditWorkOrder(profile: Profile | null | undefined) { return hasAny(profile, adminRoles); }
-export function canCreateWorkOrder(profile: Profile | null | undefined) { return hasAny(profile, ['SAT', 'Gerencia', 'Comercial']); }
+export function canCreateWorkOrder(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Comercial']); }
 export function canAssignTechnician(profile: Profile | null | undefined) { return hasAny(profile, adminRoles); }
 export function canManagePlanning(profile: Profile | null | undefined) { return hasAny(profile, adminRoles); }
 export function canChangePriority(profile: Profile | null | undefined) { return hasAny(profile, adminRoles); }

@@ -8,13 +8,15 @@ function equipmentPayload(payload: Record<string, any>) {
 }
 
 export const equipmentService = {
-  list(search = '') {
-    let query = supabase.from('equipment').select('*, clients(code, legal_name), sites(code, name), equipment_types(name), equipment_components(*)').is('deleted_at', null).order('code');
+  async list(search = '') {
+    const companyId = await currentCompanyId();
+    let query = supabase.from('equipment').select('*, clients(code, legal_name), sites(code, name), equipment_types(name), equipment_components(*)').eq('company_id', companyId).is('deleted_at', null).order('code');
     if (search) query = query.or(contains(['code', 'brand', 'model', 'serial_number', 'internal_location', 'status'], search));
     return expectData<any[]>(query);
   },
-  types() {
-    return expectData<any[]>(supabase.from('equipment_types').select('*').eq('active', true).order('name'));
+  async types() {
+    const companyId = await currentCompanyId();
+    return expectData<any[]>(supabase.from('equipment_types').select('*').eq('company_id', companyId).eq('active', true).order('name'));
   },
   async get(id: string) {
     const row = await expectData<any>(supabase.from('equipment').select(`

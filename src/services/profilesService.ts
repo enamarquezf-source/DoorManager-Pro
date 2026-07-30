@@ -12,8 +12,13 @@ export const profilesService = {
     const roles = await expectData<any[]>(supabase.from('profile_roles').select('roles(name)').eq('profile_id', profile.id));
     return { ...profile, roles: roles.map((row) => row.roles?.name).filter(Boolean) as RoleName[] };
   },
-  listTechnicians() {
-    return expectData<any[]>(supabase.from('profiles').select('*, profile_roles!inner(roles!inner(name))').eq('profile_roles.roles.name', 'Tecnico').eq('active', true).order('first_name'));
+  async listTechnicians() {
+    const rows = await expectData<any[]>(supabase.from('profiles').select('*, profile_roles(roles(name))').eq('active', true).order('first_name'));
+    return rows.filter((row) => row.primary_area === 'Tecnico' || row.profile_roles?.some((item: any) => item.roles?.name === 'Tecnico'));
+  },
+  async listCommercials() {
+    const rows = await expectData<any[]>(supabase.from('profiles').select('*, profile_roles(roles(name))').eq('active', true).order('first_name'));
+    return rows.filter((row) => row.primary_area === 'Comercial' || row.profile_roles?.some((item: any) => item.roles?.name === 'Comercial'));
   },
   listActive() {
     return expectData<any[]>(supabase.from('profiles').select('*').eq('active', true).order('first_name'));

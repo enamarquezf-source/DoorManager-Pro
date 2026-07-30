@@ -8,8 +8,9 @@ function sitePayload(payload: Record<string, any>) {
 }
 
 export const sitesService = {
-  list(search = '') {
-    let query = supabase.from('sites').select('*, clients(code, legal_name), site_contacts(*), equipment(id, code), cases(id, code), work_orders(id, code), access_requirements(*)').is('deleted_at', null).order('name');
+  async list(search = '') {
+    const companyId = await currentCompanyId();
+    let query = supabase.from('sites').select('*, clients(code, legal_name), site_contacts(*), equipment(id, code), cases(id, code), work_orders(id, code), access_requirements(*)').eq('company_id', companyId).is('deleted_at', null).order('name');
     if (search) query = query.or(contains(['code', 'name', 'address', 'city'], search));
     return expectData<any[]>(query);
   },

@@ -71,6 +71,9 @@ export const technicianOfflineService = {
   async pending() {
     return (await allChanges()).filter((item) => item.status === 'pending' || item.status === 'failed');
   },
+  async history() {
+    return allChanges();
+  },
   async pendingForWorkOrder(workOrderId: string) {
     return (await this.pending()).filter((item) => item.workOrderId === workOrderId);
   },
@@ -91,6 +94,7 @@ export const technicianOfflineService = {
       photos: changes.filter((item) => item.type === 'photo' || item.payload.photos?.length).length,
       materials: changes.filter((item) => item.type === 'material').length,
       signatures: changes.filter((item) => item.type === 'signature').length,
+      synced: changes.filter((item) => item.status === 'synced').length,
     };
   },
   async sync(onProgress?: (message: string) => void) {
@@ -113,7 +117,8 @@ export const technicianOfflineService = {
         result.errors.push(message);
       }
     }
-    result.pending = (await allChanges()).filter((item) => item.status === 'pending').length;
+    const remaining = await allChanges();
+    result.pending = remaining.filter((item) => item.status === 'pending' || item.status === 'failed').length;
     window.dispatchEvent(new Event('dmp-offline-queue-changed'));
     return result;
   },

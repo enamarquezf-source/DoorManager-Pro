@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase/client';
 export async function expectData<T>(query: PromiseLike<{ data: T | null; error: any }>) {
   const { data, error } = await query;
   if (error) {
-    if (import.meta.env.DEV) console.error('Supabase error', error);
+    console.error('Supabase error', error);
     throw new Error(toSpanishSupabaseError(error));
   }
   return data as T;

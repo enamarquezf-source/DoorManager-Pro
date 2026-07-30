@@ -8,13 +8,15 @@ const yesterday = () => {
   return date.toISOString().slice(0, 10);
 };
 
+export const satDashboardAssignmentsSelect = '*, work_orders(code,title,status,scheduled_date,scheduled_time,priority,planned_material), profiles!work_order_assignments_technician_id_fkey(first_name,last_name)';
+
 export const dashboardService = {
   async getSatDashboardData() {
     const day = today();
     const prevDay = yesterday();
     const [workOrders, assignments, technicians, pendingChecks, completedChecks, deficiencies, alerts, materials] = await Promise.all([
       expectData<any[]>(supabase.from('v_work_order_full_detail').select('*').order('scheduled_time', { ascending: true })),
-      expectData<any[]>(supabase.from('work_order_assignments').select('*, work_orders(code,title,status,scheduled_date,scheduled_time,priority,planned_material), profiles(first_name,last_name)').gte('assignment_date', prevDay).order('assignment_date', { ascending: false })),
+      expectData<any[]>(supabase.from('work_order_assignments').select(satDashboardAssignmentsSelect).gte('assignment_date', prevDay).order('assignment_date', { ascending: false })),
       expectData<any[]>(supabase.from('profiles').select('*, profile_roles!inner(roles!inner(name))').eq('profile_roles.roles.name', 'Tecnico').eq('active', true).order('first_name')),
       expectData<any[]>(supabase.from('v_pending_checks').select('*').order('created_at', { ascending: false })),
       expectData<any[]>(supabase.from('v_completed_checks').select('*').gte('finished_at', `${day}T00:00:00`).order('finished_at', { ascending: false })),

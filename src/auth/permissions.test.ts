@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessRoute, isSuperadmin } from './permissions';
+import { canAccessRoute, canCreateAlert, canRole, isSuperadmin } from './permissions';
 import type { Profile, RoleName } from '../shared/types';
 
 function profile(primary_area: RoleName, roles: RoleName[] = []): Profile {
@@ -27,5 +27,18 @@ describe('canAccessRoute', () => {
     expect(canAccessRoute(owner, '/app/superadmin')).toBe(true);
     expect(canAccessRoute(owner, '/app/superadmin/usuarios/nuevo')).toBe(true);
     expect(canAccessRoute(profile('SAT'), '/app/superadmin')).toBe(false);
+  });
+
+  it('impide que el tecnico cree avisos globales', () => {
+    expect(canCreateAlert(profile('Tecnico'))).toBe(false);
+    expect(canCreateAlert(profile('SAT'))).toBe(true);
+  });
+
+  it('mantiene la matriz de gerencia alineada con permisos operativos decididos', () => {
+    expect(canRole('Gerencia', 'ver clientes')).toBe(true);
+    expect(canRole('Gerencia', 'asignar técnicos')).toBe(true);
+    expect(canRole('Gerencia', 'crear clientes')).toBe(false);
+    expect(canRole('Gerencia', 'crear checks')).toBe(false);
+    expect(canRole('Gerencia', 'ejecutar checks')).toBe(false);
   });
 });

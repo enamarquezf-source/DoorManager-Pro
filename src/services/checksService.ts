@@ -12,6 +12,10 @@ function normalize(value?: string | null) {
   return (value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 }
 
+export function hasPendingLocalPhotos(payload: Record<string, any>) {
+  return Array.isArray(payload.photos) && payload.photos.length > 0;
+}
+
 export const checksService = {
   async list(search = '') {
     const companyId = await currentCompanyId();
@@ -102,6 +106,7 @@ export const checksService = {
     }
     if (!sectionId) throw new Error('Falta la sección remota del bloque. El cambio queda guardado localmente.');
 
-    await expectData<any>(supabase.rpc('save_check_block_result', { p_payload: { check_id: change.checkId, section_id: sectionId, result: payload.persistedStatus, observations: payload.observations || null, intervention: payload.intervention || null, items } }));
+    await expectData<any>(supabase.rpc('save_check_block_result', { p_payload: { local_change_id: change.id, check_id: change.checkId, section_id: sectionId, result: payload.persistedStatus, observations: payload.observations || null, intervention: payload.intervention || null, severity: payload.severity || null, components: payload.components ?? [], items } }));
+    if (hasPendingLocalPhotos(payload)) throw new Error('Bloque sincronizado parcialmente. Foto pendiente de subir: se conserva el cambio local para reintento.');
   },
 };

@@ -4,6 +4,20 @@ const adminRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia'];
 const backOfficeRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia', 'Oficina'];
 const operationalRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia', 'Tecnico'];
 
+export const permissionMatrix: Record<RoleName, string[]> = {
+  superadmin: ['*'],
+  Gerencia: ['ver clientes','ver centros','ver equipos','ver partes','crear partes','editar partes','asignar técnicos','ver checks','ver facturación','ver documentación','ver auditoría'],
+  SAT: ['ver clientes','crear clientes','editar clientes','ver centros','crear centros','editar centros','ver equipos','crear equipos','editar equipos','ver partes','crear partes','editar partes','asignar técnicos','ver checks','crear checks','ejecutar checks','sincronizar trabajo técnico','ver documentación','gestionar plantillas'],
+  Comercial: ['ver clientes','crear clientes','editar clientes','ver centros','ver equipos','ver partes','crear partes','ver checks','ver documentación'],
+  Oficina: ['ver clientes','ver centros','ver equipos','ver partes','editar partes','ver checks','ver facturación','ver documentación'],
+  Tecnico: ['ver partes','editar partes','ver checks','ejecutar checks','sincronizar trabajo técnico','ver documentación'],
+};
+
+export function canRole(permissionRole: string, permission: string) {
+  const role = permissionRole as RoleName;
+  return permissionMatrix[role]?.includes('*') || permissionMatrix[role]?.includes(permission) || false;
+}
+
 function rolesOf(profile?: Profile | null) {
   return [...new Set([profile?.primary_area, ...(profile?.roles ?? [])].filter(Boolean))] as RoleName[];
 }
@@ -30,7 +44,7 @@ export function canChangePriority(profile: Profile | null | undefined) { return 
 export function canExecuteWorkOrder(profile: Profile | null | undefined) { return hasAny(profile, operationalRoles); }
 export function canCreateCheck(profile: Profile | null | undefined) { return hasAny(profile, operationalRoles); }
 export function canExecuteCheck(profile: Profile | null | undefined) { return hasAny(profile, operationalRoles); }
-export function canCreateAlert(profile: Profile | null | undefined) { return hasAny(profile, ['SAT', 'Gerencia', 'Comercial', 'Tecnico']); }
+export function canCreateAlert(profile: Profile | null | undefined) { return hasAny(profile, ['SAT', 'Gerencia', 'Comercial']); }
 export function canManageAlert(profile: Profile | null | undefined) { return hasAny(profile, [...backOfficeRoles, 'Comercial', 'Tecnico']); }
 export function canCloseWorkOrder(profile: Profile | null | undefined) { return hasAny(profile, adminRoles); }
 export function canReopenWorkOrder(profile: Profile | null | undefined) { return hasAny(profile, adminRoles); }

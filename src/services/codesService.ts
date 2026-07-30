@@ -21,8 +21,8 @@ export function equipmentPrefix(typeName?: string | null) {
 }
 
 export const codesService = {
-  async next(tableName: string, prefix: string, yearly = false, width = 6) {
-    const companyId = await currentCompanyId();
+  async next(tableName: string, prefix: string, yearly = false, width = 6, companyScope?: string) {
+    const companyId = companyScope ?? await currentCompanyId();
     const { data, error } = await supabase.rpc('next_dmp_code', { p_company_id: companyId, p_table_name: tableName, p_prefix: prefix, p_yearly: yearly, p_width: width });
     if (error || !data) {
       console.error('Error generando código automático', { tableName, prefix, yearly, width, error });
@@ -30,9 +30,9 @@ export const codesService = {
     }
     return data as string;
   },
-  async equipment(typeId: string) {
+  async equipment(typeId: string, companyScope?: string) {
     const { data, error } = await supabase.from('equipment_types').select('name').eq('id', typeId).maybeSingle();
     if (error) throw new Error('No se ha podido leer el tipo de equipo para generar el código.');
-    return this.next('equipment', equipmentPrefix(data?.name), false, 6);
+    return this.next('equipment', equipmentPrefix(data?.name), false, 6, companyScope);
   },
 };

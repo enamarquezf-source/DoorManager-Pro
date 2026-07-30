@@ -7,9 +7,10 @@ function casePayload(payload: Record<string, any>) {
 }
 
 export const casesService = {
-  async list(search = '') {
-    const companyId = await currentCompanyId();
-    let query = supabase.from('cases').select('*, clients(code, legal_name), sites(code, name), case_links(*)').eq('company_id', companyId).is('deleted_at', null).order('created_at', { ascending: false });
+  async list(search = '', companyScope?: string | null) {
+    const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
+    let query = supabase.from('cases').select('*, clients(code, legal_name), sites(code, name), case_links(*)').is('deleted_at', null).order('created_at', { ascending: false });
+    if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'title', 'description', 'status', 'type'], search));
     return expectData<any[]>(query);
   },
@@ -19,7 +20,7 @@ export const casesService = {
     return row;
   },
   async create(payload: Record<string, any>) {
-    const company_id = await currentCompanyId();
+    const company_id = payload.company_id || await currentCompanyId();
     const created_by = await currentProfileId();
     return expectData<any>(supabase.rpc('create_case', {
       p_company_id: company_id,

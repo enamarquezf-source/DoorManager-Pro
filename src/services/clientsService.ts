@@ -8,9 +8,10 @@ function clientPayload(payload: Record<string, any>) {
 }
 
 export const clientsService = {
-  async list(search = '') {
-    const companyId = await currentCompanyId();
-    let query = supabase.from('clients').select('*, client_contacts(*), sites(id, code, name), equipment(id, code), cases(id, code), work_orders(id, code)').eq('company_id', companyId).is('deleted_at', null).order('legal_name');
+  async list(search = '', companyScope?: string | null) {
+    const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
+    let query = supabase.from('clients').select('*, companies(name), client_contacts(*), sites(id, code, name), equipment(id, code), cases(id, code), work_orders(id, code)').is('deleted_at', null).order('legal_name');
+    if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'legal_name', 'trade_name', 'tax_id', 'email', 'phone'], search));
     return expectData<any[]>(query);
   },
@@ -20,15 +21,16 @@ export const clientsService = {
     return row;
   },
   async create(payload: Record<string, any>) {
-    const company_id = await currentCompanyId();
-    const code = await codesService.next('clients', 'CLI');
+    const company_id = payload.company_id || await currentCompanyId();
+    const code = await codesService.next('clients', 'CLI', false, 6, company_id);
     return expectData<any>(supabase.from('clients').insert({ ...clientPayload(payload), company_id, code }).select().maybeSingle());
   },
   update(id: string, payload: Record<string, any>) {
     return expectData<any>(supabase.from('clients').update(clientPayload(payload)).eq('id', id).select().maybeSingle());
   },
   async addContact(client_id: string, payload: Record<string, any>) {
-    const company_id = await currentCompanyId();
+    const parent = await expectData<any>(supabase.from('clients').select('company_id').eq('id', client_id).single());
+    const company_id = payload.company_id || parent.company_id;
     return expectData<any>(supabase.from('client_contacts').insert({ ...payload, client_id, company_id }).select().single());
   },
   updateContact(id: string, payload: Record<string, any>) {

@@ -28,14 +28,15 @@ export type WorkOrderFullDetail = {
 };
 
 export const workOrdersService = {
-  async list(search = '') {
-    const companyId = await currentCompanyId();
-    let query = supabase.from('v_work_order_full_detail').select('*').eq('company_id', companyId).order('scheduled_date', { ascending: false });
+  async list(search = '', companyScope?: string | null) {
+    const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
+    let query = supabase.from('v_work_order_full_detail').select('*').order('scheduled_date', { ascending: false });
+    if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'title', 'description', 'client_name', 'site_name', 'equipment_code', 'status'], search));
     return expectData<any[]>(query);
   },
-  async listWithAssignments(search = '') {
-    const workOrders = await this.list(search);
+  async listWithAssignments(search = '', companyScope?: string | null) {
+    const workOrders = await this.list(search, companyScope);
     const ids = workOrders.map((item) => item.id).filter(Boolean);
     if (!ids.length) return [];
     const [assignments, checks] = await Promise.all([
@@ -48,9 +49,11 @@ export const workOrdersService = {
       checks: checks.filter((item) => item.work_order_id === work.id),
     }));
   },
-  async options() {
-    const companyId = await currentCompanyId();
-    return expectData<any[]>(supabase.from('work_orders').select('id, code, title, client_id, site_id, main_equipment_id, status').eq('company_id', companyId).is('deleted_at', null).order('scheduled_date', { ascending: false }));
+  async options(companyScope?: string | null) {
+    const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
+    let query = supabase.from('work_orders').select('id, code, title, client_id, site_id, main_equipment_id, status').is('deleted_at', null).order('scheduled_date', { ascending: false });
+    if (companyId) query = query.eq('company_id', companyId);
+    return expectData<any[]>(query);
   },
   get(id: string) {
     return this.getWorkOrderFullDetail(id);
@@ -126,7 +129,7 @@ export const workOrdersService = {
     }
   },
   async create(payload: Record<string, any>, role: string) {
-    const companyId = await currentCompanyId();
+    const companyId = payload.company_id || await currentCompanyId();
     const profileId = await currentProfileId();
     return expectData<string>(supabase.rpc('create_work_order_full', { p_payload: { ...payload, company_id: companyId, created_by: profileId, created_role: role } }));
   },

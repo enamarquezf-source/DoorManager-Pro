@@ -8,9 +8,10 @@ function sitePayload(payload: Record<string, any>) {
 }
 
 export const sitesService = {
-  async list(search = '') {
-    const companyId = await currentCompanyId();
-    let query = supabase.from('sites').select('*, clients(code, legal_name), site_contacts(*), equipment(id, code), cases(id, code), work_orders(id, code), access_requirements(*)').eq('company_id', companyId).is('deleted_at', null).order('name');
+  async list(search = '', companyScope?: string | null) {
+    const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
+    let query = supabase.from('sites').select('*, companies(name), clients(code, legal_name), site_contacts(*), equipment(id, code), cases(id, code), work_orders(id, code), access_requirements(*)').is('deleted_at', null).order('name');
+    if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'name', 'address', 'city'], search));
     return expectData<any[]>(query);
   },
@@ -20,15 +21,16 @@ export const sitesService = {
     return row;
   },
   async create(payload: Record<string, any>) {
-    const company_id = await currentCompanyId();
-    const code = await codesService.next('sites', 'CEN');
+    const company_id = payload.company_id || await currentCompanyId();
+    const code = await codesService.next('sites', 'CEN', false, 6, company_id);
     return expectData<any>(supabase.from('sites').insert({ ...sitePayload(payload), company_id, code }).select().maybeSingle());
   },
   update(id: string, payload: Record<string, any>) {
     return expectData<any>(supabase.from('sites').update(sitePayload(payload)).eq('id', id).select().maybeSingle());
   },
   async addContact(site_id: string, payload: Record<string, any>) {
-    const company_id = await currentCompanyId();
+    const parent = await expectData<any>(supabase.from('sites').select('company_id').eq('id', site_id).single());
+    const company_id = payload.company_id || parent.company_id;
     return expectData<any>(supabase.from('site_contacts').insert({ ...payload, site_id, company_id }).select().single());
   },
 };

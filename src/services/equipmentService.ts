@@ -8,15 +8,18 @@ function equipmentPayload(payload: Record<string, any>) {
 }
 
 export const equipmentService = {
-  async list(search = '') {
-    const companyId = await currentCompanyId();
-    let query = supabase.from('equipment').select('*, clients(code, legal_name), sites(code, name), equipment_types(name), equipment_components(*)').eq('company_id', companyId).is('deleted_at', null).order('code');
+  async list(search = '', companyScope?: string | null) {
+    const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
+    let query = supabase.from('equipment').select('*, companies(name), clients(code, legal_name), sites(code, name), equipment_types(name), equipment_components(*)').is('deleted_at', null).order('code');
+    if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'brand', 'model', 'serial_number', 'internal_location', 'status'], search));
     return expectData<any[]>(query);
   },
-  async types() {
-    const companyId = await currentCompanyId();
-    return expectData<any[]>(supabase.from('equipment_types').select('*').eq('company_id', companyId).eq('active', true).order('name'));
+  async types(companyScope?: string | null) {
+    const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
+    let query = supabase.from('equipment_types').select('*').eq('active', true).order('name');
+    if (companyId) query = query.eq('company_id', companyId);
+    return expectData<any[]>(query);
   },
   async get(id: string) {
     const row = await expectData<any>(supabase.from('equipment').select(`
@@ -36,15 +39,16 @@ export const equipmentService = {
     return expectData<any[]>(supabase.from('v_equipment_history').select('*').eq('equipment_id', id).order('event_at', { ascending: false }));
   },
   async create(payload: Record<string, any>) {
-    const company_id = await currentCompanyId();
-    const code = await codesService.equipment(payload.equipment_type_id);
+    const company_id = payload.company_id || await currentCompanyId();
+    const code = await codesService.equipment(payload.equipment_type_id, company_id);
     return expectData<any>(supabase.from('equipment').insert({ ...equipmentPayload(payload), company_id, code }).select().maybeSingle());
   },
   update(id: string, payload: Record<string, any>) {
     return expectData<any>(supabase.from('equipment').update(equipmentPayload(payload)).eq('id', id).select().maybeSingle());
   },
   async addComponent(equipment_id: string, payload: Record<string, any>) {
-    const company_id = await currentCompanyId();
+    const parent = await expectData<any>(supabase.from('equipment').select('company_id').eq('id', equipment_id).single());
+    const company_id = parent.company_id;
     return expectData<any>(supabase.from('equipment_components').insert({ ...payload, equipment_id, company_id }).select().single());
   },
 };

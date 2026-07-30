@@ -17,23 +17,28 @@ export function hasPendingLocalPhotos(payload: Record<string, any>) {
 }
 
 export const checksService = {
-  async list(search = '') {
-    const companyId = await currentCompanyId();
-    let query = supabase.from('checks').select('*, equipment!checks_equipment_id_fkey(code), work_orders!checks_work_order_id_fkey(code), profiles!checks_technician_id_fkey(first_name,last_name)').eq('company_id', companyId).is('deleted_at', null).order('created_at', { ascending: false });
+  async list(search = '', companyScope?: string | null) {
+    const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
+    let query = supabase.from('checks').select('*, companies(name), equipment!checks_equipment_id_fkey(code), work_orders!checks_work_order_id_fkey(code), profiles!checks_technician_id_fkey(first_name,last_name)').is('deleted_at', null).order('created_at', { ascending: false });
+    if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'status', 'global_result', 'observations'], search));
     return expectData<any[]>(query);
   },
-  async pending() {
-    const companyId = await currentCompanyId();
-    return expectData<any[]>(supabase.from('v_pending_checks').select('*').eq('company_id', companyId).order('created_at', { ascending: false }));
+  async pending(companyScope?: string | null) {
+    const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
+    let query = supabase.from('v_pending_checks').select('*').order('created_at', { ascending: false });
+    if (companyId) query = query.eq('company_id', companyId);
+    return expectData<any[]>(query);
   },
   async pendingForCurrentTechnician() {
     const profileId = await currentProfileId();
     return expectData<any[]>(supabase.from('v_pending_checks').select('*').eq('technician_id', profileId).order('created_at', { ascending: false }));
   },
-  async completed() {
-    const companyId = await currentCompanyId();
-    return expectData<any[]>(supabase.from('v_completed_checks').select('*').eq('company_id', companyId).order('finished_at', { ascending: false }));
+  async completed(companyScope?: string | null) {
+    const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
+    let query = supabase.from('v_completed_checks').select('*').order('finished_at', { ascending: false });
+    if (companyId) query = query.eq('company_id', companyId);
+    return expectData<any[]>(query);
   },
   async completedForCurrentTechnician() {
     const profileId = await currentProfileId();
@@ -53,17 +58,18 @@ export const checksService = {
     if (!assignment) throw new Error('No tienes permiso para acceder a este trabajo');
     return this.get(id);
   },
-  async templates(equipmentTypeId?: string) {
-    const companyId = await currentCompanyId();
-    let query = supabase.from('check_templates').select('*, check_template_sections(*, check_template_items(*))').eq('company_id', companyId).eq('active', true);
+  async templates(equipmentTypeId?: string, companyScope?: string | null) {
+    const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
+    let query = supabase.from('check_templates').select('*, check_template_sections(*, check_template_items(*))').eq('active', true);
+    if (companyId) query = query.eq('company_id', companyId);
     if (equipmentTypeId) query = query.eq('equipment_type_id', equipmentTypeId);
     else query = query.is('equipment_type_id', null);
     return expectData<any[]>(query.order('name'));
   },
   async create(payload: Record<string, any>) {
-    const company_id = await currentCompanyId();
+    const company_id = payload.company_id || await currentCompanyId();
     const technician_id = payload.technician_id || await currentProfileId();
-    const code = await codesService.next('checks', 'CHK', true);
+    const code = await codesService.next('checks', 'CHK', true, 6, company_id);
     return expectData<any>(supabase.from('checks').insert({ ...checkPayload(payload), company_id, technician_id, code }).select().maybeSingle());
   },
   update(id: string, payload: Record<string, any>) {

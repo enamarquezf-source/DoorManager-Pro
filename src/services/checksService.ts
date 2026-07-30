@@ -103,8 +103,6 @@ export const checksService = {
     }
     if (!sectionId) throw new Error('Falta la sección remota del bloque. El cambio queda guardado localmente.');
 
-    const sectionResult = await this.setSectionResult(change.checkId, sectionId, payload.persistedStatus, payload.observations);
-    await this.setItemsResult(change.checkId, sectionResult.id, items, payload.persistedStatus, payload.observations);
-    await expectData<any>(supabase.from('checks').update({ status: 'En curso', global_result: payload.persistedStatus, started_at: new Date().toISOString() }).eq('id', change.checkId).is('finished_at', null).select('id').single());
+    await expectData<any>(supabase.rpc('save_check_block_result', { p_payload: { check_id: change.checkId, section_id: sectionId, result: payload.persistedStatus, observations: payload.observations || null, intervention: payload.intervention || null, items } }));
   },
 };

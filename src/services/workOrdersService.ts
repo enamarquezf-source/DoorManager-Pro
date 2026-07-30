@@ -128,31 +128,7 @@ export const workOrdersService = {
   async create(payload: Record<string, any>, role: string) {
     const companyId = await currentCompanyId();
     const profileId = await currentProfileId();
-    const data = await expectData<string>(supabase.rpc('create_work_order', {
-      p_company_id: companyId,
-      p_client_id: payload.client_id,
-      p_site_id: payload.site_id,
-      p_title: payload.title,
-      p_type: payload.type,
-      p_priority: payload.priority,
-      p_origin: payload.origin,
-      p_created_by: profileId,
-      p_created_role: role,
-      p_description: payload.description || null,
-      p_case_id: payload.case_id || null,
-      p_main_equipment_id: payload.main_equipment_id || null,
-    }));
-    await supabase.from('work_orders').update({
-      scheduled_date: payload.scheduled_date || null,
-      scheduled_time: payload.scheduled_time || null,
-      estimated_duration_minutes: payload.estimated_duration_minutes || null,
-      contact_id: payload.contact_id || null,
-      access_requirement_id: payload.access_requirement_id || null,
-      planned_material: payload.planned_material || null,
-    }).eq('id', data);
-    if (payload.technician_id) await this.assign(data, payload.technician_id, payload.scheduled_date || new Date().toISOString().slice(0, 10), payload.scheduled_time || null, null, 'Principal');
-    if (role === 'Comercial' && payload.type === 'Visita comercial' && !payload.technician_id) await this.assign(data, profileId, payload.scheduled_date || new Date().toISOString().slice(0, 10), payload.scheduled_time || null, null, 'Principal');
-    return data;
+    return expectData<string>(supabase.rpc('create_work_order_full', { p_payload: { ...payload, company_id: companyId, created_by: profileId, created_role: role } }));
   },
   update(id: string, payload: Record<string, any>) {
     return expectData<any>(supabase.from('work_orders').update(workOrderPayload(payload)).eq('id', id).select().maybeSingle());

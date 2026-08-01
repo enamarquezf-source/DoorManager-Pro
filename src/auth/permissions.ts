@@ -62,7 +62,7 @@ export function canAccessModule(profile: Profile | null | undefined, workspace: 
   if (!profile) return false;
   if (workspace === 'superadmin') return hasAny(profile, ['superadmin']);
   if (workspace === 'tecnico') return ['jornada', 'checks', 'avisos'].includes(moduleId);
-  if (workspace === 'sat') return hasAny(profile, ['SAT', 'Gerencia']);
+  if (workspace === 'sat') return hasAny(profile, ['SAT', 'Gerencia']) && !['comerciales'].includes(moduleId);
   if (workspace === 'comercial') return hasAny(profile, ['Comercial', 'Gerencia', 'SAT']);
   if (workspace === 'oficina') return hasAny(profile, ['Oficina', 'Gerencia']);
   if (workspace === 'gerencia') return hasAny(profile, ['Gerencia']);
@@ -79,6 +79,7 @@ export function canAccessRoute(profile: Profile | null | undefined, path: string
   if (hasAny(profile, ['Tecnico']) && !hasAny(profile, ['SAT', 'Gerencia', 'Comercial', 'Oficina'])) {
     return path === '/app/checks' || path.startsWith('/app/checks/') || path.startsWith('/app/avisos');
   }
+  if (path.startsWith('/app/plantillas')) return hasAny(profile, ['SAT', 'Gerencia']);
   if (path.startsWith('/app/clientes') || path.startsWith('/app/centros') || path.startsWith('/app/equipos') || path.startsWith('/app/expedientes') || path.startsWith('/app/partes') || path.startsWith('/app/checks') || path.startsWith('/app/deficiencias')) return hasAny(profile, ['SAT', 'Gerencia', 'Comercial']);
   if (path.startsWith('/app/documentos')) return hasAny(profile, ['SAT', 'Gerencia', 'Oficina']);
   if (path.startsWith('/app/gerencia')) return hasAny(profile, ['Gerencia']);

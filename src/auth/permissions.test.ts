@@ -34,6 +34,13 @@ describe('canAccessRoute', () => {
     expect(canCreateAlert(profile('SAT'))).toBe(true);
   });
 
+  it('permite a SAT coordinar operativa sin acceder a superadmin', () => {
+    const sat = profile('SAT');
+    ['/app/inicio', '/app/clientes', '/app/centros', '/app/equipos', '/app/expedientes', '/app/partes', '/app/checks', '/app/deficiencias', '/app/documentos', '/app/avisos', '/app/plantillas'].forEach((route) => expect(canAccessRoute(sat, route)).toBe(true));
+    expect(canAccessRoute(sat, '/app/superadmin')).toBe(false);
+    expect(canAccessRoute(sat, '/app/superadmin/usuarios')).toBe(false);
+  });
+
   it('mantiene la matriz de gerencia alineada con permisos operativos decididos', () => {
     expect(canRole('Gerencia', 'ver clientes')).toBe(true);
     expect(canRole('Gerencia', 'asignar técnicos')).toBe(true);

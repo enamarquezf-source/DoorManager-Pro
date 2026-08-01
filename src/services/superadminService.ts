@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase/client';
-import { expectData } from './query';
+import { currentCompanyId, expectData } from './query';
 
 export const superadminService = {
   companies() {
@@ -54,8 +54,8 @@ export const superadminService = {
     if (companyId) query = query.eq('company_id', companyId);
     return expectData<any[]>(query);
   },
-  createTemplate(payload: Record<string, any>) {
-    return expectData<any>(supabase.from('check_templates').insert(templatePayload(payload)).select().single());
+  async createTemplate(payload: Record<string, any>) {
+    return expectData<any>(supabase.from('check_templates').insert(templatePayload({ ...payload, company_id: payload.company_id || await currentCompanyId() })).select().single());
   },
   updateTemplate(templateId: string, payload: Record<string, any>) {
     return expectData<any>(supabase.from('check_templates').update(templatePayload(payload)).eq('id', templateId).select().single());

@@ -16,7 +16,7 @@ export const alertsService = {
     const created_by = await currentProfileId();
     const code = await codesService.next('alerts', 'AVI', true);
     const alert = await expectData<any>(supabase.from('alerts').insert({ ...payload, company_id, created_by, code }).select().single());
-    if (recipients.length) await supabase.from('alert_recipients').insert(recipients.map((item) => ({ company_id, alert_id: alert.id, recipient_role: item.role, recipient_profile_id: item.profile_id })));
+    if (recipients.length) await expectData<any[]>(supabase.from('alert_recipients').insert(recipients.map((item) => ({ company_id, alert_id: alert.id, recipient_role: item.role, recipient_profile_id: item.profile_id }))).select());
     return alert;
   },
   async markAsRead(recipientId: string) {

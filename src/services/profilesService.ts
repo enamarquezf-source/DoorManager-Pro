@@ -23,6 +23,6 @@ export const profilesService = {
     return rows.filter((row) => row.primary_area === 'Comercial' || row.profile_roles?.some((item: any) => item.roles?.name === 'Comercial'));
   },
   listActive() {
-    return expectData<any[]>(supabase.from('profiles').select('*').eq('active', true).order('first_name'));
+    return expectData<any[]>(supabase.from('profiles').select('*').eq('active', true).is('deleted_at', null).order('first_name'));
   },
 };

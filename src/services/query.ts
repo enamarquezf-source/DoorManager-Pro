@@ -13,6 +13,9 @@ export function toSpanishSupabaseError(error: any) {
   const message = error?.message ?? String(error ?? '');
   if (message.includes('more than one relationship')) return 'Error al cargar datos relacionados. Hay una relación ambigua en la consulta de Supabase.';
   if (message.includes('permission denied') || message.includes('row-level security')) return 'No tienes permisos para realizar esta operación con tu rol actual.';
+  if (message.includes('JWT') || message.includes('auth')) return 'Tu sesión no permite realizar esta operación. Vuelve a iniciar sesión si el problema continúa.';
+  if (message.includes('Failed to fetch') || message.includes('NetworkError') || message.includes('fetch failed')) return 'No hay conexión con Supabase. Revisa la red e inténtalo de nuevo.';
+  if (message.includes('No se ha encontrado')) return message;
   if (message.includes('duplicate key')) return 'Ya existe un registro con esos datos.';
   if (message.includes('violates foreign key')) return 'El registro relacionado seleccionado no existe o no pertenece a tu empresa.';
   if (message.includes('null value') && message.includes('code')) return 'No se ha podido generar el código automático. Inténtalo de nuevo.';

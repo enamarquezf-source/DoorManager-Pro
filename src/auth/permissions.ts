@@ -44,6 +44,15 @@ export function canChangePriority(profile: Profile | null | undefined) { return 
 export function canExecuteWorkOrder(profile: Profile | null | undefined) { return hasAny(profile, operationalRoles); }
 export function canCreateCheck(profile: Profile | null | undefined) { return hasAny(profile, operationalRoles); }
 export function canExecuteCheck(profile: Profile | null | undefined) { return hasAny(profile, operationalRoles); }
+export function canManageCheck(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT']); }
+export function canViewCheck(profile: Profile | null | undefined, check?: any) {
+  if (!profile) return false;
+  if (hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina', 'Comercial'])) return true;
+  if (!hasAny(profile, ['Tecnico'])) return false;
+  const profileIds = new Set([profile.id, profile.auth_user_id].filter(Boolean));
+  if (profileIds.has(check?.technician_id) || profileIds.has(check?.profiles?.id) || profileIds.has(check?.profiles?.auth_user_id)) return true;
+  return canViewWorkOrder(profile, check?.work_orders ?? check?.work_order);
+}
 export function canCreateAlert(profile: Profile | null | undefined) { return hasAny(profile, ['SAT', 'Gerencia', 'Comercial']); }
 export function canManageAlert(profile: Profile | null | undefined) { return hasAny(profile, [...backOfficeRoles, 'Comercial', 'Tecnico']); }
 export function canCloseWorkOrder(profile: Profile | null | undefined) { return hasAny(profile, adminRoles); }

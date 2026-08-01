@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessRoute, canCreateAlert, canRole, isSuperadmin } from './permissions';
+import { canAccessRoute, canCreateAlert, canManageCheck, canRole, canViewCheck, isSuperadmin } from './permissions';
 import type { Profile, RoleName } from '../shared/types';
 
 function profile(primary_area: RoleName, roles: RoleName[] = []): Profile {
@@ -40,5 +40,18 @@ describe('canAccessRoute', () => {
     expect(canRole('Gerencia', 'crear clientes')).toBe(false);
     expect(canRole('Gerencia', 'crear checks')).toBe(false);
     expect(canRole('Gerencia', 'ejecutar checks')).toBe(false);
+  });
+
+  it('impide edición administrativa de checks a un tecnico puro', () => {
+    const tecnico = profile('Tecnico');
+    expect(canManageCheck(tecnico)).toBe(false);
+    expect(canManageCheck(profile('SAT'))).toBe(true);
+    expect(canManageCheck(profile('superadmin'))).toBe(true);
+  });
+
+  it('limita checks de tecnico puro a asignaciones propias', () => {
+    const tecnico = profile('Tecnico');
+    expect(canViewCheck(tecnico, { technician_id: tecnico.id })).toBe(true);
+    expect(canViewCheck(tecnico, { technician_id: 'other' })).toBe(false);
   });
 });

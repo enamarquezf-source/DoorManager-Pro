@@ -49,7 +49,8 @@ export const superadminService = {
   async softDeleteProfile(profileId: string) {
     return expectData<any>(supabase.rpc('superadmin_update_profile', { p_profile_id: profileId, p_profile: { deleted_at: new Date().toISOString(), active: false } }).single());
   },
-  templates(companyId: string | null = null) {
+  async templates(companyScope?: string | null) {
+    const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
     let query = supabase.from('check_templates').select('*, companies(name), equipment_types(name), check_template_sections(*, check_template_items(*))').order('updated_at', { ascending: false });
     if (companyId) query = query.eq('company_id', companyId);
     return expectData<any[]>(query);
@@ -79,7 +80,9 @@ export const superadminService = {
   updateSection(sectionId: string, payload: Record<string, any>) {
     return expectData<any>(supabase.from('check_template_sections').update({ title: payload.title, position: Number(payload.position) }).eq('id', sectionId).select().single());
   },
-  deleteSection(sectionId: string) {
+  async deleteSection(sectionId: string) {
+    const used = await expectData<any[]>(supabase.from('check_section_results').select('id').eq('section_id', sectionId).limit(1));
+    if (used.length) throw new Error('No se puede eliminar el bloque porque ya tiene resultados de checks asociados. Desactiva o duplica la plantilla antes de modificar su estructura histórica.');
     return expectData<any>(supabase.from('check_template_sections').delete().eq('id', sectionId));
   },
   createItem(section_id: string, payload: Record<string, any>) {
@@ -88,7 +91,9 @@ export const superadminService = {
   updateItem(itemId: string, payload: Record<string, any>) {
     return expectData<any>(supabase.from('check_template_items').update({ title: payload.title, component: payload.component || payload.title, position: Number(payload.position), mandatory: payload.mandatory ?? true }).eq('id', itemId).select().single());
   },
-  deleteItem(itemId: string) {
+  async deleteItem(itemId: string) {
+    const used = await expectData<any[]>(supabase.from('check_item_results').select('id').eq('item_id', itemId).limit(1));
+    if (used.length) throw new Error('No se puede eliminar el ítem porque ya tiene resultados de checks asociados. Desactiva o duplica la plantilla antes de modificar su estructura histórica.');
     return expectData<any>(supabase.from('check_template_items').delete().eq('id', itemId));
   },
   async reorderSections(sections: any[]) {

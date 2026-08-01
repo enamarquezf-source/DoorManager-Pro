@@ -58,13 +58,21 @@ export const checksService = {
     if (!assignment) throw new Error('No tienes permiso para acceder a este trabajo');
     return this.get(id);
   },
-  async templates(equipmentTypeId?: string, companyScope?: string | null) {
+  async templates(equipmentTypeId?: string | null, companyScope?: string | null) {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
-    let query = supabase.from('check_templates').select('*, check_template_sections(*, check_template_items(*))').eq('active', true);
-    if (companyId) query = query.eq('company_id', companyId);
-    if (equipmentTypeId) query = query.eq('equipment_type_id', equipmentTypeId);
+    let query = supabase.from('check_templates').select('*, companies(name), equipment_types(name), check_template_sections(*, check_template_items(*))').eq('active', true);
+    if (companyId) query = query.or(`company_id.eq.${companyId},company_id.is.null`);
+    if (equipmentTypeId) query = query.or(`equipment_type_id.eq.${equipmentTypeId},equipment_type_id.is.null`);
     else query = query.is('equipment_type_id', null);
     return expectData<any[]>(query.order('name'));
+  },
+  async activeTemplateCount(companyScope?: string | null) {
+    const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
+    let query = supabase.from('check_templates').select('id', { count: 'exact', head: true }).eq('active', true);
+    if (companyId) query = query.or(`company_id.eq.${companyId},company_id.is.null`);
+    const { count, error } = await query;
+    if (error) throw new Error('No se han podido consultar las plantillas activas disponibles.');
+    return count ?? 0;
   },
   async create(payload: Record<string, any>) {
     const company_id = payload.company_id || await currentCompanyId();

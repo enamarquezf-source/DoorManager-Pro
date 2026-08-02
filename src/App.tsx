@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent, type ReactNode } from 'react';
 import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Bell, BriefcaseBusiness, Building2, CalendarClock, CheckCircle2, ChevronLeft, ClipboardCheck, ClipboardList, Eye, EyeOff, Factory, FileText, Gauge, Home, LogOut, Menu, PackageCheck, PanelLeftClose, PanelLeftOpen, PieChart, Search, Settings, ShieldAlert, Truck, UserRound, UsersRound, Warehouse, Wrench, X } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
@@ -23,6 +23,7 @@ import { technicianOfflineService } from './services/technicianOfflineService';
 import { canAccessModule, canAccessRoute, canAssignTechnician, canCreateAlert, canCreateCheck, canCreateWorkOrder, canEditWorkOrder, canExecuteCheck, canExecuteWorkOrder, canManageCheck, canRole, canViewCheck, canViewWorkOrder, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './auth/permissions';
 import { displayStatus, formatDate, fullName, initials, nextWorkOrderStatus, previousWorkOrderStatus, severityForPriority, severityForStatus, visibleLabel, workspaceTitles, workspaceToRole } from './shared/labels';
 import { deficiencyFiltersFromParams, isOpenDeficiencyStatus, normalizeParam, workOrderFilterFromParams } from './shared/filters';
+import { canvasHasInk, fileToLocalPhoto } from './shared/offlineMedia';
 import type { Profile, RoleName, Severity, Workspace } from './shared/types';
 
 type AuthContextValue = { session: Session | null; profile: Profile | null; workspace: Workspace; setWorkspace: (workspace: Workspace) => void; refreshProfile: () => Promise<void>; signOut: () => Promise<void> };
@@ -175,15 +176,6 @@ function useLoad<T>(loader: () => Promise<T>, deps: unknown[] = [], empty: T) {
   const reload = async () => { setState((prev) => ({ ...prev, loading: true, error: '' })); try { setState({ data: await loader(), loading: false, error: '' }); } catch (err) { setState({ data: empty, loading: false, error: err instanceof Error ? err.message : 'Error inesperado' }); } };
   useEffect(() => { reload(); }, deps);
   return { ...state, reload };
-}
-
-function fileToLocalPhoto(file: File): Promise<Record<string, string | number>> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(reader.error);
-    reader.onload = () => resolve({ id: crypto.randomUUID(), name: file.name, type: file.type, size: file.size, dataUrl: String(reader.result), syncStatus: 'pending' });
-    reader.readAsDataURL(file);
-  });
 }
 
 function HomePage() {
@@ -535,7 +527,7 @@ function SyncButton({ workOrderId, checkId }: { workOrderId?: string; checkId?: 
   const sync = async () => {
     if (!pending.length || syncing) return;
     setSyncing(true); setMessage(`Pendientes: ${summary.pending}. Fallidos reintentables: ${summary.failed}. Bloques: ${summary.blocks}. Incidencias: ${summary.incidences}. Fotos: ${summary.photos}. Materiales: ${summary.materials}. Firmas: ${summary.signatures}.`);
-    const result = await technicianOfflineService.sync(setMessage);
+    const result = await technicianOfflineService.sync(setMessage, { workOrderId, checkId });
     setMessage(`Sincronizados: ${result.synced}. Fallidos: ${result.failed}. Pendientes: ${result.pending}.`);
     setSyncing(false); reload();
   };
@@ -547,7 +539,8 @@ function PendingSyncPage() {
   const [message, setMessage] = useState('');
   const [syncing, setSyncing] = useState(false);
   const sync = async () => { setSyncing(true); const result = await technicianOfflineService.sync(setMessage); setMessage(`Sincronizados: ${result.synced}. Fallidos: ${result.failed}. Quedan por enviar: ${result.pending}.`); setSyncing(false); reload(); };
-    return <section className="page technician-page"><BackButton /><div className="page-head"><div><h2>Pendientes de sincronizar</h2><p>Datos técnicos guardados en este dispositivo hasta que Supabase confirme la sincronización.</p></div><button className="primary" disabled={!pending.length || syncing} onClick={sync}>{syncing ? 'Sincronizando...' : summary.failed && !summary.pending ? 'Reintentar fallidos' : 'Sincronizar todo'}</button></div><Card title="Resumen"><InfoGrid items={[[ 'Total por enviar', summary.total ], [ 'Pendientes', summary.pending ], [ 'Fallidos', summary.failed ], [ 'Sincronizados ahora', message.match(/Sincronizados: (\d+)/)?.[1] ?? '0' ], [ 'Bloques', summary.blocks ], [ 'Incidencias', summary.incidences ], [ 'Materiales', summary.materials ], [ 'Fotos', summary.photos ], [ 'Firmas', summary.signatures ]]} />{message && <p className="success-note">{message}</p>}</Card><div className="compact-list">{pending.map((item) => <article key={item.id}><Badge tone={item.status === 'failed' ? 'warn' : 'info'}>{item.status === 'failed' ? 'Fallido' : item.status === 'syncing' ? 'Sincronizando' : 'Pendiente'}</Badge><p><strong>{displayStatus(item.type)}</strong><br /><small>Parte: {item.workOrderId ?? '-'} · Check: {item.checkId ?? '-'} · Bloque: {item.blockId ?? '-'}</small><br /><small>Fecha: {formatDate(item.updatedAt)} · Intentos: {item.attempts ?? 0}</small></p>{item.error && <p className="form-error">{item.error}</p>}<button onClick={sync} disabled={syncing}>Reintentar</button></article>)}</div>{!pending.length && <Card title="Sin pendientes"><p className="large-note">No hay cambios locales pendientes o fallidos.</p></Card>}</section>;
+  const retryOne = async (changeId: string) => { setSyncing(true); const result = await technicianOfflineService.syncOne(changeId, setMessage); setMessage(`Fila sincronizada: ${result.synced}. Fallidos: ${result.failed}.`); setSyncing(false); reload(); };
+    return <section className="page technician-page"><BackButton /><div className="page-head"><div><h2>Pendientes de sincronizar</h2><p>Datos técnicos guardados en este dispositivo hasta que Supabase confirme la sincronización.</p></div><button className="primary" disabled={!pending.length || syncing} onClick={sync}>{syncing ? 'Sincronizando...' : 'Sincronizar todo'}</button></div><Card title="Resumen"><InfoGrid items={[[ 'Total por enviar', summary.total ], [ 'Pendientes', summary.pending ], [ 'Bloqueados', summary.blocked ], [ 'Fallidos', summary.failed ], [ 'Sincronizados ahora', message.match(/Sincronizados: (\d+)/)?.[1] ?? '0' ], [ 'Bloques', summary.blocks ], [ 'Incidencias', summary.incidences ], [ 'Materiales', summary.materials ], [ 'Fotos', summary.photos ], [ 'Firmas', summary.signatures ]]} />{message && <p className="success-note">{message}</p>}</Card><div className="compact-list">{pending.map((item) => <article key={item.id}><Badge tone={item.status === 'failed' ? 'danger' : item.status === 'blocked' ? 'warn' : 'info'}>{item.status === 'failed' ? 'Fallido' : item.status === 'blocked' ? 'Bloqueado' : item.status === 'syncing' ? 'Sincronizando' : 'Pendiente'}</Badge><p><strong>{displayStatus(item.type)}</strong><br /><small>Parte: {item.workOrderId ?? '-'} · Check: {item.checkId ?? '-'} · Bloque: {item.blockId ?? '-'}</small><br /><small>Fecha: {formatDate(item.updatedAt)} · Intentos: {item.attempts ?? 0}</small></p>{item.error && <p className="form-error">{item.error}</p>}<button onClick={() => retryOne(item.id)} disabled={syncing}>Reintentar esta fila</button></article>)}</div>{!pending.length && <Card title="Sin pendientes"><p className="large-note">No hay cambios locales pendientes, fallidos o bloqueados.</p></Card>}</section>;
 }
 
 function TechnicianDayPage() {
@@ -562,7 +555,6 @@ function TechnicianDayPage() {
 
 function TechnicianWorkPage() {
   const { id = '' } = useParams();
-  const navigate = useNavigate();
   const { profile } = useAuth();
   const { data, loading, error, reload } = useLoad(() => workOrdersService.getTechnicianAssigned(id), [id], null as any);
   const [message, setMessage] = useState('');
@@ -577,7 +569,47 @@ function TechnicianLocalForm({ workOrderId, type, title, fields }: any) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [message, setMessage] = useState('');
   const save = async () => { await technicianOfflineService.upsert({ type, workOrderId, payload: values }); setMessage('Guardado en dispositivo. Pendiente de sincronizar.'); };
-  return <Card title={title}>{fields.map(([key, label]: any[]) => <label key={key}>{label}<textarea value={values[key] ?? ''} onChange={(event) => setValues({ ...values, [key]: event.target.value })} /></label>)}<button className="primary wide" onClick={save}>Guardar localmente</button>{message && <p className="success-note">{message}</p>}</Card>;
+  return <><Card title={title}>{fields.map(([key, label]: any[]) => <label key={key}>{label}<textarea value={values[key] ?? ''} onChange={(event) => setValues({ ...values, [key]: event.target.value })} /></label>)}<button className="primary wide" onClick={save}>Guardar localmente</button>{message && <p className="success-note">{message}</p>}</Card>{type === 'material' && <><WorkOrderPhotoForm workOrderId={workOrderId} /><WorkOrderSignatureForm workOrderId={workOrderId} /></>}</>;
+}
+
+function WorkOrderPhotoForm({ workOrderId }: { workOrderId: string }) {
+  const [message, setMessage] = useState('');
+  const save = async (files: FileList | null) => {
+    if (!files?.length) return;
+    try {
+      const photos = await Promise.all(Array.from(files).map(fileToLocalPhoto));
+      await Promise.all(photos.map((photo) => technicianOfflineService.upsert({ type: 'photo', workOrderId, payload: photo })));
+      setMessage(`${photos.length} foto(s) guardada(s) en el dispositivo.`);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'No se ha podido guardar la foto localmente.');
+    }
+  };
+  return <Card title="Fotos del parte"><label className="component-photo">Añadir foto real<input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" multiple onChange={(event) => save(event.target.files)} /></label>{message && <p className={message.includes('guardada') ? 'success-note' : 'form-error'}>{message}</p>}</Card>;
+}
+
+function WorkOrderSignatureForm({ workOrderId }: { workOrderId: string }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const drawing = useRef(false);
+  const [signerName, setSignerName] = useState('');
+  const [signerDocument, setSignerDocument] = useState('');
+  const [accepted, setAccepted] = useState(false);
+  const [message, setMessage] = useState('');
+  const point = (event: PointerEvent<HTMLCanvasElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return { x: (event.clientX - rect.left) * (event.currentTarget.width / rect.width), y: (event.clientY - rect.top) * (event.currentTarget.height / rect.height) };
+  };
+  const start = (event: PointerEvent<HTMLCanvasElement>) => { event.currentTarget.setPointerCapture(event.pointerId); drawing.current = true; const ctx = event.currentTarget.getContext('2d'); const p = point(event); ctx?.beginPath(); ctx?.moveTo(p.x, p.y); };
+  const draw = (event: PointerEvent<HTMLCanvasElement>) => { if (!drawing.current) return; const ctx = event.currentTarget.getContext('2d'); const p = point(event); if (ctx) { ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#111827'; ctx.lineTo(p.x, p.y); ctx.stroke(); } };
+  const clear = () => { const canvas = canvasRef.current; canvas?.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height); };
+  const save = async () => {
+    const canvas = canvasRef.current;
+    if (!canvas || !signerName.trim()) { setMessage('Indica el nombre de la persona firmante.'); return; }
+    if (!accepted) { setMessage('La aceptación expresa es obligatoria antes de guardar la firma.'); return; }
+    if (!canvasHasInk(canvas)) { setMessage('Dibuja la firma en el recuadro antes de guardarla.'); return; }
+    await technicianOfflineService.upsert({ type: 'signature', workOrderId, payload: { dataUrl: canvas.toDataURL('image/png'), signerName, signerDocument, signerRole: 'Cliente', acceptedTerms: accepted } });
+    setMessage('Firma guardada en dispositivo. Pendiente de sincronizar.');
+  };
+  return <Card title="Firma del cliente"><label>Nombre firmante<input value={signerName} onChange={(event) => setSignerName(event.target.value)} /></label><label>Documento<input value={signerDocument} onChange={(event) => setSignerDocument(event.target.value)} /></label><canvas ref={canvasRef} width={520} height={180} className="signature-pad" onPointerDown={start} onPointerMove={draw} onPointerUp={() => { drawing.current = false; }} onPointerCancel={() => { drawing.current = false; }} onPointerLeave={() => { drawing.current = false; }} /><label className="check-consent"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} /> Acepto expresamente el contenido del parte y la firma capturada.</label><div className="actions"><button type="button" onClick={clear}>Limpiar firma</button><button type="button" className="primary" onClick={save}>Guardar firma local</button></div>{message && <p className={message.includes('guardada') ? 'success-note' : 'form-error'}>{message}</p>}</Card>;
 }
 
 function ChecksPage() { const { profile, workspace } = useAuth(); const { companyId } = useSuperadminScope(); const scope = workspace === 'superadmin' ? companyId : undefined; const [tab, setTab] = useState<'pending' | 'done'>('pending'); const loader = () => workspace === 'tecnico' ? (tab === 'pending' ? checksService.pendingForCurrentTechnician() : checksService.completedForCurrentTechnician()) : (tab === 'pending' ? checksService.pending(scope) : checksService.completed(scope)); const { data, loading, error, reload } = useLoad(loader, [tab, workspace, scope], [] as any[]); const [creating, setCreating] = useState(false); return <section className="page">{workspace === 'superadmin' && <SuperadminCompanyScope />}<div className="page-head"><div><h2>Checks</h2><p>{workspace === 'tecnico' ? 'Checks asignados al técnico autenticado.' : 'Por realizar y realizados con datos reales.'}</p></div>{canCreateCheck(profile) && workspace !== 'tecnico' && <button className="primary" disabled={workspace === 'superadmin' && !companyId} onClick={() => setCreating(true)}>Crear check</button>}</div><div className="tabs"><button className={tab === 'pending' ? 'active' : ''} onClick={() => setTab('pending')}>Por realizar</button><button className={tab === 'done' ? 'active' : ''} onClick={() => setTab('done')}>Realizados</button></div><StateBlock loading={loading} error={error} retry={reload} empty={!data.length}><WorkTable rows={data} columns={['code', 'equipment_code', 'work_order_code', 'status', 'global_result']} route={workspace === 'superadmin' ? '/app/superadmin/checks' : '/app/checks'} /></StateBlock>{creating && <CheckForm initial={{ company_id: companyId }} onClose={() => setCreating(false)} onSaved={() => { setCreating(false); reload(); }} />}</section>; }
@@ -607,12 +639,14 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
   const reviewed = zones.filter((zone) => sectionStatus(zone.id) !== 'Sin revisar').length;
   const allReviewed = reviewed === zones.length;
   const globalResult = zones.some((zone) => sectionStatus(zone.id) === 'No favorable') ? 'No favorable' : zones.some((zone) => sectionStatus(zone.id) === 'Problema leve') ? 'Problema leve' : 'Todo favorable';
+  const canFinishCheck = allReviewed && pending.length === 0;
   const blockHref = (zoneId: CheckBlockId) => workspace === 'superadmin' ? `/app/superadmin/checks/${id}/bloque/${zoneId}` : `/app/checks/${id}/bloque/${zoneId}`;
   const manageAllowed = canManageCheck(profile);
-  const executeAllowed = canExecuteCheck(profile);
+  const executeAllowed = canExecuteCheck(profile) && canFinishCheck;
   const finish = async () => {
     try {
       setActionError('');
+      if (!canFinishCheck) throw new Error('Sincroniza primero los cambios locales pendientes y revisa todos los bloques antes de finalizar el check.');
       await checksService.finish(id, globalResult);
       setMode(null);
       reload();
@@ -669,16 +703,22 @@ function CheckBlockPage({ forcedId, forcedBlockId }: { forcedId?: string; forced
   const selectStatus = (nextStatus: string) => { setStatus(nextStatus); setSaveState('idle'); if (!checkProblemStatuses.includes(nextStatus)) { setObservations(''); setIntervention(''); setComponents([]); setPhotos([]); } };
   const addPhotos = async (files: FileList | null) => {
     if (!files?.length) return;
-    const nextPhotos = await Promise.all(Array.from(files).map(fileToLocalPhoto));
-    setPhotos((current) => [...current, ...nextPhotos]);
-    setSaveState('idle');
+    try {
+      const nextPhotos = await Promise.all(Array.from(files).map(fileToLocalPhoto));
+      setPhotos((current) => [...current, ...nextPhotos]);
+      setSaveState('idle');
+    } catch {
+      setSaveState('error');
+    }
   };
   const save = async () => {
     if (!section || !hasChanges || status === 'Sin revisar') return;
     setSaving(true); setSaveState('saving');
     const persisted = status.replace('Favorable tras intervención', 'Favorable tras intervencion');
     try {
-      await technicianOfflineService.upsert({ type: 'check-block', workOrderId: data.work_order_id, checkId: id, blockId: zone.id, payload: { blockId: zone.id, sectionId: section.id, sectionTitle: zone.name, status, persistedStatus: persisted, items: section.check_template_items ?? [], components: status === 'Todo favorable' ? (zone.components ?? []) : components, observations: needsDetail ? observations : '', intervention: needsDetail ? intervention : '', incidence: needsDetail, severity, photos: needsDetail ? photos : [], date: new Date().toISOString(), user: data.technician_id } });
+      await technicianOfflineService.upsert({ type: 'check-block', workOrderId: data.work_order_id, checkId: id, blockId: zone.id, sectionId: section.id, payload: { blockId: zone.id, sectionId: section.id, sectionTitle: zone.name, status, persistedStatus: persisted, items: section.check_template_items ?? [], components: status === 'Todo favorable' ? (zone.components ?? []) : components, observations: needsDetail ? observations : '', intervention: needsDetail ? intervention : '', incidence: needsDetail, severity, date: new Date().toISOString(), user: data.technician_id } });
+      if (needsDetail) await technicianOfflineService.upsert({ type: 'deficiency', workOrderId: data.work_order_id, checkId: id, blockId: zone.id, sectionId: section.id, payload: { id: `${zone.id}-deficiency`, sectionId: section.id, severity, description: observations, recommendedAction: intervention } });
+      if (needsDetail) await Promise.all(photos.map((photo) => technicianOfflineService.upsert({ type: 'photo', workOrderId: data.work_order_id, checkId: id, blockId: zone.id, sectionId: section.id, payload: { ...photo, sectionId: section.id, sectionTitle: zone.name, description: observations } })));
       setConfirmedStatus(status); setSaveState('saved');
       setTimeout(() => navigate(workspace === 'superadmin' ? `/app/superadmin/checks/${id}` : `/app/checks/${id}`), 450);
     } catch { setSaveState('error'); }

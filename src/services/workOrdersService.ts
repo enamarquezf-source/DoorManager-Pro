@@ -6,6 +6,25 @@ function workOrderPayload(payload: Record<string, any>) {
   return Object.fromEntries(workOrderColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
 }
 
+const filesBucket = 'dmp-files';
+
+function dataUrlToBlob(dataUrl: string) {
+  const [header, base64] = dataUrl.split(',');
+  const mime = header.match(/data:(.*);base64/)?.[1] ?? 'application/octet-stream';
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return { blob: new Blob([bytes], { type: mime }), mime };
+}
+
+async function uploadLocalFile(path: string, payload: Record<string, any>) {
+  if (!payload.dataUrl) throw new Error('Falta el archivo local para sincronizar.');
+  const { blob, mime } = dataUrlToBlob(String(payload.dataUrl));
+  const { error } = await supabase.storage.from(filesBucket).upload(path, blob, { contentType: payload.type || mime, upsert: true });
+  if (error) throw new Error(`No se ha podido subir el archivo a Storage. ${error.message}`);
+  return { mime, size: blob.size };
+}
+
 export type WorkOrderFullDetail = {
   work_order: any;
   client: any;
@@ -152,21 +171,47 @@ export const workOrdersService = {
   async requestReturn(workOrderId: string, reason: string) {
     return expectData<void>(supabase.rpc('request_work_order_return', { p_work_order_id: workOrderId, p_changed_by: null, p_reason: reason }));
   },
-  async syncOfflineNote(workOrderId: string, payload: Record<string, any>) {
-    const companyId = await currentCompanyId();
-    const profileId = await currentProfileId();
+  async syncOfflineNote(workOrderId: string, payload: Record<string, any>, localChangeId?: string) {
     const note = [
       payload.diagnosis ? `Diagnóstico: ${payload.diagnosis}` : '',
       payload.work ? `Trabajo realizado: ${payload.work}` : '',
       payload.observations ? `Observaciones: ${payload.observations}` : '',
     ].filter(Boolean).join('\n');
     if (!note.trim()) throw new Error('No hay datos de intervención para sincronizar.');
-    return expectData<any>(supabase.from('work_order_notes').insert({ company_id: companyId, work_order_id: workOrderId, note, visibility: 'Tecnica', created_by: profileId }).select().single());
+    return expectData<string>(supabase.rpc('sync_work_order_note', { p_work_order_id: workOrderId, p_note: note, p_local_change_id: localChangeId ?? null }));
   },
-  async syncOfflineMaterial(workOrderId: string, payload: Record<string, any>) {
+  async syncOfflineMaterial(workOrderId: string, payload: Record<string, any>, localChangeId?: string) {
     const description = String(payload.material ?? '').trim();
     const quantity = Number(payload.quantity || 1);
     if (!description) throw new Error('Indica el material usado antes de sincronizar.');
-    return expectData<string>(supabase.rpc('record_work_order_material_usage', { p_company_id: null, p_work_order_id: workOrderId, p_description: description, p_quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1, p_created_by: null }));
+    return expectData<string>(supabase.rpc('sync_work_order_material_usage', { p_work_order_id: workOrderId, p_description: description, p_quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1, p_local_change_id: localChangeId ?? null }));
+  },
+  async syncOfflinePhoto(workOrderId: string, payload: Record<string, any>, localChangeId: string) {
+    const companyId = await currentCompanyId();
+    if (!companyId) throw new Error('No se ha podido determinar la empresa para subir la foto.');
+    const localId = payload.id ?? localChangeId;
+    const extension = String(payload.name ?? 'foto.jpg').split('.').pop() || 'jpg';
+    const path = `${companyId}/work-orders/${workOrderId}/photos/${localId}.${extension}`;
+    const uploaded = await uploadLocalFile(path, payload);
+    try {
+      return await expectData<string>(supabase.rpc('register_work_order_photo', { p_payload: { local_change_id: localChangeId, work_order_id: workOrderId, bucket: filesBucket, path, name: payload.name ?? `Foto ${localId}`, mime_type: payload.type ?? uploaded.mime, size_bytes: payload.size ?? uploaded.size, description: payload.description ?? null, metadata: { source: 'technician-offline' } } }));
+    } catch (error) {
+      await supabase.storage.from(filesBucket).remove([path]);
+      throw error;
+    }
+  },
+  async syncOfflineSignature(workOrderId: string, payload: Record<string, any>, localChangeId: string) {
+    if (!String(payload.signerName ?? '').trim()) throw new Error('Falta el nombre de la persona firmante.');
+    if (payload.acceptedTerms !== true) throw new Error('La aceptación expresa de la firma es obligatoria.');
+    const companyId = await currentCompanyId();
+    if (!companyId) throw new Error('No se ha podido determinar la empresa para subir la firma.');
+    const path = `${companyId}/work-orders/${workOrderId}/signatures/${localChangeId}.png`;
+    const uploaded = await uploadLocalFile(path, { ...payload, type: 'image/png', name: 'firma.png' });
+    try {
+      return await expectData<string>(supabase.rpc('register_work_order_signature', { p_payload: { local_change_id: localChangeId, work_order_id: workOrderId, bucket: filesBucket, path, name: 'firma.png', mime_type: uploaded.mime, size_bytes: uploaded.size, signer_name: payload.signerName, signer_role: payload.signerRole ?? null, signer_document: payload.signerDocument ?? null, accepted_terms: true, metadata: { source: 'technician-offline' } } }));
+    } catch (error) {
+      await supabase.storage.from(filesBucket).remove([path]);
+      throw error;
+    }
   },
 };

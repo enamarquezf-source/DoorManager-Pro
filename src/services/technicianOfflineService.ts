@@ -1,7 +1,7 @@
 import { checksService } from './checksService';
 import { workOrdersService } from './workOrdersService';
 
-export type OfflineChangeType = 'check-block' | 'work-note' | 'material' | 'photo' | 'signature';
+export type OfflineChangeType = 'check-block' | 'work-note' | 'material' | 'photo' | 'signature' | 'deficiency';
 
 export type OfflineChange = {
   id: string;
@@ -9,17 +9,24 @@ export type OfflineChange = {
   workOrderId?: string;
   checkId?: string;
   blockId?: string;
+  companyId?: string;
+  profileId?: string;
+  sectionId?: string;
+  itemId?: string;
+  remoteId?: string;
   payload: Record<string, any>;
   createdAt: string;
   updatedAt: string;
-  status: 'pending' | 'syncing' | 'synced' | 'failed';
+  status: 'pending' | 'syncing' | 'synced' | 'failed' | 'blocked';
   error?: string;
   attempts?: number;
 };
 
+export type OfflineSyncScope = { workOrderId?: string; checkId?: string; changeId?: string };
+
 const dbName = 'doormanager-pro-tecnico';
 const storeName = 'offline_changes';
-const dbVersion = 1;
+const dbVersion = 2;
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -31,6 +38,11 @@ function openDb(): Promise<IDBDatabase> {
         store.createIndex('status', 'status');
         store.createIndex('checkId', 'checkId');
         store.createIndex('workOrderId', 'workOrderId');
+        store.createIndex('type', 'type');
+      } else {
+        const tx = request.transaction;
+        const store = tx?.objectStore(storeName);
+        if (store && !store.indexNames.contains('type')) store.createIndex('type', 'type');
       }
     };
     request.onerror = () => reject(request.error);
@@ -57,9 +69,49 @@ function changeId(type: OfflineChangeType, workOrderId: string | undefined, chec
   return [type, workOrderId ?? 'sin-parte', checkId ?? 'sin-check', blockId ?? 'general'].join(':');
 }
 
+function changeKey(change: Omit<OfflineChange, 'id' | 'createdAt' | 'updatedAt' | 'status'>) {
+  const localId = change.payload?.localChangeId ?? change.payload?.id;
+  if (['photo', 'signature', 'deficiency'].includes(change.type) && localId) return [change.type, change.workOrderId ?? 'sin-parte', change.checkId ?? 'sin-check', change.blockId ?? 'general', localId].join(':');
+  return changeId(change.type, change.workOrderId, change.checkId, change.blockId);
+}
+
+export function offlineChangeKeyForTest(change: Omit<OfflineChange, 'id' | 'createdAt' | 'updatedAt' | 'status'>) {
+  return changeKey(change);
+}
+
+function syncPriority(item: OfflineChange) {
+  if (item.type === 'check-block') return 1;
+  if (item.type === 'deficiency') return 2;
+  if (item.type === 'photo') return 3;
+  if (item.type === 'signature') return 4;
+  return 5;
+}
+
+export function changeMatchesScope(item: Pick<OfflineChange, 'id' | 'workOrderId' | 'checkId'>, scope: OfflineSyncScope = {}) {
+  if (scope.changeId) return item.id === scope.changeId;
+  if (scope.checkId) return item.checkId === scope.checkId;
+  if (scope.workOrderId) return item.workOrderId === scope.workOrderId;
+  return true;
+}
+
+function isQueueOpen(item: OfflineChange) {
+  return item.status === 'pending' || item.status === 'failed' || item.status === 'blocked';
+}
+
+async function syncChange(item: OfflineChange) {
+  if (item.type === 'check-block') await checksService.syncOfflineBlock(item);
+  else if (item.type === 'deficiency') await checksService.syncOfflineDeficiency(item);
+  else if (item.type === 'photo' && item.checkId) await checksService.syncOfflinePhoto(item);
+  else if (item.type === 'photo' && item.workOrderId) await workOrdersService.syncOfflinePhoto(item.workOrderId, item.payload, item.id);
+  else if (item.type === 'signature' && item.workOrderId) await workOrdersService.syncOfflineSignature(item.workOrderId, item.payload, item.id);
+  else if (item.type === 'work-note' && item.workOrderId) await workOrdersService.syncOfflineNote(item.workOrderId, item.payload, item.id);
+  else if (item.type === 'material' && item.workOrderId) await workOrdersService.syncOfflineMaterial(item.workOrderId, item.payload, item.id);
+  else throw new Error('Faltan datos para sincronizar este cambio.');
+}
+
 export const technicianOfflineService = {
   async upsert(change: Omit<OfflineChange, 'id' | 'createdAt' | 'updatedAt' | 'status'>) {
-    const id = changeId(change.type, change.workOrderId, change.checkId, change.blockId);
+    const id = changeKey(change);
     const current = (await withStore<OfflineChange | undefined>('readonly', (store) => store.get(id))) as OfflineChange | undefined;
     const now = new Date().toISOString();
     const next: OfflineChange = { ...current, ...change, id, createdAt: current?.createdAt ?? now, updatedAt: now, status: 'pending', error: undefined };
@@ -69,7 +121,7 @@ export const technicianOfflineService = {
   },
   list: allChanges,
   async pending() {
-    return (await allChanges()).filter((item) => item.status === 'pending' || item.status === 'failed');
+    return (await allChanges()).filter(isQueueOpen).sort((a, b) => syncPriority(a) - syncPriority(b));
   },
   async history() {
     return allChanges();
@@ -89,37 +141,39 @@ export const technicianOfflineService = {
       total: changes.length,
       pending: changes.filter((item) => item.status === 'pending').length,
       failed: changes.filter((item) => item.status === 'failed').length,
+      blocked: changes.filter((item) => item.status === 'blocked').length,
       blocks: changes.filter((item) => item.type === 'check-block').length,
-      incidences: changes.filter((item) => item.payload.incidence).length,
-      photos: changes.filter((item) => item.type === 'photo' || item.payload.photos?.length).length,
+      incidences: changes.filter((item) => item.type === 'deficiency' || item.payload.incidence).length,
+      photos: changes.filter((item) => item.type === 'photo').length,
       materials: changes.filter((item) => item.type === 'material').length,
       signatures: changes.filter((item) => item.type === 'signature').length,
       synced: changes.filter((item) => item.status === 'synced').length,
     };
   },
-  async sync(onProgress?: (message: string) => void) {
-    const pending = await this.pending();
+  async sync(onProgress?: (message: string) => void, scope: OfflineSyncScope = {}) {
+    const pending = (await this.pending()).filter((item) => changeMatchesScope(item, scope));
     const result = { synced: 0, failed: 0, pending: 0, errors: [] as string[] };
     for (const item of pending) {
       try {
         onProgress?.(`Sincronizando ${item.type} ${item.blockId ?? item.workOrderId ?? ''}`.trim());
         await withStore('readwrite', (store) => { store.put({ ...item, status: 'syncing', error: undefined }); });
-        if (item.type === 'check-block') await checksService.syncOfflineBlock(item);
-        else if (item.type === 'work-note' && item.workOrderId) await workOrdersService.syncOfflineNote(item.workOrderId, item.payload);
-        else if (item.type === 'material' && item.workOrderId) await workOrdersService.syncOfflineMaterial(item.workOrderId, item.payload);
-        else throw new Error('Este tipo de cambio todavía no tiene almacenamiento remoto disponible.');
+        await syncChange(item);
         await withStore('readwrite', (store) => { store.delete(item.id); });
         result.synced += 1;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'No se ha podido sincronizar el cambio.';
-        await withStore('readwrite', (store) => { store.put({ ...item, status: 'failed', error: message, attempts: (item.attempts ?? 0) + 1 }); });
+        const status = /sincronizar primero|seccion|sección|dependencia/i.test(message) ? 'blocked' : 'failed';
+        await withStore('readwrite', (store) => { store.put({ ...item, status, error: message, attempts: (item.attempts ?? 0) + 1 }); });
         result.failed += 1;
         result.errors.push(message);
       }
     }
     const remaining = await allChanges();
-    result.pending = remaining.filter((item) => item.status === 'pending' || item.status === 'failed').length;
+    result.pending = remaining.filter((item) => isQueueOpen(item) && changeMatchesScope(item, scope)).length;
     window.dispatchEvent(new Event('dmp-offline-queue-changed'));
     return result;
+  },
+  syncOne(changeId: string, onProgress?: (message: string) => void) {
+    return this.sync(onProgress, { changeId });
   },
 };

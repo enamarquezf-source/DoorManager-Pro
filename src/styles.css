@@ -282,6 +282,7 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
 .photo-list { display: grid; gap: 8px; margin-top: 10px; }
 .photo-list span { border: 1px solid var(--line); border-radius: 12px; padding: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #f8fafc; }
 .photo-list button { border: 0; color: var(--danger); background: transparent; font-weight: 900; }
+.signature-pad { width: 100%; max-width: 520px; height: 180px; border: 1px solid var(--line); border-radius: 16px; background: #fff; touch-action: none; }
 .tech-bottom { position: fixed; left: 0; right: 0; bottom: 0; z-index: 11; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px max(12px, env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom)); background: rgba(248, 250, 252, .96); border-top: 1px solid var(--line); }
 .tech-bottom button { border: 1px solid var(--line); border-radius: 16px; min-height: 48px; background: white; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 900; }
 .tech-bottom button.active { background: var(--dark); color: white; }

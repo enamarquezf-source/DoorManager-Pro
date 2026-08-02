@@ -16,6 +16,25 @@ export function hasPendingLocalPhotos(payload: Record<string, any>) {
   return Array.isArray(payload.photos) && payload.photos.length > 0;
 }
 
+const filesBucket = 'dmp-files';
+
+function dataUrlToBlob(dataUrl: string) {
+  const [header, base64] = dataUrl.split(',');
+  const mime = header.match(/data:(.*);base64/)?.[1] ?? 'application/octet-stream';
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return { blob: new Blob([bytes], { type: mime }), mime };
+}
+
+async function uploadLocalFile(path: string, payload: Record<string, any>) {
+  if (!payload.dataUrl) throw new Error('Falta el archivo local para sincronizar.');
+  const { blob, mime } = dataUrlToBlob(String(payload.dataUrl));
+  const { error } = await supabase.storage.from(filesBucket).upload(path, blob, { contentType: payload.type || mime, upsert: true });
+  if (error) throw new Error(`No se ha podido subir el archivo a Storage. ${error.message}`);
+  return { mime, size: blob.size };
+}
+
 export const checksService = {
   async list(search = '', companyScope?: string | null) {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
@@ -99,7 +118,7 @@ export const checksService = {
     await supabase.from('checks').update({ status: 'En curso', global_result: 'Todo favorable', started_at: new Date().toISOString() }).eq('id', check_id).is('finished_at', null);
   },
   async finish(check_id: string, global_result: string, observations?: string) {
-    return expectData<void>(supabase.rpc('finish_check', { p_check_id: check_id, p_finished_by: null, p_global_result: global_result, p_observations: observations || null }));
+    return expectData<string>(supabase.rpc('finish_check_safe', { p_check_id: check_id, p_observations: observations || null }));
   },
   async syncOfflineBlock(change: OfflineChange) {
     const payload = change.payload;
@@ -120,7 +139,29 @@ export const checksService = {
     }
     if (!sectionId) throw new Error('Falta la sección remota del bloque. El cambio queda guardado localmente.');
 
-    await expectData<any>(supabase.rpc('save_check_block_result', { p_payload: { local_change_id: change.id, check_id: change.checkId, section_id: sectionId, result: payload.persistedStatus, observations: payload.observations || null, intervention: payload.intervention || null, severity: payload.severity || null, components: payload.components ?? [], items } }));
-    if (hasPendingLocalPhotos(payload)) throw new Error('Bloque sincronizado parcialmente. Foto pendiente de subir: se conserva el cambio local para reintento.');
+    return expectData<any>(supabase.rpc('save_check_block_result', { p_payload: { local_change_id: change.id, check_id: change.checkId, section_id: sectionId, result: payload.persistedStatus, observations: payload.observations || null, intervention: payload.intervention || null, severity: payload.severity || null, components: payload.components ?? [], items } }));
+  },
+  async syncOfflinePhoto(change: OfflineChange) {
+    if (!change.checkId) throw new Error('Falta el check asociado a la foto.');
+    const companyId = await currentCompanyId();
+    if (!companyId) throw new Error('No se ha podido determinar la empresa para subir la foto.');
+    const payload = change.payload;
+    const localId = payload.id ?? change.id;
+    const extension = String(payload.name ?? 'foto.jpg').split('.').pop() || 'jpg';
+    const path = `${companyId}/checks/${change.checkId}/${change.blockId ?? 'general'}/${localId}.${extension}`;
+    const uploaded = await uploadLocalFile(path, payload);
+    try {
+      return await expectData<string>(supabase.rpc('register_check_photo', { p_payload: { local_change_id: change.id, check_id: change.checkId, item_result_id: payload.itemResultId ?? null, bucket: filesBucket, path, name: payload.name ?? `Foto ${localId}`, mime_type: payload.type ?? uploaded.mime, size_bytes: payload.size ?? uploaded.size, description: payload.description ?? payload.sectionTitle ?? change.blockId ?? null, metadata: { block_id: change.blockId, section_id: payload.sectionId ?? null } } }));
+    } catch (error) {
+      await supabase.storage.from(filesBucket).remove([path]);
+      throw error;
+    }
+  },
+  async syncOfflineDeficiency(change: OfflineChange) {
+    if (!change.checkId) throw new Error('Falta el check asociado a la deficiencia.');
+    const payload = change.payload;
+    const description = String(payload.description ?? payload.observations ?? '').trim();
+    if (!description) throw new Error('Falta la descripción de la deficiencia.');
+    return expectData<string>(supabase.rpc('register_check_deficiency', { p_payload: { local_change_id: change.id, check_id: change.checkId, section_id: payload.sectionId ?? null, item_id: payload.itemId ?? null, severity: payload.severity ?? 'Media', description, recommended_action: payload.recommendedAction ?? payload.intervention ?? null } }));
   },
 };

@@ -22,6 +22,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "latest",
+    "pg-query-emscripten": "^5.1.0",
     "typescript": "latest",
     "vite": "latest",
     "vitest": "latest"

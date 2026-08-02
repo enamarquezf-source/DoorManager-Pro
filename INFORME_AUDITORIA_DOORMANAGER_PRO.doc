@@ -1,0 +1,36 @@
+INFORME AUDITORIA DOORMANAGER PRO
+
+Fecha: 2026-08-02
+Estado: checks y sincronizacion offline corregidos a nivel de codigo, migracion y pruebas automatizadas. No se ha ejecutado contra una instancia Supabase real desde este entorno.
+
+Resumen ejecutivo
+- Se mantiene la correccion previa SAT/Superadmin y se anade una migracion nueva 020 sin modificar historicos.
+- La cola offline separa bloque, foto, firma, material, nota y deficiencia como unidades independientes e idempotentes.
+- La sincronizacion puede ejecutarse globalmente, por parte, por check o por fila individual.
+- Storage queda modelado con bucket privado dmp-files y policies por ruta company_id/recurso/id, no por bucket global.
+- La finalizacion del check queda protegida por frontend y backend; backend calcula el resultado global desde resultados remotos.
+
+Cambios principales
+- Nueva migracion: supabase/migrations/020_check_sync_end_to_end.sql.
+- Nuevos RPC idempotentes: register_check_photo, register_work_order_photo, register_work_order_signature, register_check_deficiency, finish_check_safe, sync_work_order_note, sync_work_order_material_usage.
+- Nuevos helpers de Storage: dmp_storage_company_id, dmp_storage_resource_type, dmp_storage_resource_id, can_read_dmp_storage_object, can_write_dmp_storage_object, assert_dmp_storage_path.
+- Frontend tecnico: WorkOrderPhotoForm real, WorkOrderSignatureForm real con canvas, aceptacion expresa y rechazo de firma vacia.
+- Fotos: validacion MIME, maximo 10 MB antes de IndexedDB, compresion cliente cuando el navegador lo permite, entrada de cola independiente por archivo.
+- Sincronizacion: SyncButton respeta checkId/workOrderId; pantalla global conserva Sincronizar todo; cada fila tiene reintento individual.
+
+Pruebas ejecutadas
+- npm test -- --run: 17 archivos, 69 tests OK.
+- npm run build: OK con aviso conocido de chunk Vite > 500 kB.
+- git diff --check: OK.
+- Parser PostgreSQL pg-query-emscripten sobre migracion 020: OK.
+
+Limitaciones reales
+- Este entorno no tiene psql, supabase CLI, postgres, docker, pg_tmp ni initdb. Por tanto no se ha podido aplicar la migracion contra una base PostgreSQL/Supabase real desde aqui.
+- Las policies Storage se han validado por parser y tests de contenido, pero no con usuarios reales ni RLS en vivo.
+- No se ha hecho push.
+
+Pendiente operativo antes de produccion
+- Aplicar 019 y 020 en Supabase real.
+- Probar Storage/RLS con dos empresas, tecnico asignado y tecnico no asignado.
+- Verificar subida, registro y limpieza de huerfanos con bucket dmp-files real.
+- Probar tactil y raton en dispositivo fisico.

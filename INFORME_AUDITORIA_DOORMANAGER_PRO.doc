@@ -2,6 +2,7 @@ INFORME AUDITORIA DOORMANAGER PRO
 
 Fecha: 2026-08-02
 Estado: checks y sincronizacion offline corregidos a nivel de codigo, migracion y pruebas automatizadas. No se ha ejecutado contra una instancia Supabase real desde este entorno.
+Actualizacion dependencias Supabase reales: se anade 019_preflight_reconcile_dependencies.sql para reconciliar funciones ausentes verificadas en la base real antes de aplicar 019/020.
 
 Resumen ejecutivo
 - Se mantiene la correccion previa SAT/Superadmin y se anade una migracion nueva 020 sin modificar historicos.
@@ -12,6 +13,10 @@ Resumen ejecutivo
 
 Cambios principales
 - Nueva migracion: supabase/migrations/020_check_sync_end_to_end.sql.
+- Nueva preflight: supabase/migrations/019_preflight_reconcile_dependencies.sql.
+- Verificacion preflight: supabase/verification/verify_preflight_dependencies.sql.
+- 019 sustituye public.is_superadmin() por public.is_platform_superadmin() y declara to authenticated en alert_recipients_update_scoped.
+- La preflight crea de forma idempotente has_any_role(text[]), is_assigned_to_work_order(uuid, uuid default current_profile_id()) y next_dmp_code(uuid,text,text,boolean,integer).
 - Nuevos RPC idempotentes: register_check_photo, register_work_order_photo, register_work_order_signature, register_check_deficiency, finish_check_safe, sync_work_order_note, sync_work_order_material_usage.
 - Nuevos helpers de Storage: dmp_storage_company_id, dmp_storage_resource_type, dmp_storage_resource_id, can_read_dmp_storage_object, can_write_dmp_storage_object, assert_dmp_storage_path.
 - Frontend tecnico: WorkOrderPhotoForm real, WorkOrderSignatureForm real con canvas, aceptacion expresa y rechazo de firma vacia.
@@ -19,10 +24,10 @@ Cambios principales
 - Sincronizacion: SyncButton respeta checkId/workOrderId; pantalla global conserva Sincronizar todo; cada fila tiene reintento individual.
 
 Pruebas ejecutadas
-- npm test -- --run: 17 archivos, 69 tests OK.
+- npm test -- --run: 17 archivos, 74 tests OK.
 - npm run build: OK con aviso conocido de chunk Vite > 500 kB.
 - git diff --check: OK.
-- Parser PostgreSQL pg-query-emscripten sobre migracion 020: OK.
+- Parser PostgreSQL pg-query-emscripten sobre migraciones 019_preflight, 019_audit y 020: OK.
 
 Limitaciones reales
 - Este entorno no tiene psql, supabase CLI, postgres, docker, pg_tmp ni initdb. Por tanto no se ha podido aplicar la migracion contra una base PostgreSQL/Supabase real desde aqui.
@@ -30,7 +35,8 @@ Limitaciones reales
 - No se ha hecho push.
 
 Pendiente operativo antes de produccion
-- Aplicar 019 y 020 en Supabase real.
+- Aplicar 019_preflight, 019 y 020 en Supabase real.
+- Ejecutar supabase/verification/verify_preflight_dependencies.sql entre preflight y 019/020 si se quiere comprobar firmas en vivo.
 - Probar Storage/RLS con dos empresas, tecnico asignado y tecnico no asignado.
 - Verificar subida, registro y limpieza de huerfanos con bucket dmp-files real.
 - Probar tactil y raton en dispositivo fisico.

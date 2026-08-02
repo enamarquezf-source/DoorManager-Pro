@@ -149,8 +149,8 @@ $$;
 
 drop policy if exists alert_recipients_update_scoped on public.alert_recipients;
 create policy alert_recipients_update_scoped on public.alert_recipients
-for update using (
-  public.is_superadmin()
+for update to authenticated using (
+  public.is_platform_superadmin()
   or public.has_any_role(array['SAT','Gerencia','Oficina'])
   or recipient_profile_id = public.current_profile_id()
   or (
@@ -158,7 +158,7 @@ for update using (
     and recipient_role in (select p.primary_area from public.profiles p where p.id = public.current_profile_id())
   )
 ) with check (
-  public.is_superadmin()
+  public.is_platform_superadmin()
   or public.has_any_role(array['SAT','Gerencia','Oficina'])
   or recipient_profile_id = public.current_profile_id()
   or (

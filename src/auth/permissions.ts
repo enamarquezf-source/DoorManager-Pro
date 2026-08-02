@@ -3,6 +3,14 @@ import type { Profile, RoleName, Workspace } from '../shared/types';
 const adminRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia'];
 const backOfficeRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia', 'Oficina'];
 const operationalRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia', 'Tecnico'];
+const workspaceByRole: Record<RoleName, Workspace> = {
+  superadmin: 'superadmin',
+  SAT: 'sat',
+  Comercial: 'comercial',
+  Oficina: 'oficina',
+  Gerencia: 'gerencia',
+  Tecnico: 'tecnico',
+};
 
 export const permissionMatrix: Record<RoleName, string[]> = {
   superadmin: ['*'],
@@ -20,6 +28,19 @@ export function canRole(permissionRole: string, permission: string) {
 
 function rolesOf(profile?: Profile | null) {
   return [...new Set([profile?.primary_area, ...(profile?.roles ?? [])].filter(Boolean))] as RoleName[];
+}
+
+export function normalizedRoleNames(primaryArea: RoleName, roles: RoleName[] = []) {
+  const normalized = [...new Set([primaryArea, ...roles])];
+  return normalized.includes('SAT') ? normalized.filter((role) => role !== 'Comercial') : normalized;
+}
+
+export function profileWorkspaces(profile: Profile | null | undefined): Workspace[] {
+  if (!profile) return [];
+  const roles = normalizedRoleNames(profile.primary_area, profile.roles);
+  if (roles.includes('superadmin')) return ['superadmin'];
+  if (roles.includes('SAT')) return ['sat'];
+  return roles.map((role) => workspaceByRole[role]).filter(Boolean);
 }
 
 function hasAny(profile: Profile | null | undefined, roles: RoleName[]) {

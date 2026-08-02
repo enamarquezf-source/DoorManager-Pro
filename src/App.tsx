@@ -20,8 +20,8 @@ import { superadminService } from './services/superadminService';
 import { searchService } from './services/searchService';
 import { checkProblemStatuses, checkStatuses, physicalTemplateZones, sectionalZones, templateForEquipment, visibleTemplateZones, type CheckBlockId } from './checks/sectionalZones';
 import { technicianOfflineService } from './services/technicianOfflineService';
-import { canAccessModule, canAccessRoute, canAssignTechnician, canCreateAlert, canCreateCheck, canCreateWorkOrder, canEditWorkOrder, canExecuteCheck, canExecuteWorkOrder, canManageCheck, canRole, canViewCheck, canViewWorkOrder, isSuperadmin } from './auth/permissions';
-import { displayStatus, formatDate, fullName, initials, nextWorkOrderStatus, previousWorkOrderStatus, roleToWorkspace, severityForPriority, severityForStatus, visibleLabel, workspaceTitles, workspaceToRole } from './shared/labels';
+import { canAccessModule, canAccessRoute, canAssignTechnician, canCreateAlert, canCreateCheck, canCreateWorkOrder, canEditWorkOrder, canExecuteCheck, canExecuteWorkOrder, canManageCheck, canRole, canViewCheck, canViewWorkOrder, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './auth/permissions';
+import { displayStatus, formatDate, fullName, initials, nextWorkOrderStatus, previousWorkOrderStatus, severityForPriority, severityForStatus, visibleLabel, workspaceTitles, workspaceToRole } from './shared/labels';
 import { deficiencyFiltersFromParams, isOpenDeficiencyStatus, normalizeParam, workOrderFilterFromParams } from './shared/filters';
 import type { Profile, RoleName, Severity, Workspace } from './shared/types';
 
@@ -52,9 +52,8 @@ function AuthProvider({ children }: { children: ReactNode }) {
     const nextProfile = await profilesService.getCurrentProfile();
     setProfile(nextProfile);
     const saved = localStorage.getItem(workspaceKey) as Workspace | null;
-    const primaryWorkspace = roleToWorkspace[nextProfile.primary_area] ?? 'sat';
-    const profileWorkspaces = new Set([primaryWorkspace, ...nextProfile.roles.map((role) => roleToWorkspace[role]).filter(Boolean)]);
-    const allowed = isSuperadmin(nextProfile) ? 'superadmin' : saved && profileWorkspaces.has(saved) ? saved : primaryWorkspace;
+    const allowedWorkspaces = profileWorkspaces(nextProfile);
+    const allowed = saved && allowedWorkspaces.includes(saved) ? saved : allowedWorkspaces[0] ?? 'sat';
     localStorage.setItem(workspaceKey, allowed);
     setWorkspaceState(allowed);
   };
@@ -136,7 +135,7 @@ function ProtectedLayout() {
     return () => window.removeEventListener('dmp-alerts-changed', loadUnread);
   }, [profile, location.pathname]);
 
-  const allowedWorkspaces = profile ? isSuperadmin(profile) ? ['superadmin' as Workspace] : [...new Set([roleToWorkspace[profile.primary_area], ...profile.roles.map((role) => roleToWorkspace[role])].filter(Boolean))] as Workspace[] : [];
+  const allowedWorkspaces = profileWorkspaces(profile);
   useEffect(() => { if (profile && allowedWorkspaces.length && !allowedWorkspaces.includes(workspace)) setWorkspace(allowedWorkspaces[0]); }, [profile?.id, workspace, allowedWorkspaces.join('|')]);
 
   if (!session) return <Navigate to="/" replace />;
@@ -371,8 +370,9 @@ function SuperadminProfileForm({ initial, onClose, onSaved }: any) {
     event.preventDefault();
     setSaving(true); setError('');
     try {
-      const payload = { first_name: values.first_name, last_name: values.last_name, email: values.email, phone: values.phone || null, primary_area: values.primary_area, active: values.active === true || values.active === 'true', auth_user_id: values.auth_user_id || null, company_id: values.company_id || null };
-      await superadminService.saveProfileWithRoles(initial?.id ?? null, payload, values.roles?.length ? values.roles : [values.primary_area]);
+      const roles = normalizedRoleNames(values.primary_area, values.roles?.length ? values.roles : [values.primary_area]);
+      const payload = { first_name: values.first_name, last_name: values.last_name, email: values.email, phone: values.phone || null, primary_area: roles.includes('SAT') ? 'SAT' : values.primary_area, active: values.active === true || values.active === 'true', auth_user_id: values.auth_user_id || null, company_id: values.company_id || null };
+      await superadminService.saveProfileWithRoles(initial?.id ?? null, payload, roles);
       onSaved?.();
     } catch (err) { console.error(err); setError(err instanceof Error ? err.message : 'No se ha podido guardar el usuario.'); }
     finally { setSaving(false); }

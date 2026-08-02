@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessRoute, canCreateAlert, canManageCheck, canRole, canViewCheck, isSuperadmin } from './permissions';
+import { canAccessRoute, canCreateAlert, canManageCheck, canRole, canViewCheck, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './permissions';
 import type { Profile, RoleName } from '../shared/types';
 
 function profile(primary_area: RoleName, roles: RoleName[] = []): Profile {
@@ -7,6 +7,18 @@ function profile(primary_area: RoleName, roles: RoleName[] = []): Profile {
 }
 
 describe('canAccessRoute', () => {
+  it('normaliza SAT con Comercial a un unico workspace SAT', () => {
+    const sat = profile('SAT', ['SAT', 'Comercial']);
+    expect(profileWorkspaces(sat)).toEqual(['sat']);
+    expect(normalizedRoleNames('SAT', ['Comercial'])).toEqual(['SAT']);
+  });
+
+  it('mantiene Comercial puro en workspace comercial', () => {
+    const comercial = profile('Comercial', ['Comercial']);
+    expect(profileWorkspaces(comercial)).toEqual(['comercial']);
+    expect(normalizedRoleNames('Comercial', [])).toEqual(['Comercial']);
+  });
+
   it('permite al tecnico acceder a checks y avisos', () => {
     const tecnico = profile('Tecnico');
     expect(canAccessRoute(tecnico, '/app/checks')).toBe(true);

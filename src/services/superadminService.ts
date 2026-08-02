@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase/client';
+import { normalizedRoleNames } from '../auth/permissions';
 import { currentCompanyId, expectData } from './query';
 
 export const superadminService = {
@@ -35,13 +36,15 @@ export const superadminService = {
     return expectData<any>(supabase.rpc('superadmin_create_profile', { p_profile: payload }).single());
   },
   async saveProfileWithRoles(profileId: string | null, payload: Record<string, any>, roleNames: string[]) {
-    return expectData<any>(supabase.rpc('superadmin_save_profile_with_roles', { p_profile_id: profileId, p_profile: payload, p_role_names: roleNames }).single());
+    const roles = normalizedRoleNames(payload.primary_area, roleNames as any);
+    const normalizedPayload = { ...payload, primary_area: roles.includes('SAT') ? 'SAT' : payload.primary_area };
+    return expectData<any>(supabase.rpc('superadmin_save_profile_with_roles', { p_profile_id: profileId, p_profile: normalizedPayload, p_role_names: roles }).single());
   },
   async updateProfile(profileId: string, payload: Record<string, any>) {
     return expectData<any>(supabase.rpc('superadmin_update_profile', { p_profile_id: profileId, p_profile: payload }).single());
   },
   async setRoles(profileId: string, roleNames: string[]) {
-    return expectData<void>(supabase.rpc('superadmin_set_profile_roles', { p_profile_id: profileId, p_role_names: roleNames }));
+    return expectData<void>(supabase.rpc('superadmin_set_profile_roles', { p_profile_id: profileId, p_role_names: normalizedRoleNames(roleNames.includes('SAT') ? 'SAT' : roleNames[0] as any, roleNames as any) }));
   },
   async setActive(profileId: string, active: boolean) {
     return expectData<any>(supabase.rpc('superadmin_update_profile', { p_profile_id: profileId, p_profile: { active } }).single());

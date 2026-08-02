@@ -29,7 +29,7 @@ insert into public.profiles (id, company_id, first_name, last_name, email, phone
 on conflict (company_id, email) do nothing;
 
 insert into public.profile_roles (profile_id, role_id)
-select p.id, r.id from public.profiles p join public.roles r on r.name in ('SAT','Comercial') where p.email = 'marta.lopez@dmp-demo.test'
+select p.id, r.id from public.profiles p join public.roles r on r.name = 'SAT' where p.email = 'marta.lopez@dmp-demo.test'
 on conflict do nothing;
 insert into public.profile_roles (profile_id, role_id)
 select p.id, r.id from public.profiles p join public.roles r on r.name = 'Comercial' where p.email = 'laura.sanchez@dmp-demo.test'

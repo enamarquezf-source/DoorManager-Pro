@@ -3,12 +3,12 @@ import { contains, currentCompanyId, expectData } from './query';
 
 export const documentsService = {
   list(search = '') {
-    let query = supabase.from('documents').select('*, document_links(*)').is('deleted_at', null).order('title');
+    let query = supabase.from('documents').select('*, document_links!document_links_document_id_fkey(*)').is('deleted_at', null).order('title');
     if (search) query = query.or(contains(['title', 'type', 'origin', 'observations'], search));
     return expectData<any[]>(query);
   },
   async get(id: string) {
-    const row = await expectData<any>(supabase.from('documents').select('*, files(*), document_links(*)').eq('id', id).maybeSingle());
+    const row = await expectData<any>(supabase.from('documents').select('*, files!documents_file_id_fkey(*), document_links!document_links_document_id_fkey(*)').eq('id', id).maybeSingle());
     if (!row) throw new Error('No se ha encontrado el documento solicitado.');
     return row;
   },

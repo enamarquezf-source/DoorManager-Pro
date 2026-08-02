@@ -9,13 +9,13 @@ function casePayload(payload: Record<string, any>) {
 export const casesService = {
   async list(search = '', companyScope?: string | null) {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
-    let query = supabase.from('cases').select('*, clients(code, legal_name), sites(code, name), case_links(*)').is('deleted_at', null).order('created_at', { ascending: false });
+    let query = supabase.from('cases').select('*, clients!cases_client_id_fkey(code, legal_name), sites!cases_site_id_fkey(code, name), case_links!case_links_case_id_fkey(*)').is('deleted_at', null).order('created_at', { ascending: false });
     if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'title', 'description', 'status', 'type'], search));
     return expectData<any[]>(query);
   },
   async get(id: string) {
-    const row = await expectData<any>(supabase.from('cases').select('*, clients(*), sites(*), case_events(*), case_links(*), case_documents(*)').eq('id', id).maybeSingle());
+    const row = await expectData<any>(supabase.from('cases').select('*, clients!cases_client_id_fkey(*), sites!cases_site_id_fkey(*), case_events!case_events_case_id_fkey(*), case_links!case_links_case_id_fkey(*), case_documents!case_documents_case_id_fkey(*)').eq('id', id).maybeSingle());
     if (!row) throw new Error('No se ha encontrado el expediente solicitado.');
     return row;
   },

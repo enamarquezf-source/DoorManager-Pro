@@ -19,7 +19,7 @@ export function hasPendingLocalPhotos(payload: Record<string, any>) {
 export const checksService = {
   async list(search = '', companyScope?: string | null) {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
-    let query = supabase.from('checks').select('*, companies(name), equipment!checks_equipment_id_fkey(code), work_orders!checks_work_order_id_fkey(code), profiles!checks_technician_id_fkey(first_name,last_name)').is('deleted_at', null).order('created_at', { ascending: false });
+    let query = supabase.from('checks').select('*, companies!checks_company_id_fkey(name), equipment!checks_equipment_id_fkey(code), work_orders!checks_work_order_id_fkey(code), profiles!checks_technician_id_fkey(first_name,last_name)').is('deleted_at', null).order('created_at', { ascending: false });
     if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'status', 'global_result', 'observations'], search));
     return expectData<any[]>(query);
@@ -45,7 +45,7 @@ export const checksService = {
     return expectData<any[]>(supabase.from('v_completed_checks').select('*').eq('technician_id', profileId).order('finished_at', { ascending: false }));
   },
   async get(id: string) {
-    const row = await expectData<any>(supabase.from('checks').select('*, equipment!checks_equipment_id_fkey(*), work_orders!checks_work_order_id_fkey(*), check_templates(*, check_template_sections(*, check_template_items(*))), check_section_results(*, check_template_sections(*)), check_item_results(*, check_template_items(*)), check_photos(*)').eq('id', id).maybeSingle());
+    const row = await expectData<any>(supabase.from('checks').select('*, equipment!checks_equipment_id_fkey(*), work_orders!checks_work_order_id_fkey(*), check_templates!checks_template_id_fkey(*, check_template_sections!check_template_sections_template_id_fkey(*, check_template_items!check_template_items_section_id_fkey(*))), check_section_results!check_section_results_check_id_fkey(*, check_template_sections!check_section_results_section_id_fkey(*)), check_item_results!check_item_results_check_id_fkey(*, check_template_items!check_item_results_item_id_fkey(*)), check_photos!check_photos_check_id_fkey(*)').eq('id', id).maybeSingle());
     if (!row) throw new Error('No se ha encontrado el check solicitado.');
     return row;
   },
@@ -60,7 +60,7 @@ export const checksService = {
   },
   async templates(equipmentTypeId?: string | null, companyScope?: string | null) {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
-    let query = supabase.from('check_templates').select('*, companies(name), equipment_types(name), check_template_sections(*, check_template_items(*))').eq('active', true);
+    let query = supabase.from('check_templates').select('*, companies!check_templates_company_id_fkey(name), equipment_types!check_templates_equipment_type_id_fkey(name), check_template_sections!check_template_sections_template_id_fkey(*, check_template_items!check_template_items_section_id_fkey(*))').eq('active', true);
     if (companyId) query = query.or(`company_id.eq.${companyId},company_id.is.null`);
     if (equipmentTypeId) query = query.or(`equipment_type_id.eq.${equipmentTypeId},equipment_type_id.is.null`);
     else query = query.is('equipment_type_id', null);

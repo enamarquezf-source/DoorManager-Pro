@@ -1,12 +1,32 @@
 import { supabase } from '../lib/supabase/client';
 
-export async function expectData<T>(query: PromiseLike<{ data: T | null; error: any }>) {
+type QueryContext = { service: string; operation: string; resource?: string };
+
+export async function expectData<T>(query: PromiseLike<{ data: T | null; error: any }>, context?: QueryContext | string) {
   const { data, error } = await query;
   if (error) {
-    console.error('Supabase error', error);
-    throw new Error(toSpanishSupabaseError(error));
+    const safeContext: QueryContext | undefined = typeof context === 'string' ? { service: 'supabase', operation: context } : context;
+    console.error('Supabase query error', {
+      service: safeContext?.service,
+      operation: safeContext?.operation,
+      resource: safeContext?.resource,
+      code: error?.code,
+      message: error?.message,
+      details: error?.details,
+      hint: error?.hint,
+    });
+    const prefix = safeContext?.operation ? `${safeContext.operation}: ` : '';
+    throw new Error(`${prefix}${toSpanishSupabaseError(error)}`);
   }
   return data as T;
+}
+
+export async function expectStep<T>(operation: string, loader: () => Promise<T>) {
+  try {
+    return await loader();
+  } catch (error) {
+    throw new Error(error instanceof Error ? `${operation}: ${error.message}` : `${operation}: error inesperado`);
+  }
 }
 
 export function toSpanishSupabaseError(error: any) {

@@ -10,13 +10,13 @@ function sitePayload(payload: Record<string, any>) {
 export const sitesService = {
   async list(search = '', companyScope?: string | null) {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
-    let query = supabase.from('sites').select('*, companies(name), clients(code, legal_name), site_contacts(*), equipment(id, code), cases(id, code), work_orders(id, code), access_requirements(*)').is('deleted_at', null).order('name');
+    let query = supabase.from('sites').select('*, companies!sites_company_id_fkey(name), clients!sites_client_id_fkey(code, legal_name), site_contacts!site_contacts_site_id_fkey(*), equipment!equipment_site_id_fkey(id, code), cases!cases_site_id_fkey(id, code), work_orders!work_orders_site_id_fkey(id, code), access_requirements!sites_access_requirement_id_fkey(*)').is('deleted_at', null).order('name');
     if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'name', 'address', 'city'], search));
     return expectData<any[]>(query);
   },
   async get(id: string) {
-    const row = await expectData<any>(supabase.from('sites').select('*, clients(*), site_contacts(*), equipment(*), cases(*), work_orders(*), access_requirements(*)').eq('id', id).maybeSingle());
+    const row = await expectData<any>(supabase.from('sites').select('*, clients!sites_client_id_fkey(*), site_contacts!site_contacts_site_id_fkey(*), equipment!equipment_site_id_fkey(*), cases!cases_site_id_fkey(*), work_orders!work_orders_site_id_fkey(*), access_requirements!sites_access_requirement_id_fkey(*)').eq('id', id).maybeSingle());
     if (!row) throw new Error('No se ha encontrado el centro solicitado.');
     return row;
   },

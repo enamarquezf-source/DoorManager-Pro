@@ -25,7 +25,7 @@ export const superadminService = {
     };
   },
   async users(companyId: string | null = null) {
-    let query = supabase.from('profiles').select('*, companies(name), profile_roles(roles(id,name))').order('created_at', { ascending: false });
+    let query = supabase.from('profiles').select('*, companies!profiles_company_id_fkey(name), profile_roles!profile_roles_profile_id_fkey(roles!profile_roles_role_id_fkey(id,name))').order('created_at', { ascending: false });
     if (companyId) query = query.eq('company_id', companyId);
     return expectData<any[]>(query);
   },
@@ -54,7 +54,7 @@ export const superadminService = {
   },
   async templates(companyScope?: string | null) {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
-    let query = supabase.from('check_templates').select('*, companies(name), equipment_types(name), check_template_sections(*, check_template_items(*))').order('updated_at', { ascending: false });
+    let query = supabase.from('check_templates').select('*, companies!check_templates_company_id_fkey(name), equipment_types!check_templates_equipment_type_id_fkey(name), check_template_sections!check_template_sections_template_id_fkey(*, check_template_items!check_template_items_section_id_fkey(*))').order('updated_at', { ascending: false });
     if (companyId) query = query.eq('company_id', companyId);
     return expectData<any[]>(query);
   },
@@ -108,7 +108,7 @@ export const superadminService = {
     for (let index = 0; index < items.length; index += 1) await expectData<any>(supabase.from('check_template_items').update({ position: index + 1 }).eq('id', items[index].id));
   },
   audit(companyId: string | null = null) {
-    let query = supabase.from('audit_log').select('*, companies(name), profiles(first_name,last_name,email)').order('changed_at', { ascending: false }).limit(100);
+    let query = supabase.from('audit_log').select('*, companies!audit_log_company_id_fkey(name), profiles!audit_log_changed_by_fkey(first_name,last_name,email)').order('changed_at', { ascending: false }).limit(100);
     if (companyId) query = query.eq('company_id', companyId);
     return expectData<any[]>(query);
   },

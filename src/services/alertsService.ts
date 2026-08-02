@@ -9,7 +9,7 @@ export const alertsService = {
     return expectData<any[]>(query);
   },
   unread() {
-    return expectData<any[]>(supabase.from('v_unread_alerts').select('*').order('alert_date', { ascending: false }));
+    return expectData<any[]>(supabase.from('v_unread_alerts').select('*').order('alert_date', { ascending: false }), { service: 'alertsService', operation: 'Avisos no leidos', resource: 'v_unread_alerts' });
   },
   async create(payload: Record<string, any>, recipients: { role?: string; profile_id?: string }[]) {
     const company_id = await currentCompanyId();

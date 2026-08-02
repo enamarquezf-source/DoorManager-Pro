@@ -10,7 +10,7 @@ function equipmentPayload(payload: Record<string, any>) {
 export const equipmentService = {
   async list(search = '', companyScope?: string | null) {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
-    let query = supabase.from('equipment').select('*, companies(name), clients(code, legal_name), sites(code, name), equipment_types(name), equipment_components(*)').is('deleted_at', null).order('code');
+    let query = supabase.from('equipment').select('*, companies!equipment_company_id_fkey(name), clients!equipment_client_id_fkey(code, legal_name), sites!equipment_site_id_fkey(code, name), equipment_types!equipment_equipment_type_id_fkey(name), equipment_components!equipment_components_equipment_id_fkey(*)').is('deleted_at', null).order('code');
     if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'brand', 'model', 'serial_number', 'internal_location', 'status'], search));
     return expectData<any[]>(query);
@@ -24,10 +24,10 @@ export const equipmentService = {
   async get(id: string) {
     const row = await expectData<any>(supabase.from('equipment').select(`
       *,
-      clients(*),
-      sites(*),
-      equipment_types(*),
-      equipment_components(*),
+      clients!equipment_client_id_fkey(*),
+      sites!equipment_site_id_fkey(*),
+      equipment_types!equipment_equipment_type_id_fkey(*),
+      equipment_components!equipment_components_equipment_id_fkey(*),
       checks!checks_equipment_id_fkey(*),
       work_orders!work_orders_main_equipment_id_fkey(*),
       deficiencies!deficiencies_equipment_id_fkey(*)

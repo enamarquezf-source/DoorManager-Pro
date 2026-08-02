@@ -214,4 +214,9 @@ export const workOrdersService = {
       throw error;
     }
   },
+  async syncOfflineDeficiency(workOrderId: string, payload: Record<string, any>, localChangeId: string) {
+    const description = String(payload.description ?? '').trim();
+    if (!description) throw new Error('Falta la descripción de la incidencia.');
+    return expectData<string>(supabase.rpc('register_work_order_deficiency', { p_payload: { local_change_id: localChangeId, work_order_id: workOrderId, check_id: payload.checkId ?? null, block_id: payload.blockId ?? null, severity: payload.severity ?? 'Media', component: payload.component ?? null, description, recommended_action: payload.recommendedAction ?? null } }));
+  },
 };

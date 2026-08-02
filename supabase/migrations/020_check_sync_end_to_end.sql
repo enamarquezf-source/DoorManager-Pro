@@ -244,6 +244,7 @@ declare
   v_severity text := p_payload->>'severity';
   v_local_change_id text := nullif(p_payload->>'local_change_id', '');
   v_description text := trim(coalesce(p_payload->>'description', ''));
+  v_component text := trim(coalesce(p_payload->>'component', ''));
 begin
   select * into v_check from public.checks where id = (p_payload->>'check_id')::uuid and deleted_at is null for update;
   if v_check.id is null then raise exception 'Check no encontrado'; end if;
@@ -263,6 +264,52 @@ begin
   where e.id = v_check.equipment_id and e.company_id = v_check.company_id
   returning id into v_id;
   if v_id is null then raise exception 'Equipo de check no valido'; end if;
+  return v_id;
+end;
+$$;
+
+create or replace function public.register_work_order_deficiency(p_payload jsonb)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_profile_id uuid := public.current_profile_id();
+  v_work public.work_orders;
+  v_check public.checks;
+  v_equipment_id uuid;
+  v_id uuid;
+  v_code text;
+  v_severity text := p_payload->>'severity';
+  v_local_change_id text := nullif(p_payload->>'local_change_id', '');
+  v_description text := trim(coalesce(p_payload->>'description', ''));
+begin
+  select * into v_work from public.work_orders where id = (p_payload->>'work_order_id')::uuid and deleted_at is null for update;
+  if v_work.id is null then raise exception 'Parte no encontrado'; end if;
+  perform public.assert_member_of_current_company(v_work.company_id);
+  if not (public.has_any_role(array['superadmin','SAT','Gerencia']) or public.is_assigned_to_work_order(v_work.id, v_profile_id)) then raise exception 'No tienes permisos para crear incidencias de este parte'; end if;
+  if v_description = '' then raise exception 'Descripcion de incidencia obligatoria'; end if;
+  if nullif(p_payload->>'check_id', '') is not null then
+    select * into v_check from public.checks where id = (p_payload->>'check_id')::uuid and work_order_id = v_work.id and company_id = v_work.company_id and deleted_at is null;
+    if v_check.id is null then raise exception 'Check asociado no valido para este parte'; end if;
+  end if;
+  v_severity := case v_severity when 'Leve' then 'Baja' when 'Critica' then 'Critica' else coalesce(v_severity, 'Media') end;
+  if v_severity not in ('Baja','Media','Alta','Critica') then v_severity := 'Media'; end if;
+  select id into v_id from public.deficiencies where company_id = v_work.company_id and local_change_id = v_local_change_id and v_local_change_id is not null;
+  if v_id is not null then return v_id; end if;
+  v_equipment_id := coalesce(v_check.equipment_id, v_work.main_equipment_id);
+  if v_equipment_id is null then
+    select equipment_id into v_equipment_id from public.work_order_equipment where work_order_id = v_work.id and company_id = v_work.company_id order by is_primary desc, created_at limit 1;
+  end if;
+  if v_equipment_id is null then raise exception 'El parte no tiene equipo asociado para vincular la incidencia'; end if;
+  v_code := public.next_dmp_code(v_work.company_id, 'deficiencies', 'DEF', true, 6);
+  insert into public.deficiencies(company_id, code, check_id, section_id, item_id, work_order_id, equipment_id, client_id, site_id, severity, description, recommended_action, responsible_profile_id, local_change_id)
+  select v_work.company_id, v_code, v_check.id, null, null, v_work.id, e.id, e.client_id, e.site_id, v_severity, case when v_component = '' then v_description else '[' || v_component || '] ' || v_description end, nullif(p_payload->>'recommended_action', ''), v_profile_id, v_local_change_id
+  from public.equipment e
+  where e.id = v_equipment_id and e.company_id = v_work.company_id
+  returning id into v_id;
+  if v_id is null then raise exception 'Equipo del parte no valido'; end if;
   return v_id;
 end;
 $$;
@@ -364,6 +411,7 @@ grant execute on function public.register_check_photo(jsonb) to authenticated;
 grant execute on function public.register_work_order_photo(jsonb) to authenticated;
 grant execute on function public.register_work_order_signature(jsonb) to authenticated;
 grant execute on function public.register_check_deficiency(jsonb) to authenticated;
+grant execute on function public.register_work_order_deficiency(jsonb) to authenticated;
 grant execute on function public.finish_check_safe(uuid, text) to authenticated;
 grant execute on function public.sync_work_order_note(uuid, text, text) to authenticated;
 grant execute on function public.sync_work_order_material_usage(uuid, text, numeric, text) to authenticated;

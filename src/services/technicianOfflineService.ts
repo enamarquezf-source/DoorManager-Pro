@@ -100,7 +100,8 @@ function isQueueOpen(item: OfflineChange) {
 
 async function syncChange(item: OfflineChange) {
   if (item.type === 'check-block') await checksService.syncOfflineBlock(item);
-  else if (item.type === 'deficiency') await checksService.syncOfflineDeficiency(item);
+  else if (item.type === 'deficiency' && item.checkId) await checksService.syncOfflineDeficiency(item);
+  else if (item.type === 'deficiency' && item.workOrderId) await workOrdersService.syncOfflineDeficiency(item.workOrderId, item.payload, item.id);
   else if (item.type === 'photo' && item.checkId) await checksService.syncOfflinePhoto(item);
   else if (item.type === 'photo' && item.workOrderId) await workOrdersService.syncOfflinePhoto(item.workOrderId, item.payload, item.id);
   else if (item.type === 'signature' && item.workOrderId) await workOrdersService.syncOfflineSignature(item.workOrderId, item.payload, item.id);

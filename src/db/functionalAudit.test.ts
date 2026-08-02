@@ -46,6 +46,15 @@ describe('functional audit coverage', () => {
     expect(app).not.toContain('Módulo en preparación');
   });
 
+  it('no conserva acciones simuladas en el flujo tecnico', () => {
+    expect(app).not.toContain('Foto pendiente de adjuntar');
+    expect(app).not.toContain('Incidencia técnica pendiente de completar');
+    expect(app).not.toContain('signature: true');
+    expect(app).toContain('WorkOrderPhotoForm workOrderId={id}');
+    expect(app).toContain('WorkOrderDeficiencyForm workOrderId={id}');
+    expect(app).toContain('WorkOrderSignatureForm workOrderId={id}');
+  });
+
   it('incluye SQL de verificacion SAT posterior a la migracion', () => {
     expect(verification).toContain("p.email = 'marta.lopez@dmp-demo.test'");
     expect(verification).toContain('sat_comercial_ok');

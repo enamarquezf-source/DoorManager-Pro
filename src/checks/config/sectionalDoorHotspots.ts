@@ -57,7 +57,7 @@ export const equipmentCheckTemplates: EquipmentCheckTemplate[] = [
 
 export function templateForEquipment(equipment?: any) {
   const raw = `${equipment?.equipment_types?.name ?? equipment?.type_name ?? equipment?.type ?? ''}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  return equipmentCheckTemplates.find((item) => raw.includes(item.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase())) ?? equipmentCheckTemplates[0];
+  return equipmentCheckTemplates.find((item) => raw.includes(item.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase())) ?? null;
 }
 
 export function visibleSectionalZones(equipment?: any) {
@@ -67,6 +67,7 @@ export function visibleSectionalZones(equipment?: any) {
 
 export function visibleTemplateZones(equipment?: any) {
   const template = templateForEquipment(equipment);
+  if (!template) return [];
   const hasPedestrianDoor = Boolean(equipment?.has_pedestrian_door ?? equipment?.pedestrian_door ?? equipment?.metadata?.has_pedestrian_door);
   return template.zones.filter((zone) => !zone.requiresPedestrianDoor || hasPedestrianDoor);
 }

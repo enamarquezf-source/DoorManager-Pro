@@ -24,10 +24,11 @@ describe('check template visibility regression', () => {
     expect(superadminService).toContain('if (companyId) query = query.eq');
   });
 
-  it('encuentra plantillas activas compatibles por empresa o global y por tipo o global', () => {
+  it('encuentra plantillas activas por empresa o global y exige tipo exacto', () => {
     expect(checksService).toContain('async templates(equipmentTypeId?: string | null, companyScope?: string | null)');
     expect(checksService).toContain('company_id.eq.${companyId},company_id.is.null');
-    expect(checksService).toContain('equipment_type_id.eq.${equipmentTypeId},equipment_type_id.is.null');
+    expect(checksService).toContain("query.eq('equipment_type_id', equipmentTypeId)");
+    expect(checksService).not.toContain('equipment_type_id.eq.${equipmentTypeId},equipment_type_id.is.null');
     expect(app).toContain('selectedEquipment.equipment_type_id ?? null');
   });
 

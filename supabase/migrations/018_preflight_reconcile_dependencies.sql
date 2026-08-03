@@ -3,6 +3,23 @@
 
 begin;
 
+create or replace function public.is_company_member(p_company_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+      select 1
+      from public.profiles p
+      where p.auth_user_id = auth.uid()
+        and p.company_id = p_company_id
+        and p.active = true
+        and p.deleted_at is null
+    );
+$$;
+
 create or replace function public.has_any_role(role_names text[])
 returns boolean
 language sql
@@ -114,6 +131,7 @@ begin
 end;
 $$;
 
+grant execute on function public.is_company_member(uuid) to authenticated;
 grant execute on function public.has_any_role(text[]) to authenticated;
 grant execute on function public.is_assigned_to_work_order(uuid, uuid) to authenticated;
 grant execute on function public.next_dmp_code(uuid, text, text, boolean, integer) to authenticated;

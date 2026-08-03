@@ -1,12 +1,11 @@
 import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, currentProfileId, expectData, expectStep } from './query';
+import { filesBucket, withSignedFileUrl } from '../shared/signedFiles';
 
 const workOrderColumns = ['case_id', 'client_id', 'site_id', 'main_equipment_id', 'contact_id', 'access_requirement_id', 'title', 'description', 'type', 'priority', 'status', 'origin', 'scheduled_date', 'scheduled_time', 'estimated_duration_minutes', 'planned_material', 'technical_team', 'diagnosis', 'work_performed', 'result'];
 function workOrderPayload(payload: Record<string, any>) {
   return Object.fromEntries(workOrderColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
 }
-
-const filesBucket = 'dmp-files';
 
 function dataUrlToBlob(dataUrl: string) {
   const [header, base64] = dataUrl.split(',');
@@ -90,7 +89,7 @@ export const workOrdersService = {
         clients!work_orders_client_id_fkey(*),
         sites!work_orders_site_id_fkey(*),
         cases!work_orders_case_id_fkey(*),
-        primary_equipment:equipment!work_orders_main_equipment_id_fkey(*),
+        primary_equipment:equipment!work_orders_main_equipment_id_fkey(*, equipment_types!equipment_equipment_type_id_fkey(*)),
         contact:client_contacts!work_orders_contact_id_fkey(*),
         access_requirement:access_requirements!work_orders_access_requirement_id_fkey(*),
         primary_technician:profiles!work_orders_main_technician_id_fkey(*),
@@ -103,12 +102,12 @@ export const workOrdersService = {
       const history = await expectStep('Detalle parte / historial estados', () => expectData<any[]>(supabase.from('work_order_status_history').select('*, profiles!work_order_status_history_changed_by_fkey(first_name,last_name)').eq('work_order_id', workOrderId).order('changed_at', { ascending: true })));
       const notes = await expectStep('Detalle parte / notas', () => expectData<any[]>(supabase.from('work_order_notes').select('*, profiles!work_order_notes_created_by_fkey(first_name,last_name)').eq('work_order_id', workOrderId).order('created_at', { ascending: true })));
       const materials = await expectStep('Detalle parte / materiales', () => expectData<any[]>(supabase.from('work_order_materials').select('*, materials!work_order_materials_material_id_fkey(*)').eq('work_order_id', workOrderId).order('created_at', { ascending: true })));
-      const checks = await expectStep('Detalle parte / checks', () => expectData<any[]>(supabase.from('checks').select('*, check_templates!checks_template_id_fkey(*), equipment!checks_equipment_id_fkey(*), profiles!checks_technician_id_fkey(first_name,last_name)').eq('work_order_id', workOrderId).is('deleted_at', null).order('created_at', { ascending: false })));
+      const checks = await expectStep('Detalle parte / checks', () => expectData<any[]>(supabase.from('checks').select('*, check_templates!checks_template_id_fkey(*, check_template_sections!check_template_sections_template_id_fkey(*, check_template_items!check_template_items_section_id_fkey(*))), equipment!checks_equipment_id_fkey(*, equipment_types!equipment_equipment_type_id_fkey(*)), profiles!checks_technician_id_fkey(first_name,last_name), check_section_results!check_section_results_check_id_fkey(*), check_photos!check_photos_check_id_fkey(*)').eq('work_order_id', workOrderId).is('deleted_at', null).order('created_at', { ascending: false })));
       const deficiencies = await expectStep('Detalle parte / deficiencias', () => expectData<any[]>(supabase.from('deficiencies').select('*, equipment!deficiencies_equipment_id_fkey(*), checks!deficiencies_check_id_fkey(code), profiles!deficiencies_responsible_profile_id_fkey(first_name,last_name)').eq('work_order_id', workOrderId).is('deleted_at', null).order('created_at', { ascending: false })));
       const alertRows = await expectStep('Detalle parte / avisos', () => expectData<any[]>(supabase.from('alerts').select('*, alert_recipients!alert_recipients_alert_id_fkey(*)').eq('related_entity', 'work_orders').eq('related_id', workOrderId).is('deleted_at', null).order('created_at', { ascending: false })));
       const documents = await expectStep('Detalle parte / documentos', () => expectData<any[]>(supabase.from('document_links').select('*, documents!document_links_document_id_fkey(*)').eq('related_type', 'Parte').eq('related_id', workOrderId).order('created_at', { ascending: false })));
       const signatures = await expectStep('Detalle parte / firmas', () => expectData<any[]>(supabase.from('work_order_signatures').select('*, files!work_order_signatures_file_id_fkey(*)').eq('work_order_id', workOrderId).order('signed_at', { ascending: false })));
-      const photos = await expectStep('Detalle parte / fotos', () => expectData<any[]>(supabase.from('work_order_photos').select('*, files!work_order_photos_file_id_fkey(*)').eq('work_order_id', workOrderId).order('taken_at', { ascending: false })));
+      const photos = await expectStep('Detalle parte / fotos', () => expectData<any[]>(supabase.from('work_order_photos').select('*, files!work_order_photos_file_id_fkey(*), profiles!work_order_photos_taken_by_fkey(first_name,last_name)').eq('work_order_id', workOrderId).order('taken_at', { ascending: false })));
 
       const primaryAssignment = assignments.find((item) => item.role === 'Principal') ?? assignments[0];
       return {
@@ -129,8 +128,8 @@ export const workOrdersService = {
         alerts: alertRows,
         documents: documents.map((item) => item.documents).filter(Boolean),
         deficiencies,
-        signatures,
-        photos,
+        signatures: await Promise.all(signatures.map(withSignedFileUrl)),
+        photos: await Promise.all(photos.map(withSignedFileUrl)),
         clients: workOrder.clients,
         sites: workOrder.sites,
         cases: workOrder.cases,

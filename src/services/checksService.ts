@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, currentProfileId, expectData } from './query';
 import type { OfflineChange } from './technicianOfflineService';
 import { codesService } from './codesService';
+import { filesBucket, withSignedFileUrl } from '../shared/signedFiles';
 
 const checkColumns = ['work_order_id', 'equipment_id', 'template_id', 'technician_id', 'status', 'global_result', 'observations'];
 function checkPayload(payload: Record<string, any>) {
@@ -15,8 +16,6 @@ function normalize(value?: string | null) {
 export function hasPendingLocalPhotos(payload: Record<string, any>) {
   return Array.isArray(payload.photos) && payload.photos.length > 0;
 }
-
-const filesBucket = 'dmp-files';
 
 function dataUrlToBlob(dataUrl: string) {
   const [header, base64] = dataUrl.split(',');
@@ -64,9 +63,9 @@ export const checksService = {
     return expectData<any[]>(supabase.from('v_completed_checks').select('*').eq('technician_id', profileId).order('finished_at', { ascending: false }));
   },
   async get(id: string) {
-    const row = await expectData<any>(supabase.from('checks').select('*, equipment!checks_equipment_id_fkey(*), work_orders!checks_work_order_id_fkey(*), check_templates!checks_template_id_fkey(*, check_template_sections!check_template_sections_template_id_fkey(*, check_template_items!check_template_items_section_id_fkey(*))), check_section_results!check_section_results_check_id_fkey(*, check_template_sections!check_section_results_section_id_fkey(*)), check_item_results!check_item_results_check_id_fkey(*, check_template_items!check_item_results_item_id_fkey(*)), check_photos!check_photos_check_id_fkey(*)').eq('id', id).maybeSingle());
+    const row = await expectData<any>(supabase.from('checks').select('*, equipment!checks_equipment_id_fkey(*, equipment_types!equipment_equipment_type_id_fkey(*)), work_orders!checks_work_order_id_fkey(*), profiles!checks_technician_id_fkey(first_name,last_name), check_templates!checks_template_id_fkey(*, equipment_types!check_templates_equipment_type_id_fkey(*), check_template_sections!check_template_sections_template_id_fkey(*, check_template_items!check_template_items_section_id_fkey(*))), check_section_results!check_section_results_check_id_fkey(*, check_template_sections!check_section_results_section_id_fkey(*)), check_item_results!check_item_results_check_id_fkey(*, check_template_items!check_item_results_item_id_fkey(*)), check_photos!check_photos_check_id_fkey(*, files!check_photos_file_id_fkey(*)), deficiencies!deficiencies_check_id_fkey(*)').eq('id', id).maybeSingle());
     if (!row) throw new Error('No se ha encontrado el check solicitado.');
-    return row;
+    return { ...row, check_photos: await Promise.all((row.check_photos ?? []).map(withSignedFileUrl)) };
   },
   async getTechnicianAssigned(id: string) {
     const profileId = await currentProfileId();
@@ -81,7 +80,7 @@ export const checksService = {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
     let query = supabase.from('check_templates').select('*, companies!check_templates_company_id_fkey(name), equipment_types!check_templates_equipment_type_id_fkey(name), check_template_sections!check_template_sections_template_id_fkey(*, check_template_items!check_template_items_section_id_fkey(*))').eq('active', true);
     if (companyId) query = query.or(`company_id.eq.${companyId},company_id.is.null`);
-    if (equipmentTypeId) query = query.or(`equipment_type_id.eq.${equipmentTypeId},equipment_type_id.is.null`);
+    if (equipmentTypeId) query = query.eq('equipment_type_id', equipmentTypeId);
     else query = query.is('equipment_type_id', null);
     return expectData<any[]>(query.order('name'));
   },

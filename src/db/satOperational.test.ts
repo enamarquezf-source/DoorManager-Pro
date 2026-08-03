@@ -28,8 +28,12 @@ describe('SAT operational workspace', () => {
     expect(app).toContain("dashboardService.getSatDashboardData()");
     expect(app).toContain("kpiCard('Partes finalizados'");
     expect(app).toContain("'/app/modulos/tecnicos'");
+    expect(app).toContain('`/app/modulos/tecnicos/${t.id}`');
     expect(app).toContain("'/app/partes?filtro=material'");
     expect(app).toContain("'/app/partes?filtro=no-terminados'");
+    expect(app).toContain('allRoute="/app/partes?fecha=hoy"');
+    expect(app).toContain('allRoute="/app/modulos/tecnicos"');
+    expect(app).toContain('routeForOperationalItem(item)');
     expect(dashboardService).toContain("supabase.from('v_work_order_full_detail')");
     expect(dashboardService).toContain("technicians: technicians.filter");
   });

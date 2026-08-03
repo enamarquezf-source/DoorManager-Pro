@@ -53,6 +53,14 @@ describe('canAccessRoute', () => {
     expect(canAccessRoute(sat, '/app/superadmin/usuarios')).toBe(false);
   });
 
+  it('permite rutas SAT cuando primary_area llega incompleto pero roles contiene SAT', () => {
+    const satByRole = { ...profile('SAT', ['SAT']), primary_area: null } as any as Profile;
+    expect(profileWorkspaces(satByRole)).toEqual(['sat']);
+    for (const route of ['/app/clientes', '/app/partes', '/app/partes/90ad219b-f5d0-4489-a834-eac040469be6', '/app/trabajos/90ad219b-f5d0-4489-a834-eac040469be6', '/app/checks', '/app/checks/check-1', '/app/expedientes']) {
+      expect(canAccessRoute(satByRole, route)).toBe(true);
+    }
+  });
+
   it('mantiene la matriz de gerencia alineada con permisos operativos decididos', () => {
     expect(canRole('Gerencia', 'ver clientes')).toBe(true);
     expect(canRole('Gerencia', 'asignar técnicos')).toBe(true);

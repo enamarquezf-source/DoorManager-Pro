@@ -14,6 +14,18 @@ describe('work order presentation adapters', () => {
     expect(events.map((event) => event.type)).toEqual(['Firma', 'Foto', 'Nota', 'Material', 'Check']);
   });
 
+  it('devuelve eventos estructurados y descarta filas sin fecha real', () => {
+    const events = activityTimeline({
+      notes: [{ note: 'Nota válida', created_at: '2026-08-03T10:00:00Z', profiles: { first_name: 'Ana', last_name: 'SAT' } }, { note: 'Sin fecha' }],
+      deficiencies: [{ created_at: '2026-08-03T11:00:00Z', description: null }],
+    });
+
+    expect(events).toEqual([
+      { type: 'Deficiencia', date: '2026-08-03T11:00:00Z', author: null, title: 'Deficiencia', text: null },
+      { type: 'Nota', date: '2026-08-03T10:00:00Z', author: 'Ana SAT', title: 'Intervención', text: 'Nota válida' },
+    ]);
+  });
+
   it('oculta parcialmente documentos de firma', () => {
     expect(maskDocument('12345678A')).toBe('12****8A');
   });

@@ -28,6 +28,8 @@ import { deficiencyFiltersFromParams, isOpenDeficiencyStatus, normalizeParam, wo
 import { canvasHasInk, fileToLocalPhoto } from './shared/offlineMedia';
 import { activityTimeline, interventionSummary, maskDocument } from './shared/workOrderPresentation';
 import { ActivityTimeline, Timeline } from './shared/timelineViews';
+import { checkForNewVersion, currentBuild, type BuildInfo, type VersionCheckResult } from './shared/versioning';
+import { buildTechnicalReference, publicErrorMessage } from './shared/errorDiagnostics';
 import type { Profile, RoleName, Severity, Workspace } from './shared/types';
 
 type AuthContextValue = { initialized: boolean; session: Session | null; profile: Profile | null; profileError: string | null; workspace: Workspace; setWorkspace: (workspace: Workspace) => void; refreshProfile: () => Promise<void>; signOut: () => Promise<void> };
@@ -42,7 +44,7 @@ const superadminCompanyKey = 'dmp-superadmin-company-scope';
 const iconProps = { size: 18, strokeWidth: 2 };
 
 function App() {
-  return <AppErrorBoundary scope="Aplicación"><BrowserRouter><AuthProvider><SuperadminScopeProvider><Routes><Route path="/" element={<LoginPage />} /><Route element={<ProtectedLayout />}><Route path="/app/inicio" element={<HomePage />} /><Route path="/app/superadmin" element={<SuperadminGuard><SuperadminHome /></SuperadminGuard>} /><Route path="/app/superadmin/usuarios" element={<SuperadminGuard><SuperadminUsers /></SuperadminGuard>} /><Route path="/app/superadmin/roles" element={<SuperadminGuard><SuperadminRoles /></SuperadminGuard>} /><Route path="/app/superadmin/plantillas" element={<SuperadminGuard><SuperadminTemplates /></SuperadminGuard>} /><Route path="/app/superadmin/sincronizacion" element={<SuperadminGuard><SuperadminSync /></SuperadminGuard>} /><Route path="/app/superadmin/auditoria" element={<SuperadminGuard><SuperadminAudit /></SuperadminGuard>} /><Route path="/app/clientes" element={<ClientsPage />} /><Route path="/app/clientes/:id" element={<ErrorBoundaryScreen scope="Ficha de cliente"><ClientDetailPage /></ErrorBoundaryScreen>} /><Route path="/app/centros" element={<SitesPage />} /><Route path="/app/centros/:id" element={<ErrorBoundaryScreen scope="Ficha de centro"><SiteDetailPage /></ErrorBoundaryScreen>} /><Route path="/app/equipos" element={<EquipmentPage />} /><Route path="/app/equipos/:id" element={<ErrorBoundaryScreen scope="Ficha de equipo"><EquipmentDetailPage /></ErrorBoundaryScreen>} /><Route path="/app/expedientes" element={<CasesPage />} /><Route path="/app/expedientes/:id" element={<CaseDetailPage />} /><Route path="/app/partes" element={<WorkOrdersPage />} /><Route path="/app/trabajos" element={<Navigate to="/app/partes" replace />} /><Route path="/app/trabajos/:id" element={<ErrorBoundaryScreen scope="Detalle de parte"><WorkOrderDetailPageV2 /></ErrorBoundaryScreen>} /><Route path="/app/partes/:id" element={<ErrorBoundaryScreen scope="Detalle de parte"><WorkOrderDetailPageV2 /></ErrorBoundaryScreen>} /><Route path="/app/tecnico" element={<TechnicianDayPage />} /><Route path="/app/tecnico/trabajo/:id" element={<TechnicianWorkPage />} /><Route path="/app/pendientes" element={<PendingSyncPage />} /><Route path="/app/checks" element={<ChecksPage />} /><Route path="/app/checks/:id" element={<ErrorBoundaryScreen scope="Detalle de check"><CheckDetailPage /></ErrorBoundaryScreen>} /><Route path="/app/checks/:id/bloque/:blockId" element={<ErrorBoundaryScreen scope="Bloque de check"><CheckBlockPageV2 /></ErrorBoundaryScreen>} /><Route path="/app/deficiencias" element={<DeficienciesPage />} /><Route path="/app/deficiencias/:id" element={<DeficiencyDetailPage />} /><Route path="/app/avisos" element={<AlertsPage />} /><Route path="/app/documentos" element={<DocumentsPage />} /><Route path="/app/documentos/:id" element={<DocumentDetailPage />} /><Route path="/app/gerencia" element={<ManagementPage />} /><Route path="/app/modulos/tecnicos/:profileId" element={<ErrorBoundaryScreen scope="Ficha operativa"><OperationalProfileRoute role="Tecnico" /></ErrorBoundaryScreen>} /><Route path="/app/modulos/comerciales/:profileId" element={<ErrorBoundaryScreen scope="Ficha operativa"><OperationalProfileRoute role="Comercial" /></ErrorBoundaryScreen>} /><Route path="/app/modulos/:moduleId" element={<ModulePage />} /><Route path="/app/*" element={<NotFound />} /></Route><Route path="*" element={<NotFound />} /></Routes></SuperadminScopeProvider></AuthProvider></BrowserRouter></AppErrorBoundary>;
+  return <AppErrorBoundary scope="Aplicación"><BrowserRouter><AuthProvider><SuperadminScopeProvider><Routes><Route path="/" element={<LoginPage />} /><Route element={<ProtectedLayout />}><Route path="/app/inicio" element={<HomePage />} /><Route path="/app/superadmin" element={<SuperadminGuard><SuperadminHome /></SuperadminGuard>} /><Route path="/app/superadmin/usuarios" element={<SuperadminGuard><SuperadminUsers /></SuperadminGuard>} /><Route path="/app/superadmin/roles" element={<SuperadminGuard><SuperadminRoles /></SuperadminGuard>} /><Route path="/app/superadmin/plantillas" element={<SuperadminGuard><SuperadminTemplates /></SuperadminGuard>} /><Route path="/app/superadmin/sincronizacion" element={<SuperadminGuard><SuperadminSync /></SuperadminGuard>} /><Route path="/app/superadmin/auditoria" element={<SuperadminGuard><SuperadminAudit /></SuperadminGuard>} /><Route path="/app/clientes" element={<ClientsPage />} /><Route path="/app/clientes/:id" element={<ErrorBoundaryScreen scope="Ficha de cliente"><ClientDetailPage /></ErrorBoundaryScreen>} /><Route path="/app/centros" element={<SitesPage />} /><Route path="/app/centros/:id" element={<ErrorBoundaryScreen scope="Ficha de centro"><SiteDetailPage /></ErrorBoundaryScreen>} /><Route path="/app/equipos" element={<EquipmentPage />} /><Route path="/app/equipos/:id" element={<ErrorBoundaryScreen scope="Ficha de equipo"><EquipmentDetailPage /></ErrorBoundaryScreen>} /><Route path="/app/expedientes" element={<CasesPage />} /><Route path="/app/expedientes/:id" element={<ErrorBoundaryScreen scope="Ficha de expediente"><CaseDetailPage /></ErrorBoundaryScreen>} /><Route path="/app/partes" element={<WorkOrdersPage />} /><Route path="/app/trabajos" element={<Navigate to="/app/partes" replace />} /><Route path="/app/trabajos/:id" element={<ErrorBoundaryScreen scope="Detalle de parte"><WorkOrderDetailPageV2 /></ErrorBoundaryScreen>} /><Route path="/app/partes/:id" element={<ErrorBoundaryScreen scope="Detalle de parte"><WorkOrderDetailPageV2 /></ErrorBoundaryScreen>} /><Route path="/app/tecnico" element={<TechnicianDayPage />} /><Route path="/app/tecnico/trabajo/:id" element={<TechnicianWorkPage />} /><Route path="/app/pendientes" element={<PendingSyncPage />} /><Route path="/app/checks" element={<ChecksPage />} /><Route path="/app/checks/:id" element={<ErrorBoundaryScreen scope="Detalle de check"><CheckDetailPage /></ErrorBoundaryScreen>} /><Route path="/app/checks/:id/bloque/:blockId" element={<ErrorBoundaryScreen scope="Bloque de check"><CheckBlockPageV2 /></ErrorBoundaryScreen>} /><Route path="/app/deficiencias" element={<DeficienciesPage />} /><Route path="/app/deficiencias/:id" element={<DeficiencyDetailPage />} /><Route path="/app/avisos" element={<AlertsPage />} /><Route path="/app/documentos" element={<DocumentsPage />} /><Route path="/app/documentos/:id" element={<DocumentDetailPage />} /><Route path="/app/gerencia" element={<ManagementPage />} /><Route path="/app/modulos/tecnicos/:profileId" element={<ErrorBoundaryScreen scope="Ficha operativa"><OperationalProfileRoute role="Tecnico" /></ErrorBoundaryScreen>} /><Route path="/app/modulos/comerciales/:profileId" element={<ErrorBoundaryScreen scope="Ficha operativa"><OperationalProfileRoute role="Comercial" /></ErrorBoundaryScreen>} /><Route path="/app/modulos/:moduleId" element={<ModulePage />} /><Route path="/app/*" element={<NotFound />} /></Route><Route path="*" element={<NotFound />} /></Routes></SuperadminScopeProvider></AuthProvider></BrowserRouter></AppErrorBoundary>;
 }
 
 function AuthProvider({ children }: { children: ReactNode }) {
@@ -132,28 +134,57 @@ function useSuperadminScope() {
   return value;
 }
 
-type AppErrorBoundaryProps = { scope: string; children: ReactNode };
-type AppErrorBoundaryState = { error: Error | null; reference: string };
+type AppErrorBoundaryProps = { scope: string; children: ReactNode; route?: string; homeRoute?: string; onSignOut?: () => Promise<void> | void };
+type AppErrorBoundaryState = { error: Error | null; reference: string; resetKey: number; copied: boolean };
 
 class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorBoundaryState> {
-  state: AppErrorBoundaryState = { error: null, reference: '' };
+  state: AppErrorBoundaryState = { error: null, reference: '', resetKey: 0, copied: false };
 
   static getDerivedStateFromError(error: Error) {
-    return { error, reference: `DMP-${Date.now().toString(36).toUpperCase()}` };
+    return { error, reference: buildTechnicalReference(), copied: false };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error(`[${this.props.scope}] Error de renderizado`, error, info.componentStack);
+    console.error('[DoorManager Pro] Error de renderizado controlado', this.safeInfo(error, info.componentStack));
+  }
+
+  safeInfo(error: Error, componentStack?: string | null) {
+    return { reference: this.state.reference, scope: this.props.scope, route: this.route(), version: currentBuild.version, error: { name: error.name, message: error.message, stack: error.stack }, componentStack };
+  }
+
+  route() {
+    return this.props.route ?? (typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search}` : 'ruta no disponible');
+  }
+
+  retry = () => this.setState((state) => ({ error: null, reference: '', copied: false, resetKey: state.resetKey + 1 }));
+
+  goHome = () => {
+    const route = this.props.homeRoute ?? '/';
+    if (typeof window !== 'undefined') window.location.assign(route);
+  };
+
+  signOut = async () => {
+    if (this.props.onSignOut) await this.props.onSignOut();
+    else await authService.signOut();
+    if (typeof window !== 'undefined') window.location.assign('/');
+  };
+
+  copyInfo = async () => {
+    if (!this.state.error || typeof navigator === 'undefined' || !navigator.clipboard) return;
+    await navigator.clipboard.writeText(JSON.stringify(this.safeInfo(this.state.error), null, 2));
+    this.setState({ copied: true });
   }
 
   render() {
-    if (!this.state.error) return this.props.children;
-    return <main className="page"><Card title={`${this.props.scope} no disponible`}><p className="form-error">Se ha aislado un error de pantalla. Referencia: {this.state.reference}</p><button className="primary" onClick={() => this.setState({ error: null, reference: '' })}>Reintentar</button></Card></main>;
+    if (!this.state.error) return <div key={this.state.resetKey}>{this.props.children}</div>;
+    return <main className="page"><Card title={`${this.props.scope} no disponible`}><p className="form-error"><AlertTriangle size={16} />La pantalla no se ha podido mostrar. Tus credenciales no se muestran ni se copian; la información técnica solo incluye ruta, versión y referencia.</p><InfoGrid items={[[ 'Referencia', this.state.reference ], [ 'Ruta', this.route() ], [ 'Versión frontend', currentBuild.version ], [ 'Compilación', currentBuild.builtAt ]]}/><div className="actions"><button className="primary" onClick={this.retry}>Reintentar</button><button onClick={this.goHome}>Volver al inicio</button><button onClick={this.signOut}>Cerrar sesión</button><button onClick={this.copyInfo}>{this.state.copied ? 'Información copiada' : 'Copiar información técnica'}</button></div></Card></main>;
   }
 }
 
 function ErrorBoundaryScreen({ scope, children }: AppErrorBoundaryProps) {
-  return <AppErrorBoundary scope={scope}>{children}</AppErrorBoundary>;
+  const location = useLocation();
+  const { workspace, signOut } = useAuth();
+  return <AppErrorBoundary scope={scope} route={`${location.pathname}${location.search}`} homeRoute={homeForWorkspace(workspace)} onSignOut={signOut}>{children}</AppErrorBoundary>;
 }
 
 function LoginPage() {
@@ -215,7 +246,86 @@ function ProtectedLayout() {
   const toggleSidebar = () => { localStorage.setItem(sidebarKey, String(!collapsed)); setCollapsed(!collapsed); };
   const doSignOut = async () => { const pending = workspace === 'tecnico' ? await technicianOfflineService.pending() : []; if (pending.length && !window.confirm(`Hay ${pending.length} cambios técnicos pendientes de sincronizar. Si sales, seguirán guardados en este dispositivo. Acepta para salir o cancela para revisar pendientes.`)) { navigate('/app/pendientes'); return; } setAlertsOpen(false); await signOut(); navigate('/', { replace: true }); };
 
-  return <div className="shell"><aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}><div className="brand-row"><Link className="brand" to={workspace === 'tecnico' ? '/app/tecnico' : '/app/inicio'}><Factory {...iconProps} /><span>DoorManager</span></Link><button className="side-toggle" onClick={toggleSidebar} title={collapsed ? 'Expandir menú' : 'Contraer menú'}>{collapsed ? <PanelLeftOpen {...iconProps} /> : <PanelLeftClose {...iconProps} />}</button></div><nav>{nav.map((item) => { const Icon = item.icon; return <Link key={item.id} className={active?.id === item.id ? 'active' : ''} to={item.path}><Icon {...iconProps} /><span>{item.label}</span></Link>; })}</nav></aside><div className="workspace"><header className="topbar"><button className="mobile-menu" onClick={toggleSidebar} title="Menú"><Menu {...iconProps} /></button><div className="top-title"><p className="eyebrow">{workspaceTitles[workspace]}</p><h1>{active?.label ?? 'DoorManager Pro'}</h1></div><GlobalSearch query={query} setQuery={setQuery} /><button className="icon-btn" onClick={() => setAlertsOpen(true)} title="Centro de avisos" aria-label="Abrir centro de avisos"><Bell {...iconProps} /><b>{unread}</b></button><div className="user-menu-wrap"><button className="user user-button" onClick={() => setUserOpen(!userOpen)}><span>{initials(fullName(profile))}</span><div><strong>{fullName(profile)}</strong><small>{profile.primary_area}</small></div></button>{userOpen && <><button className="popover-backdrop" aria-label="Cerrar menú" onClick={() => setUserOpen(false)} /><div className="user-popover" role="menu"><button disabled><UserRound size={16} /> Mi perfil</button>{allowedWorkspaces.length > 1 && <div className="workspace-switch"><strong>Cambiar espacio de trabajo</strong>{allowedWorkspaces.map((item) => <button key={item} className={workspace === item ? 'active' : ''} onClick={() => { setWorkspace(item); navigate(item === 'tecnico' ? '/app/tecnico' : '/app/inicio'); }}>{workspaceTitles[item]}</button>)}</div>}<button disabled><Settings size={16} /> Preferencias locales</button><button onClick={doSignOut}><LogOut size={16} /> Cerrar sesión</button></div></>}</div><div className="mobile-session-actions"><button onClick={doSignOut}><LogOut size={16} /> Salir</button></div></header><main><Outlet /></main></div>{alertsOpen && <SidePanel title="Centro de avisos" subtitle={workspaceTitles[workspace]} onClose={() => setAlertsOpen(false)}><AlertsPanel onClose={() => setAlertsOpen(false)} /></SidePanel>}</div>;
+  return <div className="shell"><aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}><div className="brand-row"><Link className="brand" to={workspace === 'tecnico' ? '/app/tecnico' : '/app/inicio'}><Factory {...iconProps} /><span>DoorManager</span></Link><button className="side-toggle" onClick={toggleSidebar} title={collapsed ? 'Expandir menú' : 'Contraer menú'}>{collapsed ? <PanelLeftOpen {...iconProps} /> : <PanelLeftClose {...iconProps} />}</button></div><nav>{nav.map((item) => { const Icon = item.icon; return <Link key={item.id} className={active?.id === item.id ? 'active' : ''} to={item.path}><Icon {...iconProps} /><span>{item.label}</span></Link>; })}</nav></aside><div className="workspace"><header className="topbar"><button className="mobile-menu" onClick={toggleSidebar} title="Menú"><Menu {...iconProps} /></button><div className="top-title"><p className="eyebrow">{workspaceTitles[workspace]}</p><h1>{active?.label ?? 'DoorManager Pro'}</h1></div><GlobalSearch query={query} setQuery={setQuery} /><button className="icon-btn" onClick={() => setAlertsOpen(true)} title="Centro de avisos" aria-label="Abrir centro de avisos"><Bell {...iconProps} /><b>{unread}</b></button><div className="user-menu-wrap"><button className="user user-button" onClick={() => setUserOpen(!userOpen)}><span>{initials(fullName(profile))}</span><div><strong>{fullName(profile)}</strong><small>{profile.primary_area}</small></div></button>{userOpen && <><button className="popover-backdrop" aria-label="Cerrar menú" onClick={() => setUserOpen(false)} /><div className="user-popover" role="menu"><button disabled><UserRound size={16} /> Mi perfil</button>{allowedWorkspaces.length > 1 && <div className="workspace-switch"><strong>Cambiar espacio de trabajo</strong>{allowedWorkspaces.map((item) => <button key={item} className={workspace === item ? 'active' : ''} onClick={() => { setWorkspace(item); navigate(item === 'tecnico' ? '/app/tecnico' : '/app/inicio'); }}>{workspaceTitles[item]}</button>)}</div>}<button disabled><Settings size={16} /> Preferencias locales</button><button onClick={doSignOut}><LogOut size={16} /> Cerrar sesión</button></div></>}</div><div className="mobile-session-actions"><button onClick={doSignOut}><LogOut size={16} /> Salir</button></div></header><VersionUpdateNotice /><ConnectivityBanner /><RuntimeErrorMonitor /><main><Outlet /></main></div>{alertsOpen && <SidePanel title="Centro de avisos" subtitle={workspaceTitles[workspace]} onClose={() => setAlertsOpen(false)}><AlertsPanel onClose={() => setAlertsOpen(false)} /></SidePanel>}</div>;
+}
+
+function VersionUpdateNotice() {
+  const { workspace } = useAuth();
+  const [state, setState] = useState<VersionCheckResult>({ status: 'current', current: currentBuild, latest: currentBuild });
+  const [checking, setChecking] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const runCheck = async (manual = false) => {
+    setChecking(true);
+    const result = await checkForNewVersion();
+    setState(result);
+    setChecking(false);
+    if (manual) setMessage(result.status === 'update-available' ? 'Hay una actualización lista para instalar.' : result.status === 'current' ? 'Ya estás usando la última versión.' : result.error);
+  };
+
+  useEffect(() => {
+    runCheck();
+    const interval = window.setInterval(() => runCheck(), 5 * 60 * 1000);
+    const onVisible = () => { if (document.visibilityState === 'visible') runCheck(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { window.clearInterval(interval); document.removeEventListener('visibilitychange', onVisible); };
+  }, []);
+
+  const updateNow = async () => {
+    const hasPending = workspace === 'tecnico' && (await technicianOfflineService.pending()).length > 0;
+    if ((hasPending || hasPotentialUnsavedFormData()) && !window.confirm('Hay formularios con datos o cambios técnicos pendientes en este dispositivo. Actualiza solo si ya has guardado o sincronizado lo importante.')) return;
+    sessionStorage.setItem('dmp-last-manual-update', state.status === 'update-available' ? state.latest.version : currentBuild.version);
+    window.location.reload();
+  };
+
+  const latest = state.status === 'update-available' || state.status === 'current' ? state.latest : currentBuild;
+  return <div className={`version-strip ${state.status === 'update-available' ? 'needs-update' : ''}`} role="status" aria-live="polite"><div><strong>{state.status === 'update-available' ? 'Hay una nueva versión de DoorManager Pro disponible' : 'DoorManager Pro actualizado'}</strong><span>Versión {currentBuild.version} · Build {shortBuild(currentBuild)}{state.status === 'update-available' ? ` · Nueva: ${latest.version}` : ''}</span>{message && <small>{message}</small>}</div><div className="version-actions"><button onClick={() => runCheck(true)} disabled={checking}>{checking ? 'Buscando...' : 'Buscar actualizaciones'}</button>{state.status === 'update-available' && <button className="primary" onClick={updateNow}>Actualizar ahora</button>}</div></div>;
+}
+
+function ConnectivityBanner() {
+  const [online, setOnline] = useState(() => typeof navigator === 'undefined' ? true : navigator.onLine);
+  useEffect(() => {
+    const onOnline = () => setOnline(true);
+    const onOffline = () => setOnline(false);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => { window.removeEventListener('online', onOnline); window.removeEventListener('offline', onOffline); };
+  }, []);
+  if (online) return null;
+  return <div className="connectivity-banner" role="status" aria-live="polite"><AlertTriangle size={16} />Sin conexión temporal. Puedes seguir trabajando en flujos offline; sincroniza cuando vuelva la cobertura.</div>;
+}
+
+function RuntimeErrorMonitor() {
+  const location = useLocation();
+  const [error, setError] = useState<{ reference: string; message: string; route: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    const capture = (reason: unknown) => setError({ reference: buildTechnicalReference(), message: publicErrorMessage(reason), route: `${window.location.pathname}${window.location.search}` });
+    const onUnhandled = (event: PromiseRejectionEvent) => capture(event.reason);
+    const onError = (event: ErrorEvent) => capture(event.error ?? event.message);
+    window.addEventListener('unhandledrejection', onUnhandled);
+    window.addEventListener('error', onError);
+    return () => { window.removeEventListener('unhandledrejection', onUnhandled); window.removeEventListener('error', onError); };
+  }, []);
+
+  useEffect(() => { setError(null); setCopied(false); }, [location.pathname, location.search]);
+  if (!error) return null;
+  const info = { ...error, version: currentBuild.version, builtAt: currentBuild.builtAt };
+  return <div className="runtime-error" role="alert"><div><strong>Se ha detectado un problema temporal</strong><span>{error.message}</span><small>Referencia {error.reference} · {error.route}</small></div><div className="version-actions"><button onClick={() => setError(null)}>Ocultar</button><button onClick={async () => { if (navigator.clipboard) { await navigator.clipboard.writeText(JSON.stringify(info, null, 2)); setCopied(true); } }}>{copied ? 'Información copiada' : 'Copiar información técnica'}</button></div></div>;
+}
+
+function shortBuild(info: BuildInfo) {
+  return info.commit && info.commit !== 'local' ? info.commit.slice(0, 7) : info.builtAt;
+}
+
+function hasPotentialUnsavedFormData() {
+  return Array.from(document.querySelectorAll('form input, form textarea, form select')).some((element) => {
+    if (element instanceof HTMLInputElement) return !['hidden', 'submit', 'button', 'checkbox', 'radio', 'password'].includes(element.type) && Boolean(element.value.trim());
+    if (element instanceof HTMLTextAreaElement) return Boolean(element.value.trim());
+    if (element instanceof HTMLSelectElement) return Boolean(element.value);
+    return false;
+  });
 }
 
 function navForWorkspace(workspace: Workspace) {
@@ -340,7 +450,7 @@ function DashboardList({ title, rows, empty, allRoute }: { title: string; rows: 
 function SuperadminGuard({ children }: { children: ReactNode }) {
   const { profile } = useAuth();
   if (!isSuperadmin(profile)) return <section className="page"><Card title="No tienes permiso para acceder a esta zona"><p className="form-error"><ShieldAlert size={16} />No tienes permiso para acceder a esta zona</p><Link className="primary" to="/app/inicio">Volver al inicio</Link></Card></section>;
-  return <>{children}</>;
+  return <ErrorBoundaryScreen scope="Módulo superadmin">{children}</ErrorBoundaryScreen>;
 }
 
 function SuperadminCompanyScope() {

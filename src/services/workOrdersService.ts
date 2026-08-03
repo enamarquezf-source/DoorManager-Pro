@@ -93,6 +93,7 @@ export const workOrdersService = {
         contact:client_contacts!work_orders_contact_id_fkey(*),
         access_requirement:access_requirements!work_orders_access_requirement_id_fkey(*),
         primary_technician:profiles!work_orders_main_technician_id_fkey(*),
+        responsible:profiles!work_orders_current_responsible_id_fkey(*, profile_roles!profile_roles_profile_id_fkey(roles!profile_roles_role_id_fkey(name))),
         creator:profiles!work_orders_created_by_fkey(*)
       `).eq('id', workOrderId).maybeSingle());
       if (!workOrder) throw new Error('No se ha encontrado el parte solicitado.');
@@ -120,6 +121,7 @@ export const workOrdersService = {
         additional_equipment: additional.map((item) => item.equipment).filter(Boolean),
         assignments,
         primary_technician: workOrder.primary_technician ?? primaryAssignment?.profiles ?? null,
+        responsible: workOrder.responsible ?? null,
         support_technicians: assignments.filter((item) => item.role !== 'Principal').map((item) => item.profiles).filter(Boolean),
         status_history: history,
         notes,
@@ -156,13 +158,27 @@ export const workOrdersService = {
     const profileId = await currentProfileId();
     return expectData<string>(supabase.rpc('assign_technician', { p_work_order_id: workOrderId, p_technician_id: technicianId, p_assignment_date: assignmentDate, p_start: start, p_end: end, p_role: role, p_assigned_by: profileId }));
   },
-  async unassign(workOrderId: string, profileIdToRemove: string) {
+  async unassign(workOrderId: string, profileIdToRemove: string, reason?: string) {
     const profileId = await currentProfileId();
-    return expectData<void>(supabase.rpc('unassign_work_order_profile', { p_work_order_id: workOrderId, p_profile_id: profileIdToRemove, p_changed_by: profileId }));
+    return expectData<void>(supabase.rpc('unassign_work_order_profile', { p_work_order_id: workOrderId, p_profile_id: profileIdToRemove, p_changed_by: profileId, p_reason: reason ?? null }));
   },
   async assignCommercial(workOrderId: string, commercialId: string) {
     const profileId = await currentProfileId();
     return expectData<void>(supabase.rpc('assign_commercial_work_order', { p_work_order_id: workOrderId, p_commercial_id: commercialId, p_changed_by: profileId }));
+  },
+  async manageAssignments(workOrderId: string, payload: { main_technician_id?: string | null; support_technician_ids?: string[]; commercial_id?: string | null; assignment_date: string; planned_start_time?: string | null; planned_end_time?: string | null; reason?: string | null }) {
+    const profileId = await currentProfileId();
+    return expectData<void>(supabase.rpc('manage_work_order_assignments', {
+      p_work_order_id: workOrderId,
+      p_main_technician_id: payload.main_technician_id || null,
+      p_support_technician_ids: payload.support_technician_ids ?? [],
+      p_commercial_id: payload.commercial_id || null,
+      p_assignment_date: payload.assignment_date,
+      p_start: payload.planned_start_time || null,
+      p_end: payload.planned_end_time || null,
+      p_changed_by: profileId,
+      p_reason: payload.reason || null,
+    }));
   },
   async changeStatus(workOrderId: string, status: string, reason: string, manualCorrection = false) {
     return expectData<void>(supabase.rpc('change_work_order_status', { p_work_order_id: workOrderId, p_new_status: status, p_changed_by: null, p_reason: reason, p_manual_correction: manualCorrection, p_lat: null, p_lng: null }));

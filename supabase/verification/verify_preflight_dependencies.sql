@@ -15,7 +15,7 @@ with required(function_name, required_signature, argument_types) as (
     ('create_case', 'public.create_case(uuid, uuid, uuid, text, text, text, text, text, text, uuid)', 'uuid, uuid, uuid, text, text, text, text, text, text, uuid'),
     ('create_work_order_full', 'public.create_work_order_full(jsonb)', 'jsonb'),
     ('save_check_block_result', 'public.save_check_block_result(jsonb)', 'jsonb'),
-    ('unassign_work_order_profile', 'public.unassign_work_order_profile(uuid, uuid, uuid)', 'uuid, uuid, uuid'),
+    ('unassign_work_order_profile', 'public.unassign_work_order_profile(uuid, uuid, uuid, text)', 'uuid, uuid, uuid, text'),
     ('assign_commercial_work_order', 'public.assign_commercial_work_order(uuid, uuid, uuid)', 'uuid, uuid, uuid'),
     ('superadmin_create_profile', 'public.superadmin_create_profile(jsonb)', 'jsonb'),
     ('technician_global_search', 'public.technician_global_search(text)', 'text'),

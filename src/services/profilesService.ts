@@ -18,8 +18,10 @@ export const profilesService = {
     const rows = await expectData<any[]>(query, { service: 'profilesService', operation: 'Listado de tecnicos', resource: 'profiles' });
     return rows.filter((row) => row.primary_area === 'Tecnico' || row.profile_roles?.some((item: any) => item.roles?.name === 'Tecnico'));
   },
-  async listCommercials() {
-    const rows = await expectData<any[]>(supabase.from('profiles').select('*, profile_roles!profile_roles_profile_id_fkey(roles!profile_roles_role_id_fkey(name))').eq('active', true).is('deleted_at', null).order('first_name'), { service: 'profilesService', operation: 'Listado de comerciales', resource: 'profiles' });
+  async listCommercials(companyScope?: string | null) {
+    let query = supabase.from('profiles').select('*, profile_roles!profile_roles_profile_id_fkey(roles!profile_roles_role_id_fkey(name))').eq('active', true).is('deleted_at', null).order('first_name');
+    if (companyScope) query = query.eq('company_id', companyScope);
+    const rows = await expectData<any[]>(query, { service: 'profilesService', operation: 'Listado de comerciales', resource: 'profiles' });
     return rows.filter((row) => row.primary_area === 'Comercial' || row.profile_roles?.some((item: any) => item.roles?.name === 'Comercial'));
   },
   listActive() {

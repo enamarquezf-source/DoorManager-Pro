@@ -60,6 +60,7 @@ export function canViewWorkOrder(profile: Profile | null | undefined, workOrder?
 export function canEditWorkOrder(profile: Profile | null | undefined) { return hasAny(profile, adminRoles); }
 export function canCreateWorkOrder(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Comercial']); }
 export function canAssignTechnician(profile: Profile | null | undefined) { return hasAny(profile, adminRoles); }
+export function canManageWorkOrderAssignments(profile: Profile | null | undefined) { return hasAny(profile, adminRoles); }
 export function canManagePlanning(profile: Profile | null | undefined) { return hasAny(profile, adminRoles); }
 export function canChangePriority(profile: Profile | null | undefined) { return hasAny(profile, adminRoles); }
 export function canExecuteWorkOrder(profile: Profile | null | undefined) { return hasAny(profile, operationalRoles); }

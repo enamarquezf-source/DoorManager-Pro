@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessRoute, canCreateAlert, canManageCheck, canRole, canViewCheck, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './permissions';
+import { canAccessRoute, canCreateAlert, canManageCheck, canManageWorkOrderAssignments, canRole, canViewCheck, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './permissions';
 import type { Profile, RoleName } from '../shared/types';
 
 function profile(primary_area: RoleName, roles: RoleName[] = []): Profile {
@@ -80,5 +80,13 @@ describe('canAccessRoute', () => {
     const tecnico = profile('Tecnico');
     expect(canViewCheck(tecnico, { technician_id: tecnico.id })).toBe(true);
     expect(canViewCheck(tecnico, { technician_id: 'other' })).toBe(false);
+  });
+
+  it('limita la gestion de asignaciones a SAT, Gerencia y Superadmin', () => {
+    expect(canManageWorkOrderAssignments(profile('SAT'))).toBe(true);
+    expect(canManageWorkOrderAssignments(profile('Gerencia'))).toBe(true);
+    expect(canManageWorkOrderAssignments(profile('superadmin'))).toBe(true);
+    expect(canManageWorkOrderAssignments(profile('Tecnico'))).toBe(false);
+    expect(canManageWorkOrderAssignments(profile('Comercial'))).toBe(false);
   });
 });

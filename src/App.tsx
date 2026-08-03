@@ -22,13 +22,14 @@ import { checkProblemStatuses, checkStatuses, sectionalZones, type CheckBlockId 
 import { buildFunctionalCheckBlocks, equipmentTypeName, isUuid, remoteBlockState, templateTypeMismatch, visualTemplateForEquipment } from './checks/checkBlocks';
 import { technicianOfflineService } from './services/technicianOfflineService';
 import { canAccessModule, canAccessRoute, canAssignTechnician, canCreateAlert, canCreateCheck, canCreateWorkOrder, canEditWorkOrder, canExecuteCheck, canExecuteWorkOrder, canManageCheck, canRole, canViewCheck, canViewWorkOrder, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './auth/permissions';
+import { loadInitialAuthSnapshot, loginAuthState, protectedAuthState } from './auth/sessionBootstrap';
 import { displayStatus, formatDate, fullName, initials, nextWorkOrderStatus, previousWorkOrderStatus, severityForPriority, severityForStatus, visibleLabel, workspaceTitles, workspaceToRole } from './shared/labels';
 import { deficiencyFiltersFromParams, isOpenDeficiencyStatus, normalizeParam, workOrderFilterFromParams } from './shared/filters';
 import { canvasHasInk, fileToLocalPhoto } from './shared/offlineMedia';
 import { activityTimeline, interventionSummary, maskDocument } from './shared/workOrderPresentation';
 import type { Profile, RoleName, Severity, Workspace } from './shared/types';
 
-type AuthContextValue = { session: Session | null; profile: Profile | null; workspace: Workspace; setWorkspace: (workspace: Workspace) => void; refreshProfile: () => Promise<void>; signOut: () => Promise<void> };
+type AuthContextValue = { initialized: boolean; session: Session | null; profile: Profile | null; profileError: string | null; workspace: Workspace; setWorkspace: (workspace: Workspace) => void; refreshProfile: () => Promise<void>; signOut: () => Promise<void> };
 type SuperadminScopeContextValue = { companyId: string | null; setCompanyId: (companyId: string | null) => void };
 type LoadState<T> = { data: T; loading: boolean; error: string };
 
@@ -44,16 +45,16 @@ function App() {
 }
 
 function AuthProvider({ children }: { children: ReactNode }) {
+  const [initialized, setInitialized] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [workspace, setWorkspaceState] = useState<Workspace>(() => (localStorage.getItem(workspaceKey) as Workspace | null) ?? 'sat');
+  const authRequestId = useRef(0);
 
-  const refreshProfile = async () => {
-    const current = (await authService.getSession()).data.session;
-    setSession(current);
-    if (!current) { setProfile(null); return; }
-    const nextProfile = await profilesService.getCurrentProfile();
+  const applyProfile = (nextProfile: Profile | null) => {
     setProfile(nextProfile);
+    if (!nextProfile) return;
     const saved = localStorage.getItem(workspaceKey) as Workspace | null;
     const allowedWorkspaces = profileWorkspaces(nextProfile);
     const allowed = saved && allowedWorkspaces.includes(saved) ? saved : allowedWorkspaces[0] ?? 'sat';
@@ -61,23 +62,58 @@ function AuthProvider({ children }: { children: ReactNode }) {
     setWorkspaceState(allowed);
   };
 
+  const refreshProfile = async () => {
+    const requestId = ++authRequestId.current;
+    const snapshot = await loadInitialAuthSnapshot(() => authService.getSession(), () => profilesService.getCurrentProfile());
+    if (requestId !== authRequestId.current) return;
+    setSession(snapshot.session);
+    setProfileError(snapshot.profileError);
+    applyProfile(snapshot.profile);
+    setInitialized(true);
+  };
+
   useEffect(() => {
-    refreshProfile().catch(() => setProfile(null));
-    const { data } = authService.onAuthStateChange(async (_event, nextSession) => {
-      setSession(nextSession);
-      if (nextSession) refreshProfile().catch(() => setProfile(null));
-      else setProfile(null);
+    let mounted = true;
+    refreshProfile().catch(() => {
+      if (!mounted) return;
+      setSession(null);
+      setProfile(null);
+      setProfileError(null);
+      setInitialized(true);
     });
-    return () => data.subscription.unsubscribe();
+    const { data } = authService.onAuthStateChange(async (_event, nextSession) => {
+      if (!mounted) return;
+      if (_event === 'INITIAL_SESSION') return;
+      const requestId = ++authRequestId.current;
+      setSession(nextSession);
+      if (!nextSession) { setProfile(null); setProfileError(null); setInitialized(true); return; }
+      try {
+        const nextProfile = await profilesService.getCurrentProfile();
+        if (!mounted || requestId !== authRequestId.current) return;
+        setProfileError(null);
+        applyProfile(nextProfile);
+        setInitialized(true);
+      } catch {
+        if (!mounted || requestId !== authRequestId.current) return;
+        setProfile(null);
+        setProfileError('La sesión existe, pero no hay perfil activo enlazado a este usuario Auth.');
+        setInitialized(true);
+      }
+    });
+    return () => { mounted = false; data.subscription.unsubscribe(); };
   }, []);
 
   const setWorkspace = (next: Workspace) => { localStorage.setItem(workspaceKey, next); setWorkspaceState(next); };
-  const signOut = async () => { await authService.signOut(); localStorage.removeItem(workspaceKey); setSession(null); setProfile(null); };
-  const value = useMemo(() => ({ session, profile, workspace, setWorkspace, refreshProfile, signOut }), [session, profile, workspace]);
+  const signOut = async () => { await authService.signOut(); localStorage.removeItem(workspaceKey); setSession(null); setProfile(null); setProfileError(null); setInitialized(true); };
+  const value = useMemo(() => ({ initialized, session, profile, profileError, workspace, setWorkspace, refreshProfile, signOut }), [initialized, session, profile, profileError, workspace]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 function useAuth() { const value = useContext(AuthContext); if (!value) throw new Error('AuthContext no disponible'); return value; }
+
+function AuthLoadingScreen() {
+  return <main className="page"><Card title="Restaurando sesión"><p className="large-note">Comprobando la sesión activa antes de abrir la ruta solicitada.</p></Card></main>;
+}
 
 function SuperadminScopeProvider({ children }: { children: ReactNode }) {
   const [companyId, setCompanyIdState] = useState<string | null>(() => localStorage.getItem(superadminCompanyKey) || null);
@@ -96,7 +132,7 @@ function useSuperadminScope() {
 }
 
 function LoginPage() {
-  const { session, profile, refreshProfile } = useAuth();
+  const { initialized, session, profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -104,7 +140,7 @@ function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { if (session && profile) navigate(isSuperadmin(profile) ? '/app/superadmin' : profile.primary_area === 'Tecnico' ? '/app/tecnico' : '/app/inicio', { replace: true }); }, [session, profile, navigate]);
+  useEffect(() => { if (loginAuthState({ initialized, session, profile, profileError: null }) === 'redirect-app' && profile) navigate(isSuperadmin(profile) ? '/app/superadmin' : profile.primary_area === 'Tecnico' ? '/app/tecnico' : '/app/inicio', { replace: true }); }, [initialized, session, profile, navigate]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -115,11 +151,12 @@ function LoginPage() {
     setLoading(false);
   };
 
+  if (!initialized) return <AuthLoadingScreen />;
   return <main className="login-page"><section className="login-visual" aria-hidden="true"><div className="industrial-mark"><Factory size={42} /><span>DMP</span></div><div className="door-illustration"><span /><span /><span /><i /></div><h1>DoorManager Pro</h1><p>Operaciones, mantenimiento, SAT y gestión empresarial sobre un mismo núcleo de información.</p><div className="visual-tags"><Badge tone="maintenance">SAT</Badge><Badge tone="commercial">Comercial</Badge><Badge tone="info">Dirección</Badge></div></section><form className="login-card" aria-label="Acceso a DoorManager Pro" onSubmit={submit}><div className="login-brand"><Factory size={30} /><div><strong>DoorManager Pro</strong><span>Acceso privado conectado a Supabase</span></div></div><label>Correo<input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="usuario@empresa.com" autoComplete="username" required /></label><label>Contraseña<div className="password-field"><input value={password} onChange={(event) => setPassword(event.target.value)} type={showPassword ? 'text' : 'password'} placeholder="Contraseña" autoComplete="current-password" required /><button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></label>{error && <p className="form-error"><AlertTriangle size={16} />{error}</p>}<button className="primary wide big" disabled={loading}>{loading ? 'Iniciando sesión...' : 'Iniciar sesión'}</button><footer>Las credenciales no se publican en la interfaz ni en el repositorio.</footer></form></main>;
 }
 
 function ProtectedLayout() {
-  const { session, profile, workspace, setWorkspace, signOut } = useAuth();
+  const { initialized, session, profile, profileError, workspace, setWorkspace, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(() => window.innerWidth <= 760 || localStorage.getItem(sidebarKey) === 'true');
@@ -141,7 +178,10 @@ function ProtectedLayout() {
   const allowedWorkspaces = profileWorkspaces(profile);
   useEffect(() => { if (profile && allowedWorkspaces.length && !allowedWorkspaces.includes(workspace)) setWorkspace(allowedWorkspaces[0]); }, [profile?.id, workspace, allowedWorkspaces.join('|')]);
 
-  if (!session) return <Navigate to="/" replace />;
+  const authState = protectedAuthState({ initialized, session, profile, profileError });
+  if (authState === 'loading') return <AuthLoadingScreen />;
+  if (authState === 'redirect-login') return <Navigate to="/" replace />;
+  if (authState === 'profile-error') return <main className="page"><Card title="Perfil no enlazado"><p className="form-error">{profileError ?? 'La sesión existe, pero no hay perfil activo enlazado a este usuario Auth.'}</p><button className="primary" onClick={() => signOut()}>Cerrar sesión</button></Card></main>;
   if (!profile) return <main className="page"><Card title="Perfil no enlazado"><p className="form-error">La sesión existe, pero no hay perfil activo enlazado a este usuario Auth.</p><button className="primary" onClick={() => signOut()}>Cerrar sesión</button></Card></main>;
   if (!allowedWorkspaces.length) return <main className="page"><Card title="Perfil sin rol válido"><p className="form-error">Tu perfil no tiene un rol válido. Contacta con el administrador.</p><button className="primary" onClick={() => signOut()}>Cerrar sesión</button></Card></main>;
   if (isSuperadmin(profile) && !location.pathname.startsWith('/app/superadmin')) return <Navigate to="/app/superadmin" replace />;

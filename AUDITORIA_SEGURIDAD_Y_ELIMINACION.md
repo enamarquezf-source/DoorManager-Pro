@@ -34,7 +34,7 @@ Fecha: 2026-08-09
 
 - Archivar/desactivar conserva relaciones, historial y auditoria. Usa `deleted_at`, `active` o `status` segun la entidad real.
 - Restaurar revierte el mecanismo real desde `audit_log.old_data`, valida padres activos cuando aplica y falla si el registro no esta archivado.
-- Eliminar definitivamente solo se permite si Supabase recalcula cero dependencias dentro de RPC y la confirmacion coincide con `ELIMINAR <codigo>`.
+- Eliminar definitivamente se permite si Supabase recalcula cero dependencias bloqueantes dentro de RPC y la confirmacion coincide con `ELIMINAR <codigo>`. En partes y checks, la migracion `023` permite cascada controlada de dependencias operativas propias, siempre bloqueando referencias externas como `stock_movements`.
 - Usuarios: no se borran cuentas Auth desde navegador; se desactiva el perfil DMP.
 
 ## Matriz de permisos
@@ -59,8 +59,8 @@ Fecha: 2026-08-09
 | Centros | `deleted_at`, `active=false` | Bloqueada si cliente sigue archivado | Bloqueado con contactos, equipos, expedientes, partes, checks, deficiencias o documentos |
 | Equipos | `deleted_at`, `status` compatible | Bloqueada si cliente o centro siguen archivados | Bloqueado con componentes, historial, fotos, partes, checks, deficiencias o documentos |
 | Expedientes | `deleted_at`, `status=Cancelado` cuando aplica | Bloqueada si cliente o centro siguen archivados | Bloqueado con eventos, vinculos, documentos, partes, oportunidades o presupuestos |
-| Partes | `deleted_at`, `status=Cancelado` cuando aplica | Bloqueada si cliente, centro o equipo principal siguen archivados | Bloqueado con asignaciones, historial, notas, materiales, fotos, firmas, checks, deficiencias o documentos |
-| Checks | `deleted_at`, `status=Cancelado` cuando aplica | Bloqueada si equipo o parte siguen archivados | Bloqueado con resultados, fotos o deficiencias |
+| Partes | `deleted_at`, `status=Cancelado` cuando aplica | Bloqueada si cliente, centro o equipo principal siguen archivados | `023` permite cascada controlada de asignaciones, historial, notas, materiales, fotos, firmas, checks y deficiencias propias. Bloquea documentos y movimientos de stock. |
+| Checks | `deleted_at`, `status=Cancelado` cuando aplica | Bloqueada si equipo o parte siguen archivados | `023` permite cascada controlada de resultados y fotos propias. Bloquea deficiencias si no se borran desde el parte. |
 | Plantillas | `active=false` | Permitida | Bloqueado si fue usada o tiene estructura asociada |
 | Usuarios | `active=false`, `deleted_at` | Solo propietario global/superadmin autorizado; nunca self-disable | No permitido desde navegador |
 
@@ -83,6 +83,10 @@ Fecha: 2026-08-09
 - RPC criticas frontend: `022` revoca `EXECUTE` de `PUBLIC` y `anon` con firmas exactas, y mantiene `EXECUTE` solo para `authenticated` en `create_deficiency_from_check(uuid, uuid, text, text, text, uuid)`, `finish_check_safe(uuid, text)`, `register_work_order_deficiency(jsonb)`, `request_work_order_return(uuid, uuid, text)`, `superadmin_update_profile(uuid, jsonb)` y `sync_work_order_material_usage(uuid, text, numeric, text)`.
 - `dmp_archive_entity`: rechaza registros ya archivados con `El registro ya está archivado` despues del bloqueo `FOR UPDATE` y antes de `SOFT_DELETE`.
 - `dmp_restore_entity`: rechaza registros no archivados con `El registro no está archivado` despues del bloqueo `FOR UPDATE` y antes de auditar `UPDATE`.
+- Nuevos RPC `023`: `dmp_upsert_work_order_time_entry`, `dmp_delete_work_order_time_entry`, `dmp_upsert_work_order_material`, `dmp_delete_work_order_material`, `dmp_change_work_order_status`, `dmp_lifecycle_delete_plan` y `dmp_lifecycle_dependencies_enhanced`.
+- `dmp_lifecycle_dependencies_enhanced` no reemplaza la funcion `022`; la envuelve para exponer dependencias bloqueantes y dependencias eliminables en cascada controlada sin tocar `022`.
+- Comercial puede cambiar estado solo en partes de origen Comercial de su empresa donde sea creador o responsable actual. SAT, Gerencia y superadmin mantienen control completo validado por Supabase.
+- El borrado controlado elimina filas relacionales y registros `files` exclusivos; no elimina objetos binarios de Storage desde SQL. La limpieza fisica de Storage queda fuera de esta migracion y debe ejecutarse con proceso administrativo si se requiere.
 
 ## Archivos modificados
 
@@ -122,7 +126,7 @@ Fecha: 2026-08-09
 - Verifica tablas requeridas, columnas de soft delete/estado, privilegios actuales de RPC criticos y volumen inicial de registros archivable.
 - Verifica recuento de superadmins operativos antes de aplicar protecciones sobre perfiles.
 - Lista todas las sobrecargas encontradas para RPC criticos y anade resumen `critical_rpc_count`, `anon_execute_count`, `public_execute_count`, `authenticated_execute_count` antes de aplicar `022`.
-- Archivo adicional: `supabase/verification/preflight_work_order_operations_023.sql`. Revisa tablas base, columnas actuales de materiales, estados validos y permisos previos de RPC 023.
+- Archivo adicional: `supabase/verification/preflight_work_order_operations_023.sql`. Revisa tablas base, columnas actuales de materiales, estados validos, indices, FKs hacia entidades operativas, colisiones `local_change_id`, cruces de empresa en perfiles/materiales y permisos previos de RPC 023.
 
 ## Verificacion posterior
 
@@ -131,7 +135,7 @@ Fecha: 2026-08-09
 - Verifica firma y privilegios de `register_work_order_deficiency` y que declara `v_component`.
 - Incluye bloque manual transaccional con `rollback` para validar restauracion de estados, archivado repetido y restauracion repetida en base de pruebas con fixtures reales.
 - Muestra `FAIL` si cualquiera de las seis RPC criticas conserva `anon_execute=true` o `public_execute=true`; el resultado esperado posterior es `anon_execute_count=0` y `public_execute_count=0`.
-- Archivo adicional: `supabase/verification/verify_work_order_operations_023.sql`. Verifica columnas de horas/materiales, permisos de RPC y ofrece bloque `BEGIN/ROLLBACK` para probar estado directo, horas y materiales con fixtures reales.
+- Archivo adicional: `supabase/verification/verify_work_order_operations_023.sql`. Verifica columnas de horas/materiales, permisos de RPC, RPC de dependencias mejorada, plan de borrado controlado e indices `local_change_id`; ofrece bloque `BEGIN/ROLLBACK` para probar estado directo, horas y materiales con fixtures reales.
 
 ## Pruebas ejecutadas
 

@@ -32,3 +32,49 @@ join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public'
   and p.proname = any(array['dmp_upsert_work_order_time_entry','dmp_delete_work_order_time_entry','dmp_upsert_work_order_material','dmp_delete_work_order_material','dmp_change_work_order_status','dmp_permanently_delete_entity'])
 order by p.proname, arguments;
+
+select 'indexes_before_023' as check_name,
+       schemaname,
+       tablename,
+       indexname,
+       indexdef
+from pg_indexes
+where schemaname = 'public'
+  and tablename = any(array['work_order_materials','work_orders','checks','deficiencies'])
+order by tablename, indexname;
+
+select 'foreign_keys_to_operational_entities_before_023' as check_name,
+       conrelid::regclass::text as source_table,
+       conname,
+       confrelid::regclass::text as target_table,
+       pg_get_constraintdef(oid) as definition
+from pg_constraint
+where contype = 'f'
+  and confrelid = any(array['public.work_orders'::regclass,'public.checks'::regclass,'public.deficiencies'::regclass])
+order by target_table, source_table, conname;
+
+select 'local_change_collisions_before_023' as check_name,
+       company_id,
+       local_change_id,
+       count(*) as rows,
+       count(distinct work_order_id) as work_orders
+from public.work_order_materials
+where local_change_id is not null
+group by company_id, local_change_id
+having count(distinct work_order_id) > 1
+order by rows desc;
+
+select 'cross_company_profile_or_material_before_023' as check_name,
+       m.id,
+       m.work_order_id,
+       m.material_id,
+       m.registered_by,
+       m.company_id as usage_company_id,
+       mat.company_id as material_company_id,
+       p.company_id as profile_company_id
+from public.work_order_materials m
+left join public.materials mat on mat.id = m.material_id
+left join public.profiles p on p.id = m.registered_by
+where (mat.company_id is not null and mat.company_id <> m.company_id)
+   or (p.company_id is not null and p.company_id <> m.company_id)
+order by m.created_at desc;

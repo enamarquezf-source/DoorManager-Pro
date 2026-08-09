@@ -22,6 +22,7 @@ with critical_rpc(function_name, arguments) as (values
   ('dmp_upsert_work_order_material', 'p_payload jsonb'),
   ('dmp_delete_work_order_material', 'p_material_usage_id uuid, p_reason text'),
   ('dmp_change_work_order_status', 'p_work_order_id uuid, p_new_status text, p_reason text'),
+  ('dmp_lifecycle_dependencies_enhanced', 'p_entity text, p_entity_id uuid'),
   ('dmp_permanently_delete_entity', 'p_entity text, p_entity_id uuid, p_reason text, p_confirmation text')
 ), matched as (
   select c.function_name,
@@ -45,6 +46,24 @@ select 'critical_rpc_after_023' as check_name,
        authenticated_execute
 from matched
 order by function_name;
+
+select 'controlled_delete_plan_after_023' as check_name,
+       count(*) filter (where p.proname = 'dmp_lifecycle_delete_plan') as delete_plan_fn,
+       count(*) filter (where p.proname = 'dmp_lifecycle_dependencies_enhanced') as enhanced_dependencies_fn,
+       count(*) filter (where p.proname = 'dmp_lifecycle_dependencies') as original_dependencies_fn
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname = any(array['dmp_lifecycle_delete_plan','dmp_lifecycle_dependencies_enhanced','dmp_lifecycle_dependencies']);
+
+select 'work_order_materials_local_change_indexes_after_023' as check_name,
+       indexname,
+       indexdef
+from pg_indexes
+where schemaname = 'public'
+  and tablename = 'work_order_materials'
+  and indexdef ilike '%local_change_id%'
+order by indexname;
 
 begin;
 -- Verificacion manual opcional en entorno de pruebas: sustituir UUID por fixtures reales.

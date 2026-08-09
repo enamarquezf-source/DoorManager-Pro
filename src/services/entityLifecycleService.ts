@@ -18,6 +18,9 @@ export type LifecycleSummary = {
   restore_blocker: string | null;
   can_permanently_delete: boolean;
   physical_delete_blocker: string | null;
+  can_controlled_cascade_delete?: boolean;
+  cascade_dependencies?: Record<string, number>;
+  blocking_dependencies?: Record<string, number>;
   operation?: string;
 };
 
@@ -34,7 +37,7 @@ export const entityLabels: Record<LifecycleEntity, string> = {
 
 export const entityLifecycleService = {
   dependencies(entity: LifecycleEntity, id: string) {
-    return expectData<LifecycleSummary>(supabase.rpc('dmp_lifecycle_dependencies', { p_entity: entity, p_entity_id: id }));
+    return expectData<LifecycleSummary>(supabase.rpc('dmp_lifecycle_dependencies_enhanced', { p_entity: entity, p_entity_id: id }));
   },
   archive(entity: LifecycleEntity, id: string, reason: string) {
     return expectData<LifecycleSummary>(supabase.rpc('dmp_archive_entity', { p_entity: entity, p_entity_id: id, p_reason: reason }));

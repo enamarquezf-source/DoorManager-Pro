@@ -7,6 +7,7 @@ with expected(function_name, arguments, direct_authenticated) as (values
   ('dmp_change_work_order_status', 'p_work_order_id uuid, p_new_status text, p_reason text', true),
   ('unassign_work_order_profile', 'p_work_order_id uuid, p_profile_id uuid, p_changed_by uuid, p_reason text, p_assignment_type text', true),
   ('technician_global_search', 'p_query text', true),
+  ('technician_assignment_history', '', true),
   ('dmp024_active_profile', '', false),
   ('dmp024_assert_work_order_operator', 'p_work_order_id uuid, p_manage_other_profile boolean', false),
   ('dmp024_work_minutes', 'p_start time without time zone, p_end time without time zone, p_break integer, p_manual integer', false),
@@ -46,6 +47,16 @@ from (
   select 'technician_global_search' where pg_get_functiondef('public.technician_global_search(text)'::regprocedure) like '%dmp024_is_work_order_active_status%'
 ) offenders;
 
+select 'technician_history_rpc_security_024' as check_name,
+       case when p.prosecdef and not has_function_privilege('anon', p.oid, 'EXECUTE') and has_function_privilege('authenticated', p.oid, 'EXECUTE') and pg_get_functiondef(p.oid) like '%a.technician_id = v_profile.id%' and pg_get_functiondef(p.oid) like '%wo.company_id = v_profile.company_id%' then 'OK' else 'FAIL' end as status,
+       p.prosecdef as security_definer,
+       has_function_privilege('anon', p.oid, 'EXECUTE') as anon_execute,
+       has_function_privilege('authenticated', p.oid, 'EXECUTE') as authenticated_execute
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname = 'technician_assignment_history';
+
 begin;
 -- Pruebas manuales con fixtures reales, siempre en rollback:
 -- select public.dmp_diagnose_work_order_operation('<work_order_id>'::uuid);
@@ -54,4 +65,5 @@ begin;
 -- select public.dmp_change_work_order_status('<work_order_id>'::uuid, 'Finalizado tecnicamente', 'verify 024 rollback');
 -- select public.unassign_work_order_profile('<work_order_id>'::uuid, '<technician_profile_id>'::uuid, public.current_profile_id(), 'verify 024 rollback', 'technical');
 -- select public.unassign_work_order_profile('<work_order_id>'::uuid, '<commercial_profile_id>'::uuid, public.current_profile_id(), 'verify 024 rollback', 'commercial');
+-- select * from public.technician_assignment_history() limit 10;
 rollback;

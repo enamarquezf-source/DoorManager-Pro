@@ -150,6 +150,19 @@ describe('canAccessRoute', () => {
     expect(canViewWorkOrderCosts(profile('Tecnico'))).toBe(false);
   });
 
+  it('bloquea horas y materiales a tecnicos no asignados o con asignacion historica', () => {
+    const assigned = { id: 'work-id', company_id: 'company-id', status: 'En intervencion', assignments: [{ technician_id: 'Tecnico-id', status: 'Asignado' }] };
+    const unassigned = { ...assigned, assignments: [{ technician_id: 'other-id', status: 'Asignado' }] };
+    const historical = { ...assigned, assignments: [{ technician_id: 'Tecnico-id', status: 'Finalizado' }] };
+
+    expect(canManageWorkOrderTime(profile('Tecnico'), assigned)).toBe(true);
+    expect(canManageWorkOrderMaterials(profile('Tecnico'), assigned)).toBe(true);
+    expect(canManageWorkOrderTime(profile('Tecnico'), unassigned)).toBe(false);
+    expect(canManageWorkOrderMaterials(profile('Tecnico'), unassigned)).toBe(false);
+    expect(canManageWorkOrderTime(profile('Tecnico'), historical)).toBe(false);
+    expect(canManageWorkOrderMaterials(profile('Tecnico'), historical)).toBe(false);
+  });
+
   it('bloquea Comercial fuera de empresa y roles no operativos para horas/materiales', () => {
     const commercialWork = { id: 'work-id', company_id: 'company-id', status: 'Pendiente', origin: 'Comercial', created_by: 'Comercial-id' };
     const responsibleCommercialWork = { ...commercialWork, created_by: 'other', current_responsible_id: 'Comercial-id' };

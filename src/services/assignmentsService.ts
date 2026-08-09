@@ -14,7 +14,6 @@ export const assignmentsService = {
     return expectData<any[]>(supabase.from('v_technician_daily_schedule').select('*').eq('technician_id', profileId).order('assignment_date', { ascending: true }).order('planned_start_time', { ascending: true }));
   },
   async assignmentHistory() {
-    const profileId = await currentProfileId();
-    return expectData<any[]>(supabase.from('v_technician_assignment_history').select('*').eq('technician_id', profileId).order('assignment_date', { ascending: false }).order('planned_start_time', { ascending: false }));
+    return expectData<any[]>(supabase.rpc('technician_assignment_history'));
   },
 };

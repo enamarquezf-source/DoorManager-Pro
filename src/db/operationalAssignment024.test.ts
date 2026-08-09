@@ -6,6 +6,7 @@ const migration = readFileSync(new URL('../../supabase/migrations/024_operationa
 const preflight = readFileSync(new URL('../../supabase/verification/preflight_operational_assignment_024.sql', import.meta.url), 'utf8');
 const verification = readFileSync(new URL('../../supabase/verification/verify_operational_assignment_024.sql', import.meta.url), 'utf8');
 const workOrdersService = readFileSync(new URL('../services/workOrdersService.ts', import.meta.url), 'utf8');
+const assignmentsService = readFileSync(new URL('../services/assignmentsService.ts', import.meta.url), 'utf8');
 const queryService = readFileSync(new URL('../services/query.ts', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
 
@@ -58,6 +59,11 @@ describe('operational assignment 024', () => {
     expect(invokerObjects.length).toBeGreaterThanOrEqual(3);
     expect(invokerObjects.join('\n')).not.toContain('dmp024_is_work_order_active_status');
     expect(migration).toContain('create or replace view public.v_technician_assignment_history');
+    expect(migration).toContain('create or replace function public.technician_assignment_history()');
+    expect(migration).toContain('a.technician_id = v_profile.id');
+    expect(migration).toContain('wo.company_id = v_profile.company_id');
+    expect(migration).toContain("case when a.status = 'Cancelado' or a.deleted_at is not null then 'Desasignada'");
+    expect(assignmentsService).toContain("supabase.rpc('technician_assignment_history')");
     expect(app).toContain('assignmentsService.assignmentHistory');
     expect(app).toContain('historial independiente');
   });
@@ -68,6 +74,13 @@ describe('operational assignment 024', () => {
     expect(migration).not.toContain("set deleted_at = now(), status = 'Finalizado'");
     expect(migration).not.toContain("p_new_status = 'Pendiente' and");
     expect(migration).not.toContain("status = 'Asignado'");
+  });
+
+  it('covers active removal and no ghost assignment flows in 024 SQL', () => {
+    expect(migration).toContain("where a.deleted_at is null and a.status not in ('Finalizado','Cancelado')");
+    expect(migration).toContain("update public.work_order_assignments set status = 'Finalizado'");
+    expect(migration).toContain("set deleted_at = now(), status = 'Cancelado'");
+    expect(migration).not.toMatch(/p_new_status\s*=\s*'Pendiente'[\s\S]{0,200}status\s*=\s*'Asignado'/);
   });
 
   it('unassigns technicians atomically and clears only pending checks', () => {
@@ -89,6 +102,7 @@ describe('operational assignment 024', () => {
     expect(verification).toContain('rpc_permissions_after_024');
     expect(verification).toContain('technician_views_after_024');
     expect(verification).toContain('invoker_objects_do_not_call_private_helpers_024');
+    expect(verification).toContain('technician_history_rpc_security_024');
     expect(verification).toContain('begin;');
     expect(verification).toContain('rollback;');
   });
@@ -97,10 +111,23 @@ describe('operational assignment 024', () => {
     const detailBlock = app.slice(app.indexOf('function WorkOrderDetailPageV2'), app.indexOf('function formatMinutes'));
     expect(detailBlock).toContain("const [tab, setTab]");
     expect(detailBlock).toContain('detail-tabs');
+    expect(detailBlock).toContain('WorkOrderStatusSelector workOrder={data}');
     expect(detailBlock).toContain('Fotos y firmas');
+    expect(detailBlock).toContain('ActivityTimeline events={activity}');
+    expect(detailBlock).not.toContain('Timeline items={activity}');
     expect(app).toContain('function ReasonConfirmModal');
     expect(app).not.toContain("window.prompt('Motivo para eliminar este registro de horas')");
     expect(app).not.toContain("window.prompt('Motivo para eliminar este material')");
     expect(app).not.toContain('Confirma el cambio a ${displayStatus(next)}');
+  });
+
+  it('unifies technician hours and materials with RPC backed panels', () => {
+    const technicianBlock = app.slice(app.indexOf('function TechnicianWorkPage'), app.indexOf('function TechnicianLocalForm'));
+    expect(technicianBlock).toContain('WorkOrderTimeCard workOrder={data}');
+    expect(technicianBlock).toContain('WorkOrderMaterialsCard workOrder={data}');
+    expect(technicianBlock).toContain("setMode('time')");
+    expect(technicianBlock).toContain("setMode('material')");
+    expect(technicianBlock).toContain('RPC segura');
+    expect(technicianBlock).not.toContain('type="material"');
   });
 });

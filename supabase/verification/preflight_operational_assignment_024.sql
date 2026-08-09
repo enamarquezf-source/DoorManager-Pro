@@ -34,11 +34,13 @@ where ch.deleted_at is null
   and (wo.deleted_at is not null or wo.status in ('Finalizado tecnicamente','Pendiente de envio','Enviado','Cerrado','Cancelado') or a.id is null);
 
 select 'technician_history_candidates_before_024' as check_name,
-       count(*) as rows
+       count(*) as rows,
+       count(*) filter (where a.deleted_at is not null or a.status = 'Cancelado') as desasignaciones_visibles_por_rpc_024
 from public.work_order_assignments a
 join public.work_orders wo on wo.id = a.work_order_id
-where a.deleted_at is null
-  and (a.status in ('Finalizado','Cancelado') or wo.status in ('Finalizado tecnicamente','Pendiente de envio','Enviado','Devolucion solicitada','Devuelto por SAT','Cerrado','Cancelado'));
+where a.status in ('Finalizado','Cancelado')
+   or a.deleted_at is not null
+   or wo.status in ('Finalizado tecnicamente','Pendiente de envio','Enviado','Devolucion solicitada','Devuelto por SAT','Cerrado','Cancelado');
 
 select 'commercial_responsible_candidates_before_024' as check_name,
        count(*) as rows
@@ -54,5 +56,5 @@ select 'rpc_permissions_before_024' as check_name,
 from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public'
-  and p.proname = any(array['dmp_upsert_work_order_time_entry','dmp_upsert_work_order_material','dmp_change_work_order_status','unassign_work_order_profile','technician_global_search'])
+  and p.proname = any(array['dmp_upsert_work_order_time_entry','dmp_upsert_work_order_material','dmp_change_work_order_status','unassign_work_order_profile','technician_global_search','technician_assignment_history'])
 order by p.proname, arguments;

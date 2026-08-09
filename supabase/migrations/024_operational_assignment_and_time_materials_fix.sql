@@ -398,6 +398,107 @@ left join lateral (
 where a.deleted_at is null
   and (a.status in ('Finalizado','Cancelado') or wo.status in ('Finalizado tecnicamente','Pendiente de envio','Enviado','Devolucion solicitada','Devuelto por SAT','Cerrado','Cancelado'));
 
+create or replace function public.technician_assignment_history()
+returns table(
+  company_id uuid,
+  assignment_id uuid,
+  assignment_date date,
+  planned_start_time time,
+  planned_end_time time,
+  assignment_status text,
+  assignment_role text,
+  technician_id uuid,
+  technician_name text,
+  work_order_id uuid,
+  work_order_code text,
+  code text,
+  title text,
+  description text,
+  work_order_description text,
+  type text,
+  priority text,
+  work_order_status text,
+  scheduled_date date,
+  scheduled_time time,
+  planned_material text,
+  client_id uuid,
+  client_name text,
+  site_id uuid,
+  site_name text,
+  site_address text,
+  equipment_id uuid,
+  equipment_code text,
+  access_description text,
+  pending_checks_count integer,
+  check_statuses text[],
+  pending_check_ids uuid[],
+  check_status text
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_profile public.profiles := public.dmp024_active_profile();
+begin
+  return query
+  select
+    a.company_id,
+    a.id as assignment_id,
+    a.assignment_date,
+    a.planned_start_time,
+    a.planned_end_time,
+    (case when a.status = 'Cancelado' or a.deleted_at is not null then 'Desasignada' else a.status end)::text as assignment_status,
+    a.role::text as assignment_role,
+    p.id as technician_id,
+    trim(p.first_name || ' ' || p.last_name) as technician_name,
+    wo.id as work_order_id,
+    wo.code::text as work_order_code,
+    wo.code::text,
+    wo.title::text,
+    wo.description::text,
+    wo.description::text as work_order_description,
+    wo.type::text,
+    wo.priority::text,
+    wo.status::text as work_order_status,
+    wo.scheduled_date,
+    wo.scheduled_time,
+    wo.planned_material::text,
+    c.id as client_id,
+    c.legal_name::text as client_name,
+    s.id as site_id,
+    s.name::text as site_name,
+    s.address::text as site_address,
+    e.id as equipment_id,
+    e.code::text as equipment_code,
+    ar.description::text as access_description,
+    checks.pending_checks_count,
+    checks.check_statuses,
+    checks.pending_check_ids,
+    checks.first_check_status as check_status
+  from public.work_order_assignments a
+  join public.profiles p on p.id = a.technician_id and p.id = v_profile.id and p.active = true and p.deleted_at is null
+  join public.work_orders wo on wo.id = a.work_order_id and wo.deleted_at is null and wo.company_id = v_profile.company_id
+  join public.clients c on c.id = wo.client_id and c.deleted_at is null and c.company_id = v_profile.company_id
+  join public.sites s on s.id = wo.site_id and s.deleted_at is null and s.company_id = v_profile.company_id
+  left join public.equipment e on e.id = wo.main_equipment_id and e.deleted_at is null and e.company_id = v_profile.company_id
+  left join public.access_requirements ar on ar.id = wo.access_requirement_id
+  left join lateral (
+    select count(*) filter (where ch.status <> 'Realizado')::integer as pending_checks_count,
+           array_agg(ch.status::text order by ch.created_at desc) as check_statuses,
+           array_agg(ch.id order by ch.created_at desc) filter (where ch.status <> 'Realizado') as pending_check_ids,
+           (array_agg(ch.status::text order by ch.created_at desc))[1] as first_check_status
+    from public.checks ch
+    where ch.work_order_id = wo.id and ch.deleted_at is null and ch.company_id = v_profile.company_id and (ch.technician_id = a.technician_id or ch.technician_id is null)
+  ) checks on true
+  where a.technician_id = v_profile.id
+    and a.company_id = v_profile.company_id
+    and (a.status in ('Finalizado','Cancelado') or a.deleted_at is not null or wo.status in ('Finalizado tecnicamente','Pendiente de envio','Enviado','Devolucion solicitada','Devuelto por SAT','Cerrado','Cancelado'))
+  order by a.assignment_date desc nulls last, a.planned_start_time desc nulls last;
+end;
+$$;
+
 create or replace view public.v_pending_checks
 with (security_invoker = true) as
 select ch.*, e.code as equipment_code, wo.code as work_order_code
@@ -449,6 +550,7 @@ revoke all on function public.dmp_upsert_work_order_material(jsonb) from public;
 revoke all on function public.dmp_change_work_order_status(uuid, text, text) from public;
 revoke all on function public.unassign_work_order_profile(uuid, uuid, uuid, text, text) from public;
 revoke all on function public.technician_global_search(text) from public;
+revoke all on function public.technician_assignment_history() from public;
 
 do $$
 begin
@@ -464,6 +566,7 @@ begin
     revoke all on function public.dmp_change_work_order_status(uuid, text, text) from anon;
     revoke all on function public.unassign_work_order_profile(uuid, uuid, uuid, text, text) from anon;
     revoke all on function public.technician_global_search(text) from anon;
+    revoke all on function public.technician_assignment_history() from anon;
   end if;
 end;
 $$;
@@ -480,5 +583,6 @@ grant execute on function public.dmp_upsert_work_order_material(jsonb) to authen
 grant execute on function public.dmp_change_work_order_status(uuid, text, text) to authenticated;
 grant execute on function public.unassign_work_order_profile(uuid, uuid, uuid, text, text) to authenticated;
 grant execute on function public.technician_global_search(text) to authenticated;
+grant execute on function public.technician_assignment_history() to authenticated;
 
 commit;

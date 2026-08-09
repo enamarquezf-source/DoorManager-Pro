@@ -1,0 +1,43 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const rpc = vi.fn();
+const from = vi.fn();
+
+vi.mock('../lib/supabase/client', () => ({
+  supabase: { rpc, from },
+}));
+
+describe('workOrdersService operational RPCs', () => {
+  beforeEach(() => {
+    rpc.mockReset();
+    from.mockReset();
+    rpc.mockResolvedValue({ data: 'saved-id', error: null });
+  });
+
+  it('registra horas mediante la RPC segura 024', async () => {
+    const { workOrdersService } = await import('./workOrdersService');
+    const payload = { work_order_id: 'wo-1', started_at: '08:00', ended_at: '10:00', break_minutes: 15, hour_type: 'normal', description: 'Ajuste de puerta' };
+
+    await expect(workOrdersService.upsertTimeEntry(payload)).resolves.toBe('saved-id');
+
+    expect(rpc).toHaveBeenCalledWith('dmp_upsert_work_order_time_entry', { p_payload: payload });
+    expect(from).not.toHaveBeenCalledWith('work_order_time_entries');
+  });
+
+  it('registra materiales mediante la RPC segura 024 con un payload unico', async () => {
+    const { workOrdersService } = await import('./workOrdersService');
+    const payload = { work_order_id: 'wo-1', material_id: 'mat-1', description: '', quantity: 2, unit: 'ud', used_at: '2026-08-10', notes: 'Sustituidas' };
+
+    await expect(workOrdersService.upsertMaterial(payload)).resolves.toBe('saved-id');
+
+    expect(rpc).toHaveBeenCalledWith('dmp_upsert_work_order_material', { p_payload: payload });
+    expect(from).not.toHaveBeenCalledWith('work_order_materials');
+  });
+
+  it('propaga errores concretos de permiso/asignacion de Supabase', async () => {
+    const { workOrdersService } = await import('./workOrdersService');
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'respuesta de Supabase: asignacion: tecnico sin asignacion activa para este parte operativo' } });
+
+    await expect(workOrdersService.upsertTimeEntry({ work_order_id: 'wo-2', duration_minutes: 30, description: 'Intento' })).rejects.toThrow('asignacion: tecnico sin asignacion activa');
+  });
+});

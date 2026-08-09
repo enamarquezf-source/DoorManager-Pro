@@ -20,6 +20,7 @@ Fecha: 2026-08-09
 - Varios RPC `SECURITY DEFINER` antiguos concedian `authenticated` sin `REVOKE` explicito de `PUBLIC/anon`.
 - La migracion `020_check_sync_end_to_end.sql` contiene un riesgo semantico: `register_work_order_deficiency` referencia `v_component` sin declararlo. La migracion `022` redefine la funcion corregida, con `v_component` declarado y privilegios explicitos.
 - La primera version de `022` permitia que SAT/Gerencia invocaran ciclo de vida de `profiles`; queda corregido en RPC: solo `is_platform_superadmin()` puede operar perfiles.
+- La version correctiva bloquea archivados repetidos y restauraciones de registros no archivados bajo `FOR UPDATE`, antes de auditar, para no sobrescribir el estado original usado en restauracion.
 
 ## Riesgos descartados
 
@@ -31,7 +32,7 @@ Fecha: 2026-08-09
 ## Diferencia entre archivar y borrar
 
 - Archivar/desactivar conserva relaciones, historial y auditoria. Usa `deleted_at`, `active` o `status` segun la entidad real.
-- Restaurar revierte el mecanismo real y valida padres activos cuando aplica.
+- Restaurar revierte el mecanismo real desde `audit_log.old_data`, valida padres activos cuando aplica y falla si el registro no esta archivado.
 - Eliminar definitivamente solo se permite si Supabase recalcula cero dependencias dentro de RPC y la confirmacion coincide con `ELIMINAR <codigo>`.
 - Usuarios: no se borran cuentas Auth desde navegador; se desactiva el perfil DMP.
 
@@ -42,7 +43,7 @@ Fecha: 2026-08-09
 | SAT | Si, excepto usuarios | Si, excepto usuarios | Si, solo sin dependencias y excepto usuarios | Su empresa |
 | Gerencia | Si, excepto usuarios | Si, excepto usuarios | Si, solo sin dependencias y excepto usuarios | Su empresa |
 | Superadmin empresa | Si | Si | Si, solo sin dependencias | Su empresa |
-| Propietario global DMP | Si | Si | Si, solo sin dependencias | Alcance global validado por `is_platform_superadmin()` |
+| Propietario global DMP | Si | Si | Si, solo sin dependencias | Backend: `is_platform_superadmin()`. Frontend: workspace `superadmin` + empresa seleccionada real |
 | Tecnico | No | No | No | Bloqueado |
 | Comercial | No | No | No | Bloqueado |
 | Oficina | No | No | No | Bloqueado en esta fase |
@@ -78,6 +79,8 @@ Fecha: 2026-08-09
 - Nuevos RPC `022`: `dmp_lifecycle_dependencies`, `dmp_archive_entity`, `dmp_restore_entity`, `dmp_permanently_delete_entity`.
 - Nuevos helpers `022`: `dmp_previous_lifecycle_value` para restauracion fiel desde `audit_log.old_data` y `dmp_assert_profile_lifecycle_target` para proteger perfiles privilegiados.
 - `register_work_order_deficiency`: redefinida en `022` para declarar `v_component`, validar perfil activo y revocar `PUBLIC/anon`.
+- `dmp_archive_entity`: rechaza registros ya archivados con `El registro ya está archivado` despues del bloqueo `FOR UPDATE` y antes de `SOFT_DELETE`.
+- `dmp_restore_entity`: rechaza registros no archivados con `El registro no está archivado` despues del bloqueo `FOR UPDATE` y antes de auditar `UPDATE`.
 
 ## Archivos modificados
 
@@ -121,18 +124,18 @@ Fecha: 2026-08-09
 - Archivo: `supabase/verification/verify_security_lifecycle_022.sql`.
 - Verifica existencia de RPC, ausencia de `EXECUTE` para `anon`, `EXECUTE` para `authenticated` solo en RPC publicos y politicas de lectura de archivados.
 - Verifica firma y privilegios de `register_work_order_deficiency` y que declara `v_component`.
-- Incluye bloque manual transaccional con `rollback` para validar restauracion de estados en base de pruebas con fixtures reales.
+- Incluye bloque manual transaccional con `rollback` para validar restauracion de estados, archivado repetido y restauracion repetida en base de pruebas con fixtures reales.
 
 ## Pruebas ejecutadas
 
 - `npx tsc -b --pretty false`: correcto.
-- `npm test`: correcto, 31 archivos y 140 tests.
+- `npm test`: correcto, 31 archivos y 145 tests.
 - `npm run build`: correcto con aviso Vite conocido por chunk mayor de 500 kB.
 
 ## Resultados exactos
 
 - TypeScript: sin errores.
-- Vitest: `31 passed (31)`, `140 passed (140)`.
+- Vitest: `31 passed (31)`, `145 passed (145)`.
 - Build: correcto. El nombre exacto del asset JS puede variar por hash tras cada build.
 
 ## Limitaciones
@@ -140,7 +143,7 @@ Fecha: 2026-08-09
 - No se ejecutaron migraciones directamente en Supabase.
 - No se realizaron pruebas destructivas contra produccion.
 - Playwright no esta declarado en `package.json`; no se ejecutaron E2E automaticos.
-- La verificacion real de RLS y de restauracion de estados requiere aplicar la migracion en una base de pruebas con usuarios reales por rol. Las pruebas locales son estaticas, de parseo SQL y de funciones puras/renderizado SSR limitado.
+- La verificacion real de RLS, de restauracion de estados y de carreras concurrentes requiere aplicar la migracion en una base de pruebas con usuarios reales por rol. Las pruebas locales son estaticas, de parseo SQL y de funciones puras/renderizado SSR limitado.
 - Queda recomendado endurecer en una fase posterior los `REVOKE` explicitos de RPC antiguos que no forman parte directa de ciclo de vida.
 
 ## Pruebas manuales pendientes
@@ -154,6 +157,8 @@ Fecha: 2026-08-09
 - Historial sigue mostrando registros archivados.
 - Modal funciona a 360 px y Escape devuelve foco.
 - No aparecen pantallas blancas ni errores no controlados en consola.
+- En una base de pruebas, ejecutar el bloque `BEGIN/ROLLBACK` de verificacion para confirmar que un segundo archivado falla sin nueva auditoria `SOFT_DELETE`.
+- En frontend, validar que el propietario global solo ve acciones de ciclo de vida cuando hay empresa seleccionada y el registro pertenece a esa empresa.
 
 ## Tabla de aceptacion
 
@@ -168,6 +173,9 @@ Fecha: 2026-08-09
 | Alta | Plantillas | Desactivar | SAT/Gerencia/Superadmin | `active=false` | RPC ciclo de vida | `audit_log`, `activity_log` | Vitest SQL | OK |
 | Alta | Usuarios | Desactivar/restaurar | Propietario global/superadmin autorizado | Perfil DMP inactivo; Auth intacto | RPC bloquea SAT/Gerencia, self-disable y ultimo superadmin | `audit_log`, `activity_log` | Vitest SQL estatico | OK |
 | Alta | Partes | Restaurar | SAT/Gerencia/Superadmin | Restaura estado previo desde auditoria | `dmp_previous_lifecycle_value` + historial | `audit_log`, `work_order_status_history` | Vitest SQL estatico | OK |
+| Alta | Cualquier entidad lifecycle | Archivar repetido | SAT/Gerencia/Superadmin autorizado | Falla sin nueva auditoria `SOFT_DELETE` | Guarda bajo `FOR UPDATE` | Sin nuevo evento | Vitest SQL estatico + verificacion manual pendiente | OK |
+| Alta | Cualquier entidad lifecycle | Restaurar no archivado | SAT/Gerencia/Superadmin autorizado | Falla sin auditoria `UPDATE` | Guarda bajo `FOR UPDATE` | Sin nuevo evento | Vitest SQL estatico + verificacion manual pendiente | OK |
+| Alta | Alcance global frontend | Archivar/borrar | Propietario global | Solo empresa seleccionada real | `PlatformLifecycleScope` tipado | N/A | Vitest permisos | OK |
 | Alta | Checks/equipos/expedientes | Restaurar | SAT/Gerencia/Superadmin | Restaura estado previo desde auditoria | Validacion de estados compatibles | `audit_log` | Vitest SQL estatico | OK |
 | Alta | Deficiencias offline | Registrar | SAT/Gerencia/asignado | `v_component` declarado y trazable | RPC redefinida + revokes | Tabla `deficiencies` | Vitest SQL estatico | OK |
 | Alta | anon | Cualquier operacion | Ninguno | Sin permisos | `REVOKE` explicito | N/A | Vitest SQL | OK |

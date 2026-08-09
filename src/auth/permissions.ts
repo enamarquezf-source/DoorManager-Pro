@@ -4,6 +4,7 @@ const adminRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia'];
 const backOfficeRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia', 'Oficina'];
 const operationalRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia', 'Tecnico'];
 const lifecycleRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia'];
+export type PlatformLifecycleScope = { platformScope?: boolean; selectedCompanyId?: string | null };
 const workspaceByRole: Record<RoleName, Workspace> = {
   superadmin: 'superadmin',
   SAT: 'sat',
@@ -52,24 +53,24 @@ function isActiveProfile(profile: Profile | null | undefined) {
   return !!profile?.active && !profile.deleted_at;
 }
 
-function sameCompanyOrSuperadmin(profile: Profile | null | undefined, entity?: any) {
+function sameCompanyOrSuperadmin(profile: Profile | null | undefined, entity?: any, scope: PlatformLifecycleScope = {}) {
   if (!profile) return false;
-  if (entity?.global_scope_authorized === true && hasAny(profile, ['superadmin'])) return true;
+  if (scope.platformScope === true && hasAny(profile, ['superadmin'])) return !!scope.selectedCompanyId && entity?.company_id === scope.selectedCompanyId;
   return !entity?.company_id || entity.company_id === profile.company_id;
 }
 
-export function canArchiveEntity(profile: Profile | null | undefined, entity?: any) {
-  if (!isActiveProfile(profile) || !sameCompanyOrSuperadmin(profile, entity)) return false;
+export function canArchiveEntity(profile: Profile | null | undefined, entity?: any, scope: PlatformLifecycleScope = {}) {
+  if (!isActiveProfile(profile) || !sameCompanyOrSuperadmin(profile, entity, scope)) return false;
   if (entity?.lifecycle_entity === 'profiles') return hasAny(profile, ['superadmin']);
   return hasAny(profile, lifecycleRoles);
 }
 
-export function canRestoreEntity(profile: Profile | null | undefined, entity?: any) {
-  return canArchiveEntity(profile, entity);
+export function canRestoreEntity(profile: Profile | null | undefined, entity?: any, scope: PlatformLifecycleScope = {}) {
+  return canArchiveEntity(profile, entity, scope);
 }
 
-export function canPermanentlyDeleteEntity(profile: Profile | null | undefined, entity?: any) {
-  return canArchiveEntity(profile, entity);
+export function canPermanentlyDeleteEntity(profile: Profile | null | undefined, entity?: any, scope: PlatformLifecycleScope = {}) {
+  return canArchiveEntity(profile, entity, scope);
 }
 
 export function canViewWorkOrder(profile: Profile | null | undefined, workOrder?: any) {

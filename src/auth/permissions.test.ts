@@ -106,11 +106,33 @@ describe('canAccessRoute', () => {
     expect(canArchiveEntity({ ...profile('Gerencia'), deleted_at: '2026-01-01' }, entity)).toBe(false);
     expect(canArchiveEntity(profile('SAT'), { ...entity, company_id: 'other-company' })).toBe(false);
     expect(canArchiveEntity(profile('superadmin'), { ...entity, company_id: 'other-company' })).toBe(false);
-    expect(canArchiveEntity(profile('superadmin'), { ...entity, company_id: 'other-company', global_scope_authorized: true })).toBe(true);
     expect(canArchiveEntity(profile('SAT'), { ...entity, lifecycle_entity: 'profiles' })).toBe(false);
     expect(canArchiveEntity(profile('Gerencia'), { ...entity, lifecycle_entity: 'profiles' })).toBe(false);
     expect(canArchiveEntity(profile('superadmin'), { ...entity, lifecycle_entity: 'profiles' })).toBe(true);
     expect(canRestoreEntity(profile('SAT'), { ...entity, lifecycle_entity: 'profiles' })).toBe(false);
     expect(canPermanentlyDeleteEntity(profile('Gerencia'), { ...entity, lifecycle_entity: 'profiles' })).toBe(false);
+  });
+
+  it('autoriza al superadmin global solo sobre la empresa seleccionada', () => {
+    const selectedEntity = { id: 'entity-id', company_id: 'selected-company' };
+    const otherEntity = { id: 'entity-id', company_id: 'other-company' };
+    const scope = { platformScope: true, selectedCompanyId: 'selected-company' };
+    expect(canArchiveEntity(profile('superadmin'), selectedEntity, scope)).toBe(true);
+    expect(canRestoreEntity(profile('superadmin'), selectedEntity, scope)).toBe(true);
+    expect(canPermanentlyDeleteEntity(profile('superadmin'), selectedEntity, scope)).toBe(true);
+    expect(canArchiveEntity(profile('superadmin'), otherEntity, scope)).toBe(false);
+  });
+
+  it('bloquea al superadmin global sin empresa seleccionada', () => {
+    const entity = { id: 'entity-id', company_id: 'selected-company' };
+    expect(canArchiveEntity(profile('superadmin'), entity, { platformScope: true, selectedCompanyId: null })).toBe(false);
+    expect(canPermanentlyDeleteEntity(profile('superadmin'), entity, { platformScope: true, selectedCompanyId: null })).toBe(false);
+  });
+
+  it('mantiene SAT y Gerencia limitados a su empresa aunque haya alcance de plataforma', () => {
+    const entity = { id: 'entity-id', company_id: 'other-company' };
+    const scope = { platformScope: true, selectedCompanyId: 'other-company' };
+    expect(canArchiveEntity(profile('SAT'), entity, scope)).toBe(false);
+    expect(canArchiveEntity(profile('Gerencia'), entity, scope)).toBe(false);
   });
 });

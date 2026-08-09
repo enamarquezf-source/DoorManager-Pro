@@ -58,6 +58,9 @@ describe('security lifecycle controls', () => {
     expect(app).toContain('LifecycleActionPanel');
     expect(app).toContain('LifecycleConfirmModal');
     expect(app).toContain('ELIMINAR ${target.code}');
+    expect(permissions).toContain('PlatformLifecycleScope');
+    expect(app).toContain('selectedCompanyId: companyId');
+    expect(permissions).not.toContain('global_scope_authorized');
   });
 
   it('protects profile lifecycle operations inside RPC', () => {
@@ -76,6 +79,26 @@ describe('security lifecycle controls', () => {
     expect(migration).toContain('insert into public.work_order_status_history');
     expect(migration).toContain("'En intervencion'");
     expect(migration).toContain("'Cancelado'");
+  });
+
+  it('prevents repeated archive from overwriting the original audit state', () => {
+    const archiveBody = migration.slice(migration.indexOf('create or replace function public.dmp_archive_entity'), migration.indexOf('create or replace function public.dmp_restore_entity'));
+    expect(archiveBody.match(/for update/g)?.length).toBeGreaterThanOrEqual(8);
+    expect(archiveBody.match(/El registro ya está archivado/g)?.length).toBe(8);
+    expect(archiveBody.indexOf('El registro ya está archivado')).toBeLessThan(archiveBody.indexOf("'SOFT_DELETE'"));
+    expect(archiveBody).toContain("if v_old->>'deleted_at' is not null then raise exception 'El registro ya está archivado'; end if;");
+    expect(archiveBody).toContain("if coalesce((v_old->>'active')::boolean, true) is false then raise exception 'El registro ya está archivado'; end if;");
+    expect(archiveBody).toContain("if v_old->>'deleted_at' is not null or coalesce((v_old->>'active')::boolean, true) is false then raise exception 'El registro ya está archivado'; end if;");
+  });
+
+  it('prevents restore of records that are not archived', () => {
+    const restoreBody = migration.slice(migration.indexOf('create or replace function public.dmp_restore_entity'), migration.indexOf('create or replace function public.dmp_permanently_delete_entity'));
+    expect(restoreBody.match(/for update/g)?.length).toBeGreaterThanOrEqual(8);
+    expect(restoreBody.match(/El registro no está archivado/g)?.length).toBe(8);
+    expect(restoreBody.indexOf('El registro no está archivado')).toBeLessThan(restoreBody.indexOf("'UPDATE'"));
+    expect(restoreBody).toContain("if v_old->>'deleted_at' is null then raise exception 'El registro no está archivado'; end if;");
+    expect(restoreBody).toContain("if coalesce((v_old->>'active')::boolean, true) is true then raise exception 'El registro no está archivado'; end if;");
+    expect(restoreBody).toContain("if v_old->>'deleted_at' is null and coalesce((v_old->>'active')::boolean, true) is true then raise exception 'El registro no está archivado'; end if;");
   });
 
   it('redefines register_work_order_deficiency with v_component and explicit privileges', () => {
@@ -100,5 +123,7 @@ describe('security lifecycle controls', () => {
     expect(verification).toContain('rollback;');
     expect(verification).toContain('dmp_archive_entity');
     expect(verification).toContain('dmp_restore_entity');
+    expect(verification).toContain('El registro ya está archivado');
+    expect(verification).toContain('El registro no está archivado');
   });
 });

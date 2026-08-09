@@ -35,7 +35,11 @@ where n.nspname = 'public'
 begin;
 -- Verificacion manual opcional en entorno de pruebas: sustituir los UUID por fixtures reales.
 -- select public.dmp_archive_entity('work_orders', '00000000-0000-0000-0000-000000000000'::uuid, 'verify rollback');
+-- El segundo archivado del mismo fixture debe fallar con: El registro ya está archivado.
+-- select public.dmp_archive_entity('work_orders', '00000000-0000-0000-0000-000000000000'::uuid, 'verify rollback repeated archive');
 -- select public.dmp_restore_entity('work_orders', '00000000-0000-0000-0000-000000000000'::uuid, 'verify rollback');
+-- La segunda restauracion del mismo fixture debe fallar con: El registro no está archivado.
+-- select public.dmp_restore_entity('work_orders', '00000000-0000-0000-0000-000000000000'::uuid, 'verify rollback repeated restore');
 rollback;
 
 select 'archived_read_policies' as check_name, tablename, policyname, cmd, roles, qual

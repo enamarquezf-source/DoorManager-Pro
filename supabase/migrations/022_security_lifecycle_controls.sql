@@ -375,29 +375,37 @@ begin
 
   if p_entity = 'clients' then
     select to_jsonb(t) into v_old from public.clients t where id = p_entity_id for update;
+    if v_old->>'deleted_at' is not null then raise exception 'El registro ya está archivado'; end if;
     update public.clients set deleted_at = coalesce(deleted_at, now()), status = case when status = 'Activo' then 'Inactivo' else status end, updated_at = now() where id = p_entity_id returning to_jsonb(clients.*) into v_new;
   elsif p_entity = 'sites' then
     select to_jsonb(t) into v_old from public.sites t where id = p_entity_id for update;
+    if v_old->>'deleted_at' is not null then raise exception 'El registro ya está archivado'; end if;
     update public.sites set deleted_at = coalesce(deleted_at, now()), active = false, updated_at = now() where id = p_entity_id returning to_jsonb(sites.*) into v_new;
   elsif p_entity = 'equipment' then
     select to_jsonb(t) into v_old from public.equipment t where id = p_entity_id for update;
+    if v_old->>'deleted_at' is not null then raise exception 'El registro ya está archivado'; end if;
     update public.equipment set deleted_at = coalesce(deleted_at, now()), status = case when status in ('Operativo','Pendiente de revision') then 'Fuera de servicio' else status end, updated_at = now() where id = p_entity_id returning to_jsonb(equipment.*) into v_new;
   elsif p_entity = 'cases' then
     select to_jsonb(t) into v_old from public.cases t where id = p_entity_id for update;
+    if v_old->>'deleted_at' is not null then raise exception 'El registro ya está archivado'; end if;
     update public.cases set deleted_at = coalesce(deleted_at, now()), status = case when status in ('Abierto','En curso','Pendiente') then 'Cancelado' else status end, updated_at = now() where id = p_entity_id returning to_jsonb(cases.*) into v_new;
   elsif p_entity = 'work_orders' then
     select to_jsonb(t) into v_old from public.work_orders t where id = p_entity_id for update;
+    if v_old->>'deleted_at' is not null then raise exception 'El registro ya está archivado'; end if;
     update public.work_orders set deleted_at = coalesce(deleted_at, now()), status = case when status not in ('Cerrado','Cancelado') then 'Cancelado' else status end, updated_by = v_actor.id, updated_at = now() where id = p_entity_id returning to_jsonb(work_orders.*) into v_new;
     insert into public.work_order_status_history(company_id, work_order_id, previous_status, new_status, changed_by, reason, manual_correction) values (v_company_id, p_entity_id, v_old->>'status', v_new->>'status', v_actor.id, p_reason, true);
   elsif p_entity = 'checks' then
     select to_jsonb(t) into v_old from public.checks t where id = p_entity_id for update;
+    if v_old->>'deleted_at' is not null then raise exception 'El registro ya está archivado'; end if;
     update public.checks set deleted_at = coalesce(deleted_at, now()), status = case when status <> 'Realizado' then 'Cancelado' else status end, updated_at = now() where id = p_entity_id returning to_jsonb(checks.*) into v_new;
   elsif p_entity = 'check_templates' then
     select to_jsonb(t) into v_old from public.check_templates t where id = p_entity_id for update;
+    if coalesce((v_old->>'active')::boolean, true) is false then raise exception 'El registro ya está archivado'; end if;
     update public.check_templates set active = false, updated_at = now() where id = p_entity_id returning to_jsonb(check_templates.*) into v_new;
   elsif p_entity = 'profiles' then
     v_target_profile := public.dmp_assert_profile_lifecycle_target(p_entity_id, v_actor, 'archive');
     select to_jsonb(t) into v_old from public.profiles t where id = p_entity_id for update;
+    if v_old->>'deleted_at' is not null or coalesce((v_old->>'active')::boolean, true) is false then raise exception 'El registro ya está archivado'; end if;
     update public.profiles set active = false, deleted_at = coalesce(deleted_at, now()), updated_at = now() where id = p_entity_id returning to_jsonb(profiles.*) into v_new;
   end if;
 
@@ -432,41 +440,49 @@ begin
 
   if p_entity = 'clients' then
     select to_jsonb(t) into v_old from public.clients t where id = p_entity_id for update;
+    if v_old->>'deleted_at' is null then raise exception 'El registro no está archivado'; end if;
     v_previous_status := public.dmp_previous_lifecycle_value(p_entity, p_entity_id, 'status', v_old->>'status');
     if v_previous_status not in ('Activo','Inactivo','Potencial','Bloqueado') then raise exception 'Estado previo de cliente incompatible'; end if;
     update public.clients set deleted_at = null, status = v_previous_status, updated_at = now() where id = p_entity_id returning to_jsonb(clients.*) into v_new;
   elsif p_entity = 'sites' then
     select to_jsonb(t) into v_old from public.sites t where id = p_entity_id for update;
+    if v_old->>'deleted_at' is null then raise exception 'El registro no está archivado'; end if;
     v_previous_active := public.dmp_previous_lifecycle_value(p_entity, p_entity_id, 'active', v_old->>'active');
     update public.sites set deleted_at = null, active = coalesce(v_previous_active::boolean, true), updated_at = now() where id = p_entity_id returning to_jsonb(sites.*) into v_new;
   elsif p_entity = 'equipment' then
     select to_jsonb(t) into v_old from public.equipment t where id = p_entity_id for update;
+    if v_old->>'deleted_at' is null then raise exception 'El registro no está archivado'; end if;
     v_previous_status := public.dmp_previous_lifecycle_value(p_entity, p_entity_id, 'status', v_old->>'status');
     if v_previous_status not in ('Operativo','Averiado','Fuera de servicio','Pendiente de revision','Sustituido') then raise exception 'Estado previo de equipo incompatible'; end if;
     update public.equipment set deleted_at = null, status = v_previous_status, updated_at = now() where id = p_entity_id returning to_jsonb(equipment.*) into v_new;
   elsif p_entity = 'cases' then
     select to_jsonb(t) into v_old from public.cases t where id = p_entity_id for update;
+    if v_old->>'deleted_at' is null then raise exception 'El registro no está archivado'; end if;
     v_previous_status := public.dmp_previous_lifecycle_value(p_entity, p_entity_id, 'status', v_old->>'status');
     if v_previous_status not in ('Abierto','En curso','Pendiente','Cerrado','Cancelado') then raise exception 'Estado previo de expediente incompatible'; end if;
     update public.cases set deleted_at = null, status = v_previous_status, updated_at = now() where id = p_entity_id returning to_jsonb(cases.*) into v_new;
   elsif p_entity = 'work_orders' then
     select to_jsonb(t) into v_old from public.work_orders t where id = p_entity_id for update;
+    if v_old->>'deleted_at' is null then raise exception 'El registro no está archivado'; end if;
     v_previous_status := public.dmp_previous_lifecycle_value(p_entity, p_entity_id, 'status', v_old->>'status');
     if v_previous_status not in ('Pendiente','Trabajo descargado','En desplazamiento','En intervencion','Pausado','Pendiente de material','Finalizado tecnicamente','Pendiente de envio','Enviado','Devolucion solicitada','Devuelto por SAT','Cerrado','Cancelado') then raise exception 'Estado previo de parte incompatible'; end if;
     update public.work_orders set deleted_at = null, status = v_previous_status, updated_by = v_actor.id, updated_at = now() where id = p_entity_id returning to_jsonb(work_orders.*) into v_new;
     insert into public.work_order_status_history(company_id, work_order_id, previous_status, new_status, changed_by, reason, manual_correction) values (v_company_id, p_entity_id, v_old->>'status', v_new->>'status', v_actor.id, p_reason, true);
   elsif p_entity = 'checks' then
     select to_jsonb(t) into v_old from public.checks t where id = p_entity_id for update;
+    if v_old->>'deleted_at' is null then raise exception 'El registro no está archivado'; end if;
     v_previous_status := public.dmp_previous_lifecycle_value(p_entity, p_entity_id, 'status', v_old->>'status');
     if v_previous_status not in ('Por realizar','En curso','Realizado','Cancelado') then raise exception 'Estado previo de check incompatible'; end if;
     update public.checks set deleted_at = null, status = v_previous_status, updated_at = now() where id = p_entity_id returning to_jsonb(checks.*) into v_new;
   elsif p_entity = 'check_templates' then
     select to_jsonb(t) into v_old from public.check_templates t where id = p_entity_id for update;
+    if coalesce((v_old->>'active')::boolean, true) is true then raise exception 'El registro no está archivado'; end if;
     v_previous_active := public.dmp_previous_lifecycle_value(p_entity, p_entity_id, 'active', v_old->>'active');
     update public.check_templates set active = coalesce(v_previous_active::boolean, true), updated_at = now() where id = p_entity_id returning to_jsonb(check_templates.*) into v_new;
   elsif p_entity = 'profiles' then
     v_target_profile := public.dmp_assert_profile_lifecycle_target(p_entity_id, v_actor, 'restore');
     select to_jsonb(t) into v_old from public.profiles t where id = p_entity_id for update;
+    if v_old->>'deleted_at' is null and coalesce((v_old->>'active')::boolean, true) is true then raise exception 'El registro no está archivado'; end if;
     v_previous_active := public.dmp_previous_lifecycle_value(p_entity, p_entity_id, 'active', 'true');
     update public.profiles set active = coalesce(v_previous_active::boolean, true), deleted_at = null, updated_at = now() where id = p_entity_id returning to_jsonb(profiles.*) into v_new;
   end if;

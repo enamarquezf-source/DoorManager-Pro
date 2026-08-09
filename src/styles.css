@@ -220,6 +220,13 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
 .success-note { background: #dff8eb; color: #065f46; }
 .state-warning { margin: 0; border-radius: 12px; padding: 10px; display: flex; gap: 8px; align-items: center; background: #FFF7D6; color: #6B4E00; border: 1px solid #E5C76B; font-weight: 850; }
 .row-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.archived-record, .archived-row { opacity: .74; filter: grayscale(.18); }
+.archived-record { border: 1px dashed #94a3b8; border-radius: 16px; padding: 10px; background: #f8fafc; }
+.lifecycle-panel { display: grid; gap: 8px; margin-top: 10px; }
+.lifecycle-panel .actions { justify-content: flex-start; }
+.danger-action { border-color: #fecaca !important; color: #991b1b !important; background: #fff7f7 !important; }
+.lifecycle-modal .compact-list article { grid-template-columns: auto 1fr; }
+.archive-tabs { align-items: center; }
 .ops-actions { margin-top: 12px; justify-content: flex-start; }
 .row-actions button { border: 1px solid var(--line); background: white; border-radius: 10px; padding: 8px 10px; color: var(--dark); font-weight: 850; }
 .row-actions button:disabled { color: var(--text-soft); background: #eef2f6; }

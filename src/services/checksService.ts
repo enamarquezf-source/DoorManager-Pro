@@ -3,6 +3,7 @@ import { contains, currentCompanyId, currentProfileId, expectData } from './quer
 import type { OfflineChange } from './technicianOfflineService';
 import { codesService } from './codesService';
 import { filesBucket, withSignedFileUrl } from '../shared/signedFiles';
+import { applyArchiveFilter, type ArchiveFilter } from './entityLifecycleService';
 
 const checkColumns = ['work_order_id', 'equipment_id', 'template_id', 'technician_id', 'status', 'global_result', 'observations'];
 function checkPayload(payload: Record<string, any>) {
@@ -35,9 +36,9 @@ async function uploadLocalFile(path: string, payload: Record<string, any>) {
 }
 
 export const checksService = {
-  async list(search = '', companyScope?: string | null) {
+  async list(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active') {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
-    let query = supabase.from('checks').select('*, companies!checks_company_id_fkey(name), equipment!checks_equipment_id_fkey(code), work_orders!checks_work_order_id_fkey(code), profiles!checks_technician_id_fkey(first_name,last_name)').is('deleted_at', null).order('created_at', { ascending: false });
+    let query = applyArchiveFilter(supabase.from('checks').select('*, companies!checks_company_id_fkey(name), equipment!checks_equipment_id_fkey(code), work_orders!checks_work_order_id_fkey(code), profiles!checks_technician_id_fkey(first_name,last_name)'), archiveFilter).order('created_at', { ascending: false });
     if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'status', 'global_result', 'observations'], search));
     return expectData<any[]>(query);

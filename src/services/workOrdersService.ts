@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, currentProfileId, expectData, expectStep } from './query';
 import { filesBucket, withSignedFileUrl } from '../shared/signedFiles';
+import { applyArchiveFilter, type ArchiveFilter } from './entityLifecycleService';
 
 const workOrderColumns = ['case_id', 'client_id', 'site_id', 'main_equipment_id', 'contact_id', 'access_requirement_id', 'title', 'description', 'type', 'priority', 'status', 'origin', 'scheduled_date', 'scheduled_time', 'estimated_duration_minutes', 'planned_material', 'technical_team', 'diagnosis', 'work_performed', 'result'];
 function workOrderPayload(payload: Record<string, any>) {
@@ -46,15 +47,15 @@ export type WorkOrderFullDetail = {
 };
 
 export const workOrdersService = {
-  async list(search = '', companyScope?: string | null) {
+  async list(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active') {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
-    let query = supabase.from('v_work_order_full_detail').select('*').order('scheduled_date', { ascending: false });
+    let query = applyArchiveFilter(supabase.from('v_work_order_full_detail').select('*'), archiveFilter).order('scheduled_date', { ascending: false });
     if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'title', 'description', 'client_name', 'site_name', 'equipment_code', 'status'], search));
     return expectData<any[]>(query);
   },
-  async listWithAssignments(search = '', companyScope?: string | null) {
-    const workOrders = await this.list(search, companyScope);
+  async listWithAssignments(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active') {
+    const workOrders = await this.list(search, companyScope, archiveFilter);
     const ids = workOrders.map((item) => item.id).filter(Boolean);
     if (!ids.length) return [];
     const [assignments, checks] = await Promise.all([

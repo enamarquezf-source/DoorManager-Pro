@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessRoute, canCreateAlert, canManageCheck, canManageWorkOrderAssignments, canRole, canViewCheck, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './permissions';
+import { canAccessRoute, canArchiveEntity, canCreateAlert, canManageCheck, canManageWorkOrderAssignments, canPermanentlyDeleteEntity, canRestoreEntity, canRole, canViewCheck, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './permissions';
 import type { Profile, RoleName } from '../shared/types';
 
 function profile(primary_area: RoleName, roles: RoleName[] = []): Profile {
@@ -88,5 +88,23 @@ describe('canAccessRoute', () => {
     expect(canManageWorkOrderAssignments(profile('superadmin'))).toBe(true);
     expect(canManageWorkOrderAssignments(profile('Tecnico'))).toBe(false);
     expect(canManageWorkOrderAssignments(profile('Comercial'))).toBe(false);
+  });
+
+  it('centraliza archivo restauracion y borrado definitivo en SAT Gerencia y Superadmin activos', () => {
+    const entity = { id: 'entity-id', company_id: 'company-id' };
+    for (const role of ['SAT', 'Gerencia', 'superadmin'] as RoleName[]) {
+      expect(canArchiveEntity(profile(role), entity)).toBe(true);
+      expect(canRestoreEntity(profile(role), entity)).toBe(true);
+      expect(canPermanentlyDeleteEntity(profile(role), entity)).toBe(true);
+    }
+    for (const role of ['Tecnico', 'Comercial', 'Oficina'] as RoleName[]) {
+      expect(canArchiveEntity(profile(role), entity)).toBe(false);
+      expect(canRestoreEntity(profile(role), entity)).toBe(false);
+      expect(canPermanentlyDeleteEntity(profile(role), entity)).toBe(false);
+    }
+    expect(canArchiveEntity({ ...profile('SAT'), active: false }, entity)).toBe(false);
+    expect(canArchiveEntity({ ...profile('Gerencia'), deleted_at: '2026-01-01' }, entity)).toBe(false);
+    expect(canArchiveEntity(profile('SAT'), { ...entity, company_id: 'other-company' })).toBe(false);
+    expect(canArchiveEntity(profile('superadmin'), { ...entity, company_id: 'other-company' })).toBe(true);
   });
 });

@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, currentProfileId, expectData } from './query';
+import { applyArchiveFilter, type ArchiveFilter } from './entityLifecycleService';
 
 const caseColumns = ['title', 'description', 'type', 'priority', 'status', 'client_id', 'site_id', 'origin', 'responsible_profile_id'];
 function casePayload(payload: Record<string, any>) {
@@ -7,9 +8,9 @@ function casePayload(payload: Record<string, any>) {
 }
 
 export const casesService = {
-  async list(search = '', companyScope?: string | null) {
+  async list(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active') {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
-    let query = supabase.from('cases').select('*, clients!cases_client_id_fkey(code, legal_name), sites!cases_site_id_fkey(code, name), case_links!case_links_case_id_fkey(*)').is('deleted_at', null).order('created_at', { ascending: false });
+    let query = applyArchiveFilter(supabase.from('cases').select('*, clients!cases_client_id_fkey(code, legal_name), sites!cases_site_id_fkey(code, name), case_links!case_links_case_id_fkey(*)'), archiveFilter).order('created_at', { ascending: false });
     if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'title', 'description', 'status', 'type'], search));
     return expectData<any[]>(query);

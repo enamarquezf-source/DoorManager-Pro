@@ -3,6 +3,7 @@ import type { Profile, RoleName, Workspace } from '../shared/types';
 const adminRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia'];
 const backOfficeRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia', 'Oficina'];
 const operationalRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia', 'Tecnico'];
+const lifecycleRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia'];
 const workspaceByRole: Record<RoleName, Workspace> = {
   superadmin: 'superadmin',
   SAT: 'sat',
@@ -45,6 +46,28 @@ export function profileWorkspaces(profile: Profile | null | undefined): Workspac
 
 function hasAny(profile: Profile | null | undefined, roles: RoleName[]) {
   return rolesOf(profile).some((role) => roles.includes(role));
+}
+
+function isActiveProfile(profile: Profile | null | undefined) {
+  return !!profile?.active && !profile.deleted_at;
+}
+
+function sameCompanyOrSuperadmin(profile: Profile | null | undefined, entity?: any) {
+  if (!profile) return false;
+  if (hasAny(profile, ['superadmin'])) return true;
+  return !entity?.company_id || entity.company_id === profile.company_id;
+}
+
+export function canArchiveEntity(profile: Profile | null | undefined, entity?: any) {
+  return isActiveProfile(profile) && hasAny(profile, lifecycleRoles) && sameCompanyOrSuperadmin(profile, entity);
+}
+
+export function canRestoreEntity(profile: Profile | null | undefined, entity?: any) {
+  return canArchiveEntity(profile, entity);
+}
+
+export function canPermanentlyDeleteEntity(profile: Profile | null | undefined, entity?: any) {
+  return canArchiveEntity(profile, entity);
 }
 
 export function canViewWorkOrder(profile: Profile | null | undefined, workOrder?: any) {

@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, expectData } from './query';
 import { codesService } from './codesService';
+import { applyArchiveFilter, type ArchiveFilter } from './entityLifecycleService';
 
 const equipmentColumns = ['client_id', 'site_id', 'equipment_type_id', 'brand', 'model', 'serial_number', 'installation_date', 'internal_location', 'status', 'criticality', 'last_review_date', 'next_review_date', 'technical_config', 'notes'];
 function equipmentPayload(payload: Record<string, any>) {
@@ -8,9 +9,9 @@ function equipmentPayload(payload: Record<string, any>) {
 }
 
 export const equipmentService = {
-  async list(search = '', companyScope?: string | null) {
+  async list(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active') {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
-    let query = supabase.from('equipment').select('*, companies!equipment_company_id_fkey(name), clients!equipment_client_id_fkey(code, legal_name), sites!equipment_site_id_fkey(code, name), equipment_types!equipment_equipment_type_id_fkey(name), equipment_components!equipment_components_equipment_id_fkey(*)').is('deleted_at', null).order('code');
+    let query = applyArchiveFilter(supabase.from('equipment').select('*, companies!equipment_company_id_fkey(name), clients!equipment_client_id_fkey(code, legal_name), sites!equipment_site_id_fkey(code, name), equipment_types!equipment_equipment_type_id_fkey(name), equipment_components!equipment_components_equipment_id_fkey(*)'), archiveFilter).order('code');
     if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'brand', 'model', 'serial_number', 'internal_location', 'status'], search));
     return expectData<any[]>(query);

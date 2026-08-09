@@ -164,9 +164,9 @@ export const workOrdersService = {
     const profileId = await currentProfileId();
     return expectData<string>(supabase.rpc('assign_technician', { p_work_order_id: workOrderId, p_technician_id: technicianId, p_assignment_date: assignmentDate, p_start: start, p_end: end, p_role: role, p_assigned_by: profileId }));
   },
-  async unassign(workOrderId: string, profileIdToRemove: string, reason?: string) {
+  async unassign(workOrderId: string, profileIdToRemove: string, reason?: string, assignmentType: 'technical' | 'commercial' = 'technical') {
     const profileId = await currentProfileId();
-    return expectData<void>(supabase.rpc('unassign_work_order_profile', { p_work_order_id: workOrderId, p_profile_id: profileIdToRemove, p_changed_by: profileId, p_reason: reason ?? null }));
+    return expectData<void>(supabase.rpc('unassign_work_order_profile', { p_work_order_id: workOrderId, p_profile_id: profileIdToRemove, p_changed_by: profileId, p_reason: reason ?? null, p_assignment_type: assignmentType }));
   },
   async assignCommercial(workOrderId: string, commercialId: string) {
     const profileId = await currentProfileId();

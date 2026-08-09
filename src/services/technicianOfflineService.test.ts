@@ -44,4 +44,17 @@ describe('technicianOfflineService scope helpers', () => {
     expect(result[1].error).toContain('No se pierde el cambio');
     expect(result[2].status).toBe('synced');
   });
+
+  it('usa la lista fresca del servidor para bloquear partes que desaparecen de la jornada', async () => {
+    const { markStaleChangesBlockedForTest } = await import('./technicianOfflineService');
+    const before: any[] = [
+      { id: 'old-material', type: 'material', workOrderId: 'wo-old', payload: { material: 'Bisagra' }, status: 'pending', createdAt: '', updatedAt: '' },
+      { id: 'new-note', type: 'work-note', workOrderId: 'wo-new', payload: { work: 'Ajuste' }, status: 'failed', createdAt: '', updatedAt: '' },
+    ];
+    const freshServerWork = ['wo-new'];
+    const result = markStaleChangesBlockedForTest(before, freshServerWork);
+    expect(result.find((item) => item.id === 'old-material')?.status).toBe('blocked');
+    expect(result.find((item) => item.id === 'old-material')?.payload.material).toBe('Bisagra');
+    expect(result.find((item) => item.id === 'new-note')?.status).toBe('failed');
+  });
 });

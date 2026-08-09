@@ -5,7 +5,7 @@ with expected(function_name, arguments, direct_authenticated) as (values
   ('dmp_upsert_work_order_time_entry', 'p_payload jsonb', true),
   ('dmp_upsert_work_order_material', 'p_payload jsonb', true),
   ('dmp_change_work_order_status', 'p_work_order_id uuid, p_new_status text, p_reason text', true),
-  ('unassign_work_order_profile', 'p_work_order_id uuid, p_profile_id uuid, p_changed_by uuid, p_reason text', true),
+  ('unassign_work_order_profile', 'p_work_order_id uuid, p_profile_id uuid, p_changed_by uuid, p_reason text, p_assignment_type text', true),
   ('technician_global_search', 'p_query text', true),
   ('dmp024_active_profile', '', false),
   ('dmp024_assert_work_order_operator', 'p_work_order_id uuid, p_manage_other_profile boolean', false),
@@ -29,10 +29,22 @@ from matched;
 
 select 'technician_views_after_024' as check_name,
        count(*) filter (where table_name = 'v_technician_daily_schedule') as schedule_view,
-       count(*) filter (where table_name = 'v_pending_checks') as pending_checks_view
+       count(*) filter (where table_name = 'v_pending_checks') as pending_checks_view,
+       count(*) filter (where table_name = 'v_technician_assignment_history') as assignment_history_view
 from information_schema.views
 where table_schema = 'public'
-  and table_name in ('v_technician_daily_schedule','v_pending_checks');
+  and table_name in ('v_technician_daily_schedule','v_pending_checks','v_technician_assignment_history');
+
+select 'invoker_objects_do_not_call_private_helpers_024' as check_name,
+       case when count(*) = 0 then 'OK' else 'FAIL' end as status,
+       array_agg(obj) filter (where obj is not null) as offenders
+from (
+  select 'v_technician_daily_schedule' as obj where pg_get_viewdef('public.v_technician_daily_schedule'::regclass, true) like '%dmp024_is_work_order_active_status%'
+  union all
+  select 'v_pending_checks' where pg_get_viewdef('public.v_pending_checks'::regclass, true) like '%dmp024_is_work_order_active_status%'
+  union all
+  select 'technician_global_search' where pg_get_functiondef('public.technician_global_search(text)'::regprocedure) like '%dmp024_is_work_order_active_status%'
+) offenders;
 
 begin;
 -- Pruebas manuales con fixtures reales, siempre en rollback:
@@ -40,4 +52,6 @@ begin;
 -- select public.dmp_upsert_work_order_time_entry('{"work_order_id":"<work_order_id>","work_date":"2026-08-09","started_at":"08:00","ended_at":"09:00","break_minutes":0,"description":"Verificacion 024 rollback"}'::jsonb);
 -- select public.dmp_upsert_work_order_material('{"work_order_id":"<work_order_id>","description":"Material 024 rollback","quantity":1,"unit":"ud","local_change_id":"verify-024"}'::jsonb);
 -- select public.dmp_change_work_order_status('<work_order_id>'::uuid, 'Finalizado tecnicamente', 'verify 024 rollback');
+-- select public.unassign_work_order_profile('<work_order_id>'::uuid, '<technician_profile_id>'::uuid, public.current_profile_id(), 'verify 024 rollback', 'technical');
+-- select public.unassign_work_order_profile('<work_order_id>'::uuid, '<commercial_profile_id>'::uuid, public.current_profile_id(), 'verify 024 rollback', 'commercial');
 rollback;

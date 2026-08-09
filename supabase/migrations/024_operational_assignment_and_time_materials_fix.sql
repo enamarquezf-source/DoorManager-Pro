@@ -250,15 +250,16 @@ begin
 
   update public.work_orders set status = p_new_status, updated_by = v_profile.id, updated_at = now(), finished_at = case when p_new_status = 'Finalizado tecnicamente' then coalesce(finished_at, now()) when public.dmp024_is_work_order_active_status(p_new_status) then null else finished_at end, sent_at = case when p_new_status = 'Enviado' then coalesce(sent_at, now()) when p_new_status in ('Pendiente','Trabajo descargado','En desplazamiento','En intervencion','Pausado','Pendiente de material','Finalizado tecnicamente','Pendiente de envio') then null else sent_at end where id = p_work_order_id;
 
-  if p_new_status = 'Finalizado tecnicamente' and public.has_any_role(array['Tecnico']) and not v_admin then
-    update public.work_order_assignments set status = 'Finalizado', updated_at = now() where work_order_id = p_work_order_id and technician_id = v_profile.id and deleted_at is null and status not in ('Finalizado','Cancelado');
+  if p_new_status = 'Finalizado tecnicamente' then
+    update public.work_order_assignments set status = 'Finalizado', updated_at = now() where work_order_id = p_work_order_id and deleted_at is null and status not in ('Finalizado','Cancelado');
   end if;
 
   insert into public.work_order_status_history(company_id, work_order_id, previous_status, new_status, changed_by, reason, manual_correction) values (v_work.company_id, v_work.id, v_work.status, p_new_status, v_profile.id, nullif(p_reason, ''), v_manual);
 end;
 $$;
 
-create or replace function public.unassign_work_order_profile(p_work_order_id uuid, p_profile_id uuid, p_changed_by uuid, p_reason text default null)
+drop function if exists public.unassign_work_order_profile(uuid, uuid, uuid, text);
+create or replace function public.unassign_work_order_profile(p_work_order_id uuid, p_profile_id uuid, p_changed_by uuid, p_reason text default null, p_assignment_type text default 'technical')
 returns void
 language plpgsql
 security definer
@@ -275,12 +276,18 @@ begin
   if p_changed_by <> public.current_profile_id() then raise exception 'perfil activo: usuario de cambio no valido'; end if;
   if not public.has_any_role(array['superadmin','SAT','Gerencia']) then raise exception 'permiso: no tienes permisos para gestionar asignaciones'; end if;
 
-  update public.work_order_assignments set deleted_at = now(), status = 'Cancelado', updated_at = now() where work_order_id = p_work_order_id and technician_id = p_profile_id and deleted_at is null;
-  update public.work_orders set main_technician_id = case when main_technician_id = p_profile_id then null else main_technician_id end, updated_by = p_changed_by, updated_at = now() where id = p_work_order_id;
-  update public.checks set technician_id = null, updated_at = now() where work_order_id = p_work_order_id and technician_id = p_profile_id and deleted_at is null and status <> 'Realizado';
+  if p_assignment_type not in ('technical','commercial') then raise exception 'validacion del formulario: tipo de desasignacion no valido'; end if;
+
+  if p_assignment_type = 'technical' then
+    update public.work_order_assignments set deleted_at = now(), status = 'Cancelado', updated_at = now() where work_order_id = p_work_order_id and technician_id = p_profile_id and deleted_at is null;
+    update public.work_orders set main_technician_id = case when main_technician_id = p_profile_id then null else main_technician_id end, updated_by = p_changed_by, updated_at = now() where id = p_work_order_id;
+    update public.checks set technician_id = null, updated_at = now() where work_order_id = p_work_order_id and technician_id = p_profile_id and deleted_at is null and status <> 'Realizado';
+  elsif p_assignment_type = 'commercial' then
+    update public.work_orders set current_responsible_id = case when current_responsible_id = p_profile_id then null else current_responsible_id end, updated_by = p_changed_by, updated_at = now() where id = p_work_order_id;
+  end if;
 
   insert into public.work_order_status_history(company_id, work_order_id, previous_status, new_status, changed_by, reason, manual_correction)
-  values (v_company_id, p_work_order_id, v_status, v_status, p_changed_by, coalesce(nullif(p_reason, ''), 'Desasignacion tecnica en parte ' || v_code || '. Checks no realizados quedan sin tecnico.'), true);
+  values (v_company_id, p_work_order_id, v_status, v_status, p_changed_by, coalesce(nullif(p_reason, ''), case when p_assignment_type = 'technical' then 'Desasignacion tecnica en parte ' || v_code || '. Checks no realizados quedan sin tecnico.' else 'Desasignacion comercial/responsable en parte ' || v_code || '.' end), true);
 end;
 $$;
 
@@ -322,7 +329,7 @@ select
   checks.first_check_status as check_status
 from public.work_order_assignments a
 join public.profiles p on p.id = a.technician_id and p.active = true and p.deleted_at is null
-join public.work_orders wo on wo.id = a.work_order_id and wo.deleted_at is null and public.dmp024_is_work_order_active_status(wo.status)
+join public.work_orders wo on wo.id = a.work_order_id and wo.deleted_at is null and wo.status in ('Pendiente','Trabajo descargado','En desplazamiento','En intervencion','Pausado','Pendiente de material')
 join public.clients c on c.id = wo.client_id and c.deleted_at is null
 join public.sites s on s.id = wo.site_id and s.deleted_at is null
 left join public.equipment e on e.id = wo.main_equipment_id and e.deleted_at is null
@@ -337,13 +344,67 @@ left join lateral (
 ) checks on true
 where a.deleted_at is null and a.status not in ('Finalizado','Cancelado');
 
+create or replace view public.v_technician_assignment_history
+with (security_invoker = true) as
+select
+  a.company_id,
+  a.id as assignment_id,
+  a.assignment_date,
+  a.planned_start_time,
+  a.planned_end_time,
+  a.status as assignment_status,
+  a.role as assignment_role,
+  p.id as technician_id,
+  trim(p.first_name || ' ' || p.last_name) as technician_name,
+  wo.id as work_order_id,
+  wo.code as work_order_code,
+  wo.code,
+  wo.title,
+  wo.description,
+  wo.description as work_order_description,
+  wo.type,
+  wo.priority,
+  wo.status as work_order_status,
+  wo.scheduled_date,
+  wo.scheduled_time,
+  wo.planned_material,
+  c.id as client_id,
+  c.legal_name as client_name,
+  s.id as site_id,
+  s.name as site_name,
+  s.address as site_address,
+  e.id as equipment_id,
+  e.code as equipment_code,
+  ar.description as access_description,
+  checks.pending_checks_count,
+  checks.check_statuses,
+  checks.pending_check_ids,
+  checks.first_check_status as check_status
+from public.work_order_assignments a
+join public.profiles p on p.id = a.technician_id and p.active = true and p.deleted_at is null
+join public.work_orders wo on wo.id = a.work_order_id and wo.deleted_at is null
+join public.clients c on c.id = wo.client_id and c.deleted_at is null
+join public.sites s on s.id = wo.site_id and s.deleted_at is null
+left join public.equipment e on e.id = wo.main_equipment_id and e.deleted_at is null
+left join public.access_requirements ar on ar.id = wo.access_requirement_id
+left join lateral (
+  select count(*) filter (where ch.status <> 'Realizado')::integer as pending_checks_count,
+         array_agg(ch.status order by ch.created_at desc) as check_statuses,
+         array_agg(ch.id order by ch.created_at desc) filter (where ch.status <> 'Realizado') as pending_check_ids,
+         (array_agg(ch.status order by ch.created_at desc))[1] as first_check_status
+  from public.checks ch
+  where ch.work_order_id = wo.id and ch.deleted_at is null and (ch.technician_id = a.technician_id or ch.technician_id is null)
+) checks on true
+where a.deleted_at is null
+  and (a.status in ('Finalizado','Cancelado') or wo.status in ('Finalizado tecnicamente','Pendiente de envio','Enviado','Devolucion solicitada','Devuelto por SAT','Cerrado','Cancelado'));
+
 create or replace view public.v_pending_checks
 with (security_invoker = true) as
 select ch.*, e.code as equipment_code, wo.code as work_order_code
 from public.checks ch
 join public.equipment e on e.id = ch.equipment_id
 left join public.work_orders wo on wo.id = ch.work_order_id
-where ch.deleted_at is null and ch.status in ('Por realizar','En curso') and (wo.id is null or (wo.deleted_at is null and public.dmp024_is_work_order_active_status(wo.status))) and (ch.technician_id is null or exists (select 1 from public.work_order_assignments a where a.work_order_id = ch.work_order_id and a.technician_id = ch.technician_id and a.deleted_at is null and a.status not in ('Finalizado','Cancelado')));
+where ch.deleted_at is null and ch.status in ('Por realizar','En curso') and (wo.id is null or (wo.deleted_at is null and wo.status in ('Pendiente','Trabajo descargado','En desplazamiento','En intervencion','Pausado','Pendiente de material'))) and (ch.technician_id is null or exists (select 1 from public.work_order_assignments a where a.work_order_id = ch.work_order_id and a.technician_id = ch.technician_id and a.deleted_at is null and a.status not in ('Finalizado','Cancelado')));
 
 create or replace function public.technician_global_search(p_query text)
 returns table(id uuid, kind text, title text, subtitle text, route text)
@@ -356,7 +417,7 @@ as $$
   assigned_work as (
     select distinct wo.id, wo.code, wo.title, wo.description, c.legal_name as client_name, s.name as site_name, e.code as equipment_code
     from public.work_order_assignments a
-    join public.work_orders wo on wo.id = a.work_order_id and wo.deleted_at is null and public.dmp024_is_work_order_active_status(wo.status)
+    join public.work_orders wo on wo.id = a.work_order_id and wo.deleted_at is null and wo.status in ('Pendiente','Trabajo descargado','En desplazamiento','En intervencion','Pausado','Pendiente de material')
     join public.clients c on c.id = wo.client_id and c.deleted_at is null
     join public.sites s on s.id = wo.site_id and s.deleted_at is null
     left join public.equipment e on e.id = wo.main_equipment_id and e.deleted_at is null
@@ -365,7 +426,7 @@ as $$
   ), assigned_checks as (
     select ch.id, ch.code, ch.status, ch.global_result, ch.work_order_id, e.code as equipment_code, wo.code as work_order_code
     from public.checks ch
-    join public.work_orders wo on wo.id = ch.work_order_id and wo.deleted_at is null and public.dmp024_is_work_order_active_status(wo.status)
+    join public.work_orders wo on wo.id = ch.work_order_id and wo.deleted_at is null and wo.status in ('Pendiente','Trabajo descargado','En desplazamiento','En intervencion','Pausado','Pendiente de material')
     join public.work_order_assignments a on a.work_order_id = wo.id and a.technician_id = public.current_profile_id() and a.deleted_at is null and a.status not in ('Finalizado','Cancelado')
     join public.equipment e on e.id = ch.equipment_id and e.deleted_at is null
     cross join term
@@ -386,7 +447,7 @@ revoke all on function public.dmp_diagnose_work_order_operation(uuid) from publi
 revoke all on function public.dmp_upsert_work_order_time_entry(jsonb) from public;
 revoke all on function public.dmp_upsert_work_order_material(jsonb) from public;
 revoke all on function public.dmp_change_work_order_status(uuid, text, text) from public;
-revoke all on function public.unassign_work_order_profile(uuid, uuid, uuid, text) from public;
+revoke all on function public.unassign_work_order_profile(uuid, uuid, uuid, text, text) from public;
 revoke all on function public.technician_global_search(text) from public;
 
 do $$
@@ -401,7 +462,7 @@ begin
     revoke all on function public.dmp_upsert_work_order_time_entry(jsonb) from anon;
     revoke all on function public.dmp_upsert_work_order_material(jsonb) from anon;
     revoke all on function public.dmp_change_work_order_status(uuid, text, text) from anon;
-    revoke all on function public.unassign_work_order_profile(uuid, uuid, uuid, text) from anon;
+    revoke all on function public.unassign_work_order_profile(uuid, uuid, uuid, text, text) from anon;
     revoke all on function public.technician_global_search(text) from anon;
   end if;
 end;
@@ -417,7 +478,7 @@ grant execute on function public.dmp_diagnose_work_order_operation(uuid) to auth
 grant execute on function public.dmp_upsert_work_order_time_entry(jsonb) to authenticated;
 grant execute on function public.dmp_upsert_work_order_material(jsonb) to authenticated;
 grant execute on function public.dmp_change_work_order_status(uuid, text, text) to authenticated;
-grant execute on function public.unassign_work_order_profile(uuid, uuid, uuid, text) to authenticated;
+grant execute on function public.unassign_work_order_profile(uuid, uuid, uuid, text, text) to authenticated;
 grant execute on function public.technician_global_search(text) to authenticated;
 
 commit;

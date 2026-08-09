@@ -33,6 +33,19 @@ where ch.deleted_at is null
   and ch.technician_id is not null
   and (wo.deleted_at is not null or wo.status in ('Finalizado tecnicamente','Pendiente de envio','Enviado','Cerrado','Cancelado') or a.id is null);
 
+select 'technician_history_candidates_before_024' as check_name,
+       count(*) as rows
+from public.work_order_assignments a
+join public.work_orders wo on wo.id = a.work_order_id
+where a.deleted_at is null
+  and (a.status in ('Finalizado','Cancelado') or wo.status in ('Finalizado tecnicamente','Pendiente de envio','Enviado','Devolucion solicitada','Devuelto por SAT','Cerrado','Cancelado'));
+
+select 'commercial_responsible_candidates_before_024' as check_name,
+       count(*) as rows
+from public.work_orders wo
+where wo.deleted_at is null
+  and wo.current_responsible_id is not null;
+
 select 'rpc_permissions_before_024' as check_name,
        p.proname as function_name,
        pg_get_function_identity_arguments(p.oid) as arguments,

@@ -46,16 +46,25 @@ describe('operational assignment 024', () => {
 
   it('removes finished/cancelled assignments from active technician scope', () => {
     expect(migration).toContain('create or replace view public.v_technician_daily_schedule');
-    expect(migration).toContain("public.dmp024_is_work_order_active_status(wo.status)");
+    expect(migration).toContain("wo.status in ('Pendiente','Trabajo descargado','En desplazamiento','En intervencion','Pausado','Pendiente de material')");
     expect(migration).toContain("where a.deleted_at is null and a.status not in ('Finalizado','Cancelado')");
     expect(migration).toContain('create or replace function public.technician_global_search');
     expect(migration).toContain('join public.work_order_assignments a on a.work_order_id = wo.id and a.technician_id = public.current_profile_id() and a.deleted_at is null and a.status not in');
     expect(workOrdersService).toContain("not('status', 'in', '(Finalizado,Cancelado)')");
   });
 
+  it('keeps invoker views/search independent from private helpers and adds history source', () => {
+    const invokerObjects = migration.match(/create or replace (?:view public\.v_technician_daily_schedule|view public\.v_pending_checks|function public\.technician_global_search)[\s\S]*?(?=create or replace|revoke all|$)/g) ?? [];
+    expect(invokerObjects.length).toBeGreaterThanOrEqual(3);
+    expect(invokerObjects.join('\n')).not.toContain('dmp024_is_work_order_active_status');
+    expect(migration).toContain('create or replace view public.v_technician_assignment_history');
+    expect(app).toContain('assignmentsService.assignmentHistory');
+    expect(app).toContain('historial independiente');
+  });
+
   it('finalizes technician assignments without deleting history and does not auto-reactivate on reopen', () => {
     expect(migration).toContain("p_new_status = 'Finalizado tecnicamente'");
-    expect(migration).toContain("update public.work_order_assignments set status = 'Finalizado'");
+    expect(migration).toContain("where work_order_id = p_work_order_id and deleted_at is null and status not in ('Finalizado','Cancelado')");
     expect(migration).not.toContain("set deleted_at = now(), status = 'Finalizado'");
     expect(migration).not.toContain("p_new_status = 'Pendiente' and");
     expect(migration).not.toContain("status = 'Asignado'");
@@ -63,9 +72,12 @@ describe('operational assignment 024', () => {
 
   it('unassigns technicians atomically and clears only pending checks', () => {
     expect(migration).toContain('create or replace function public.unassign_work_order_profile');
+    expect(migration).toContain("p_assignment_type text default 'technical'");
+    expect(migration).toContain("p_assignment_type = 'technical'");
+    expect(migration).toContain("p_assignment_type = 'commercial'");
     expect(migration).toContain("set deleted_at = now(), status = 'Cancelado'");
     expect(migration).toContain('main_technician_id = case when main_technician_id = p_profile_id then null');
-    expect(migration).not.toContain('current_responsible_id = case when current_responsible_id = p_profile_id');
+    expect(migration).toContain('current_responsible_id = case when current_responsible_id = p_profile_id');
     expect(migration).toContain("update public.checks set technician_id = null");
     expect(migration).toContain("status <> 'Realizado'");
     expect(migration).toContain('work_order_status_history');
@@ -76,7 +88,19 @@ describe('operational assignment 024', () => {
     expect(preflight).toContain('pending_checks_with_inactive_assignment_before_024');
     expect(verification).toContain('rpc_permissions_after_024');
     expect(verification).toContain('technician_views_after_024');
+    expect(verification).toContain('invoker_objects_do_not_call_private_helpers_024');
     expect(verification).toContain('begin;');
     expect(verification).toContain('rollback;');
+  });
+
+  it('removes prompt based detail operations and adds real detail tabs', () => {
+    const detailBlock = app.slice(app.indexOf('function WorkOrderDetailPageV2'), app.indexOf('function formatMinutes'));
+    expect(detailBlock).toContain("const [tab, setTab]");
+    expect(detailBlock).toContain('detail-tabs');
+    expect(detailBlock).toContain('Fotos y firmas');
+    expect(app).toContain('function ReasonConfirmModal');
+    expect(app).not.toContain("window.prompt('Motivo para eliminar este registro de horas')");
+    expect(app).not.toContain("window.prompt('Motivo para eliminar este material')");
+    expect(app).not.toContain('Confirma el cambio a ${displayStatus(next)}');
   });
 });

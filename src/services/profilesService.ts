@@ -24,7 +24,9 @@ export const profilesService = {
     const rows = await expectData<any[]>(query, { service: 'profilesService', operation: 'Listado de comerciales', resource: 'profiles' });
     return rows.filter((row) => row.primary_area === 'Comercial' || row.profile_roles?.some((item: any) => item.roles?.name === 'Comercial'));
   },
-  listActive() {
-    return expectData<any[]>(supabase.from('profiles').select('*').eq('active', true).is('deleted_at', null).order('first_name'));
+  listActive(companyScope?: string | null) {
+    let query = supabase.from('profiles').select('*, profile_roles!profile_roles_profile_id_fkey(roles!profile_roles_role_id_fkey(name))').eq('active', true).is('deleted_at', null).order('first_name');
+    if (companyScope) query = query.eq('company_id', companyScope);
+    return expectData<any[]>(query);
   },
 };

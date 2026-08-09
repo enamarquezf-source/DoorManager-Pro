@@ -112,8 +112,8 @@ export function canManageWorkOrderTime(profile: Profile | null | undefined, work
   if (!isActiveProfile(profile) || ['Cerrado','Cancelado'].includes(workOrder?.status)) return hasAny(profile, ['superadmin', 'SAT', 'Gerencia']);
   const activeProfile = profile as Profile;
   if (hasAny(profile, ['superadmin', 'SAT', 'Gerencia'])) return true;
-  if (hasAny(profile, ['Comercial'])) return canCommercialManageWorkOrder(activeProfile, workOrder) && (!row || row.profile_id === activeProfile.id);
-  if (hasAny(profile, ['Tecnico'])) return hasActiveTechnicianAssignment(activeProfile, workOrder) && (!row || row.profile_id === activeProfile.id);
+  if (hasAny(profile, ['Comercial'])) return canCommercialManageWorkOrder(activeProfile, workOrder) && (!row || row.profile_id === activeProfile.id || row.created_by === activeProfile.id);
+  if (hasAny(profile, ['Tecnico'])) return hasActiveTechnicianAssignment(activeProfile, workOrder) && (!row || row.profile_id === activeProfile.id || row.created_by === activeProfile.id);
   return false;
 }
 export function canManageWorkOrderMaterials(profile: Profile | null | undefined, workOrder?: any, row?: any) {

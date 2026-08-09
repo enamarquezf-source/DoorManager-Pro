@@ -156,6 +156,7 @@ describe('canAccessRoute', () => {
     const historical = { ...assigned, assignments: [{ technician_id: 'Tecnico-id', status: 'Finalizado' }] };
 
     expect(canManageWorkOrderTime(profile('Tecnico'), assigned)).toBe(true);
+    expect(canManageWorkOrderTime(profile('Tecnico'), assigned, { profile_id: 'other-id', created_by: 'Tecnico-id' })).toBe(true);
     expect(canManageWorkOrderMaterials(profile('Tecnico'), assigned)).toBe(true);
     expect(canManageWorkOrderTime(profile('Tecnico'), unassigned)).toBe(false);
     expect(canManageWorkOrderMaterials(profile('Tecnico'), unassigned)).toBe(false);

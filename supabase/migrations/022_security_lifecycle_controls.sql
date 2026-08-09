@@ -624,7 +624,12 @@ revoke all on function public.dmp_restore_entity(text, uuid, text) from public;
 revoke all on function public.dmp_permanently_delete_entity(text, uuid, text, text) from public;
 revoke all on function public.dmp_previous_lifecycle_value(text, uuid, text, text) from public;
 revoke all on function public.dmp_assert_profile_lifecycle_target(uuid, public.profiles, text) from public;
+revoke all on function public.create_deficiency_from_check(uuid, uuid, text, text, text, uuid) from public;
+revoke all on function public.finish_check_safe(uuid, text) from public;
 revoke all on function public.register_work_order_deficiency(jsonb) from public;
+revoke all on function public.request_work_order_return(uuid, uuid, text) from public;
+revoke all on function public.superadmin_update_profile(uuid, jsonb) from public;
+revoke all on function public.sync_work_order_material_usage(uuid, text, numeric, text) from public;
 
 do $$
 begin
@@ -639,7 +644,12 @@ begin
     revoke all on function public.dmp_permanently_delete_entity(text, uuid, text, text) from anon;
     revoke all on function public.dmp_previous_lifecycle_value(text, uuid, text, text) from anon;
     revoke all on function public.dmp_assert_profile_lifecycle_target(uuid, public.profiles, text) from anon;
+    revoke all on function public.create_deficiency_from_check(uuid, uuid, text, text, text, uuid) from anon;
+    revoke all on function public.finish_check_safe(uuid, text) from anon;
     revoke all on function public.register_work_order_deficiency(jsonb) from anon;
+    revoke all on function public.request_work_order_return(uuid, uuid, text) from anon;
+    revoke all on function public.superadmin_update_profile(uuid, jsonb) from anon;
+    revoke all on function public.sync_work_order_material_usage(uuid, text, numeric, text) from anon;
   end if;
 end;
 $$;
@@ -648,6 +658,11 @@ grant execute on function public.dmp_lifecycle_dependencies(text, uuid) to authe
 grant execute on function public.dmp_archive_entity(text, uuid, text) to authenticated;
 grant execute on function public.dmp_restore_entity(text, uuid, text) to authenticated;
 grant execute on function public.dmp_permanently_delete_entity(text, uuid, text, text) to authenticated;
+grant execute on function public.create_deficiency_from_check(uuid, uuid, text, text, text, uuid) to authenticated;
+grant execute on function public.finish_check_safe(uuid, text) to authenticated;
 grant execute on function public.register_work_order_deficiency(jsonb) to authenticated;
+grant execute on function public.request_work_order_return(uuid, uuid, text) to authenticated;
+grant execute on function public.superadmin_update_profile(uuid, jsonb) to authenticated;
+grant execute on function public.sync_work_order_material_usage(uuid, text, numeric, text) to authenticated;
 
 commit;

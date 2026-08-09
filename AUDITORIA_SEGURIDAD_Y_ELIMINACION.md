@@ -21,6 +21,7 @@ Fecha: 2026-08-09
 - La migracion `020_check_sync_end_to_end.sql` contiene un riesgo semantico: `register_work_order_deficiency` referencia `v_component` sin declararlo. La migracion `022` redefine la funcion corregida, con `v_component` declarado y privilegios explicitos.
 - La primera version de `022` permitia que SAT/Gerencia invocaran ciclo de vida de `profiles`; queda corregido en RPC: solo `is_platform_superadmin()` puede operar perfiles.
 - La version correctiva bloquea archivados repetidos y restauraciones de registros no archivados bajo `FOR UPDATE`, antes de auditar, para no sobrescribir el estado original usado en restauracion.
+- Preflight real previo a aplicar `022`: `TABLAS_FALTANTES=0`, `COLUMNAS_FALTANTES=0`, `RPC_CON_EXECUTE_ANON=6`. Las funciones expuestas eran `create_deficiency_from_check`, `finish_check_safe`, `register_work_order_deficiency`, `request_work_order_return`, `superadmin_update_profile` y `sync_work_order_material_usage` con sus firmas frontend actuales.
 
 ## Riesgos descartados
 
@@ -79,6 +80,7 @@ Fecha: 2026-08-09
 - Nuevos RPC `022`: `dmp_lifecycle_dependencies`, `dmp_archive_entity`, `dmp_restore_entity`, `dmp_permanently_delete_entity`.
 - Nuevos helpers `022`: `dmp_previous_lifecycle_value` para restauracion fiel desde `audit_log.old_data` y `dmp_assert_profile_lifecycle_target` para proteger perfiles privilegiados.
 - `register_work_order_deficiency`: redefinida en `022` para declarar `v_component`, validar perfil activo y revocar `PUBLIC/anon`.
+- RPC criticas frontend: `022` revoca `EXECUTE` de `PUBLIC` y `anon` con firmas exactas, y mantiene `EXECUTE` solo para `authenticated` en `create_deficiency_from_check(uuid, uuid, text, text, text, uuid)`, `finish_check_safe(uuid, text)`, `register_work_order_deficiency(jsonb)`, `request_work_order_return(uuid, uuid, text)`, `superadmin_update_profile(uuid, jsonb)` y `sync_work_order_material_usage(uuid, text, numeric, text)`.
 - `dmp_archive_entity`: rechaza registros ya archivados con `El registro ya está archivado` despues del bloqueo `FOR UPDATE` y antes de `SOFT_DELETE`.
 - `dmp_restore_entity`: rechaza registros no archivados con `El registro no está archivado` despues del bloqueo `FOR UPDATE` y antes de auditar `UPDATE`.
 
@@ -118,6 +120,7 @@ Fecha: 2026-08-09
 - Archivo: `supabase/verification/preflight_security_lifecycle_022.sql`.
 - Verifica tablas requeridas, columnas de soft delete/estado, privilegios actuales de RPC criticos y volumen inicial de registros archivable.
 - Verifica recuento de superadmins operativos antes de aplicar protecciones sobre perfiles.
+- Lista todas las sobrecargas encontradas para RPC criticos y anade resumen `critical_rpc_count`, `anon_execute_count`, `public_execute_count`, `authenticated_execute_count` antes de aplicar `022`.
 
 ## Verificacion posterior
 
@@ -125,17 +128,18 @@ Fecha: 2026-08-09
 - Verifica existencia de RPC, ausencia de `EXECUTE` para `anon`, `EXECUTE` para `authenticated` solo en RPC publicos y politicas de lectura de archivados.
 - Verifica firma y privilegios de `register_work_order_deficiency` y que declara `v_component`.
 - Incluye bloque manual transaccional con `rollback` para validar restauracion de estados, archivado repetido y restauracion repetida en base de pruebas con fixtures reales.
+- Muestra `FAIL` si cualquiera de las seis RPC criticas conserva `anon_execute=true` o `public_execute=true`; el resultado esperado posterior es `anon_execute_count=0` y `public_execute_count=0`.
 
 ## Pruebas ejecutadas
 
 - `npx tsc -b --pretty false`: correcto.
-- `npm test`: correcto, 31 archivos y 145 tests.
+- `npm test`: correcto, 31 archivos y 147 tests.
 - `npm run build`: correcto con aviso Vite conocido por chunk mayor de 500 kB.
 
 ## Resultados exactos
 
 - TypeScript: sin errores.
-- Vitest: `31 passed (31)`, `145 passed (145)`.
+- Vitest: `31 passed (31)`, `147 passed (147)`.
 - Build: correcto. El nombre exacto del asset JS puede variar por hash tras cada build.
 
 ## Limitaciones
@@ -143,7 +147,7 @@ Fecha: 2026-08-09
 - No se ejecutaron migraciones directamente en Supabase.
 - No se realizaron pruebas destructivas contra produccion.
 - Playwright no esta declarado en `package.json`; no se ejecutaron E2E automaticos.
-- La verificacion real de RLS, de restauracion de estados y de carreras concurrentes requiere aplicar la migracion en una base de pruebas con usuarios reales por rol. Las pruebas locales son estaticas, de parseo SQL y de funciones puras/renderizado SSR limitado.
+- La verificacion real de RLS, permisos `EXECUTE`, restauracion de estados y carreras concurrentes requiere aplicar la migracion en una base de pruebas con usuarios reales por rol. Las pruebas locales son estaticas, de parseo SQL y de funciones puras/renderizado SSR limitado. No se afirma que los permisos reales de Supabase esten corregidos hasta ejecutar `verify_security_lifecycle_022.sql` contra Supabase.
 - Queda recomendado endurecer en una fase posterior los `REVOKE` explicitos de RPC antiguos que no forman parte directa de ciclo de vida.
 
 ## Pruebas manuales pendientes
@@ -179,4 +183,5 @@ Fecha: 2026-08-09
 | Alta | Checks/equipos/expedientes | Restaurar | SAT/Gerencia/Superadmin | Restaura estado previo desde auditoria | Validacion de estados compatibles | `audit_log` | Vitest SQL estatico | OK |
 | Alta | Deficiencias offline | Registrar | SAT/Gerencia/asignado | `v_component` declarado y trazable | RPC redefinida + revokes | Tabla `deficiencies` | Vitest SQL estatico | OK |
 | Alta | anon | Cualquier operacion | Ninguno | Sin permisos | `REVOKE` explicito | N/A | Vitest SQL | OK |
+| Alta | RPC criticas frontend | EXECUTE anon/public | Ninguno | `anon_execute_count=0`, `public_execute_count=0` esperado tras aplicar `022` | Revokes por firma exacta | N/A | Vitest SQL estatico + verificacion Supabase pendiente | Pendiente Supabase |
 | Alta | Tecnico/Comercial/Oficina | Archivar/borrar | Ninguno | Botones ocultos y RPC deniega | `has_any_role` en RPC | N/A | Vitest permisos | OK |

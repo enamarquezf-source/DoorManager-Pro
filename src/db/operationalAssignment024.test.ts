@@ -3,12 +3,37 @@ import { readFileSync } from 'node:fs';
 import pgQuery from 'pg-query-emscripten';
 
 const migration = readFileSync(new URL('../../supabase/migrations/024_operational_assignment_and_time_materials_fix.sql', import.meta.url), 'utf8');
+const initialMigration = readFileSync(new URL('../../supabase/migrations/001_initial_dmp_schema.sql', import.meta.url), 'utf8');
 const preflight = readFileSync(new URL('../../supabase/verification/preflight_operational_assignment_024.sql', import.meta.url), 'utf8');
 const verification = readFileSync(new URL('../../supabase/verification/verify_operational_assignment_024.sql', import.meta.url), 'utf8');
 const workOrdersService = readFileSync(new URL('../services/workOrdersService.ts', import.meta.url), 'utf8');
 const assignmentsService = readFileSync(new URL('../services/assignmentsService.ts', import.meta.url), 'utf8');
 const queryService = readFileSync(new URL('../services/query.ts', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
+
+function viewSelectColumns(sql: string, viewName: string) {
+  const viewStart = sql.indexOf(viewName);
+  expect(viewStart).toBeGreaterThan(-1);
+  const selectStart = sql.indexOf('select', viewStart);
+  const fromStart = sql.indexOf('\nfrom ', selectStart);
+  const select = sql.slice(selectStart + 'select'.length, fromStart);
+  const columns: string[] = [];
+  let current = '';
+  let depth = 0;
+  for (const char of select) {
+    if (char === '(') depth += 1;
+    if (char === ')') depth -= 1;
+    if (char === ',' && depth === 0) { columns.push(current.trim()); current = ''; }
+    else current += char;
+  }
+  if (current.trim()) columns.push(current.trim());
+  return columns.map((column) => {
+    const alias = column.match(/\s+as\s+([a-z_][a-z0-9_]*)\s*$/i)?.[1];
+    if (alias) return alias;
+    const plain = column.trim().split(/\s+/).at(-1) ?? column;
+    return plain.split('.').at(-1) ?? plain;
+  });
+}
 
 describe('operational assignment 024', () => {
   it('parses migration and verification SQL', async () => {
@@ -52,6 +77,24 @@ describe('operational assignment 024', () => {
     expect(migration).toContain('create or replace function public.technician_global_search');
     expect(migration).toContain('join public.work_order_assignments a on a.work_order_id = wo.id and a.technician_id = public.current_profile_id() and a.deleted_at is null and a.status not in');
     expect(workOrdersService).toContain("not('status', 'in', '(Finalizado,Cancelado)')");
+  });
+
+  it('preserves deployed daily schedule view columns and appends new fields only at the end', () => {
+    const initialColumns = viewSelectColumns(initialMigration, 'public.v_technician_daily_schedule');
+    const recreatedColumns = viewSelectColumns(migration, 'public.v_technician_daily_schedule');
+    expect(initialColumns).toEqual([
+      'company_id', 'assignment_date', 'planned_start_time', 'planned_end_time', 'assignment_status', 'technician_id', 'technician_name', 'work_order_id', 'work_order_code', 'title', 'work_order_status', 'client_name', 'site_name', 'equipment_code',
+    ]);
+    expect(recreatedColumns.slice(0, initialColumns.length)).toEqual(initialColumns);
+    expect(recreatedColumns.indexOf('assignment_id')).toBeGreaterThan(initialColumns.length - 1);
+    expect(recreatedColumns.indexOf('assignment_role')).toBeGreaterThan(initialColumns.length - 1);
+  });
+
+  it('keeps pending checks view compatible with the initial projection', () => {
+    const initialColumns = viewSelectColumns(initialMigration, 'public.v_pending_checks');
+    const recreatedColumns = viewSelectColumns(migration, 'public.v_pending_checks');
+    expect(initialColumns).toEqual(['*', 'equipment_code', 'work_order_code']);
+    expect(recreatedColumns).toEqual(initialColumns);
   });
 
   it('keeps invoker views/search independent from private helpers and adds history source', () => {

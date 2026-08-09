@@ -17,6 +17,17 @@ where table_schema = 'public'
     or (table_name = 'work_order_materials' and column_name = any(array['work_order_id','registered_by','local_change_id','used_quantity'])))
 order by table_name, column_name;
 
+select 'modified_view_columns_before_024' as check_name,
+       table_name,
+       ordinal_position,
+       column_name,
+       data_type,
+       udt_name
+from information_schema.columns
+where table_schema = 'public'
+  and table_name in ('v_technician_daily_schedule','v_pending_checks','v_technician_assignment_history')
+order by table_name, ordinal_position;
+
 select 'active_assignment_leaks_before_024' as check_name,
        count(*) filter (where a.deleted_at is null and a.status in ('Finalizado','Cancelado')) as inactive_status_still_not_deleted,
        count(*) filter (where a.deleted_at is null and wo.status in ('Finalizado tecnicamente','Pendiente de envio','Enviado','Cerrado','Cancelado')) as assignments_on_finished_work

@@ -98,6 +98,11 @@ function isQueueOpen(item: OfflineChange) {
   return item.status === 'pending' || item.status === 'failed' || item.status === 'blocked';
 }
 
+export function markStaleChangesBlockedForTest(changes: OfflineChange[], activeWorkOrderIds: string[]) {
+  const active = new Set(activeWorkOrderIds);
+  return changes.map((item) => item.workOrderId && !active.has(item.workOrderId) && isQueueOpen(item) ? { ...item, status: 'blocked' as const, error: 'El parte ya no está asignado o activo. No se pierde el cambio; requiere revisión SAT.' } : item);
+}
+
 async function syncChange(item: OfflineChange) {
   if (item.type === 'check-block') await checksService.syncOfflineBlock(item);
   else if (item.type === 'deficiency' && item.checkId) await checksService.syncOfflineDeficiency(item);
@@ -126,6 +131,14 @@ export const technicianOfflineService = {
   },
   async history() {
     return allChanges();
+  },
+  async reconcileActiveWork(activeWorkOrderIds: string[]) {
+    const active = new Set(activeWorkOrderIds);
+    const changes = await allChanges();
+    const stale = changes.filter((item) => item.workOrderId && !active.has(item.workOrderId) && isQueueOpen(item));
+    for (const item of stale) await withStore('readwrite', (store) => { store.put({ ...item, status: 'blocked', error: 'El parte ya no está asignado o activo. No se pierde el cambio; requiere revisión SAT.', updatedAt: new Date().toISOString() }); });
+    if (stale.length) window.dispatchEvent(new Event('dmp-offline-queue-changed'));
+    return { blocked: stale.length, active: active.size };
   },
   async pendingForWorkOrder(workOrderId: string) {
     return (await this.pending()).filter((item) => item.workOrderId === workOrderId);

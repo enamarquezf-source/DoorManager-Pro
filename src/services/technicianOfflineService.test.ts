@@ -30,4 +30,18 @@ describe('technicianOfflineService scope helpers', () => {
     expect(blockKey).not.toBe(photoKey);
     expect(photoKey).toBe(samePhotoKey);
   });
+
+  it('bloquea cambios locales de partes obsoletos sin perderlos', async () => {
+    const { markStaleChangesBlockedForTest } = await import('./technicianOfflineService');
+    const changes: any[] = [
+      { id: '1', type: 'material', workOrderId: 'active', payload: {}, status: 'pending', createdAt: '', updatedAt: '' },
+      { id: '2', type: 'photo', workOrderId: 'stale', payload: {}, status: 'pending', createdAt: '', updatedAt: '' },
+      { id: '3', type: 'signature', workOrderId: 'stale-synced', payload: {}, status: 'synced', createdAt: '', updatedAt: '' },
+    ];
+    const result = markStaleChangesBlockedForTest(changes, ['active']);
+    expect(result[0].status).toBe('pending');
+    expect(result[1].status).toBe('blocked');
+    expect(result[1].error).toContain('No se pierde el cambio');
+    expect(result[2].status).toBe('synced');
+  });
 });

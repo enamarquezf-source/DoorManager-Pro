@@ -1,0 +1,82 @@
+import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import pgQuery from 'pg-query-emscripten';
+
+const migration = readFileSync(new URL('../../supabase/migrations/024_operational_assignment_and_time_materials_fix.sql', import.meta.url), 'utf8');
+const preflight = readFileSync(new URL('../../supabase/verification/preflight_operational_assignment_024.sql', import.meta.url), 'utf8');
+const verification = readFileSync(new URL('../../supabase/verification/verify_operational_assignment_024.sql', import.meta.url), 'utf8');
+const workOrdersService = readFileSync(new URL('../services/workOrdersService.ts', import.meta.url), 'utf8');
+const queryService = readFileSync(new URL('../services/query.ts', import.meta.url), 'utf8');
+const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
+
+describe('operational assignment 024', () => {
+  it('parses migration and verification SQL', async () => {
+    const parser = await pgQuery();
+    expect(parser.parse(migration).parse_tree.stmts.length).toBeGreaterThan(0);
+    expect(parser.parse(preflight).parse_tree.stmts.length).toBeGreaterThan(0);
+    expect(parser.parse(verification).parse_tree.stmts.length).toBeGreaterThan(0);
+  });
+
+  it('fixes hours and materials permissions for SAT, Gerencia, superadmin, technician and commercial', () => {
+    expect(migration).toContain('create or replace function public.dmp024_assert_work_order_operator');
+    expect(migration).toContain("public.has_any_role(array['superadmin','SAT','Gerencia'])");
+    expect(migration).toContain('perform public.assert_member_of_current_company(v_work.company_id)');
+    expect(migration).toContain('public.is_platform_superadmin()');
+    expect(migration).toContain('create policy work_order_time_entries_select_scoped');
+    expect(migration).toContain("a.status not in ('Finalizado','Cancelado')");
+    expect(migration).toContain("p_work.origin = 'Comercial'");
+    expect(migration).toContain('p_work.created_by = p_profile.id or p_work.current_responsible_id = p_profile.id');
+    expect(migration).toContain('perfil activo:');
+    expect(migration).toContain('validacion del formulario:');
+    expect(migration).toContain('empresa:');
+    expect(migration).toContain('asignacion:');
+  });
+
+  it('validates time/material payloads and preserves useful RPC errors in frontend', () => {
+    expect(migration).toContain('dmp024_work_minutes');
+    expect(migration).toContain('la pausa debe ser menor que la duracion total');
+    expect(migration).toContain('describe el trabajo realizado');
+    expect(migration).toContain('indica material de catalogo o descripcion no catalogada');
+    expect(workOrdersService).toContain('Guardar horas del parte');
+    expect(workOrdersService).toContain('Guardar material del parte');
+    expect(queryService).toContain('respuesta de Supabase|validacion del formulario|permiso|perfil activo|empresa|asignacion|parte|estado editable|insercion');
+    expect(app).toContain('validacion del formulario: indica inicio y fin');
+    expect(app).toContain('validacion del formulario: elige catálogo o describe el material');
+  });
+
+  it('removes finished/cancelled assignments from active technician scope', () => {
+    expect(migration).toContain('create or replace view public.v_technician_daily_schedule');
+    expect(migration).toContain("public.dmp024_is_work_order_active_status(wo.status)");
+    expect(migration).toContain("where a.deleted_at is null and a.status not in ('Finalizado','Cancelado')");
+    expect(migration).toContain('create or replace function public.technician_global_search');
+    expect(migration).toContain('join public.work_order_assignments a on a.work_order_id = wo.id and a.technician_id = public.current_profile_id() and a.deleted_at is null and a.status not in');
+    expect(workOrdersService).toContain("not('status', 'in', '(Finalizado,Cancelado)')");
+  });
+
+  it('finalizes technician assignments without deleting history and does not auto-reactivate on reopen', () => {
+    expect(migration).toContain("p_new_status = 'Finalizado tecnicamente'");
+    expect(migration).toContain("update public.work_order_assignments set status = 'Finalizado'");
+    expect(migration).not.toContain("set deleted_at = now(), status = 'Finalizado'");
+    expect(migration).not.toContain("p_new_status = 'Pendiente' and");
+    expect(migration).not.toContain("status = 'Asignado'");
+  });
+
+  it('unassigns technicians atomically and clears only pending checks', () => {
+    expect(migration).toContain('create or replace function public.unassign_work_order_profile');
+    expect(migration).toContain("set deleted_at = now(), status = 'Cancelado'");
+    expect(migration).toContain('main_technician_id = case when main_technician_id = p_profile_id then null');
+    expect(migration).not.toContain('current_responsible_id = case when current_responsible_id = p_profile_id');
+    expect(migration).toContain("update public.checks set technician_id = null");
+    expect(migration).toContain("status <> 'Realizado'");
+    expect(migration).toContain('work_order_status_history');
+  });
+
+  it('documents preflight and rollback verification for real fixtures', () => {
+    expect(preflight).toContain('active_assignment_leaks_before_024');
+    expect(preflight).toContain('pending_checks_with_inactive_assignment_before_024');
+    expect(verification).toContain('rpc_permissions_after_024');
+    expect(verification).toContain('technician_views_after_024');
+    expect(verification).toContain('begin;');
+    expect(verification).toContain('rollback;');
+  });
+});

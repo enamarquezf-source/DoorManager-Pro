@@ -80,8 +80,9 @@ export const workOrdersService = {
   },
   async getTechnicianAssigned(id: string) {
     const profileId = await currentProfileId();
-    const assignment = await expectData<any>(supabase.from('work_order_assignments').select('id').eq('work_order_id', id).eq('technician_id', profileId).is('deleted_at', null).maybeSingle());
+    const assignment = await expectData<any>(supabase.from('work_order_assignments').select('id, status, work_orders!work_order_assignments_work_order_id_fkey(status,deleted_at)').eq('work_order_id', id).eq('technician_id', profileId).is('deleted_at', null).not('status', 'in', '(Finalizado,Cancelado)').maybeSingle(), { service: 'workOrdersService', operation: 'Permiso técnico / asignación activa', resource: 'work_order_assignments' });
     if (!assignment) throw new Error('No tienes permiso para acceder a este parte');
+    if (!['Pendiente','Trabajo descargado','En desplazamiento','En intervencion','Pausado','Pendiente de material'].includes(assignment.work_orders?.status)) throw new Error('Este parte ya no está en trabajo activo. Revísalo desde Historial.');
     return this.getWorkOrderFullDetail(id);
   },
   async getWorkOrderFullDetail(workOrderId: string): Promise<WorkOrderFullDetail> {
@@ -212,13 +213,13 @@ export const workOrdersService = {
     return expectData<any[]>(query);
   },
   upsertTimeEntry(payload: Record<string, any>) {
-    return expectData<string>(supabase.rpc('dmp_upsert_work_order_time_entry', { p_payload: payload }));
+    return expectData<string>(supabase.rpc('dmp_upsert_work_order_time_entry', { p_payload: payload }), { service: 'workOrdersService', operation: 'Guardar horas del parte', resource: 'dmp_upsert_work_order_time_entry' });
   },
   deleteTimeEntry(id: string, reason: string) {
     return expectData<void>(supabase.rpc('dmp_delete_work_order_time_entry', { p_time_entry_id: id, p_reason: reason }));
   },
   upsertMaterial(payload: Record<string, any>) {
-    return expectData<string>(supabase.rpc('dmp_upsert_work_order_material', { p_payload: payload }));
+    return expectData<string>(supabase.rpc('dmp_upsert_work_order_material', { p_payload: payload }), { service: 'workOrdersService', operation: 'Guardar material del parte', resource: 'dmp_upsert_work_order_material' });
   },
   deleteMaterial(id: string, reason: string) {
     return expectData<void>(supabase.rpc('dmp_delete_work_order_material', { p_material_usage_id: id, p_reason: reason }));

@@ -105,6 +105,12 @@ describe('canAccessRoute', () => {
     expect(canArchiveEntity({ ...profile('SAT'), active: false }, entity)).toBe(false);
     expect(canArchiveEntity({ ...profile('Gerencia'), deleted_at: '2026-01-01' }, entity)).toBe(false);
     expect(canArchiveEntity(profile('SAT'), { ...entity, company_id: 'other-company' })).toBe(false);
-    expect(canArchiveEntity(profile('superadmin'), { ...entity, company_id: 'other-company' })).toBe(true);
+    expect(canArchiveEntity(profile('superadmin'), { ...entity, company_id: 'other-company' })).toBe(false);
+    expect(canArchiveEntity(profile('superadmin'), { ...entity, company_id: 'other-company', global_scope_authorized: true })).toBe(true);
+    expect(canArchiveEntity(profile('SAT'), { ...entity, lifecycle_entity: 'profiles' })).toBe(false);
+    expect(canArchiveEntity(profile('Gerencia'), { ...entity, lifecycle_entity: 'profiles' })).toBe(false);
+    expect(canArchiveEntity(profile('superadmin'), { ...entity, lifecycle_entity: 'profiles' })).toBe(true);
+    expect(canRestoreEntity(profile('SAT'), { ...entity, lifecycle_entity: 'profiles' })).toBe(false);
+    expect(canPermanentlyDeleteEntity(profile('Gerencia'), { ...entity, lifecycle_entity: 'profiles' })).toBe(false);
   });
 });

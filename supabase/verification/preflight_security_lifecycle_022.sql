@@ -35,8 +35,24 @@ where n.nspname = 'public'
     'dmp_lifecycle_dependencies','dmp_archive_entity','dmp_restore_entity','dmp_permanently_delete_entity',
     'finish_check_safe','request_work_order_return','create_deficiency_from_check','sync_work_order_material_usage',
     'assign_technician','unassign_work_order_profile','manage_work_order_assignments','superadmin_update_profile'
+    ,'register_work_order_deficiency'
   ])
 order by p.proname;
+
+select 'operational_superadmin_count' as check_name,
+       count(*) as active_superadmins
+from public.profiles p
+where p.active = true
+  and p.deleted_at is null
+  and (
+    p.primary_area = 'superadmin'
+    or exists (
+      select 1
+      from public.profile_roles pr
+      join public.roles r on r.id = pr.role_id
+      where pr.profile_id = p.id and r.name = 'superadmin'
+    )
+  );
 
 select 'archivable_counts' as check_name,
        (select count(*) from public.clients) as clients,

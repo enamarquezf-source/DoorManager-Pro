@@ -42,7 +42,6 @@ $$;
 create or replace function public.dmp_lifecycle_target_company(p_entity text, p_entity_id uuid)
 returns uuid
 language plpgsql
-stable
 security definer
 set search_path = public
 as $$
@@ -81,7 +80,6 @@ $$;
 create or replace function public.dmp_assert_lifecycle_actor(p_company_id uuid)
 returns public.profiles
 language plpgsql
-stable
 security definer
 set search_path = public
 as $$
@@ -113,6 +111,75 @@ begin
 end;
 $$;
 
+create or replace function public.dmp_previous_lifecycle_value(p_entity text, p_entity_id uuid, p_key text, p_fallback text)
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce((
+    select old_data->>p_key
+    from public.audit_log
+    where table_name = p_entity
+      and record_id = p_entity_id
+      and operation = 'SOFT_DELETE'
+      and old_data ? p_key
+    order by changed_at desc
+    limit 1
+  ), p_fallback);
+$$;
+
+create or replace function public.dmp_assert_profile_lifecycle_target(p_profile_id uuid, p_actor public.profiles, p_action text)
+returns public.profiles
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_target public.profiles;
+  v_remaining_superadmins integer;
+  v_target_is_superadmin boolean;
+begin
+  if not public.is_platform_superadmin() then
+    raise exception 'Solo el propietario global puede administrar el ciclo de vida de usuarios';
+  end if;
+
+  select * into v_target from public.profiles where id = p_profile_id for update;
+  if v_target.id is null then raise exception 'Usuario no encontrado'; end if;
+  if p_profile_id = p_actor.id then raise exception 'No puedes desactivar o restaurar tu propio perfil desde esta operacion'; end if;
+
+  v_target_is_superadmin := v_target.primary_area = 'superadmin' or exists (
+    select 1
+    from public.profile_roles pr
+    join public.roles r on r.id = pr.role_id
+    where pr.profile_id = v_target.id and r.name = 'superadmin'
+  );
+
+  if p_action = 'archive' and v_target_is_superadmin and v_target.active = true and v_target.deleted_at is null then
+    select count(*) into v_remaining_superadmins
+    from public.profiles p
+    where p.active = true
+      and p.deleted_at is null
+      and p.id <> v_target.id
+      and (
+        p.primary_area = 'superadmin'
+        or exists (
+          select 1
+          from public.profile_roles pr
+          join public.roles r on r.id = pr.role_id
+          where pr.profile_id = p.id and r.name = 'superadmin'
+        )
+      );
+    if v_remaining_superadmins = 0 then
+      raise exception 'No se puede desactivar el ultimo superadmin operativo de la plataforma';
+    end if;
+  end if;
+
+  return v_target;
+end;
+$$;
+
 create or replace function public.dmp_lifecycle_dependencies(p_entity text, p_entity_id uuid)
 returns jsonb
 language plpgsql
@@ -133,6 +200,9 @@ declare
 begin
   v_company_id := public.dmp_lifecycle_target_company(p_entity, p_entity_id);
   v_profile := public.dmp_assert_lifecycle_actor(v_company_id);
+  if p_entity = 'profiles' and not public.is_platform_superadmin() then
+    raise exception 'Solo el propietario global puede consultar dependencias de usuarios';
+  end if;
 
   if p_entity = 'clients' then
     select coalesce(deleted_at is not null, false), code, legal_name into v_archived, v_code, v_name from public.clients where id = p_entity_id;
@@ -295,6 +365,7 @@ as $$
 declare
   v_company_id uuid;
   v_actor public.profiles;
+  v_target_profile public.profiles;
   v_old jsonb;
   v_new jsonb;
 begin
@@ -325,7 +396,7 @@ begin
     select to_jsonb(t) into v_old from public.check_templates t where id = p_entity_id for update;
     update public.check_templates set active = false, updated_at = now() where id = p_entity_id returning to_jsonb(check_templates.*) into v_new;
   elsif p_entity = 'profiles' then
-    if p_entity_id = v_actor.id then raise exception 'No puedes desactivar tu propio perfil desde esta operacion'; end if;
+    v_target_profile := public.dmp_assert_profile_lifecycle_target(p_entity_id, v_actor, 'archive');
     select to_jsonb(t) into v_old from public.profiles t where id = p_entity_id for update;
     update public.profiles set active = false, deleted_at = coalesce(deleted_at, now()), updated_at = now() where id = p_entity_id returning to_jsonb(profiles.*) into v_new;
   end if;
@@ -344,9 +415,12 @@ as $$
 declare
   v_company_id uuid;
   v_actor public.profiles;
+  v_target_profile public.profiles;
   v_deps jsonb;
   v_old jsonb;
   v_new jsonb;
+  v_previous_status text;
+  v_previous_active text;
 begin
   if trim(coalesce(p_reason, '')) = '' then raise exception 'El motivo es obligatorio'; end if;
   v_company_id := public.dmp_lifecycle_target_company(p_entity, p_entity_id);
@@ -358,28 +432,43 @@ begin
 
   if p_entity = 'clients' then
     select to_jsonb(t) into v_old from public.clients t where id = p_entity_id for update;
-    update public.clients set deleted_at = null, status = case when status = 'Inactivo' then 'Activo' else status end, updated_at = now() where id = p_entity_id returning to_jsonb(clients.*) into v_new;
+    v_previous_status := public.dmp_previous_lifecycle_value(p_entity, p_entity_id, 'status', v_old->>'status');
+    if v_previous_status not in ('Activo','Inactivo','Potencial','Bloqueado') then raise exception 'Estado previo de cliente incompatible'; end if;
+    update public.clients set deleted_at = null, status = v_previous_status, updated_at = now() where id = p_entity_id returning to_jsonb(clients.*) into v_new;
   elsif p_entity = 'sites' then
     select to_jsonb(t) into v_old from public.sites t where id = p_entity_id for update;
-    update public.sites set deleted_at = null, active = true, updated_at = now() where id = p_entity_id returning to_jsonb(sites.*) into v_new;
+    v_previous_active := public.dmp_previous_lifecycle_value(p_entity, p_entity_id, 'active', v_old->>'active');
+    update public.sites set deleted_at = null, active = coalesce(v_previous_active::boolean, true), updated_at = now() where id = p_entity_id returning to_jsonb(sites.*) into v_new;
   elsif p_entity = 'equipment' then
     select to_jsonb(t) into v_old from public.equipment t where id = p_entity_id for update;
-    update public.equipment set deleted_at = null, updated_at = now() where id = p_entity_id returning to_jsonb(equipment.*) into v_new;
+    v_previous_status := public.dmp_previous_lifecycle_value(p_entity, p_entity_id, 'status', v_old->>'status');
+    if v_previous_status not in ('Operativo','Averiado','Fuera de servicio','Pendiente de revision','Sustituido') then raise exception 'Estado previo de equipo incompatible'; end if;
+    update public.equipment set deleted_at = null, status = v_previous_status, updated_at = now() where id = p_entity_id returning to_jsonb(equipment.*) into v_new;
   elsif p_entity = 'cases' then
     select to_jsonb(t) into v_old from public.cases t where id = p_entity_id for update;
-    update public.cases set deleted_at = null, updated_at = now() where id = p_entity_id returning to_jsonb(cases.*) into v_new;
+    v_previous_status := public.dmp_previous_lifecycle_value(p_entity, p_entity_id, 'status', v_old->>'status');
+    if v_previous_status not in ('Abierto','En curso','Pendiente','Cerrado','Cancelado') then raise exception 'Estado previo de expediente incompatible'; end if;
+    update public.cases set deleted_at = null, status = v_previous_status, updated_at = now() where id = p_entity_id returning to_jsonb(cases.*) into v_new;
   elsif p_entity = 'work_orders' then
     select to_jsonb(t) into v_old from public.work_orders t where id = p_entity_id for update;
-    update public.work_orders set deleted_at = null, updated_by = v_actor.id, updated_at = now() where id = p_entity_id returning to_jsonb(work_orders.*) into v_new;
+    v_previous_status := public.dmp_previous_lifecycle_value(p_entity, p_entity_id, 'status', v_old->>'status');
+    if v_previous_status not in ('Pendiente','Trabajo descargado','En desplazamiento','En intervencion','Pausado','Pendiente de material','Finalizado tecnicamente','Pendiente de envio','Enviado','Devolucion solicitada','Devuelto por SAT','Cerrado','Cancelado') then raise exception 'Estado previo de parte incompatible'; end if;
+    update public.work_orders set deleted_at = null, status = v_previous_status, updated_by = v_actor.id, updated_at = now() where id = p_entity_id returning to_jsonb(work_orders.*) into v_new;
+    insert into public.work_order_status_history(company_id, work_order_id, previous_status, new_status, changed_by, reason, manual_correction) values (v_company_id, p_entity_id, v_old->>'status', v_new->>'status', v_actor.id, p_reason, true);
   elsif p_entity = 'checks' then
     select to_jsonb(t) into v_old from public.checks t where id = p_entity_id for update;
-    update public.checks set deleted_at = null, updated_at = now() where id = p_entity_id returning to_jsonb(checks.*) into v_new;
+    v_previous_status := public.dmp_previous_lifecycle_value(p_entity, p_entity_id, 'status', v_old->>'status');
+    if v_previous_status not in ('Por realizar','En curso','Realizado','Cancelado') then raise exception 'Estado previo de check incompatible'; end if;
+    update public.checks set deleted_at = null, status = v_previous_status, updated_at = now() where id = p_entity_id returning to_jsonb(checks.*) into v_new;
   elsif p_entity = 'check_templates' then
     select to_jsonb(t) into v_old from public.check_templates t where id = p_entity_id for update;
-    update public.check_templates set active = true, updated_at = now() where id = p_entity_id returning to_jsonb(check_templates.*) into v_new;
+    v_previous_active := public.dmp_previous_lifecycle_value(p_entity, p_entity_id, 'active', v_old->>'active');
+    update public.check_templates set active = coalesce(v_previous_active::boolean, true), updated_at = now() where id = p_entity_id returning to_jsonb(check_templates.*) into v_new;
   elsif p_entity = 'profiles' then
+    v_target_profile := public.dmp_assert_profile_lifecycle_target(p_entity_id, v_actor, 'restore');
     select to_jsonb(t) into v_old from public.profiles t where id = p_entity_id for update;
-    update public.profiles set active = true, deleted_at = null, updated_at = now() where id = p_entity_id returning to_jsonb(profiles.*) into v_new;
+    v_previous_active := public.dmp_previous_lifecycle_value(p_entity, p_entity_id, 'active', 'true');
+    update public.profiles set active = coalesce(v_previous_active::boolean, true), deleted_at = null, updated_at = now() where id = p_entity_id returning to_jsonb(profiles.*) into v_new;
   end if;
 
   perform public.dmp_record_lifecycle_audit(v_company_id, v_actor, p_entity, p_entity_id, 'UPDATE', p_reason, v_old, v_new);
@@ -453,6 +542,62 @@ drop policy if exists checks_select_by_role on public.checks;
 create policy checks_select_by_role on public.checks for select to authenticated
   using (company_id = public.current_company_id() and ((deleted_at is null and (public.has_any_role(array['superadmin','SAT','Gerencia','Oficina']) or technician_id = public.current_profile_id() or public.is_assigned_to_work_order(work_order_id))) or public.has_any_role(array['superadmin','SAT','Gerencia'])));
 
+create or replace function public.register_work_order_deficiency(p_payload jsonb)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_profile_id uuid := public.current_profile_id();
+  v_work public.work_orders;
+  v_check public.checks;
+  v_equipment_id uuid;
+  v_id uuid;
+  v_code text;
+  v_severity text := p_payload->>'severity';
+  v_local_change_id text := nullif(p_payload->>'local_change_id', '');
+  v_description text := trim(coalesce(p_payload->>'description', ''));
+  v_component text := trim(coalesce(p_payload->>'component', ''));
+begin
+  if auth.uid() is null then raise exception 'Operacion no permitida para usuarios anonimos'; end if;
+  if not exists (select 1 from public.profiles p where p.id = v_profile_id and p.auth_user_id = auth.uid() and p.active = true and p.deleted_at is null) then
+    raise exception 'Perfil no encontrado o inactivo';
+  end if;
+
+  select * into v_work from public.work_orders where id = (p_payload->>'work_order_id')::uuid and deleted_at is null for update;
+  if v_work.id is null then raise exception 'Parte no encontrado'; end if;
+  perform public.assert_member_of_current_company(v_work.company_id);
+  if not (public.has_any_role(array['superadmin','SAT','Gerencia']) or public.is_assigned_to_work_order(v_work.id, v_profile_id)) then raise exception 'No tienes permisos para crear incidencias de este parte'; end if;
+  if v_description = '' then raise exception 'Descripcion de incidencia obligatoria'; end if;
+
+  if nullif(p_payload->>'check_id', '') is not null then
+    select * into v_check from public.checks where id = (p_payload->>'check_id')::uuid and work_order_id = v_work.id and company_id = v_work.company_id and deleted_at is null;
+    if v_check.id is null then raise exception 'Check asociado no valido para este parte'; end if;
+  end if;
+
+  v_severity := case v_severity when 'Leve' then 'Baja' when 'Critica' then 'Critica' else coalesce(v_severity, 'Media') end;
+  if v_severity not in ('Baja','Media','Alta','Critica') then v_severity := 'Media'; end if;
+  select id into v_id from public.deficiencies where company_id = v_work.company_id and local_change_id = v_local_change_id and v_local_change_id is not null;
+  if v_id is not null then return v_id; end if;
+
+  v_equipment_id := coalesce(v_check.equipment_id, v_work.main_equipment_id);
+  if v_equipment_id is null then
+    select equipment_id into v_equipment_id from public.work_order_equipment where work_order_id = v_work.id and company_id = v_work.company_id order by is_primary desc, created_at limit 1;
+  end if;
+  if v_equipment_id is null then raise exception 'El parte no tiene equipo asociado para vincular la incidencia'; end if;
+
+  v_code := public.next_dmp_code(v_work.company_id, 'deficiencies', 'DEF', true, 6);
+  insert into public.deficiencies(company_id, code, check_id, section_id, item_id, work_order_id, equipment_id, client_id, site_id, severity, description, recommended_action, responsible_profile_id, local_change_id)
+  select v_work.company_id, v_code, v_check.id, null, null, v_work.id, e.id, e.client_id, e.site_id, v_severity, case when v_component = '' then v_description else '[' || v_component || '] ' || v_description end, nullif(p_payload->>'recommended_action', ''), v_profile_id, v_local_change_id
+  from public.equipment e
+  where e.id = v_equipment_id and e.company_id = v_work.company_id
+  returning id into v_id;
+  if v_id is null then raise exception 'Equipo del parte no valido'; end if;
+  return v_id;
+end;
+$$;
+
 revoke all on function public.dmp_lifecycle_allowed_entities() from public;
 revoke all on function public.dmp_lifecycle_target_company(text, uuid) from public;
 revoke all on function public.dmp_assert_lifecycle_actor(uuid) from public;
@@ -461,6 +606,9 @@ revoke all on function public.dmp_record_lifecycle_audit(uuid, public.profiles, 
 revoke all on function public.dmp_archive_entity(text, uuid, text) from public;
 revoke all on function public.dmp_restore_entity(text, uuid, text) from public;
 revoke all on function public.dmp_permanently_delete_entity(text, uuid, text, text) from public;
+revoke all on function public.dmp_previous_lifecycle_value(text, uuid, text, text) from public;
+revoke all on function public.dmp_assert_profile_lifecycle_target(uuid, public.profiles, text) from public;
+revoke all on function public.register_work_order_deficiency(jsonb) from public;
 
 do $$
 begin
@@ -473,6 +621,9 @@ begin
     revoke all on function public.dmp_archive_entity(text, uuid, text) from anon;
     revoke all on function public.dmp_restore_entity(text, uuid, text) from anon;
     revoke all on function public.dmp_permanently_delete_entity(text, uuid, text, text) from anon;
+    revoke all on function public.dmp_previous_lifecycle_value(text, uuid, text, text) from anon;
+    revoke all on function public.dmp_assert_profile_lifecycle_target(uuid, public.profiles, text) from anon;
+    revoke all on function public.register_work_order_deficiency(jsonb) from anon;
   end if;
 end;
 $$;
@@ -481,5 +632,6 @@ grant execute on function public.dmp_lifecycle_dependencies(text, uuid) to authe
 grant execute on function public.dmp_archive_entity(text, uuid, text) to authenticated;
 grant execute on function public.dmp_restore_entity(text, uuid, text) to authenticated;
 grant execute on function public.dmp_permanently_delete_entity(text, uuid, text, text) to authenticated;
+grant execute on function public.register_work_order_deficiency(jsonb) to authenticated;
 
 commit;

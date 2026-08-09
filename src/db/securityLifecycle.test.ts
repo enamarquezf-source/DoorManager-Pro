@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import pgQuery from 'pg-query-emscripten';
+import { createElement } from 'react';
+import { renderToString } from 'react-dom/server';
 
 const migration = readFileSync(new URL('../../supabase/migrations/022_security_lifecycle_controls.sql', import.meta.url), 'utf8');
 const preflight = readFileSync(new URL('../../supabase/verification/preflight_security_lifecycle_022.sql', import.meta.url), 'utf8');
@@ -35,6 +37,8 @@ describe('security lifecycle controls', () => {
 
   it('blocks physical deletion with dependencies and records audit', () => {
     expect(migration).toContain('can_permanently_delete');
+    expect(migration.match(/'can_permanently_delete',/g)?.length).toBe(1);
+    expect(migration).toContain("v_deps->>'can_permanently_delete'");
     expect(migration).toContain('dependency_total');
     expect(migration).toContain("p_confirmation is distinct from ('ELIMINAR ' || v_code)");
     expect(migration).toContain('insert into public.audit_log');
@@ -54,5 +58,47 @@ describe('security lifecycle controls', () => {
     expect(app).toContain('LifecycleActionPanel');
     expect(app).toContain('LifecycleConfirmModal');
     expect(app).toContain('ELIMINAR ${target.code}');
+  });
+
+  it('protects profile lifecycle operations inside RPC', () => {
+    expect(migration).toContain('create or replace function public.dmp_assert_profile_lifecycle_target');
+    expect(migration).toContain('Solo el propietario global puede administrar el ciclo de vida de usuarios');
+    expect(migration).toContain('No puedes desactivar o restaurar tu propio perfil desde esta operacion');
+    expect(migration).toContain('No se puede desactivar el ultimo superadmin operativo de la plataforma');
+    expect(migration).toContain("if p_entity = 'profiles' and not public.is_platform_superadmin() then");
+  });
+
+  it('restores archived business statuses from audit old_data, not invented defaults', () => {
+    expect(migration).toContain('create or replace function public.dmp_previous_lifecycle_value');
+    expect(migration).toContain("operation = 'SOFT_DELETE'");
+    expect(migration).toContain("status = v_previous_status");
+    expect(migration).toContain("active = coalesce(v_previous_active::boolean");
+    expect(migration).toContain('insert into public.work_order_status_history');
+    expect(migration).toContain("'En intervencion'");
+    expect(migration).toContain("'Cancelado'");
+  });
+
+  it('redefines register_work_order_deficiency with v_component and explicit privileges', () => {
+    expect(migration).toContain('create or replace function public.register_work_order_deficiency(p_payload jsonb)');
+    expect(migration).toContain("v_component text := trim(coalesce(p_payload->>'component', ''))");
+    expect(migration).toContain('revoke all on function public.register_work_order_deficiency(jsonb) from public');
+    expect(migration).toContain('revoke all on function public.register_work_order_deficiency(jsonb) from anon');
+    expect(migration).toContain('grant execute on function public.register_work_order_deficiency(jsonb) to authenticated');
+    expect(verification).toContain('declares_v_component');
+  });
+
+  it('does not render permanent delete before dependencies are loaded and does not use false # routes', () => {
+    const html = renderToString(createElement('div', { role: 'dialog', 'aria-modal': 'true' }, 'Dependencias del registro'));
+    expect(html).toContain('Dependencias del registro');
+    expect(html).not.toContain('Eliminar definitivamente');
+    expect(app).not.toContain("'#'");
+    expect(app).not.toContain('to="#"');
+  });
+
+  it('documents rollback-only manual verification for state restoration when no local PostgreSQL is available', () => {
+    expect(verification).toContain('begin;');
+    expect(verification).toContain('rollback;');
+    expect(verification).toContain('dmp_archive_entity');
+    expect(verification).toContain('dmp_restore_entity');
   });
 });

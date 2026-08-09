@@ -54,12 +54,14 @@ function isActiveProfile(profile: Profile | null | undefined) {
 
 function sameCompanyOrSuperadmin(profile: Profile | null | undefined, entity?: any) {
   if (!profile) return false;
-  if (hasAny(profile, ['superadmin'])) return true;
+  if (entity?.global_scope_authorized === true && hasAny(profile, ['superadmin'])) return true;
   return !entity?.company_id || entity.company_id === profile.company_id;
 }
 
 export function canArchiveEntity(profile: Profile | null | undefined, entity?: any) {
-  return isActiveProfile(profile) && hasAny(profile, lifecycleRoles) && sameCompanyOrSuperadmin(profile, entity);
+  if (!isActiveProfile(profile) || !sameCompanyOrSuperadmin(profile, entity)) return false;
+  if (entity?.lifecycle_entity === 'profiles') return hasAny(profile, ['superadmin']);
+  return hasAny(profile, lifecycleRoles);
 }
 
 export function canRestoreEntity(profile: Profile | null | undefined, entity?: any) {

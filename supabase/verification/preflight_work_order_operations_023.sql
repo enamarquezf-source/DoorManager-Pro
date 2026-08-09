@@ -75,16 +75,45 @@ where contype = 'f'
   and confrelid = 'public.files'::regclass
 order by source_table, conname;
 
+with local_change_column as (
+  select exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'work_order_materials'
+      and column_name = 'local_change_id'
+  ) as exists_column
+), collisions as (
+  select m.company_id::text as company_id,
+         to_jsonb(m)->>'local_change_id' as local_change_value,
+         count(*) as row_count,
+         count(distinct m.work_order_id) as work_order_count
+  from public.work_order_materials m
+  cross join local_change_column c
+  where c.exists_column
+    and to_jsonb(m)->>'local_change_id' is not null
+  group by m.company_id, to_jsonb(m)->>'local_change_id'
+  having count(distinct m.work_order_id) > 1
+)
 select 'local_change_collisions_before_023' as check_name,
+       'CHECK' as status,
+       'local_change_id existe; revisar colisiones entre partes' as detail,
        company_id,
-       local_change_id,
-       count(*) as rows,
-       count(distinct work_order_id) as work_orders
-from public.work_order_materials
-where local_change_id is not null
-group by company_id, local_change_id
-having count(distinct work_order_id) > 1
-order by rows desc;
+       local_change_value,
+       row_count,
+       work_order_count
+from collisions
+union all
+select 'local_change_collisions_before_023' as check_name,
+       'NOT_APPLICABLE' as status,
+       'local_change_id todavia no existe' as detail,
+       null::text as company_id,
+       null::text as local_change_value,
+       0::bigint as row_count,
+       0::bigint as work_order_count
+from local_change_column
+where not exists_column
+order by row_count desc;
 
 select 'legacy_company_local_change_index_before_023' as check_name,
        indexname,
@@ -106,17 +135,55 @@ where origin <> 'Comercial'
   and current_responsible_id in (select id from public.profiles where primary_area = 'Comercial')
 order by created_at desc;
 
+with registered_by_column as (
+  select exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'work_order_materials'
+      and column_name = 'registered_by'
+  ) as exists_column
+), mismatches as (
+  select m.id::text as usage_id,
+         m.work_order_id::text as work_order_id,
+         m.material_id::text as material_id,
+         to_jsonb(m)->>'registered_by' as registered_by_value,
+         m.company_id::text as usage_company_id,
+         mat.company_id::text as material_company_id,
+         p.company_id::text as profile_company_id,
+         case when not c.exists_column then 'registered_by todavia no existe; se omite validacion de perfil'
+              else 'registered_by existe; revisar material/perfil de otra empresa'
+         end as detail,
+         m.created_at
+  from public.work_order_materials m
+  cross join registered_by_column c
+  left join public.materials mat on mat.id = m.material_id
+  left join public.profiles p on c.exists_column and p.id = nullif(to_jsonb(m)->>'registered_by', '')::uuid
+  where (mat.company_id is not null and mat.company_id <> m.company_id)
+     or (c.exists_column and p.company_id is not null and p.company_id <> m.company_id)
+)
 select 'cross_company_profile_or_material_before_023' as check_name,
-       m.id,
-       m.work_order_id,
-       m.material_id,
-       m.registered_by,
-       m.company_id as usage_company_id,
-       mat.company_id as material_company_id,
-       p.company_id as profile_company_id
-from public.work_order_materials m
-left join public.materials mat on mat.id = m.material_id
-left join public.profiles p on p.id = m.registered_by
-where (mat.company_id is not null and mat.company_id <> m.company_id)
-   or (p.company_id is not null and p.company_id <> m.company_id)
-order by m.created_at desc;
+       case when (select exists_column from registered_by_column) then 'CHECK' else 'NOT_APPLICABLE' end as status,
+       detail,
+       usage_id,
+       work_order_id,
+       material_id,
+       registered_by_value,
+       usage_company_id,
+       material_company_id,
+       profile_company_id
+from mismatches
+union all
+select 'cross_company_profile_or_material_before_023' as check_name,
+       'NOT_APPLICABLE' as status,
+       'registered_by todavia no existe' as detail,
+       null::text as usage_id,
+       null::text as work_order_id,
+       null::text as material_id,
+       null::text as registered_by_value,
+       null::text as usage_company_id,
+       null::text as material_company_id,
+       null::text as profile_company_id
+from registered_by_column
+where not exists_column
+order by usage_id desc;

@@ -146,4 +146,32 @@ describe('work order operations 023', () => {
     expect(verification).toContain('begin;');
     expect(verification).toContain('rollback;');
   });
+
+  it('keeps preflight safe before 023-added material columns exist', () => {
+    expect(preflight).not.toContain('m.local_change_id');
+    expect(preflight).not.toContain('m.registered_by');
+    expect(preflight).toContain("to_jsonb(m)->>'local_change_id'");
+    expect(preflight).toContain("to_jsonb(m)->>'registered_by'");
+    expect(preflight).toContain("'NOT_APPLICABLE' as status");
+    expect(preflight).toContain('local_change_id todavia no existe');
+    expect(preflight).toContain('registered_by todavia no existe');
+  });
+
+  it('verifies storage cleanup queue as table presence and locked access', () => {
+    expect(verification).toContain("case when r.oid is null then 0 else 1 end as table_present");
+    expect(verification).not.toContain("count(*) filter (where table_name = 'storage_cleanup_queue') as table_present");
+    expect(verification).toContain('relrowsecurity');
+    expect(verification).toContain('storage_cleanup_queue_no_direct_access');
+    expect(verification).toContain("has_table_privilege('anon', oid");
+    expect(verification).toContain("has_table_privilege('authenticated', oid");
+  });
+
+  it('reports missing private helper functions in verification summary', () => {
+    const privateRpcBlock = verification.slice(verification.indexOf('with private_rpc'), verification.indexOf("select 'deficiency_fk_classification_after_023'"));
+    expect(verification).toContain('p.oid is not null as found');
+    expect(verification).toContain('expected_functions');
+    expect(verification).toContain('found_functions');
+    expect(verification).toContain('count(*) = count(*) filter (where found)');
+    expect(privateRpcBlock).not.toContain('where n.nspname = \'public\'');
+  });
 });

@@ -65,14 +65,52 @@ where schemaname = 'public'
   and indexdef ilike '%local_change_id%'
 order by indexname;
 
+with table_state as (
+  select r.oid,
+         case when r.oid is null then 0 else 1 end as table_present,
+         coalesce(c.relrowsecurity, false) as rls_enabled
+  from (select to_regclass('public.storage_cleanup_queue') as oid) r
+  left join pg_class c on c.oid = r.oid
+), column_state as (
+  select count(*) filter (where column_name = 'company_id') as company_id_column,
+         count(*) filter (where column_name = 'file_id') as file_id_column,
+         count(*) filter (where column_name = 'bucket') as bucket_column,
+         count(*) filter (where column_name = 'path') as path_column,
+         count(*) filter (where column_name = 'requested_by') as requested_by_column,
+         count(*) filter (where column_name = 'reason') as reason_column,
+         count(*) filter (where column_name = 'status') as status_column,
+         count(*) filter (where column_name = 'created_at') as created_at_column,
+         count(*) filter (where column_name = 'processed_at') as processed_at_column
+  from information_schema.columns
+  where table_schema = 'public'
+    and table_name = 'storage_cleanup_queue'
+), policy_state as (
+  select count(*) filter (where policyname = 'storage_cleanup_queue_no_direct_access') as blocked_policy_present
+  from pg_policies
+  where schemaname = 'public'
+    and tablename = 'storage_cleanup_queue'
+), privilege_state as (
+  select case when oid is null then false else has_table_privilege('anon', oid, 'SELECT,INSERT,UPDATE,DELETE') end as anon_table_access,
+         case when oid is null then false else has_table_privilege('authenticated', oid, 'SELECT,INSERT,UPDATE,DELETE') end as authenticated_table_access
+  from table_state
+)
 select 'storage_cleanup_queue_after_023' as check_name,
-       count(*) filter (where table_name = 'storage_cleanup_queue') as table_present,
-       count(*) filter (where column_name = 'file_id') as file_id_column,
-       count(*) filter (where column_name = 'path') as path_column,
-       count(*) filter (where column_name = 'status') as status_column
-from information_schema.columns
-where table_schema = 'public'
-  and table_name = 'storage_cleanup_queue';
+       case when table_present = 1 and rls_enabled and blocked_policy_present = 1 and not anon_table_access and not authenticated_table_access and company_id_column = 1 and file_id_column = 1 and bucket_column = 1 and path_column = 1 and requested_by_column = 1 and reason_column = 1 and status_column = 1 and created_at_column = 1 and processed_at_column = 1 then 'OK' else 'FAIL' end as status,
+       table_present,
+       company_id_column,
+       file_id_column,
+       bucket_column,
+       path_column,
+       requested_by_column,
+       reason_column,
+       status_column,
+       created_at_column,
+       processed_at_column,
+       rls_enabled,
+       blocked_policy_present,
+       anon_table_access,
+       authenticated_table_access
+from table_state, column_state, policy_state, privilege_state;
 
 with private_rpc(function_name, arguments) as (values
   ('dmp_active_profile', ''),
@@ -86,20 +124,28 @@ with private_rpc(function_name, arguments) as (values
 ), matched as (
   select c.function_name,
          c.arguments,
+         p.oid is not null as found,
          coalesce((select bool_or(acl.grantee = 0 and acl.privilege_type = 'EXECUTE') from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) acl), false) as public_execute,
-         has_function_privilege('anon', p.oid, 'EXECUTE') as anon_execute,
-         has_function_privilege('authenticated', p.oid, 'EXECUTE') as authenticated_execute
+         case when p.oid is null then false else has_function_privilege('anon', p.oid, 'EXECUTE') end as anon_execute,
+         case when p.oid is null then false else has_function_privilege('authenticated', p.oid, 'EXECUTE') end as authenticated_execute
   from private_rpc c
   left join pg_proc p on p.proname = c.function_name
-  left join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'public'
-  where n.nspname = 'public'
     and pg_get_function_identity_arguments(p.oid) = c.arguments
+    and p.pronamespace = 'public'::regnamespace
 )
 select 'private_rpc_after_023' as check_name,
-       case when public_execute or anon_execute or authenticated_execute then 'FAIL' else 'OK' end as status,
-       *
-from matched
-order by function_name;
+       case when count(*) = count(*) filter (where found)
+              and not bool_or(public_execute)
+              and not bool_or(anon_execute)
+              and not bool_or(authenticated_execute)
+            then 'OK' else 'FAIL' end as status,
+       count(*) as expected_functions,
+       count(*) filter (where found) as found_functions,
+       count(*) filter (where public_execute) as public_execute_functions,
+       count(*) filter (where anon_execute) as anon_execute_functions,
+       count(*) filter (where authenticated_execute) as authenticated_execute_functions,
+       jsonb_agg(jsonb_build_object('function_name', function_name, 'arguments', arguments, 'found', found, 'public_execute', public_execute, 'anon_execute', anon_execute, 'authenticated_execute', authenticated_execute) order by function_name) as functions
+from matched;
 
 select 'deficiency_fk_classification_after_023' as check_name,
        conrelid::regclass::text as source_table,

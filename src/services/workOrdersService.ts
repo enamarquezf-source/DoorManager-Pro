@@ -36,6 +36,7 @@ export type WorkOrderFullDetail = {
   primary_technician: any;
   support_technicians: any[];
   status_history: any[];
+  time_entries: any[];
   notes: any[];
   materials: any[];
   checks: any[];
@@ -102,8 +103,9 @@ export const workOrdersService = {
       const additional = await expectStep('Detalle parte / equipos adicionales', () => expectData<any[]>(supabase.from('work_order_equipment').select('*, equipment!work_order_equipment_equipment_id_fkey(*, equipment_types!equipment_equipment_type_id_fkey(*))').eq('work_order_id', workOrderId).eq('is_primary', false)));
       const assignments = await expectStep('Detalle parte / asignaciones', () => expectData<any[]>(supabase.from('work_order_assignments').select('*, profiles!work_order_assignments_technician_id_fkey(*)').eq('work_order_id', workOrderId).is('deleted_at', null).order('planned_start_time')));
       const history = await expectStep('Detalle parte / historial estados', () => expectData<any[]>(supabase.from('work_order_status_history').select('*, profiles!work_order_status_history_changed_by_fkey(first_name,last_name)').eq('work_order_id', workOrderId).order('changed_at', { ascending: true })));
+      const timeEntries = await expectStep('Detalle parte / horas', () => expectData<any[]>(supabase.from('work_order_time_entries').select('*, profiles!work_order_time_entries_profile_id_fkey(first_name,last_name,primary_area)').eq('work_order_id', workOrderId).order('work_date', { ascending: true })));
       const notes = await expectStep('Detalle parte / notas', () => expectData<any[]>(supabase.from('work_order_notes').select('*, profiles!work_order_notes_created_by_fkey(first_name,last_name)').eq('work_order_id', workOrderId).order('created_at', { ascending: true })));
-      const materials = await expectStep('Detalle parte / materiales', () => expectData<any[]>(supabase.from('work_order_materials').select('*, materials!work_order_materials_material_id_fkey(*)').eq('work_order_id', workOrderId).order('created_at', { ascending: true })));
+      const materials = await expectStep('Detalle parte / materiales', () => expectData<any[]>(supabase.from('work_order_materials').select('*, materials!work_order_materials_material_id_fkey(*), profiles!work_order_materials_registered_by_fkey(first_name,last_name,primary_area)').eq('work_order_id', workOrderId).order('created_at', { ascending: true })));
       const checks = await expectStep('Detalle parte / checks', () => expectData<any[]>(supabase.from('checks').select('*, check_templates!checks_template_id_fkey(*, check_template_sections!check_template_sections_template_id_fkey(*, check_template_items!check_template_items_section_id_fkey(*))), equipment!checks_equipment_id_fkey(*, equipment_types!equipment_equipment_type_id_fkey(*)), profiles!checks_technician_id_fkey(first_name,last_name), check_section_results!check_section_results_check_id_fkey(*), check_photos!check_photos_check_id_fkey(*)').eq('work_order_id', workOrderId).is('deleted_at', null).order('created_at', { ascending: false })));
       const deficiencies = await expectStep('Detalle parte / deficiencias', () => expectData<any[]>(supabase.from('deficiencies').select('*, equipment!deficiencies_equipment_id_fkey(*), checks!deficiencies_check_id_fkey(code), profiles!deficiencies_responsible_profile_id_fkey(first_name,last_name)').eq('work_order_id', workOrderId).is('deleted_at', null).order('created_at', { ascending: false })));
       const alertRows = await expectStep('Detalle parte / avisos', () => expectData<any[]>(supabase.from('alerts').select('*, alert_recipients!alert_recipients_alert_id_fkey(*)').eq('related_entity', 'work_orders').eq('related_id', workOrderId).is('deleted_at', null).order('created_at', { ascending: false })));
@@ -125,6 +127,7 @@ export const workOrdersService = {
         responsible: workOrder.responsible ?? null,
         support_technicians: assignments.filter((item) => item.role !== 'Principal').map((item) => item.profiles).filter(Boolean),
         status_history: history,
+        time_entries: timeEntries,
         notes,
         materials,
         checks,
@@ -139,6 +142,7 @@ export const workOrdersService = {
         equipment: workOrder.primary_equipment,
         work_order_assignments: assignments,
         work_order_status_history: history,
+        work_order_time_entries: timeEntries,
         work_order_notes: notes,
         work_order_materials: materials,
       };
@@ -182,7 +186,7 @@ export const workOrdersService = {
     }));
   },
   async changeStatus(workOrderId: string, status: string, reason: string, manualCorrection = false) {
-    return expectData<void>(supabase.rpc('change_work_order_status', { p_work_order_id: workOrderId, p_new_status: status, p_changed_by: null, p_reason: reason, p_manual_correction: manualCorrection, p_lat: null, p_lng: null }));
+    return expectData<void>(supabase.rpc('dmp_change_work_order_status', { p_work_order_id: workOrderId, p_new_status: status, p_reason: reason || (manualCorrection ? 'Correccion manual' : 'Cambio directo de estado') }));
   },
   async requestReturn(workOrderId: string, reason: string) {
     return expectData<void>(supabase.rpc('request_work_order_return', { p_work_order_id: workOrderId, p_changed_by: null, p_reason: reason }));
@@ -200,7 +204,24 @@ export const workOrdersService = {
     const description = String(payload.material ?? '').trim();
     const quantity = Number(payload.quantity || 1);
     if (!description) throw new Error('Indica el material usado antes de sincronizar.');
-    return expectData<string>(supabase.rpc('sync_work_order_material_usage', { p_work_order_id: workOrderId, p_description: description, p_quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1, p_local_change_id: localChangeId ?? null }));
+    return expectData<string>(supabase.rpc('dmp_upsert_work_order_material', { p_payload: { work_order_id: workOrderId, description, quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1, local_change_id: localChangeId ?? null } }));
+  },
+  materialsCatalog(search = '') {
+    let query = supabase.from('materials').select('*').is('deleted_at', null).order('description').limit(40);
+    if (search) query = query.or(contains(['code', 'description', 'category'], search));
+    return expectData<any[]>(query);
+  },
+  upsertTimeEntry(payload: Record<string, any>) {
+    return expectData<string>(supabase.rpc('dmp_upsert_work_order_time_entry', { p_payload: payload }));
+  },
+  deleteTimeEntry(id: string, reason: string) {
+    return expectData<void>(supabase.rpc('dmp_delete_work_order_time_entry', { p_time_entry_id: id, p_reason: reason }));
+  },
+  upsertMaterial(payload: Record<string, any>) {
+    return expectData<string>(supabase.rpc('dmp_upsert_work_order_material', { p_payload: payload }));
+  },
+  deleteMaterial(id: string, reason: string) {
+    return expectData<void>(supabase.rpc('dmp_delete_work_order_material', { p_material_usage_id: id, p_reason: reason }));
   },
   async syncOfflinePhoto(workOrderId: string, payload: Record<string, any>, localChangeId: string) {
     const companyId = await currentCompanyId();

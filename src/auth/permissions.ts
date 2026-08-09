@@ -90,6 +90,31 @@ export function canManageWorkOrderAssignments(profile: Profile | null | undefine
 export function canManagePlanning(profile: Profile | null | undefined) { return hasAny(profile, adminRoles); }
 export function canChangePriority(profile: Profile | null | undefined) { return hasAny(profile, adminRoles); }
 export function canExecuteWorkOrder(profile: Profile | null | undefined) { return hasAny(profile, operationalRoles); }
+export function canManageWorkOrderStatus(profile: Profile | null | undefined, workOrder?: any) {
+  if (!isActiveProfile(profile)) return false;
+  const activeProfile = profile as Profile;
+  if (hasAny(profile, ['superadmin', 'SAT', 'Gerencia'])) return true;
+  if (hasAny(profile, ['Comercial'])) return workOrder?.origin === 'Comercial' && (!workOrder?.company_id || workOrder.company_id === activeProfile.company_id);
+  if (!hasAny(profile, ['Tecnico'])) return false;
+  return canViewWorkOrder(profile, workOrder);
+}
+export function canManageWorkOrderTime(profile: Profile | null | undefined, workOrder?: any, row?: any) {
+  if (!isActiveProfile(profile) || ['Cerrado','Cancelado'].includes(workOrder?.status)) return hasAny(profile, ['superadmin', 'SAT', 'Gerencia']);
+  const activeProfile = profile as Profile;
+  if (hasAny(profile, ['superadmin', 'SAT', 'Gerencia'])) return true;
+  if (hasAny(profile, ['Comercial'])) return workOrder?.origin === 'Comercial' && workOrder?.company_id === activeProfile.company_id;
+  if (hasAny(profile, ['Tecnico'])) return canViewWorkOrder(profile, workOrder) && (!row || row.profile_id === activeProfile.id);
+  return false;
+}
+export function canManageWorkOrderMaterials(profile: Profile | null | undefined, workOrder?: any, row?: any) {
+  if (!isActiveProfile(profile) || ['Cerrado','Cancelado'].includes(workOrder?.status)) return hasAny(profile, ['superadmin', 'SAT', 'Gerencia']);
+  const activeProfile = profile as Profile;
+  if (hasAny(profile, ['superadmin', 'SAT', 'Gerencia'])) return true;
+  if (hasAny(profile, ['Comercial'])) return workOrder?.company_id === activeProfile.company_id;
+  if (hasAny(profile, ['Tecnico'])) return canViewWorkOrder(profile, workOrder) && (!row || !row.registered_by || row.registered_by === activeProfile.id);
+  return false;
+}
+export function canViewWorkOrderCosts(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Comercial']); }
 export function canCreateCheck(profile: Profile | null | undefined) { return hasAny(profile, operationalRoles); }
 export function canExecuteCheck(profile: Profile | null | undefined) { return hasAny(profile, operationalRoles); }
 export function canManageCheck(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT']); }

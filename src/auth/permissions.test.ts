@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessRoute, canArchiveEntity, canCreateAlert, canManageCheck, canManageWorkOrderAssignments, canPermanentlyDeleteEntity, canRestoreEntity, canRole, canViewCheck, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './permissions';
+import { canAccessRoute, canArchiveEntity, canCreateAlert, canManageCheck, canManageWorkOrderAssignments, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canPermanentlyDeleteEntity, canRestoreEntity, canRole, canViewCheck, canViewWorkOrderCosts, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './permissions';
 import type { Profile, RoleName } from '../shared/types';
 
 function profile(primary_area: RoleName, roles: RoleName[] = []): Profile {
@@ -134,5 +134,30 @@ describe('canAccessRoute', () => {
     const scope = { platformScope: true, selectedCompanyId: 'other-company' };
     expect(canArchiveEntity(profile('SAT'), entity, scope)).toBe(false);
     expect(canArchiveEntity(profile('Gerencia'), entity, scope)).toBe(false);
+  });
+
+  it('permite estado directo, horas y materiales a roles operativos autorizados', () => {
+    const workOrder = { id: 'work-id', company_id: 'company-id', status: 'En intervencion', origin: 'SAT', assignments: [{ technician_id: 'Tecnico-id' }] };
+    for (const role of ['superadmin', 'SAT', 'Gerencia'] as RoleName[]) {
+      expect(canManageWorkOrderStatus(profile(role), workOrder)).toBe(true);
+      expect(canManageWorkOrderTime(profile(role), workOrder)).toBe(true);
+      expect(canManageWorkOrderMaterials(profile(role), workOrder)).toBe(true);
+      expect(canViewWorkOrderCosts(profile(role))).toBe(true);
+    }
+    expect(canManageWorkOrderStatus(profile('Tecnico'), workOrder)).toBe(true);
+    expect(canManageWorkOrderTime(profile('Tecnico'), workOrder, { profile_id: 'Tecnico-id' })).toBe(true);
+    expect(canManageWorkOrderMaterials(profile('Tecnico'), workOrder, { registered_by: 'Tecnico-id' })).toBe(true);
+    expect(canViewWorkOrderCosts(profile('Tecnico'))).toBe(false);
+  });
+
+  it('bloquea Comercial fuera de empresa y roles no operativos para horas/materiales', () => {
+    const commercialWork = { id: 'work-id', company_id: 'company-id', status: 'Pendiente', origin: 'Comercial' };
+    const otherCompany = { ...commercialWork, company_id: 'other-company' };
+    expect(canManageWorkOrderStatus(profile('Comercial'), commercialWork)).toBe(true);
+    expect(canManageWorkOrderTime(profile('Comercial'), commercialWork)).toBe(true);
+    expect(canManageWorkOrderMaterials(profile('Comercial'), commercialWork)).toBe(true);
+    expect(canManageWorkOrderStatus(profile('Comercial'), otherCompany)).toBe(false);
+    expect(canManageWorkOrderTime(profile('Comercial'), otherCompany)).toBe(false);
+    expect(canManageWorkOrderMaterials(profile('Oficina'), commercialWork)).toBe(false);
   });
 });

@@ -155,6 +155,9 @@ main { padding: 24px; }
 .assignment-row div:first-child { display: grid; gap: 4px; }
 .assignment-row span, .assignment-row small { color: #64748b; }
 .work-actions { align-items: center; }
+.status-selector { display: grid; gap: 8px; font-size: 1.05rem; font-weight: 900; }
+.status-selector select { min-height: 52px; border: 1px solid var(--line); border-radius: 14px; padding: 0 12px; font-size: 1rem; font-weight: 850; background: white; color: var(--dark); }
+.work-detail .table-card table { min-width: 820px; }
 button.danger { border-color: #fecaca; color: #991b1b; background: #fff1f2; }
 button.danger:disabled { opacity: .6; cursor: progress; }
 .sat-checks { display: grid; gap: 5px; }

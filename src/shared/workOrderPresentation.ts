@@ -2,7 +2,7 @@ type NamedProfile = { first_name?: string | null; last_name?: string | null } | 
 type PresentationRecord = Record<string, unknown>;
 
 export type ActivityEvent = {
-  type: 'Estado' | 'Nota' | 'Material' | 'Foto' | 'Firma' | 'Check' | 'Deficiencia';
+  type: 'Estado' | 'Nota' | 'Material' | 'Hora' | 'Foto' | 'Firma' | 'Check' | 'Deficiencia';
   date: string;
   author: string | null;
   title: string;
@@ -26,7 +26,8 @@ export function activityTimeline(workOrder: PresentationRecord | null | undefine
   const events = [
     ...asRows(workOrder?.status_history).map((item) => event('Estado', item.changed_at, profileValue(item.profiles), `${textValue(item.previous_status) ?? 'Creado'} -> ${textValue(item.new_status) ?? 'Sin estado'}`, item.reason)),
     ...asRows(workOrder?.notes).map((item) => event('Nota', item.created_at, profileValue(item.profiles), 'Intervención', item.note ?? item.content ?? item.description)),
-    ...asRows(workOrder?.materials).map((item) => { const material = recordValue(item.materials); return event('Material', item.created_at, profileValue(item.profiles), material?.name ?? material?.description ?? item.description ?? 'Material usado', `${textValue(item.quantity) ?? '1'} ${textValue(item.unit) ?? ''}`.trim()); }),
+    ...asRows(workOrder?.materials).map((item) => { const material = recordValue(item.materials); return event('Material', item.created_at, profileValue(item.profiles), material?.name ?? material?.description ?? item.description ?? 'Material usado', `${textValue(item.used_quantity ?? item.quantity) ?? '1'} ${textValue(item.unit) ?? ''}`.trim()); }),
+    ...asRows(workOrder?.time_entries ?? workOrder?.work_order_time_entries).map((item) => event('Hora', item.updated_at ?? item.created_at, profileValue(item.profiles), `${textValue(item.duration_minutes) ?? '0'} min · ${textValue(item.hour_type) ?? 'normal'}`, item.description)),
     ...asRows(workOrder?.photos).map((item) => { const file = recordValue(item.files); return event('Foto', item.taken_at ?? item.created_at, profileValue(item.profiles), item.name ?? file?.name ?? 'Foto', item.description); }),
     ...asRows(workOrder?.signatures).map((item) => event('Firma', item.signed_at ?? item.created_at, profileValue(item.profiles), item.signer_name ?? 'Firma', item.signer_role)),
     ...asRows(workOrder?.checks).map((item) => event('Check', item.finished_at ?? item.created_at, profileValue(item.profiles), item.code ?? 'Check', item.global_result ?? item.status)),

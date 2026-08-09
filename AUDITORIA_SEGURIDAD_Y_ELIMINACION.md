@@ -106,6 +106,7 @@ Fecha: 2026-08-09
 ## Migracion creada
 
 - `supabase/migrations/022_security_lifecycle_controls.sql`
+- `supabase/migrations/023_work_order_operations_and_controlled_delete.sql`: horas de parte, materiales gestionados por RPC, cambio directo de estado y borrado definitivo controlado con auditoria previa.
 
 ## Instrucciones para aplicar la migracion
 
@@ -121,6 +122,7 @@ Fecha: 2026-08-09
 - Verifica tablas requeridas, columnas de soft delete/estado, privilegios actuales de RPC criticos y volumen inicial de registros archivable.
 - Verifica recuento de superadmins operativos antes de aplicar protecciones sobre perfiles.
 - Lista todas las sobrecargas encontradas para RPC criticos y anade resumen `critical_rpc_count`, `anon_execute_count`, `public_execute_count`, `authenticated_execute_count` antes de aplicar `022`.
+- Archivo adicional: `supabase/verification/preflight_work_order_operations_023.sql`. Revisa tablas base, columnas actuales de materiales, estados validos y permisos previos de RPC 023.
 
 ## Verificacion posterior
 
@@ -129,17 +131,18 @@ Fecha: 2026-08-09
 - Verifica firma y privilegios de `register_work_order_deficiency` y que declara `v_component`.
 - Incluye bloque manual transaccional con `rollback` para validar restauracion de estados, archivado repetido y restauracion repetida en base de pruebas con fixtures reales.
 - Muestra `FAIL` si cualquiera de las seis RPC criticas conserva `anon_execute=true` o `public_execute=true`; el resultado esperado posterior es `anon_execute_count=0` y `public_execute_count=0`.
+- Archivo adicional: `supabase/verification/verify_work_order_operations_023.sql`. Verifica columnas de horas/materiales, permisos de RPC y ofrece bloque `BEGIN/ROLLBACK` para probar estado directo, horas y materiales con fixtures reales.
 
 ## Pruebas ejecutadas
 
 - `npx tsc -b --pretty false`: correcto.
-- `npm test`: correcto, 31 archivos y 147 tests.
+- `npm test`: correcto, 32 archivos y 155 tests.
 - `npm run build`: correcto con aviso Vite conocido por chunk mayor de 500 kB.
 
 ## Resultados exactos
 
 - TypeScript: sin errores.
-- Vitest: `31 passed (31)`, `147 passed (147)`.
+- Vitest: `32 passed (32)`, `155 passed (155)`.
 - Build: correcto. El nombre exacto del asset JS puede variar por hash tras cada build.
 
 ## Limitaciones
@@ -163,6 +166,7 @@ Fecha: 2026-08-09
 - No aparecen pantallas blancas ni errores no controlados en consola.
 - En una base de pruebas, ejecutar el bloque `BEGIN/ROLLBACK` de verificacion para confirmar que un segundo archivado falla sin nueva auditoria `SOFT_DELETE`.
 - En frontend, validar que el propietario global solo ve acciones de ciclo de vida cuando hay empresa seleccionada y el registro pertenece a esa empresa.
+- En una base de pruebas, validar `023` con SAT, Gerencia, superadmin, Tecnico y Comercial para horas, materiales y cambio directo de estado.
 
 ## Tabla de aceptacion
 
@@ -184,4 +188,5 @@ Fecha: 2026-08-09
 | Alta | Deficiencias offline | Registrar | SAT/Gerencia/asignado | `v_component` declarado y trazable | RPC redefinida + revokes | Tabla `deficiencies` | Vitest SQL estatico | OK |
 | Alta | anon | Cualquier operacion | Ninguno | Sin permisos | `REVOKE` explicito | N/A | Vitest SQL | OK |
 | Alta | RPC criticas frontend | EXECUTE anon/public | Ninguno | `anon_execute_count=0`, `public_execute_count=0` esperado tras aplicar `022` | Revokes por firma exacta | N/A | Vitest SQL estatico + verificacion Supabase pendiente | Pendiente Supabase |
+| Alta | Partes | Horas/materiales/estado directo | SAT/Gerencia/Superadmin/Tecnico segun alcance | Gestión por RPC, sin updates directos desde navegador | `023` + RLS + grants solo authenticated | `audit_log`, `work_order_status_history` | Vitest SQL estatico | Pendiente Supabase |
 | Alta | Tecnico/Comercial/Oficina | Archivar/borrar | Ninguno | Botones ocultos y RPC deniega | `has_any_role` en RPC | N/A | Vitest permisos | OK |

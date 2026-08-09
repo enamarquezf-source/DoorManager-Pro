@@ -68,6 +68,8 @@ export function nextWorkOrderStatus(status: string) {
   return order[Math.min(index + 1, order.length - 1)] ?? 'Trabajo descargado';
 }
 
+export const workOrderStatuses = ['Pendiente', 'Trabajo descargado', 'En desplazamiento', 'En intervencion', 'Pausado', 'Pendiente de material', 'Finalizado tecnicamente', 'Pendiente de envio', 'Enviado', 'Devolucion solicitada', 'Devuelto por SAT', 'Cerrado', 'Cancelado'];
+
 export function previousWorkOrderStatus(status: string) {
   const order = ['Pendiente', 'Trabajo descargado', 'En desplazamiento', 'En intervencion', 'Finalizado tecnicamente', 'Pendiente de envio', 'Enviado'];
   const index = order.indexOf(status);

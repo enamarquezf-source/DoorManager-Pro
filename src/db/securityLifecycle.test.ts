@@ -19,12 +19,55 @@ const criticalRpcSignatures = [
   'sync_work_order_material_usage(uuid, text, numeric, text)',
 ];
 
+const workOrderFullDetailColumns = [
+  'id',
+  'company_id',
+  'code',
+  'title',
+  'description',
+  'type',
+  'priority',
+  'status',
+  'origin',
+  'scheduled_date',
+  'scheduled_time',
+  'diagnosis',
+  'work_performed',
+  'result',
+  'case_code',
+  'client_code',
+  'client_name',
+  'site_code',
+  'site_name',
+  'equipment_code',
+  'equipment_type',
+  'main_technician_name',
+  'created_by_name',
+  'deleted_at',
+];
+
 describe('security lifecycle controls', () => {
   it('migration and verification SQL are parseable', async () => {
     const parser = await pgQuery();
     expect(parser.parse(migration).parse_tree.stmts.length).toBeGreaterThan(0);
     expect(parser.parse(preflight).parse_tree.stmts.length).toBeGreaterThan(0);
     expect(parser.parse(verification).parse_tree.stmts.length).toBeGreaterThan(0);
+  });
+
+  it('keeps v_work_order_full_detail column order compatible with create or replace view', () => {
+    const viewBody = migration.slice(migration.indexOf('create or replace view public.v_work_order_full_detail'), migration.indexOf('alter view if exists public.v_work_order_full_detail'));
+    const selectList = viewBody.match(/select ([\s\S]*?)\nfrom public\.work_orders wo/)?.[1] ?? '';
+    const columns = selectList.split(',').map((column) => {
+      const normalized = column.trim().replace(/\s+/g, ' ');
+      const alias = normalized.match(/ as ([a-z_]+)$/i)?.[1];
+      return alias ?? normalized.replace(/^wo\./, '').replace(/^ca\.code$/, 'case_code').replace(/^c\.code$/, 'client_code').replace(/^s\.code$/, 'site_code').replace(/^e\.code$/, 'equipment_code');
+    });
+    expect(columns).toEqual(workOrderFullDetailColumns);
+    expect(columns[columns.indexOf('result') + 1]).toBe('case_code');
+    expect(columns.at(-1)).toBe('deleted_at');
+    expect(preflight).toContain('v_work_order_full_detail_columns_before_022');
+    expect(preflight).toContain('ordinal_position');
+    expect(preflight).toContain("table_name = 'v_work_order_full_detail'");
   });
 
   it('creates server-side lifecycle RPC with active profile, role and company validation', () => {

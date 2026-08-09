@@ -22,6 +22,15 @@ where table_schema = 'public'
   and column_name in ('deleted_at','active','status')
 order by table_name, column_name;
 
+select 'v_work_order_full_detail_columns_before_022' as check_name,
+       ordinal_position,
+       column_name,
+       data_type
+from information_schema.columns
+where table_schema = 'public'
+  and table_name = 'v_work_order_full_detail'
+order by ordinal_position;
+
 select 'security_definer_public_execute_before_022' as check_name,
        n.nspname as schema_name,
        p.proname as function_name,

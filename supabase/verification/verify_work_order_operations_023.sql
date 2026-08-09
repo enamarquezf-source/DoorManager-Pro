@@ -65,6 +65,54 @@ where schemaname = 'public'
   and indexdef ilike '%local_change_id%'
 order by indexname;
 
+select 'storage_cleanup_queue_after_023' as check_name,
+       count(*) filter (where table_name = 'storage_cleanup_queue') as table_present,
+       count(*) filter (where column_name = 'file_id') as file_id_column,
+       count(*) filter (where column_name = 'path') as path_column,
+       count(*) filter (where column_name = 'status') as status_column
+from information_schema.columns
+where table_schema = 'public'
+  and table_name = 'storage_cleanup_queue';
+
+with private_rpc(function_name, arguments) as (values
+  ('dmp_active_profile', ''),
+  ('dmp_assert_work_order_operator', 'p_work_order_id uuid, p_manage_all boolean'),
+  ('dmp_work_minutes', 'p_start time without time zone, p_end time without time zone, p_break integer, p_manual integer'),
+  ('dmp_lifecycle_delete_plan', 'p_entity text, p_entity_id uuid'),
+  ('dmp_deficiency_blocking_reference_count', 'p_deficiency_ids uuid[]'),
+  ('dmp_file_reference_count', 'p_file_id uuid'),
+  ('dmp_queue_storage_cleanup', 'p_file_ids uuid[], p_requested_by uuid, p_reason text'),
+  ('dmp_commercial_can_manage_work_order', 'p_work public.work_orders, p_profile public.profiles')
+), matched as (
+  select c.function_name,
+         c.arguments,
+         coalesce((select bool_or(acl.grantee = 0 and acl.privilege_type = 'EXECUTE') from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) acl), false) as public_execute,
+         has_function_privilege('anon', p.oid, 'EXECUTE') as anon_execute,
+         has_function_privilege('authenticated', p.oid, 'EXECUTE') as authenticated_execute
+  from private_rpc c
+  left join pg_proc p on p.proname = c.function_name
+  left join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'public'
+  where n.nspname = 'public'
+    and pg_get_function_identity_arguments(p.oid) = c.arguments
+)
+select 'private_rpc_after_023' as check_name,
+       case when public_execute or anon_execute or authenticated_execute then 'FAIL' else 'OK' end as status,
+       *
+from matched
+order by function_name;
+
+select 'deficiency_fk_classification_after_023' as check_name,
+       conrelid::regclass::text as source_table,
+       conname,
+       case when conrelid = 'public.corrective_actions'::regclass and pg_get_constraintdef(oid) ilike '%(deficiency_id)%' then 'cascade_child'
+            else 'blocking_unclassified'
+       end as classification,
+       pg_get_constraintdef(oid) as definition
+from pg_constraint
+where contype = 'f'
+  and confrelid = 'public.deficiencies'::regclass
+order by classification, source_table, conname;
+
 begin;
 -- Verificacion manual opcional en entorno de pruebas: sustituir UUID por fixtures reales.
 -- select public.dmp_change_work_order_status('00000000-0000-0000-0000-000000000000'::uuid, 'Pausado', 'verify rollback direct status');

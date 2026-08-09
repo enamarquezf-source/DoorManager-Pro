@@ -4,7 +4,7 @@
 select 'required_base_tables_023' as check_name, table_name, count(*) as present
 from information_schema.tables
 where table_schema = 'public'
-  and table_name = any(array['work_orders','work_order_materials','work_order_status_history','audit_log','activity_log','profiles','materials'])
+  and table_name = any(array['work_orders','work_order_materials','work_order_status_history','audit_log','activity_log','profiles','materials','corrective_actions','files'])
 group by table_name
 order by table_name;
 
@@ -53,6 +53,28 @@ where contype = 'f'
   and confrelid = any(array['public.work_orders'::regclass,'public.checks'::regclass,'public.deficiencies'::regclass])
 order by target_table, source_table, conname;
 
+select 'deficiency_fk_classification_before_023' as check_name,
+       conrelid::regclass::text as source_table,
+       conname,
+       case when conrelid = 'public.corrective_actions'::regclass and pg_get_constraintdef(oid) ilike '%(deficiency_id)%' then 'cascade_child'
+            else 'blocking_unclassified'
+       end as classification,
+       pg_get_constraintdef(oid) as definition
+from pg_constraint
+where contype = 'f'
+  and confrelid = 'public.deficiencies'::regclass
+order by classification, source_table, conname;
+
+select 'file_fk_classification_before_023' as check_name,
+       conrelid::regclass::text as source_table,
+       conname,
+       'reference_checked_before_queue' as classification,
+       pg_get_constraintdef(oid) as definition
+from pg_constraint
+where contype = 'f'
+  and confrelid = 'public.files'::regclass
+order by source_table, conname;
+
 select 'local_change_collisions_before_023' as check_name,
        company_id,
        local_change_id,
@@ -63,6 +85,26 @@ where local_change_id is not null
 group by company_id, local_change_id
 having count(distinct work_order_id) > 1
 order by rows desc;
+
+select 'legacy_company_local_change_index_before_023' as check_name,
+       indexname,
+       indexdef
+from pg_indexes
+where schemaname = 'public'
+  and tablename = 'work_order_materials'
+  and indexname = 'work_order_materials_company_local_change_unique';
+
+select 'commercial_sat_work_order_exposure_before_023' as check_name,
+       id,
+       code,
+       origin,
+       company_id,
+       created_by,
+       current_responsible_id
+from public.work_orders
+where origin <> 'Comercial'
+  and current_responsible_id in (select id from public.profiles where primary_area = 'Comercial')
+order by created_at desc;
 
 select 'cross_company_profile_or_material_before_023' as check_name,
        m.id,

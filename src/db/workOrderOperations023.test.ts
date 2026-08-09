@@ -33,12 +33,20 @@ describe('work order operations 023', () => {
       expect(migration).toContain(`revoke all on function public.${fn} from anon`);
       expect(migration).toContain(`grant execute on function public.${fn} to authenticated`);
     }
+    for (const fn of ['dmp_active_profile()', 'dmp_assert_work_order_operator(uuid, boolean)', 'dmp_work_minutes(time, time, integer, integer)', 'dmp_lifecycle_delete_plan(text, uuid)', 'dmp_deficiency_blocking_reference_count(uuid[])', 'dmp_file_reference_count(uuid)', 'dmp_queue_storage_cleanup(uuid[], uuid, text)', 'dmp_commercial_can_manage_work_order(public.work_orders, public.profiles)']) {
+      expect(migration).toContain(`revoke all on function public.${fn} from public`);
+      expect(migration).toContain(`revoke all on function public.${fn} from anon`);
+      expect(migration).toContain(`revoke all on function public.${fn} from authenticated`);
+      expect(migration).not.toContain(`grant execute on function public.${fn} to authenticated`);
+    }
   });
 
   it('implements controlled materials and offline duplicate protection', () => {
     expect(migration).toContain('alter table public.work_order_materials alter column material_id drop not null');
     expect(migration).toContain('description text');
     expect(migration).toContain('registered_by uuid references public.profiles(id)');
+    expect(migration).toContain('drop index if exists public.work_order_materials_company_local_change_unique');
+    expect(migration).not.toContain('create unique index if not exists work_order_materials_company_local_change_unique');
     expect(migration).toContain('work_order_materials_work_order_local_change_unique');
     expect(migration).toContain('local_change_id = v_local and work_order_id <> v_work.id');
     expect(migration).toContain('select id into v_id from public.work_order_materials where company_id = v_work.company_id and work_order_id = v_work.id and local_change_id = v_local');
@@ -55,9 +63,44 @@ describe('work order operations 023', () => {
     expect(app).not.toContain('>Cambiar estado</button>');
     expect(app).not.toContain('>Volver estado</button>');
     expect(migration).toContain("origin = 'Comercial'");
-    expect(migration).toContain('current_responsible_id = v_profile.id');
+    expect(migration).toContain('p_work.current_responsible_id = p_profile.id');
     expect(migration).toContain('finished_at = case when p_new_status');
     expect(migration).toContain('sent_at = case when p_new_status');
+    expect(migration).toContain('public.dmp_commercial_can_manage_work_order(v_work, v_profile)');
+    expect(migration).toContain("p_work.origin = 'Comercial'");
+    expect(migration).toContain('p_work.created_by = p_profile.id or p_work.current_responsible_id = p_profile.id');
+    expect(permissions).toContain("workOrder?.origin === 'Comercial'");
+    expect(permissions).toContain('workOrder?.created_by === profile.id || workOrder?.current_responsible_id === profile.id');
+  });
+
+  it('deletes corrective actions before exclusive deficiencies and blocks unclassified deficiency FKs', () => {
+    expect(migration).toContain('v_deficiency_ids uuid[]');
+    expect(migration).toContain('select coalesce(array_agg(id), \'{}\') into v_deficiency_ids from public.deficiencies where work_order_id = p_entity_id');
+    expect(migration).toContain('public.dmp_deficiency_blocking_reference_count(v_deficiency_ids)');
+    expect(migration).toContain("c.confrelid = 'public.deficiencies'::regclass");
+    expect(migration).toContain('delete from public.corrective_actions where deficiency_id = any(v_deficiency_ids);');
+    expect(migration.indexOf('delete from public.corrective_actions where deficiency_id = any(v_deficiency_ids);')).toBeLessThan(migration.indexOf('delete from public.deficiencies where work_order_id = p_entity_id;'));
+    expect(migration).toContain("'acciones_correctivas'");
+    expect(migration).toContain("'referencias_deficiencias_no_clasificadas'");
+    expect(preflight).toContain('deficiency_fk_classification_before_023');
+    expect(verification).toContain('deficiency_fk_classification_after_023');
+  });
+
+  it('queues exclusive storage files instead of deleting file rows', () => {
+    expect(migration).toContain('create table if not exists public.storage_cleanup_queue');
+    expect(migration).toContain('alter table public.storage_cleanup_queue enable row level security');
+    expect(migration).toContain('create policy storage_cleanup_queue_no_direct_access');
+    expect(migration).toContain('public.dmp_file_reference_count(v_file.id) = 0');
+    expect(migration).toContain("c.confrelid = 'public.files'::regclass");
+    expect(migration).toContain('public.dmp_queue_storage_cleanup(v_file_ids, v_actor.id');
+    expect(migration).toContain("'file_snapshot'");
+    expect(migration).toContain('equipment_photos');
+    expect(migration).toContain('case_documents');
+    expect(migration).toContain('deficiencies');
+    expect(migration).toContain('documents');
+    expect(migration).not.toContain('delete from public.files');
+    expect(preflight).toContain('file_fk_classification_before_023');
+    expect(verification).toContain('storage_cleanup_queue_after_023');
   });
 
   it('extends lifecycle dependency reporting without replacing 022 function', () => {
@@ -93,10 +136,13 @@ describe('work order operations 023', () => {
     expect(preflight).toContain('work_order_materials_columns_before_023');
     expect(preflight).toContain('foreign_keys_to_operational_entities_before_023');
     expect(preflight).toContain('local_change_collisions_before_023');
+    expect(preflight).toContain('legacy_company_local_change_index_before_023');
+    expect(preflight).toContain('commercial_sat_work_order_exposure_before_023');
     expect(preflight).toContain('cross_company_profile_or_material_before_023');
     expect(verification).toContain('critical_rpc_after_023');
     expect(verification).toContain('dmp_lifecycle_dependencies_enhanced');
     expect(verification).toContain('controlled_delete_plan_after_023');
+    expect(verification).toContain('private_rpc_after_023');
     expect(verification).toContain('begin;');
     expect(verification).toContain('rollback;');
   });

@@ -85,8 +85,10 @@ Fecha: 2026-08-09
 - `dmp_restore_entity`: rechaza registros no archivados con `El registro no está archivado` despues del bloqueo `FOR UPDATE` y antes de auditar `UPDATE`.
 - Nuevos RPC `023`: `dmp_upsert_work_order_time_entry`, `dmp_delete_work_order_time_entry`, `dmp_upsert_work_order_material`, `dmp_delete_work_order_material`, `dmp_change_work_order_status`, `dmp_lifecycle_delete_plan` y `dmp_lifecycle_dependencies_enhanced`.
 - `dmp_lifecycle_dependencies_enhanced` no reemplaza la funcion `022`; la envuelve para exponer dependencias bloqueantes y dependencias eliminables en cascada controlada sin tocar `022`.
-- Comercial puede cambiar estado solo en partes de origen Comercial de su empresa donde sea creador o responsable actual. SAT, Gerencia y superadmin mantienen control completo validado por Supabase.
-- El borrado controlado elimina filas relacionales y registros `files` exclusivos; no elimina objetos binarios de Storage desde SQL. La limpieza fisica de Storage queda fuera de esta migracion y debe ejecutarse con proceso administrativo si se requiere.
+- Comercial puede cambiar estado y gestionar horas/materiales solo en partes de origen Comercial de su empresa donde sea creador o responsable actual. SAT, Gerencia y superadmin mantienen control completo validado por Supabase.
+- `corrective_actions.deficiency_id` queda clasificada como hija exclusiva de deficiencias propias del parte y se elimina antes que `deficiencies`. Cualquier otra FK presente o futura hacia `deficiencies` queda clasificada como bloqueante mediante conteo dinamico antes del borrado.
+- Decision `local_change_id`: la identidad persistida queda en `(company_id, work_order_id, local_change_id)`. La migracion `023` elimina idempotentemente el indice antiguo `(company_id, local_change_id)` y mantiene rechazo explicito si un `local_change_id` ya fue usado en otro parte de la misma empresa.
+- El borrado controlado elimina filas relacionales del parte, conserva en auditoria `file_id`, `bucket` y `path`, y no elimina filas `files`. Los archivos que quedan sin ninguna FK a `public.files` se insertan en `storage_cleanup_queue` protegida por RLS para que un servicio seguro borre posteriormente el objeto de Storage.
 
 ## Archivos modificados
 
@@ -126,7 +128,7 @@ Fecha: 2026-08-09
 - Verifica tablas requeridas, columnas de soft delete/estado, privilegios actuales de RPC criticos y volumen inicial de registros archivable.
 - Verifica recuento de superadmins operativos antes de aplicar protecciones sobre perfiles.
 - Lista todas las sobrecargas encontradas para RPC criticos y anade resumen `critical_rpc_count`, `anon_execute_count`, `public_execute_count`, `authenticated_execute_count` antes de aplicar `022`.
-- Archivo adicional: `supabase/verification/preflight_work_order_operations_023.sql`. Revisa tablas base, columnas actuales de materiales, estados validos, indices, FKs hacia entidades operativas, colisiones `local_change_id`, cruces de empresa en perfiles/materiales y permisos previos de RPC 023.
+- Archivo adicional: `supabase/verification/preflight_work_order_operations_023.sql`. Revisa tablas base, columnas actuales de materiales, estados validos, indices, FKs hacia entidades operativas, clasificacion de FKs hacia deficiencias y archivos, colisiones `local_change_id`, indice antiguo incompatible, partes SAT expuestos a Comercial, cruces de empresa en perfiles/materiales y permisos previos de RPC 023.
 
 ## Verificacion posterior
 
@@ -135,7 +137,7 @@ Fecha: 2026-08-09
 - Verifica firma y privilegios de `register_work_order_deficiency` y que declara `v_component`.
 - Incluye bloque manual transaccional con `rollback` para validar restauracion de estados, archivado repetido y restauracion repetida en base de pruebas con fixtures reales.
 - Muestra `FAIL` si cualquiera de las seis RPC criticas conserva `anon_execute=true` o `public_execute=true`; el resultado esperado posterior es `anon_execute_count=0` y `public_execute_count=0`.
-- Archivo adicional: `supabase/verification/verify_work_order_operations_023.sql`. Verifica columnas de horas/materiales, permisos de RPC, RPC de dependencias mejorada, plan de borrado controlado e indices `local_change_id`; ofrece bloque `BEGIN/ROLLBACK` para probar estado directo, horas y materiales con fixtures reales.
+- Archivo adicional: `supabase/verification/verify_work_order_operations_023.sql`. Verifica columnas de horas/materiales, permisos de RPC, privacidad de helpers, tabla `storage_cleanup_queue`, clasificacion de FKs hacia deficiencias, RPC de dependencias mejorada, plan de borrado controlado e indices `local_change_id`; ofrece bloque `BEGIN/ROLLBACK` para probar estado directo, horas y materiales con fixtures reales.
 
 ## Pruebas ejecutadas
 

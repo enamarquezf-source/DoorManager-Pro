@@ -151,11 +151,25 @@ describe('canAccessRoute', () => {
   });
 
   it('bloquea Comercial fuera de empresa y roles no operativos para horas/materiales', () => {
-    const commercialWork = { id: 'work-id', company_id: 'company-id', status: 'Pendiente', origin: 'Comercial' };
+    const commercialWork = { id: 'work-id', company_id: 'company-id', status: 'Pendiente', origin: 'Comercial', created_by: 'Comercial-id' };
+    const responsibleCommercialWork = { ...commercialWork, created_by: 'other', current_responsible_id: 'Comercial-id' };
     const otherCompany = { ...commercialWork, company_id: 'other-company' };
+    const satWork = { ...commercialWork, origin: 'SAT' };
+    const otherCommercialWork = { ...commercialWork, created_by: 'other', current_responsible_id: 'other' };
     expect(canManageWorkOrderStatus(profile('Comercial'), commercialWork)).toBe(true);
     expect(canManageWorkOrderTime(profile('Comercial'), commercialWork)).toBe(true);
     expect(canManageWorkOrderMaterials(profile('Comercial'), commercialWork)).toBe(true);
+    expect(canManageWorkOrderStatus(profile('Comercial'), responsibleCommercialWork)).toBe(true);
+    expect(canManageWorkOrderTime(profile('Comercial'), responsibleCommercialWork)).toBe(true);
+    expect(canManageWorkOrderMaterials(profile('Comercial'), responsibleCommercialWork)).toBe(true);
+    expect(canManageWorkOrderTime(profile('Comercial'), commercialWork, { profile_id: 'other' })).toBe(false);
+    expect(canManageWorkOrderMaterials(profile('Comercial'), commercialWork, { registered_by: 'other' })).toBe(false);
+    expect(canManageWorkOrderStatus(profile('Comercial'), satWork)).toBe(false);
+    expect(canManageWorkOrderTime(profile('Comercial'), satWork)).toBe(false);
+    expect(canManageWorkOrderMaterials(profile('Comercial'), satWork)).toBe(false);
+    expect(canManageWorkOrderStatus(profile('Comercial'), otherCommercialWork)).toBe(false);
+    expect(canManageWorkOrderTime(profile('Comercial'), otherCommercialWork)).toBe(false);
+    expect(canManageWorkOrderMaterials(profile('Comercial'), otherCommercialWork)).toBe(false);
     expect(canManageWorkOrderStatus(profile('Comercial'), otherCompany)).toBe(false);
     expect(canManageWorkOrderTime(profile('Comercial'), otherCompany)).toBe(false);
     expect(canManageWorkOrderMaterials(profile('Oficina'), commercialWork)).toBe(false);

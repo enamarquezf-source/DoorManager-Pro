@@ -10,5 +10,6 @@ describe('workOrdersService full detail queries', () => {
     expect(source).toContain('withSignedFileUrl');
     expect(source).toContain('work_order_cost_entries');
     expect(source).toContain('cost_entries: costEntries');
+    expect(source).toContain(".is('deleted_at', null).order('incurred_at'");
   });
 });

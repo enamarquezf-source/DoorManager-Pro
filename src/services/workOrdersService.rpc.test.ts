@@ -53,6 +53,15 @@ describe('workOrdersService operational RPCs', () => {
     expect(from).not.toHaveBeenCalledWith('work_order_cost_entries');
   });
 
+  it('borra recursos y costes por RPC de borrado logico 027', async () => {
+    const { workOrdersService } = await import('./workOrdersService');
+
+    await expect(workOrdersService.deleteCostEntry('cost-1', 'Duplicado')).resolves.toBe('saved-id');
+
+    expect(rpc).toHaveBeenCalledWith('dmp_delete_work_order_cost_entry', { p_cost_entry_id: 'cost-1', p_reason: 'Duplicado' });
+    expect(from).not.toHaveBeenCalledWith('work_order_cost_entries');
+  });
+
   it('propaga errores concretos de permiso/asignacion de Supabase', async () => {
     const { workOrdersService } = await import('./workOrdersService');
     rpc.mockResolvedValueOnce({ data: null, error: { message: 'respuesta de Supabase: asignacion: tecnico sin asignacion activa para este parte operativo' } });

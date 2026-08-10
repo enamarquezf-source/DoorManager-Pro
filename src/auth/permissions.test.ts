@@ -186,6 +186,7 @@ describe('canAccessRoute', () => {
     expect(canManageWorkOrderMaterials(profile('Comercial'), otherCommercialWork)).toBe(false);
     expect(canManageWorkOrderStatus(profile('Comercial'), otherCompany)).toBe(false);
     expect(canManageWorkOrderTime(profile('Comercial'), otherCompany)).toBe(false);
-    expect(canManageWorkOrderMaterials(profile('Oficina'), commercialWork)).toBe(false);
+    expect(canManageWorkOrderMaterials(profile('Oficina'), commercialWork)).toBe(true);
+    expect(canManageWorkOrderMaterials(profile('Oficina'), otherCompany)).toBe(false);
   });
 });

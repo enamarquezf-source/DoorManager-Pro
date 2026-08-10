@@ -1,6 +1,6 @@
 import type { Profile, RoleName, Workspace } from '../shared/types';
 
-const adminRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia'];
+const adminRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia', 'Oficina'];
 const backOfficeRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia', 'Oficina'];
 const operationalRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia', 'Tecnico'];
 const lifecycleRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia'];
@@ -85,8 +85,8 @@ export function canViewWorkOrder(profile: Profile | null | undefined, workOrder?
 
 export function canEditWorkOrder(profile: Profile | null | undefined) { return hasAny(profile, adminRoles); }
 export function canCreateWorkOrder(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Comercial']); }
-export function canAssignTechnician(profile: Profile | null | undefined) { return hasAny(profile, adminRoles); }
-export function canManageWorkOrderAssignments(profile: Profile | null | undefined) { return hasAny(profile, adminRoles); }
+export function canAssignTechnician(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Gerencia']); }
+export function canManageWorkOrderAssignments(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Gerencia']); }
 export function canManagePlanning(profile: Profile | null | undefined) { return hasAny(profile, adminRoles); }
 export function canChangePriority(profile: Profile | null | undefined) { return hasAny(profile, adminRoles); }
 export function canExecuteWorkOrder(profile: Profile | null | undefined) { return hasAny(profile, operationalRoles); }
@@ -100,31 +100,39 @@ function canCommercialManageWorkOrder(profile: Profile, workOrder?: any) {
     && workOrder?.company_id === profile.company_id
     && (workOrder?.created_by === profile.id || workOrder?.current_responsible_id === profile.id || workOrder?.creator?.id === profile.id || workOrder?.responsible?.id === profile.id);
 }
+function canOperateCompanyWorkOrder(profile: Profile, workOrder?: any) {
+  return !workOrder?.company_id || workOrder.company_id === profile.company_id || hasAny(profile, ['superadmin']);
+}
 export function canManageWorkOrderStatus(profile: Profile | null | undefined, workOrder?: any) {
   if (!isActiveProfile(profile)) return false;
   const activeProfile = profile as Profile;
-  if (hasAny(profile, ['superadmin', 'SAT', 'Gerencia'])) return true;
+  if (!canOperateCompanyWorkOrder(activeProfile, workOrder)) return false;
+  if (hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina'])) return true;
   if (hasAny(profile, ['Comercial'])) return canCommercialManageWorkOrder(activeProfile, workOrder);
   if (!hasAny(profile, ['Tecnico'])) return false;
   return canViewWorkOrder(profile, workOrder);
 }
 export function canManageWorkOrderTime(profile: Profile | null | undefined, workOrder?: any, row?: any) {
-  if (!isActiveProfile(profile) || ['Cerrado','Cancelado'].includes(workOrder?.status)) return hasAny(profile, ['superadmin', 'SAT', 'Gerencia']);
+  if (!isActiveProfile(profile)) return false;
   const activeProfile = profile as Profile;
-  if (hasAny(profile, ['superadmin', 'SAT', 'Gerencia'])) return true;
+  if (!canOperateCompanyWorkOrder(activeProfile, workOrder)) return false;
+  if (['Cerrado','Cancelado'].includes(workOrder?.status)) return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina']);
+  if (hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina'])) return true;
   if (hasAny(profile, ['Comercial'])) return canCommercialManageWorkOrder(activeProfile, workOrder) && (!row || row.profile_id === activeProfile.id || row.created_by === activeProfile.id);
   if (hasAny(profile, ['Tecnico'])) return hasActiveTechnicianAssignment(activeProfile, workOrder) && (!row || row.profile_id === activeProfile.id || row.created_by === activeProfile.id);
   return false;
 }
 export function canManageWorkOrderMaterials(profile: Profile | null | undefined, workOrder?: any, row?: any) {
-  if (!isActiveProfile(profile) || ['Cerrado','Cancelado'].includes(workOrder?.status)) return hasAny(profile, ['superadmin', 'SAT', 'Gerencia']);
+  if (!isActiveProfile(profile)) return false;
   const activeProfile = profile as Profile;
-  if (hasAny(profile, ['superadmin', 'SAT', 'Gerencia'])) return true;
+  if (!canOperateCompanyWorkOrder(activeProfile, workOrder)) return false;
+  if (['Cerrado','Cancelado'].includes(workOrder?.status)) return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina']);
+  if (hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina'])) return true;
   if (hasAny(profile, ['Comercial'])) return canCommercialManageWorkOrder(activeProfile, workOrder) && (!row || !row.registered_by || row.registered_by === activeProfile.id);
   if (hasAny(profile, ['Tecnico'])) return hasActiveTechnicianAssignment(activeProfile, workOrder) && (!row || !row.registered_by || row.registered_by === activeProfile.id);
   return false;
 }
-export function canViewWorkOrderCosts(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Comercial']); }
+export function canViewWorkOrderCosts(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina', 'Comercial']); }
 export function canCreateCheck(profile: Profile | null | undefined) { return hasAny(profile, operationalRoles); }
 export function canExecuteCheck(profile: Profile | null | undefined) { return hasAny(profile, operationalRoles); }
 export function canManageCheck(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT']); }
@@ -163,7 +171,7 @@ export function canAccessRoute(profile: Profile | null | undefined, path: string
     return path === '/app/checks' || path.startsWith('/app/checks/') || path.startsWith('/app/avisos');
   }
   if (path.startsWith('/app/plantillas')) return hasAny(profile, ['SAT', 'Gerencia']);
-  if (path.startsWith('/app/clientes') || path.startsWith('/app/centros') || path.startsWith('/app/equipos') || path.startsWith('/app/expedientes') || path.startsWith('/app/partes') || path.startsWith('/app/trabajos') || path.startsWith('/app/checks') || path.startsWith('/app/deficiencias')) return hasAny(profile, ['SAT', 'Gerencia', 'Comercial']);
+  if (path.startsWith('/app/clientes') || path.startsWith('/app/centros') || path.startsWith('/app/equipos') || path.startsWith('/app/expedientes') || path.startsWith('/app/partes') || path.startsWith('/app/trabajos') || path.startsWith('/app/checks') || path.startsWith('/app/deficiencias')) return hasAny(profile, ['SAT', 'Gerencia', 'Comercial', 'Oficina']);
   if (path.startsWith('/app/documentos')) return hasAny(profile, ['SAT', 'Gerencia', 'Oficina']);
   if (path.startsWith('/app/gerencia')) return hasAny(profile, ['Gerencia']);
   if (path.startsWith('/app/modulos/tecnicos')) return hasAny(profile, ['SAT', 'Gerencia']);

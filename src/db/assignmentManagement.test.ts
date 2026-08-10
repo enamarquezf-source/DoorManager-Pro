@@ -20,7 +20,7 @@ describe('assignment management', () => {
   it('elimina sobrecargas y deja solo la firma canonica de desasignacion con motivo', () => {
     expect(migration).toContain('drop function if exists public.unassign_work_order_profile(uuid, uuid, uuid, text)');
     expect(migration).toContain('drop function if exists public.unassign_work_order_profile(uuid, uuid, uuid)');
-    expect(migration).toContain('create or replace function public.unassign_work_order_profile(\n  p_work_order_id uuid,\n  p_profile_id uuid,\n  p_changed_by uuid,\n  p_reason text default null\n)');
+    expect(migration.replace(/\r\n/g, '\n')).toContain('create or replace function public.unassign_work_order_profile(\n  p_work_order_id uuid,\n  p_profile_id uuid,\n  p_changed_by uuid,\n  p_reason text default null\n) returns void');
     expect(migration.match(/create or replace function public\.unassign_work_order_profile/g)?.length).toBe(1);
     expect(migration).toContain('grant execute on function public.unassign_work_order_profile(uuid, uuid, uuid, text) to authenticated');
     expect(migration).not.toContain('grant execute on function public.unassign_work_order_profile(uuid, uuid, uuid) to authenticated');
@@ -118,6 +118,6 @@ describe('assignment management', () => {
   });
 
   it('roles no autorizados quedan denegados en permisos', () => {
-    expect(permissions).toContain("export function canManageWorkOrderAssignments(profile: Profile | null | undefined) { return hasAny(profile, adminRoles); }");
+    expect(permissions).toContain("export function canManageWorkOrderAssignments(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Gerencia']); }");
   });
 });

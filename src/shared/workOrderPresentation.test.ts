@@ -9,6 +9,15 @@ describe('work order presentation adapters', () => {
     expect(summary.observations).toBe('Se sustituye fusible');
   });
 
+  it('usa la ultima observacion tecnica guardada en notas del parte', () => {
+    const summary = interventionSummary({ work_order_notes: [
+      { note: 'Observaciones: Primera revision', created_at: '2026-08-03T10:00:00Z' },
+      { note: 'Observaciones: Correccion final', created_at: '2026-08-03T11:00:00Z' },
+    ] });
+
+    expect(summary.observations).toBe('Correccion final');
+  });
+
   it('unifica actividad cronologica de notas, materiales, fotos, firmas y checks', () => {
     const events = activityTimeline({ notes: [{ note: 'Nota', created_at: '2026-08-03T10:00:00Z' }], photos: [{ name: 'foto.jpg', taken_at: '2026-08-03T11:00:00Z' }], signatures: [{ signer_name: 'Cliente', signed_at: '2026-08-03T12:00:00Z' }], materials: [{ description: 'Fusible', created_at: '2026-08-03T09:00:00Z' }], checks: [{ code: 'CHK', created_at: '2026-08-03T08:00:00Z' }] });
     expect(events.map((event) => event.type)).toEqual(['Firma', 'Foto', 'Nota', 'Material', 'Check']);

@@ -12,7 +12,7 @@ export type ActivityEvent = {
 export function interventionSummary(workOrder: PresentationRecord | null | undefined) {
   const notes = asRows(workOrder?.notes ?? workOrder?.work_order_notes);
   const text = notes.map((note) => textValue(note.note ?? note.content ?? note.description) ?? '').join('\n');
-  const pick = (label: string) => text.match(new RegExp(`${label}:\\s*([^\\n]+)`, 'i'))?.[1]?.trim() ?? null;
+  const pick = (label: string) => Array.from(text.matchAll(new RegExp(`${label}:\\s*([^\\n]+)`, 'gi'))).at(-1)?.[1]?.trim() ?? null;
   return {
     diagnosis: textValue(workOrder?.diagnosis) ?? pick('Diagnóstico'),
     work: textValue(workOrder?.work_performed) ?? pick('Trabajo realizado'),
@@ -25,7 +25,7 @@ export function interventionSummary(workOrder: PresentationRecord | null | undef
 export function activityTimeline(workOrder: PresentationRecord | null | undefined): ActivityEvent[] {
   const events = [
     ...asRows(workOrder?.status_history).map((item) => event('Estado', item.changed_at, profileValue(item.profiles), `${textValue(item.previous_status) ?? 'Creado'} -> ${textValue(item.new_status) ?? 'Sin estado'}`, item.reason)),
-    ...asRows(workOrder?.notes).map((item) => event('Nota', item.created_at, profileValue(item.profiles), 'Intervención', item.note ?? item.content ?? item.description)),
+    ...asRows(workOrder?.notes ?? workOrder?.work_order_notes).map((item) => event('Nota', item.created_at, profileValue(item.profiles), 'Intervención', item.note ?? item.content ?? item.description)),
     ...asRows(workOrder?.materials).map((item) => { const material = recordValue(item.materials); return event('Material', item.created_at, profileValue(item.profiles), material?.name ?? material?.description ?? item.description ?? 'Material usado', `${textValue(item.used_quantity ?? item.quantity) ?? '1'} ${textValue(item.unit) ?? ''}`.trim()); }),
     ...asRows(workOrder?.time_entries ?? workOrder?.work_order_time_entries).map((item) => event('Hora', item.updated_at ?? item.created_at, profileValue(item.profiles), `${textValue(item.duration_minutes) ?? '0'} min · ${textValue(item.hour_type) ?? 'normal'}`, item.description)),
     ...asRows(workOrder?.photos).map((item) => { const file = recordValue(item.files); return event('Foto', item.taken_at ?? item.created_at, profileValue(item.profiles), item.name ?? file?.name ?? 'Foto', item.description); }),

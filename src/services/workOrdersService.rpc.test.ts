@@ -24,6 +24,19 @@ describe('workOrdersService operational RPCs', () => {
     expect(from).not.toHaveBeenCalledWith('work_order_time_entries');
   });
 
+  it('registra horas sin descripcion cuando el campo llega vacio, nulo u omitido', async () => {
+    const { workOrdersService } = await import('./workOrdersService');
+    const base = { work_order_id: 'wo-1', profile_id: 'worker-1', work_date: '2026-08-10', duration_minutes: 60, hour_type: 'normal' };
+
+    await expect(workOrdersService.upsertTimeEntry({ ...base, description: '' })).resolves.toBe('saved-id');
+    await expect(workOrdersService.upsertTimeEntry({ ...base, description: null })).resolves.toBe('saved-id');
+    await expect(workOrdersService.upsertTimeEntry(base)).resolves.toBe('saved-id');
+
+    expect(rpc).toHaveBeenNthCalledWith(1, 'dmp_upsert_work_order_time_entry', { p_payload: { ...base, description: '' } });
+    expect(rpc).toHaveBeenNthCalledWith(2, 'dmp_upsert_work_order_time_entry', { p_payload: { ...base, description: null } });
+    expect(rpc).toHaveBeenNthCalledWith(3, 'dmp_upsert_work_order_time_entry', { p_payload: base });
+  });
+
   it('carga trabajadores validos de horas por RPC segura', async () => {
     const { workOrdersService } = await import('./workOrdersService');
     rpc.mockResolvedValueOnce({ data: [{ profile_id: 'worker-1', full_name: 'Ana Tecnica' }], error: null });
@@ -69,6 +82,16 @@ describe('workOrdersService operational RPCs', () => {
     await expect(workOrdersService.updateOperationalFields('wo-1', payload)).resolves.toBe('saved-id');
 
     expect(rpc).toHaveBeenCalledWith('dmp_update_work_order_operational_fields', { p_work_order_id: 'wo-1', p_payload: { diagnosis: 'Guía desajustada', work_performed: 'Ajuste y prueba', result: 'Operativa', planned_material: null } });
+    expect(from).not.toHaveBeenCalledWith('work_orders');
+  });
+
+  it('envia el payload operativo completo con la firma RPC esperada', async () => {
+    const { workOrdersService } = await import('./workOrdersService');
+    const payload = { description: 'Problema corregido', diagnosis: 'Diagnostico SAT', work_performed: 'Trabajo revisado', result: 'Operativa', planned_material: 'Bisagra', observations: 'no-debe-salir', status: 'Cerrado' };
+
+    await expect(workOrdersService.updateOperationalFields('wo-1', payload)).resolves.toBe('saved-id');
+
+    expect(rpc).toHaveBeenCalledWith('dmp_update_work_order_operational_fields', { p_work_order_id: 'wo-1', p_payload: { description: 'Problema corregido', diagnosis: 'Diagnostico SAT', work_performed: 'Trabajo revisado', result: 'Operativa', planned_material: 'Bisagra' } });
     expect(from).not.toHaveBeenCalledWith('work_orders');
   });
 

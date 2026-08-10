@@ -35,6 +35,8 @@ export function toSpanishSupabaseError(error: any) {
   if (message.includes('permission denied') || message.includes('row-level security')) return 'No tienes permisos para realizar esta operación con tu rol actual.';
   if (message.includes('JWT') || message.includes('auth')) return 'Tu sesión no permite realizar esta operación. Vuelve a iniciar sesión si el problema continúa.';
   if (message.includes('Failed to fetch') || message.includes('NetworkError') || message.includes('fetch failed')) return 'No hay conexión con Supabase. Revisa la red e inténtalo de nuevo.';
+  if (message.includes('Could not find the function') || message.includes('function') && message.includes('does not exist')) return `Funcion de Supabase no disponible o migracion pendiente: ${message}`;
+  if (message.includes('schema cache')) return `Cache de esquema de Supabase sin actualizar o migracion pendiente: ${message}`;
   if (message.includes('No se ha encontrado')) return message;
   if (/^(respuesta de Supabase|validacion del formulario|permiso|perfil activo|empresa|asignacion|parte|estado editable|insercion):/i.test(message)) return message;
   if (message.includes('duplicate key')) return 'Ya existe un registro con esos datos.';

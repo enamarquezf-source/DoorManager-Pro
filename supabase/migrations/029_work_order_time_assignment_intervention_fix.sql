@@ -3,6 +3,89 @@
 
 begin;
 
+create or replace function public.dmp025_assert_time_target(p_work_order_id uuid, p_target_profile_id uuid)
+returns public.work_orders
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_actor public.profiles := public.dmp025_actor_profile();
+  v_target public.profiles;
+  v_work public.work_orders;
+  v_admin boolean := public.has_any_role(array['superadmin','SAT','Gerencia','Oficina']);
+  v_commercial boolean := public.has_any_role(array['Comercial']);
+  v_technician boolean := public.has_any_role(array['Tecnico']);
+begin
+  select * into v_work from public.work_orders where id = p_work_order_id and deleted_at is null;
+  if v_work.id is null then raise exception 'parte: parte no encontrado o archivado'; end if;
+  perform public.assert_member_of_current_company(v_work.company_id);
+  if v_work.status in ('Cerrado','Cancelado') then raise exception 'estado editable: el parte esta % y no admite horas', v_work.status; end if;
+
+  select * into v_target from public.profiles where id = p_target_profile_id and active = true and deleted_at is null;
+  if v_target.id is null then raise exception 'perfil activo: trabajador no encontrado, inactivo o eliminado'; end if;
+  if v_target.company_id is distinct from v_work.company_id then raise exception 'empresa: el trabajador no pertenece a la empresa del parte'; end if;
+
+  if v_admin then return v_work; end if;
+
+  if v_technician then
+    if not public.dmp025_has_active_assignment(v_work.id, v_actor.id) then raise exception 'asignacion: tecnico actor sin asignacion activa para este parte'; end if;
+    if not public.dmp025_has_active_assignment(v_work.id, v_target.id) then raise exception 'asignacion: trabajador sin asignacion activa para este parte'; end if;
+    return v_work;
+  end if;
+
+  if v_commercial and public.dmp025_can_commercial_operate(v_work, v_actor) then
+    if not public.dmp025_has_active_assignment(v_work.id, v_target.id) then raise exception 'asignacion: Comercial solo puede registrar horas de personas asignadas activamente al parte'; end if;
+    return v_work;
+  end if;
+
+  raise exception 'permiso: rol sin permiso para registrar horas de este parte';
+end;
+$$;
+
+create or replace function public.dmp_work_order_time_worker_options(p_work_order_id uuid)
+returns table(profile_id uuid, full_name text, primary_area text, assignment_role text, is_current_user boolean)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_actor public.profiles := public.dmp025_actor_profile();
+  v_work public.work_orders;
+  v_admin boolean := public.has_any_role(array['superadmin','SAT','Gerencia','Oficina']);
+  v_commercial boolean := public.has_any_role(array['Comercial']);
+  v_technician boolean := public.has_any_role(array['Tecnico']);
+begin
+  select * into v_work from public.work_orders where id = p_work_order_id and deleted_at is null;
+  if v_work.id is null then raise exception 'parte: parte no encontrado o archivado'; end if;
+  perform public.assert_member_of_current_company(v_work.company_id);
+
+  if v_admin then
+    return query
+    select p.id, trim(p.first_name || ' ' || p.last_name)::text, p.primary_area::text, null::text, p.id = v_actor.id
+    from public.profiles p
+    where p.company_id = v_work.company_id and p.active = true and p.deleted_at is null
+    order by p.first_name, p.last_name;
+    return;
+  end if;
+
+  if v_technician then
+    if not public.dmp025_has_active_assignment(v_work.id, v_actor.id) then raise exception 'asignacion: tecnico actor sin asignacion activa para este parte'; end if;
+  elsif not (v_commercial and public.dmp025_can_commercial_operate(v_work, v_actor)) then
+    raise exception 'permiso: rol sin permiso para consultar trabajadores de horas';
+  end if;
+
+  return query
+  select p.id, trim(p.first_name || ' ' || p.last_name)::text, p.primary_area::text, a.role::text, p.id = v_actor.id
+  from public.work_order_assignments a
+  join public.profiles p on p.id = a.technician_id and p.active = true and p.deleted_at is null and p.company_id = v_work.company_id
+  where a.work_order_id = v_work.id and a.company_id = v_work.company_id and a.deleted_at is null and a.status not in ('Finalizado','Cancelado')
+  order by case when a.role = 'Principal' then 0 else 1 end, p.first_name, p.last_name;
+end;
+$$;
+
 create or replace function public.dmp_upsert_work_order_time_entry(p_payload jsonb)
 returns uuid
 language plpgsql

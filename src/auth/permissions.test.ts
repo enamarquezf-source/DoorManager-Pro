@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessRoute, canArchiveEntity, canCreateAlert, canManageCheck, canManageWorkOrderAssignments, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canPermanentlyDeleteEntity, canRestoreEntity, canRole, canViewCheck, canViewWorkOrderCosts, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './permissions';
+import { canAccessRoute, canArchiveEntity, canCreateAlert, canManageCheck, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canPermanentlyDeleteEntity, canRestoreEntity, canRole, canViewCheck, canViewWorkOrderCosts, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './permissions';
 import type { Profile, RoleName } from '../shared/types';
 
 function profile(primary_area: RoleName, roles: RoleName[] = []): Profile {
@@ -142,11 +142,13 @@ describe('canAccessRoute', () => {
       expect(canManageWorkOrderStatus(profile(role), workOrder)).toBe(true);
       expect(canManageWorkOrderTime(profile(role), workOrder)).toBe(true);
       expect(canManageWorkOrderMaterials(profile(role), workOrder)).toBe(true);
+      expect(canManageWorkOrderCosts(profile(role), workOrder)).toBe(true);
       expect(canViewWorkOrderCosts(profile(role))).toBe(true);
     }
     expect(canManageWorkOrderStatus(profile('Tecnico'), workOrder)).toBe(true);
     expect(canManageWorkOrderTime(profile('Tecnico'), workOrder, { profile_id: 'Tecnico-id' })).toBe(true);
     expect(canManageWorkOrderMaterials(profile('Tecnico'), workOrder, { registered_by: 'Tecnico-id' })).toBe(true);
+    expect(canManageWorkOrderCosts(profile('Tecnico'), workOrder, { registered_by: 'Tecnico-id' })).toBe(true);
     expect(canViewWorkOrderCosts(profile('Tecnico'))).toBe(false);
   });
 
@@ -158,10 +160,13 @@ describe('canAccessRoute', () => {
     expect(canManageWorkOrderTime(profile('Tecnico'), assigned)).toBe(true);
     expect(canManageWorkOrderTime(profile('Tecnico'), assigned, { profile_id: 'other-id', created_by: 'Tecnico-id' })).toBe(true);
     expect(canManageWorkOrderMaterials(profile('Tecnico'), assigned)).toBe(true);
+    expect(canManageWorkOrderCosts(profile('Tecnico'), assigned)).toBe(true);
     expect(canManageWorkOrderTime(profile('Tecnico'), unassigned)).toBe(false);
     expect(canManageWorkOrderMaterials(profile('Tecnico'), unassigned)).toBe(false);
+    expect(canManageWorkOrderCosts(profile('Tecnico'), unassigned)).toBe(false);
     expect(canManageWorkOrderTime(profile('Tecnico'), historical)).toBe(false);
     expect(canManageWorkOrderMaterials(profile('Tecnico'), historical)).toBe(false);
+    expect(canManageWorkOrderCosts(profile('Tecnico'), historical)).toBe(false);
   });
 
   it('bloquea Comercial fuera de empresa y roles no operativos para horas/materiales', () => {
@@ -173,20 +178,25 @@ describe('canAccessRoute', () => {
     expect(canManageWorkOrderStatus(profile('Comercial'), commercialWork)).toBe(true);
     expect(canManageWorkOrderTime(profile('Comercial'), commercialWork)).toBe(true);
     expect(canManageWorkOrderMaterials(profile('Comercial'), commercialWork)).toBe(true);
+    expect(canManageWorkOrderCosts(profile('Comercial'), commercialWork)).toBe(true);
     expect(canManageWorkOrderStatus(profile('Comercial'), responsibleCommercialWork)).toBe(true);
     expect(canManageWorkOrderTime(profile('Comercial'), responsibleCommercialWork)).toBe(true);
     expect(canManageWorkOrderMaterials(profile('Comercial'), responsibleCommercialWork)).toBe(true);
     expect(canManageWorkOrderTime(profile('Comercial'), commercialWork, { profile_id: 'other' })).toBe(false);
     expect(canManageWorkOrderMaterials(profile('Comercial'), commercialWork, { registered_by: 'other' })).toBe(false);
+    expect(canManageWorkOrderCosts(profile('Comercial'), commercialWork, { registered_by: 'other' })).toBe(false);
     expect(canManageWorkOrderStatus(profile('Comercial'), satWork)).toBe(false);
     expect(canManageWorkOrderTime(profile('Comercial'), satWork)).toBe(false);
     expect(canManageWorkOrderMaterials(profile('Comercial'), satWork)).toBe(false);
+    expect(canManageWorkOrderCosts(profile('Comercial'), satWork)).toBe(false);
     expect(canManageWorkOrderStatus(profile('Comercial'), otherCommercialWork)).toBe(false);
     expect(canManageWorkOrderTime(profile('Comercial'), otherCommercialWork)).toBe(false);
     expect(canManageWorkOrderMaterials(profile('Comercial'), otherCommercialWork)).toBe(false);
     expect(canManageWorkOrderStatus(profile('Comercial'), otherCompany)).toBe(false);
     expect(canManageWorkOrderTime(profile('Comercial'), otherCompany)).toBe(false);
     expect(canManageWorkOrderMaterials(profile('Oficina'), commercialWork)).toBe(true);
+    expect(canManageWorkOrderCosts(profile('Oficina'), commercialWork)).toBe(true);
     expect(canManageWorkOrderMaterials(profile('Oficina'), otherCompany)).toBe(false);
+    expect(canManageWorkOrderCosts(profile('Oficina'), otherCompany)).toBe(false);
   });
 });

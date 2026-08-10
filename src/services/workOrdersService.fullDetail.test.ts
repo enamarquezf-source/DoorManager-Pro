@@ -8,5 +8,7 @@ describe('workOrdersService full detail queries', () => {
     expect(source).toContain('check_template_sections!check_template_sections_template_id_fkey');
     expect(source).toContain('work_order_photos');
     expect(source).toContain('withSignedFileUrl');
+    expect(source).toContain('work_order_cost_entries');
+    expect(source).toContain('cost_entries: costEntries');
   });
 });

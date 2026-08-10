@@ -43,6 +43,16 @@ describe('workOrdersService operational RPCs', () => {
     expect(from).not.toHaveBeenCalledWith('work_order_materials');
   });
 
+  it('registra recursos y costes mediante la RPC segura 027', async () => {
+    const { workOrdersService } = await import('./workOrdersService');
+    const payload = { work_order_id: 'wo-1', cost_type: 'desplazamiento', description: 'Desplazamiento urbano', quantity: 12, unit: 'km', unit_cost: 0.42, incurred_at: '2026-08-10' };
+
+    await expect(workOrdersService.upsertCostEntry(payload)).resolves.toBe('saved-id');
+
+    expect(rpc).toHaveBeenCalledWith('dmp_upsert_work_order_cost_entry', { p_payload: payload });
+    expect(from).not.toHaveBeenCalledWith('work_order_cost_entries');
+  });
+
   it('propaga errores concretos de permiso/asignacion de Supabase', async () => {
     const { workOrdersService } = await import('./workOrdersService');
     rpc.mockResolvedValueOnce({ data: null, error: { message: 'respuesta de Supabase: asignacion: tecnico sin asignacion activa para este parte operativo' } });

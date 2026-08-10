@@ -132,6 +132,16 @@ export function canManageWorkOrderMaterials(profile: Profile | null | undefined,
   if (hasAny(profile, ['Tecnico'])) return hasActiveTechnicianAssignment(activeProfile, workOrder) && (!row || !row.registered_by || row.registered_by === activeProfile.id);
   return false;
 }
+export function canManageWorkOrderCosts(profile: Profile | null | undefined, workOrder?: any, row?: any) {
+  if (!isActiveProfile(profile)) return false;
+  const activeProfile = profile as Profile;
+  if (!canOperateCompanyWorkOrder(activeProfile, workOrder)) return false;
+  if (['Cerrado','Cancelado'].includes(workOrder?.status)) return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina']);
+  if (hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina'])) return true;
+  if (hasAny(profile, ['Comercial'])) return canCommercialManageWorkOrder(activeProfile, workOrder) && (!row || row.registered_by === activeProfile.id);
+  if (hasAny(profile, ['Tecnico'])) return hasActiveTechnicianAssignment(activeProfile, workOrder) && (!row || row.registered_by === activeProfile.id);
+  return false;
+}
 export function canViewWorkOrderCosts(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina', 'Comercial']); }
 export function canCreateCheck(profile: Profile | null | undefined) { return hasAny(profile, operationalRoles); }
 export function canExecuteCheck(profile: Profile | null | undefined) { return hasAny(profile, operationalRoles); }

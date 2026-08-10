@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessRoute, canArchiveEntity, canCreateAlert, canManageCheck, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canPermanentlyDeleteEntity, canRestoreEntity, canRole, canViewCheck, canViewWorkOrderCosts, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './permissions';
+import { canAccessRoute, canArchiveEntity, canCorrectWorkOrderOperationalFields, canCreateAlert, canManageCheck, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canPermanentlyDeleteEntity, canRestoreEntity, canRole, canViewCheck, canViewWorkOrderCosts, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './permissions';
 import type { Profile, RoleName } from '../shared/types';
 
 function profile(primary_area: RoleName, roles: RoleName[] = []): Profile {
@@ -198,5 +198,24 @@ describe('canAccessRoute', () => {
     expect(canManageWorkOrderCosts(profile('Oficina'), commercialWork)).toBe(true);
     expect(canManageWorkOrderMaterials(profile('Oficina'), otherCompany)).toBe(false);
     expect(canManageWorkOrderCosts(profile('Oficina'), otherCompany)).toBe(false);
+  });
+
+  it('permite correccion operativa de partes a roles autorizados y tecnico asignado', () => {
+    const workOrder = { id: 'work-id', company_id: 'company-id', status: 'Pendiente de envio', origin: 'SAT', assignments: [{ technician_id: 'Tecnico-id', status: 'Asignado' }] };
+    for (const role of ['superadmin', 'SAT', 'Gerencia', 'Oficina'] as RoleName[]) {
+      expect(canCorrectWorkOrderOperationalFields(profile(role), workOrder)).toBe(true);
+    }
+    expect(canCorrectWorkOrderOperationalFields(profile('Tecnico'), workOrder)).toBe(true);
+    expect(canCorrectWorkOrderOperationalFields(profile('Tecnico'), { ...workOrder, assignments: [{ technician_id: 'other-id', status: 'Asignado' }] })).toBe(false);
+    expect(canCorrectWorkOrderOperationalFields(profile('SAT'), { ...workOrder, company_id: 'other-company' })).toBe(false);
+  });
+
+  it('bloquea parte cerrado al tecnico y permite correccion cerrada a oficina autorizada', () => {
+    const closed = { id: 'work-id', company_id: 'company-id', status: 'Cerrado', origin: 'SAT', assignments: [{ technician_id: 'Tecnico-id', status: 'Asignado' }] };
+    expect(canCorrectWorkOrderOperationalFields(profile('Tecnico'), closed)).toBe(false);
+    expect(canCorrectWorkOrderOperationalFields(profile('Oficina'), closed)).toBe(true);
+    expect(canCorrectWorkOrderOperationalFields(profile('SAT'), closed)).toBe(true);
+    expect(canCorrectWorkOrderOperationalFields(profile('Gerencia'), closed)).toBe(true);
+    expect(canCorrectWorkOrderOperationalFields(profile('superadmin'), closed)).toBe(true);
   });
 });

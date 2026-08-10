@@ -62,6 +62,16 @@ describe('workOrdersService operational RPCs', () => {
     expect(from).not.toHaveBeenCalledWith('work_order_cost_entries');
   });
 
+  it('corrige campos operativos de parte mediante RPC auditada 028', async () => {
+    const { workOrdersService } = await import('./workOrdersService');
+    const payload = { diagnosis: 'Guía desajustada', work_performed: 'Ajuste y prueba', result: 'Operativa', planned_material: '', client_id: 'no-debe-enviarse' };
+
+    await expect(workOrdersService.updateOperationalFields('wo-1', payload)).resolves.toBe('saved-id');
+
+    expect(rpc).toHaveBeenCalledWith('dmp_update_work_order_operational_fields', { p_work_order_id: 'wo-1', p_payload: { diagnosis: 'Guía desajustada', work_performed: 'Ajuste y prueba', result: 'Operativa', planned_material: null } });
+    expect(from).not.toHaveBeenCalledWith('work_orders');
+  });
+
   it('propaga errores concretos de permiso/asignacion de Supabase', async () => {
     const { workOrdersService } = await import('./workOrdersService');
     rpc.mockResolvedValueOnce({ data: null, error: { message: 'respuesta de Supabase: asignacion: tecnico sin asignacion activa para este parte operativo' } });

@@ -83,7 +83,22 @@ export function canViewWorkOrder(profile: Profile | null | undefined, workOrder?
   return assignments.some((item: any) => [item.technician_id, item.technician_profile_id, item.profile_id, item.assigned_profile_id, item.profiles?.id, item.profiles?.auth_user_id, item.technician?.id, item.technician?.auth_user_id].some((value) => profileIds.has(value)));
 }
 
-export function canEditWorkOrder(profile: Profile | null | undefined) { return hasAny(profile, adminRoles); }
+export function canEditWorkOrder(profile: Profile | null | undefined, workOrder?: any) {
+  if (!isActiveProfile(profile)) return false;
+  const activeProfile = profile as Profile;
+  if (!canOperateCompanyWorkOrder(activeProfile, workOrder)) return false;
+  return hasAny(profile, adminRoles);
+}
+export function canCorrectWorkOrderOperationalFields(profile: Profile | null | undefined, workOrder?: any) {
+  if (!isActiveProfile(profile)) return false;
+  const activeProfile = profile as Profile;
+  if (!canOperateCompanyWorkOrder(activeProfile, workOrder)) return false;
+  if (['Cerrado','Cancelado'].includes(workOrder?.status)) return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina']);
+  if (hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina'])) return true;
+  if (hasAny(profile, ['Comercial'])) return canCommercialManageWorkOrder(activeProfile, workOrder);
+  if (hasAny(profile, ['Tecnico'])) return hasActiveTechnicianAssignment(activeProfile, workOrder);
+  return false;
+}
 export function canCreateWorkOrder(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Comercial']); }
 export function canAssignTechnician(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Gerencia']); }
 export function canManageWorkOrderAssignments(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Gerencia']); }

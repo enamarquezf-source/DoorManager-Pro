@@ -7,7 +7,7 @@ const workOrderColumns = ['case_id', 'client_id', 'site_id', 'main_equipment_id'
 function workOrderPayload(payload: Record<string, any>) {
   return Object.fromEntries(workOrderColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
 }
-const workOrderOperationalColumns = ['description', 'diagnosis', 'work_performed', 'result', 'planned_material'];
+const workOrderOperationalColumns = ['description', 'diagnosis', 'work_performed', 'result', 'observations', 'planned_material'];
 function workOrderOperationalPayload(payload: Record<string, any>) {
   return Object.fromEntries(workOrderOperationalColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
 }

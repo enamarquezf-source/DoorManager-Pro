@@ -17,7 +17,7 @@ export function interventionSummary(workOrder: PresentationRecord | null | undef
     diagnosis: textValue(workOrder?.diagnosis) ?? pick('Diagnóstico'),
     work: textValue(workOrder?.work_performed) ?? pick('Trabajo realizado'),
     observations: textValue(workOrder?.observations) ?? pick('Observaciones'),
-    result: textValue(workOrder?.result) ?? textValue(workOrder?.status),
+    result: textValue(workOrder?.result) ?? pick('Resultado') ?? pick('Solución') ?? textValue(workOrder?.status),
     syncedAt: latestDate([...notes, ...asRows(workOrder?.materials), ...asRows(workOrder?.photos), ...asRows(workOrder?.signatures)]),
   };
 }

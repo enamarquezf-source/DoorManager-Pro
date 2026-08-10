@@ -91,8 +91,16 @@ describe('workOrdersService operational RPCs', () => {
 
     await expect(workOrdersService.updateOperationalFields('wo-1', payload)).resolves.toBe('saved-id');
 
-    expect(rpc).toHaveBeenCalledWith('dmp_update_work_order_operational_fields', { p_work_order_id: 'wo-1', p_payload: { description: 'Problema corregido', diagnosis: 'Diagnostico SAT', work_performed: 'Trabajo revisado', result: 'Operativa', planned_material: 'Bisagra' } });
+    expect(rpc).toHaveBeenCalledWith('dmp_update_work_order_operational_fields', { p_work_order_id: 'wo-1', p_payload: { description: 'Problema corregido', diagnosis: 'Diagnostico SAT', work_performed: 'Trabajo revisado', result: 'Operativa', planned_material: 'Bisagra', observations: 'no-debe-salir' } });
     expect(from).not.toHaveBeenCalledWith('work_orders');
+  });
+
+  it('puede corregir un unico campo operativo sin borrar los demas del payload', async () => {
+    const { workOrdersService } = await import('./workOrdersService');
+
+    await expect(workOrdersService.updateOperationalFields('wo-1', { diagnosis: 'radar mal orientado' })).resolves.toBe('saved-id');
+
+    expect(rpc).toHaveBeenCalledWith('dmp_update_work_order_operational_fields', { p_work_order_id: 'wo-1', p_payload: { diagnosis: 'radar mal orientado' } });
   });
 
   it('propaga errores concretos de permiso/asignacion de Supabase', async () => {

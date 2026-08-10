@@ -18,6 +18,30 @@ describe('work order presentation adapters', () => {
     expect(summary.observations).toBe('Correccion final');
   });
 
+  it('prioriza los campos actuales corregidos sobre la nota tecnica historica', () => {
+    const summary = interventionSummary({
+      diagnosis: 'radar mal orientado',
+      work_performed: 'reajuste y prueba de seguridad',
+      result: 'operativa tras prueba',
+      observations: 'cliente informado',
+      work_order_notes: [{ note: 'Diagnóstico: prueba\nTrabajo realizado: prueba\nObservaciones: prueba', created_at: '2026-08-03T10:00:00Z' }],
+    });
+
+    expect(summary.diagnosis).toBe('radar mal orientado');
+    expect(summary.work).toBe('reajuste y prueba de seguridad');
+    expect(summary.result).toBe('operativa tras prueba');
+    expect(summary.observations).toBe('cliente informado');
+  });
+
+  it('mantiene la nota antigua en el historial aunque el valor actual este corregido', () => {
+    const events = activityTimeline({
+      diagnosis: 'radar mal orientado',
+      work_order_notes: [{ note: 'Diagnóstico: prueba', created_at: '2026-08-03T10:00:00Z' }],
+    });
+
+    expect(events).toContainEqual({ type: 'Nota', date: '2026-08-03T10:00:00Z', author: null, title: 'Intervención', text: 'Diagnóstico: prueba' });
+  });
+
   it('unifica actividad cronologica de notas, materiales, fotos, firmas y checks', () => {
     const events = activityTimeline({ notes: [{ note: 'Nota', created_at: '2026-08-03T10:00:00Z' }], photos: [{ name: 'foto.jpg', taken_at: '2026-08-03T11:00:00Z' }], signatures: [{ signer_name: 'Cliente', signed_at: '2026-08-03T12:00:00Z' }], materials: [{ description: 'Fusible', created_at: '2026-08-03T09:00:00Z' }], checks: [{ code: 'CHK', created_at: '2026-08-03T08:00:00Z' }] });
     expect(events.map((event) => event.type)).toEqual(['Firma', 'Foto', 'Nota', 'Material', 'Check']);

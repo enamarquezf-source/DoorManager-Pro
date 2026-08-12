@@ -7,6 +7,10 @@ const equipmentColumns = ['client_id', 'site_id', 'equipment_type_id', 'brand', 
 function equipmentPayload(payload: Record<string, any>) {
   return Object.fromEntries(equipmentColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
 }
+const componentColumns = ['component_type', 'brand', 'model', 'serial_number', 'installed_at', 'status', 'technical_config', 'notes'];
+function componentPayload(payload: Record<string, any>) {
+  return Object.fromEntries(componentColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
+}
 
 export const equipmentService = {
   async list(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active') {
@@ -48,8 +52,26 @@ export const equipmentService = {
     return expectData<any>(supabase.from('equipment').update(equipmentPayload(payload)).eq('id', id).select().maybeSingle());
   },
   async addComponent(equipment_id: string, payload: Record<string, any>) {
-    const parent = await expectData<any>(supabase.from('equipment').select('company_id').eq('id', equipment_id).single());
+    const parent = await expectData<any>(supabase.from('equipment').select('company_id').eq('id', equipment_id).single(), { service: 'equipmentService', operation: 'load equipment for component', resource: equipment_id });
     const company_id = parent.company_id;
-    return expectData<any>(supabase.from('equipment_components').insert({ ...payload, equipment_id, company_id }).select().single());
+    const safePayload = { ...componentPayload(payload), equipment_id, company_id };
+    const { data, error } = await supabase.from('equipment_components').insert(safePayload).select().maybeSingle();
+    if (error) {
+      console.error('DMP equipment component save failed', { payload: safePayload, message: error?.message, details: error?.details, hint: error?.hint, code: error?.code, name: error?.name });
+      return expectData<any>(Promise.resolve({ data, error }), { service: 'equipmentService', operation: 'create equipment component', resource: equipment_id });
+    }
+    return data;
+  },
+  async updateComponent(id: string, payload: Record<string, any>) {
+    const safePayload = componentPayload(payload);
+    const { data, error } = await supabase.from('equipment_components').update(safePayload).eq('id', id).select().maybeSingle();
+    if (error) {
+      console.error('DMP equipment component save failed', { payload: safePayload, message: error?.message, details: error?.details, hint: error?.hint, code: error?.code, name: error?.name });
+      return expectData<any>(Promise.resolve({ data, error }), { service: 'equipmentService', operation: 'update equipment component', resource: id });
+    }
+    return data;
+  },
+  async deleteComponent(id: string) {
+    return expectData<any>(supabase.from('equipment_components').update({ deleted_at: new Date().toISOString() }).eq('id', id).select().maybeSingle(), { service: 'equipmentService', operation: 'delete equipment component', resource: id });
   },
 };

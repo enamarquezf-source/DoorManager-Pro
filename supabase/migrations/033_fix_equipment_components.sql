@@ -183,6 +183,6 @@ create policy quotes_update_commercial on public.quotes for update to authentica
 
 drop policy if exists quotes_delete_superadmin on public.quotes;
 create policy quotes_delete_superadmin on public.quotes for delete to authenticated
-  using (company_id = public.current_company_id() and public.is_superadmin());
+  using (company_id = public.current_company_id() and public.has_any_role(array['superadmin']));
 
 commit;

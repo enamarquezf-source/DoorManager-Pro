@@ -24,6 +24,15 @@ describe('equipment components and quotes 033', () => {
     expect(migration.toLowerCase()).not.toContain('disable row level security');
   });
 
+  it('uses real permission helpers available in this project', () => {
+    expect(migration).not.toContain('is_superadmin()');
+    expect(migration).toContain('public.has_any_role');
+    expect(migration).toContain("public.has_any_role(array['superadmin']");
+    expect(migration).toContain('public.current_company_id()');
+    expect(migration).toContain('public.current_profile_id()');
+    expect(migration).toContain('public.is_assigned_to_work_order');
+  });
+
   it('keeps component payload safe and logs Supabase diagnostics', () => {
     expect(equipmentService).toContain('componentColumns');
     expect(equipmentService).toContain('componentPayload');

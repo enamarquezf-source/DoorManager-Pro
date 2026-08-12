@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toSpanishSupabaseError } from './query';
+import { SupabaseOperationError, toSpanishSupabaseError } from './query';
 
 describe('query error mapping', () => {
   it('no oculta errores de RPC no disponible o migracion pendiente', () => {
@@ -7,5 +7,11 @@ describe('query error mapping', () => {
 
     expect(toSpanishSupabaseError({ message })).toContain('dmp_update_work_order_operational_fields');
     expect(toSpanishSupabaseError({ message })).toContain('migracion pendiente');
+  });
+
+  it('conserva metadatos seguros del error original de Supabase', () => {
+    const error = new SupabaseOperationError('Operacion fallida', { code: '23514', details: 'Constraint audit_log_operation_check', hint: 'Permite OPERATIONAL_UPDATE' });
+
+    expect(error).toMatchObject({ name: 'SupabaseOperationError', code: '23514', details: 'Constraint audit_log_operation_check', hint: 'Permite OPERATIONAL_UPDATE' });
   });
 });

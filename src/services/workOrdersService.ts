@@ -9,7 +9,7 @@ function workOrderPayload(payload: Record<string, any>) {
 }
 const workOrderOperationalColumns = ['description', 'diagnosis', 'work_performed', 'result', 'observations', 'planned_material'];
 function workOrderOperationalPayload(payload: Record<string, any>) {
-  return Object.fromEntries(workOrderOperationalColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
+  return Object.fromEntries(workOrderOperationalColumns.filter((key) => key in payload && payload[key] !== undefined).map((key) => [key, payload[key]]));
 }
 
 function dataUrlToBlob(dataUrl: string) {
@@ -169,8 +169,14 @@ export const workOrdersService = {
   update(id: string, payload: Record<string, any>) {
     return expectData<any>(supabase.from('work_orders').update(workOrderPayload(payload)).eq('id', id).select().maybeSingle());
   },
-  updateOperationalFields(id: string, payload: Record<string, any>) {
-    return expectData<any>(supabase.rpc('dmp_update_work_order_operational_fields', { p_work_order_id: id, p_payload: workOrderOperationalPayload(payload) }), { service: 'workOrdersService', operation: 'Corregir campos operativos del parte', resource: 'dmp_update_work_order_operational_fields' });
+  async updateOperationalFields(id: string, payload: Record<string, any>) {
+    const operationalPayload = workOrderOperationalPayload(payload);
+    const params = { p_work_order_id: id, p_payload: operationalPayload };
+    const { data, error } = await supabase.rpc('dmp_update_work_order_operational_fields', params);
+    if (error) {
+      console.error('DMP operational update failed', { rpc: 'dmp_update_work_order_operational_fields', workOrderId: id, payload: operationalPayload, message: error?.message, details: error?.details, hint: error?.hint, code: error?.code, name: error?.name });
+    }
+    return expectData<any>(Promise.resolve({ data, error }), { service: 'workOrdersService', operation: 'Corregir campos operativos del parte', resource: 'dmp_update_work_order_operational_fields' });
   },
   async assign(workOrderId: string, technicianId: string, assignmentDate: string, start: string | null, end: string | null, role = 'Principal') {
     const profileId = await currentProfileId();

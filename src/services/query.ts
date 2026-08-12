@@ -2,6 +2,22 @@ import { supabase } from '../lib/supabase/client';
 
 type QueryContext = { service: string; operation: string; resource?: string };
 
+export class SupabaseOperationError extends Error {
+  code?: string;
+  details?: string;
+  hint?: string;
+  originalError: any;
+
+  constructor(message: string, error: any) {
+    super(message);
+    this.name = 'SupabaseOperationError';
+    this.code = error?.code;
+    this.details = error?.details;
+    this.hint = error?.hint;
+    this.originalError = error;
+  }
+}
+
 export async function expectData<T>(query: PromiseLike<{ data: T | null; error: any }>, context?: QueryContext | string) {
   const { data, error } = await query;
   if (error) {
@@ -16,7 +32,7 @@ export async function expectData<T>(query: PromiseLike<{ data: T | null; error: 
       hint: error?.hint,
     });
     const prefix = safeContext?.operation ? `${safeContext.operation}: ` : '';
-    throw new Error(`${prefix}${toSpanishSupabaseError(error)}`);
+    throw new SupabaseOperationError(`${prefix}${toSpanishSupabaseError(error)}`, error);
   }
   return data as T;
 }

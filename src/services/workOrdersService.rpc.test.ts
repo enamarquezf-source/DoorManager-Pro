@@ -81,7 +81,7 @@ describe('workOrdersService operational RPCs', () => {
 
     await expect(workOrdersService.updateOperationalFields('wo-1', payload)).resolves.toBe('saved-id');
 
-    expect(rpc).toHaveBeenCalledWith('dmp_update_work_order_operational_fields', { p_work_order_id: 'wo-1', p_payload: { diagnosis: 'Guía desajustada', work_performed: 'Ajuste y prueba', result: 'Operativa', planned_material: null } });
+    expect(rpc).toHaveBeenCalledWith('dmp_update_work_order_operational_fields', { p_work_order_id: 'wo-1', p_payload: { diagnosis: 'Guía desajustada', work_performed: 'Ajuste y prueba', result: 'Operativa', planned_material: '' } });
     expect(from).not.toHaveBeenCalledWith('work_orders');
   });
 
@@ -101,6 +101,22 @@ describe('workOrdersService operational RPCs', () => {
     await expect(workOrdersService.updateOperationalFields('wo-1', { diagnosis: 'radar mal orientado' })).resolves.toBe('saved-id');
 
     expect(rpc).toHaveBeenCalledWith('dmp_update_work_order_operational_fields', { p_work_order_id: 'wo-1', p_payload: { diagnosis: 'radar mal orientado' } });
+  });
+
+  it('no envia undefined y conserva strings vacios como borrado explicito', async () => {
+    const { workOrdersService } = await import('./workOrdersService');
+
+    await expect(workOrdersService.updateOperationalFields('wo-1', { description: '', diagnosis: undefined, planned_material: 'Radar' })).resolves.toBe('saved-id');
+
+    expect(rpc).toHaveBeenCalledWith('dmp_update_work_order_operational_fields', { p_work_order_id: 'wo-1', p_payload: { description: '', planned_material: 'Radar' } });
+  });
+
+  it('conserva message details hint y code cuando falla la RPC operativa', async () => {
+    const { workOrdersService } = await import('./workOrdersService');
+    const error = { message: 'new row for relation "audit_log" violates check constraint "audit_log_operation_check"', details: 'Failing row contains OPERATIONAL_UPDATE', hint: 'Revise el constraint', code: '23514', name: 'PostgrestError' };
+    rpc.mockResolvedValueOnce({ data: null, error });
+
+    await expect(workOrdersService.updateOperationalFields('wo-1', { observations: 'Actualizada' })).rejects.toMatchObject({ message: expect.stringContaining('Corregir campos operativos del parte'), details: error.details, hint: error.hint, code: error.code, name: 'SupabaseOperationError' });
   });
 
   it('propaga errores concretos de permiso/asignacion de Supabase', async () => {

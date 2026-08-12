@@ -58,6 +58,7 @@ describe('real technical work current fields 030', () => {
 
   it('usa la firma RPC consumida por frontend', () => {
     expect(migration).toContain('create or replace function public.dmp_update_work_order_operational_fields(p_work_order_id uuid, p_payload jsonb)');
-    expect(service).toContain("supabase.rpc('dmp_update_work_order_operational_fields', { p_work_order_id: id, p_payload: workOrderOperationalPayload(payload) })");
+    expect(service).toContain('const params = { p_work_order_id: id, p_payload: operationalPayload }');
+    expect(service).toContain("supabase.rpc('dmp_update_work_order_operational_fields', params)");
   });
 });

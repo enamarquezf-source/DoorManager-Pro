@@ -165,6 +165,22 @@ button.danger:disabled { opacity: .6; cursor: progress; }
 .quote-detail-page { max-width: 1180px; margin-inline: auto; }
 .quote-head { align-items: flex-start; }
 .quote-print { display: grid; gap: 16px; min-width: 0; }
+.print-only { display: none; }
+.quote-report { background: white; color: #172033; border: 1px solid var(--line); border-radius: 24px; padding: 24px; display: none; gap: 18px; }
+.quote-report-hero { display: flex; justify-content: space-between; gap: 18px; padding: 20px; border-radius: 22px; background: linear-gradient(135deg, #111827, #24324a); color: white; }
+.quote-report-hero h1, .quote-report-hero p { margin: 0; }
+.quote-report-hero span, .quote-report-hero strong { display: block; color: #e2e8f0; text-align: right; }
+.quote-report-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.quote-report-grid div, .quote-report-section, .quote-report-totals div { border: 1px solid #e7edf5; border-radius: 16px; background: #f8fafc; padding: 14px; }
+.quote-report-grid h3, .quote-report-section h3 { margin: 0 0 8px; }
+.quote-report-grid p, .quote-report-section p { margin: 0; color: #334155; line-height: 1.5; }
+.quote-report-table { overflow-x: auto; }
+.quote-report-table table { min-width: 680px; }
+.quote-report-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.quote-report-totals span, .quote-report-totals small { display: block; color: var(--text-soft); font-size: 12px; font-weight: 850; }
+.quote-report-totals strong { display: block; margin-top: 4px; font-size: 19px; }
+.quote-report-total { background: #111827 !important; color: white; }
+.quote-report-total span { color: #cbd5e1; }
 .quote-lines-table { max-width: 100%; overflow-x: auto; }
 .quote-lines-table table { min-width: 760px; }
 .table-card.slim table { min-width: 700px; }
@@ -420,9 +436,13 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
 
 @media print {
   body { background: white; }
-  .sidebar, .topbar, .version-strip, .connectivity-banner, .runtime-error, .quote-head .actions, .link-button, .modal-footer { display: none !important; }
-  main, .page, .quote-detail-page { padding: 0 !important; max-width: none !important; }
+  .sidebar, .topbar, .version-strip, .connectivity-banner, .runtime-error, .screen-only, .link-button, .modal-footer { display: none !important; }
+  main, .page, .quote-detail-page { padding: 0 !important; max-width: none !important; display: block !important; }
   .card, .table-card { box-shadow: none; break-inside: avoid; }
+  .print-only, .quote-report { display: grid !important; }
+  .quote-report { border: 0; border-radius: 0; padding: 0; box-shadow: none; }
+  .quote-report-table { overflow: visible; }
+  .quote-report-table table { min-width: 0; }
   .quote-lines-table { overflow: visible; }
   .quote-lines-table table { min-width: 0; }
 }

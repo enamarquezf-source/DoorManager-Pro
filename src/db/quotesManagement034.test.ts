@@ -97,7 +97,7 @@ describe('quotes management 034', () => {
 
   it('models discount type, taxable base, VAT and margin without VAT profit', () => {
     for (const sql of [migration, economicsFixMigration, discountTaxMarginMigration]) {
-      expect(sql).toContain("discount_type text not null default 'percentage'");
+      expect(sql).toContain("discount_type text not null default 'amount'");
       expect(sql).toContain('discount_value numeric(12,2) not null default 0');
       expect(sql).toContain('taxable_base numeric(12,2) not null default 0');
       expect(sql).toContain("discount_type in ('percentage','amount')");
@@ -118,9 +118,35 @@ describe('quotes management 034', () => {
     expect(app).toContain('Beneficio estimado sin IVA');
   });
 
+  it('separates printable client and internal quote reports', () => {
+    expect(app).toContain('Imprimir informe cliente');
+    expect(app).toContain('Imprimir informe interno DMP');
+    expect(app).toContain("printQuote('client')");
+    expect(app).toContain("printQuote('internal')");
+    expect(app).toContain('function QuotePrintableReport');
+    expect(app).toContain("variant: 'client' | 'internal'");
+    expect(app).toContain('client-report');
+    expect(app).toContain('internal-report');
+    expect(app).toContain('Subtotal coste interno');
+    expect(app).toContain('Beneficio estimado sin IVA');
+    expect(app).toContain('Margen línea');
+    expect(app).toContain('Total cliente con IVA');
+    expect(app).toContain('Base imponible');
+    expect(app).not.toContain('window.open');
+  });
+
+  it('keeps quote statuses ready for future invoicing without changing totals on status edits', () => {
+    for (const status of ['Borrador', 'Enviado', 'Aceptado', 'Ejecutado en cliente', 'Rechazado', 'Caducado', 'Cancelado']) expect(quotesService).toContain(status);
+    expect(app).toContain('Estados candidatos para fases futuras: Aceptado y Ejecutado en cliente');
+    expect(quotesService).toContain('return this.update(id, { status: \'Enviado\'');
+    expect(quotesService).not.toContain('tax_amount: payload.status');
+    expect(quotesService).not.toContain('total_amount: payload.status');
+  });
+
   it('connects UI for edit print send material and manual lines', () => {
     expect(app).toContain('Editar presupuesto');
-    expect(app).toContain('Imprimir presupuesto');
+    expect(app).toContain('Imprimir informe cliente');
+    expect(app).toContain('Imprimir informe interno DMP');
     expect(app).toContain('Enviar al cliente');
     expect(app).toContain('QuoteSendModal');
     expect(app).toContain('Material manual / sin catálogo');

@@ -6,7 +6,7 @@ begin;
 alter table public.quotes add column if not exists conditions text;
 alter table public.quotes add column if not exists sent_at timestamptz;
 alter table public.quotes add column if not exists sent_to_email text;
-alter table public.quotes add column if not exists discount_type text not null default 'percentage';
+alter table public.quotes add column if not exists discount_type text not null default 'amount';
 alter table public.quotes add column if not exists discount_value numeric(12,2) not null default 0;
 alter table public.quotes add column if not exists taxable_base numeric(12,2) not null default 0;
 

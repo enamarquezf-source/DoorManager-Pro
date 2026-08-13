@@ -60,8 +60,8 @@ describe('equipment components and quotes 033', () => {
     expect(quotesService).toContain("supabase.from('quote_lines')");
     expect(app).toContain('function QuotesModule');
     expect(app).toContain('QuoteLineForm');
-    expect(app).toContain("['instalacion','Instalación']");
-    expect(app).toContain("['labor','Horas']");
+    expect(app).toContain('quoteTypes.map');
+    expect(app).toContain('quoteLineTypes.map');
     expect(permissions).toContain("path.startsWith('/app/modulos/presupuestos')");
     expect(permissions).toContain("['superadmin', 'SAT', 'Gerencia', 'Comercial']");
   });

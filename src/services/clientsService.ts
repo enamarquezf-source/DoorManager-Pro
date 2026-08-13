@@ -11,13 +11,13 @@ function clientPayload(payload: Record<string, any>) {
 export const clientsService = {
   async list(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active') {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
-    let query = applyArchiveFilter(supabase.from('clients').select('*, companies!clients_company_id_fkey(name), client_contacts!client_contacts_client_id_fkey(*), sites!sites_client_id_fkey(id, code, name), equipment!equipment_client_id_fkey(id, code), cases!cases_client_id_fkey(id, code), work_orders!work_orders_client_id_fkey(id, code)'), archiveFilter).order('legal_name');
+    let query = applyArchiveFilter(supabase.from('clients').select('*, companies!clients_company_id_fkey(name), client_contacts!client_contacts_client_id_fkey(*), sites!sites_client_id_fkey(id, code, name), equipment!equipment_client_id_fkey(id, code), cases!cases_client_id_fkey(id, code), work_orders!work_orders_client_id_fkey(id, code), quotes!quotes_client_id_fkey(id, code, title, status, total_amount, total, estimated_margin)'), archiveFilter).order('legal_name');
     if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'legal_name', 'trade_name', 'tax_id', 'email', 'phone'], search));
     return expectData<any[]>(query);
   },
   async get(id: string) {
-    const row = await expectData<any>(supabase.from('clients').select('*, client_contacts!client_contacts_client_id_fkey(*), sites!sites_client_id_fkey(*), equipment!equipment_client_id_fkey(*), cases!cases_client_id_fkey(*), work_orders!work_orders_client_id_fkey(*)').eq('id', id).maybeSingle());
+    const row = await expectData<any>(supabase.from('clients').select('*, client_contacts!client_contacts_client_id_fkey(*), sites!sites_client_id_fkey(*), equipment!equipment_client_id_fkey(*), cases!cases_client_id_fkey(*), work_orders!work_orders_client_id_fkey(*), quotes!quotes_client_id_fkey(*, sites!quotes_site_id_fkey(name), equipment!quotes_equipment_id_fkey(code), work_orders!quotes_work_order_id_fkey(code))').eq('id', id).maybeSingle());
     if (!row) throw new Error('No se ha encontrado el cliente solicitado.');
     return row;
   },

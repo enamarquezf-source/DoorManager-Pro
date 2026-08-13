@@ -1,15 +1,22 @@
 import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, currentProfileId, expectData } from './query';
+import { codesService } from './codesService';
 
-const quoteColumns = ['client_id', 'site_id', 'equipment_id', 'work_order_id', 'opportunity_id', 'case_id', 'quote_type', 'status', 'title', 'description', 'valid_until', 'discount_amount'];
-const lineColumns = ['quote_id', 'line_type', 'description', 'quantity', 'unit', 'unit_cost', 'unit_price', 'tax_rate', 'material_id', 'profile_id', 'position'];
+export const quoteStatuses = ['Borrador', 'Enviado', 'Aceptado', 'Ejecutado en cliente', 'Rechazado'] as const;
+export const quoteTypes = ['instalacion', 'reparacion', 'mantenimiento'] as const;
+export const quoteLineTypes = ['material', 'labor', 'transport', 'travel', 'mobile_workshop', 'lifting_platform', 'auxiliary_equipment', 'external_cost', 'fee', 'discount', 'other'] as const;
+
+const quoteColumns = ['client_id', 'site_id', 'equipment_id', 'work_order_id', 'opportunity_id', 'case_id', 'quote_type', 'status', 'title', 'description', 'valid_until', 'discount_amount', 'conditions', 'sent_at', 'sent_to_email'];
+const lineColumns = ['quote_id', 'line_type', 'description', 'quantity', 'unit', 'unit_cost', 'unit_price', 'tax_rate', 'material_id', 'profile_id', 'position', 'discount_percent'];
 
 function cleanPayload(payload: Record<string, any>, columns: string[]) {
   return Object.fromEntries(columns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
 }
 
-function normalizeQuote(payload: Record<string, any>) {
-  return { status: 'Borrador', quote_type: 'reparacion', ...cleanPayload(payload, quoteColumns) };
+function normalizeQuote(payload: Record<string, any>, defaults = false) {
+  const next = { ...(defaults ? { status: 'Borrador', quote_type: 'reparacion' } : {}), ...cleanPayload(payload, quoteColumns) };
+  if (next.status === 'Mandado') next.status = 'Enviado';
+  return next;
 }
 
 function normalizeLine(payload: Record<string, any>) {
@@ -28,21 +35,52 @@ export const quotesService = {
     return expectData<any[]>(query, { service: 'quotesService', operation: 'list quotes' });
   },
   async get(id: string) {
-    const row = await expectData<any>(supabase.from('quotes').select('*, clients!quotes_client_id_fkey(code,legal_name), sites!quotes_site_id_fkey(code,name), equipment!quotes_equipment_id_fkey(code), work_orders!quotes_work_order_id_fkey(code,title), opportunities!quotes_opportunity_id_fkey(code,title), quote_lines!quote_lines_quote_id_fkey(*)').eq('id', id).maybeSingle(), { service: 'quotesService', operation: 'get quote', resource: id });
+    const row = await expectData<any>(supabase.from('quotes').select('*, clients!quotes_client_id_fkey(code,legal_name,email), sites!quotes_site_id_fkey(code,name,address), equipment!quotes_equipment_id_fkey(code,brand,model), work_orders!quotes_work_order_id_fkey(code,title), opportunities!quotes_opportunity_id_fkey(code,title), quote_lines!quote_lines_quote_id_fkey(*)').eq('id', id).maybeSingle(), { service: 'quotesService', operation: 'get quote', resource: id });
     if (!row) throw new Error('No se ha encontrado el presupuesto solicitado.');
+    row.quote_lines = (row.quote_lines ?? []).sort((a: any, b: any) => Number(a.position ?? 0) - Number(b.position ?? 0));
     return row;
   },
   async create(payload: Record<string, any>) {
     const company_id = payload.company_id || await currentCompanyId();
     const created_by = await currentProfileId();
-    return expectData<any>(supabase.from('quotes').insert({ ...normalizeQuote(payload), company_id, created_by }).select().maybeSingle(), { service: 'quotesService', operation: 'create quote' });
+    const code = payload.code || await codesService.next('quotes', 'PRE', true, 6, company_id);
+    const insertPayload = { ...normalizeQuote(payload, true), company_id, created_by, code };
+    try {
+      return await expectData<any>(supabase.from('quotes').insert(insertPayload).select().maybeSingle(), { service: 'quotesService', operation: 'create quote' });
+    } catch (error: any) {
+      console.error('DMP quote operation failed', { action: 'create quote', payload: insertPayload, message: error?.message, details: error?.details, hint: error?.hint, code: error?.code, name: error?.name });
+      throw error;
+    }
   },
   async update(id: string, payload: Record<string, any>) {
-    return expectData<any>(supabase.from('quotes').update(normalizeQuote(payload)).eq('id', id).select().maybeSingle(), { service: 'quotesService', operation: 'update quote', resource: id });
+    const updated_by = await currentProfileId();
+    return expectData<any>(supabase.from('quotes').update({ ...normalizeQuote(payload), updated_by }).eq('id', id).select().maybeSingle(), { service: 'quotesService', operation: 'update quote', resource: id });
   },
   async addLine(quoteId: string, payload: Record<string, any>) {
     const quote = await this.get(quoteId);
     const position = payload.position ?? ((quote.quote_lines ?? []).filter((line: any) => !line.deleted_at).length + 1);
     return expectData<any>(supabase.from('quote_lines').insert({ ...normalizeLine({ ...payload, position }), quote_id: quoteId, company_id: quote.company_id }).select().maybeSingle(), { service: 'quotesService', operation: 'add quote line', resource: quoteId });
+  },
+  updateLine(lineId: string, payload: Record<string, any>) {
+    return expectData<any>(supabase.from('quote_lines').update(normalizeLine(payload)).eq('id', lineId).select().maybeSingle(), { service: 'quotesService', operation: 'update quote line', resource: lineId });
+  },
+  deleteLine(lineId: string) {
+    return expectData<any>(supabase.from('quote_lines').update({ deleted_at: new Date().toISOString() }).eq('id', lineId).select().maybeSingle(), { service: 'quotesService', operation: 'delete quote line', resource: lineId });
+  },
+  sendToClient(id: string, email: string) {
+    return this.update(id, { status: 'Enviado', sent_at: new Date().toISOString(), sent_to_email: email });
+  },
+  async materialOptions(search = '') {
+    let query = supabase.from('materials').select('id, code, description, unit, unit_price').is('deleted_at', null).order('description').limit(30);
+    if (search) query = query.or(contains(['code', 'description'], search));
+    return expectData<any[]>(query, { service: 'quotesService', operation: 'list quote materials' });
+  },
+  economics(quotes: any[]) {
+    const active = quotes.filter((quote) => !quote.deleted_at);
+    const byStatus = Object.fromEntries(quoteStatuses.map((status) => [status, active.filter((quote) => quote.status === status).length]));
+    const cost = active.reduce((sum, quote) => sum + Number(quote.subtotal_cost ?? 0), 0);
+    const sale = active.reduce((sum, quote) => sum + Number(quote.subtotal_sale ?? quote.subtotal ?? 0), 0);
+    const total = active.reduce((sum, quote) => sum + Number(quote.total_amount ?? quote.total ?? 0), 0);
+    return { count: active.length, total, accepted: active.filter((quote) => quote.status === 'Aceptado').reduce((sum, quote) => sum + Number(quote.total_amount ?? quote.total ?? 0), 0), executed: active.filter((quote) => quote.status === 'Ejecutado en cliente').reduce((sum, quote) => sum + Number(quote.total_amount ?? quote.total ?? 0), 0), cost, sale, margin: sale - cost, byStatus };
   },
 };

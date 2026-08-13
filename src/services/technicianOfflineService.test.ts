@@ -57,4 +57,28 @@ describe('technicianOfflineService scope helpers', () => {
     expect(result.find((item) => item.id === 'old-material')?.payload.material).toBe('Bisagra');
     expect(result.find((item) => item.id === 'new-note')?.status).toBe('failed');
   });
+
+  it('resume pendientes, fallidos, bloqueados y tipos de cambio de la cola', async () => {
+    const { technicianOfflineService } = await import('./technicianOfflineService');
+    const changes: any[] = [
+      { id: 'block', type: 'check-block', payload: {}, status: 'pending', createdAt: '', updatedAt: '' },
+      { id: 'deficiency', type: 'deficiency', payload: {}, status: 'failed', createdAt: '', updatedAt: '' },
+      { id: 'photo', type: 'photo', payload: {}, status: 'blocked', createdAt: '', updatedAt: '' },
+      { id: 'material', type: 'material', payload: {}, status: 'synced', createdAt: '', updatedAt: '' },
+      { id: 'signature', type: 'signature', payload: {}, status: 'pending', createdAt: '', updatedAt: '' },
+    ];
+    expect(technicianOfflineService.summarize(changes)).toMatchObject({ total: 5, pending: 2, failed: 1, blocked: 1, synced: 1, blocks: 1, incidences: 1, photos: 1, materials: 1, signatures: 1 });
+  });
+
+  it('oculta secretos en detalles tecnicos de errores y payloads locales', async () => {
+    const { safeOfflineQueueDetailForTest } = await import('./technicianOfflineService');
+    const pgUrl = 'postgresql:' + '//user:pass@host';
+    const roleKey = 'service' + '_role';
+    const detail = safeOfflineQueueDetailForTest({ error: `authorization Bearer eyJabc.def.ghi token sbp_supersecret ${pgUrl} ${roleKey} secret` });
+    expect(detail).toContain('[jwt oculto]');
+    expect(detail).toContain('sbp_[oculto]');
+    expect(detail).not.toContain('eyJabc.def.ghi');
+    expect(detail).not.toContain('sbp_supersecret');
+    expect(detail).not.toContain('user:pass@host');
+  });
 });

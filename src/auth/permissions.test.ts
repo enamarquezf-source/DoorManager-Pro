@@ -38,7 +38,15 @@ describe('canAccessRoute', () => {
     expect(isSuperadmin(owner)).toBe(true);
     expect(canAccessRoute(owner, '/app/superadmin')).toBe(true);
     expect(canAccessRoute(owner, '/app/superadmin/usuarios/nuevo')).toBe(true);
+    expect(canAccessRoute(owner, '/app/modulos/presupuestos')).toBe(true);
+    expect(canAccessRoute(owner, '/app/modulos/presupuestos/quote-1')).toBe(true);
+    expect(canAccessRoute(owner, '/app/modulos/materiales')).toBe(true);
     expect(canAccessRoute(profile('SAT'), '/app/superadmin')).toBe(false);
+  });
+
+  it('permite materiales a roles de gestion y no al tecnico puro', () => {
+    for (const role of ['SAT', 'Comercial', 'Oficina', 'Gerencia', 'superadmin'] as RoleName[]) expect(canAccessRoute(profile(role), '/app/modulos/materiales')).toBe(true);
+    expect(canAccessRoute(profile('Tecnico'), '/app/modulos/materiales')).toBe(false);
   });
 
   it('impide que el tecnico cree avisos globales', () => {

@@ -28,10 +28,24 @@ describe('quotes management 034', () => {
   });
 
   it('supports required quote states and line types', () => {
-    for (const status of ['Borrador', 'Enviado', 'Aceptado', 'Ejecutado en cliente', 'Rechazado']) expect(migration).toContain(status);
+    for (const status of ['Borrador', 'Enviado', 'Aceptado', 'Ejecutado en cliente', 'Rechazado', 'Caducado', 'Cancelado']) expect(quotesService).toContain(status);
     for (const type of ['material', 'labor', 'transport', 'mobile_workshop', 'other']) expect(migration).toContain(type);
     expect(quotesService).toContain('quoteStatuses');
+    expect(quotesService).toContain('quoteStatusFilters');
     expect(quotesService).toContain('quoteLineTypes');
+  });
+
+  it('wires quote status filters in the module list', () => {
+    expect(app).toContain('quoteStatusFilters.map');
+    expect(app).toContain("params.get('estado')");
+    expect(app).toContain('Enviado/Mandado');
+    expect(app).toContain('visibleQuotes');
+  });
+
+  it('lets superadmin reach shared quote routes instead of redirecting home', () => {
+    expect(app).toContain('superadminSharedRoutes');
+    expect(app).toContain("'/app/modulos/presupuestos'");
+    expect(app).toContain("location.pathname.startsWith(route)");
   });
 
   it('implements create edit line crud totals and sent state in service', () => {
@@ -70,6 +84,7 @@ describe('quotes management 034', () => {
     expect(quotesService).toContain("supabase.from('quote_lines').select('*')");
     expect(quotesService).toContain('optionalRelated');
     expect(quotesService).toContain('DMP get quote failed');
+    expect(quotesService).toContain("select('id, code, description, manufacturer, reference, unit, cost, price')");
     expect(quotesService).not.toContain('quote_lines!quote_lines_quote_id_fkey');
   });
 

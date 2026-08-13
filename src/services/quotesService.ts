@@ -2,7 +2,8 @@ import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, currentProfileId, expectData } from './query';
 import { codesService } from './codesService';
 
-export const quoteStatuses = ['Borrador', 'Enviado', 'Aceptado', 'Ejecutado en cliente', 'Rechazado'] as const;
+export const quoteStatuses = ['Borrador', 'Enviado', 'Aceptado', 'Ejecutado en cliente', 'Rechazado', 'Caducado', 'Cancelado'] as const;
+export const quoteStatusFilters = ['Todos', 'Borrador', 'Enviado', 'Aceptado', 'Ejecutado en cliente', 'Rechazado', 'Caducado', 'Cancelado'] as const;
 export const quoteTypes = ['instalacion', 'reparacion', 'mantenimiento'] as const;
 export const quoteLineTypes = ['material', 'labor', 'transport', 'travel', 'mobile_workshop', 'lifting_platform', 'auxiliary_equipment', 'external_cost', 'fee', 'discount', 'other'] as const;
 
@@ -37,9 +38,11 @@ async function optionalRelated(table: string, id: string, columns: string, quote
 }
 
 export const quotesService = {
-  async list(search = '') {
-    const companyId = await currentCompanyId();
-    let query = supabase.from('quotes').select('*, clients!quotes_client_id_fkey(code,legal_name), sites!quotes_site_id_fkey(code,name), opportunities!quotes_opportunity_id_fkey(code,title), profiles!quotes_created_by_fkey(first_name,last_name)').eq('company_id', companyId).is('deleted_at', null).order('issue_date', { ascending: false });
+  async list(search = '', status = 'Todos', companyScope?: string | null) {
+    const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
+    let query = supabase.from('quotes').select('*, clients!quotes_client_id_fkey(code,legal_name), sites!quotes_site_id_fkey(code,name), opportunities!quotes_opportunity_id_fkey(code,title), profiles!quotes_created_by_fkey(first_name,last_name)').is('deleted_at', null).order('issue_date', { ascending: false });
+    if (companyId) query = query.eq('company_id', companyId);
+    if (status && status !== 'Todos') query = query.eq('status', status === 'Mandado' ? 'Enviado' : status);
     if (search) query = query.or(contains(['code', 'title', 'status', 'quote_type'], search));
     return expectData<any[]>(query, { service: 'quotesService', operation: 'list quotes' });
   },
@@ -93,8 +96,8 @@ export const quotesService = {
     return this.update(id, { status: 'Enviado', sent_at: new Date().toISOString(), sent_to_email: email });
   },
   async materialOptions(search = '') {
-    let query = supabase.from('materials').select('id, code, description, unit, unit_price').is('deleted_at', null).order('description').limit(30);
-    if (search) query = query.or(contains(['code', 'description'], search));
+    let query = supabase.from('materials').select('id, code, description, manufacturer, reference, unit, cost, price').is('deleted_at', null).eq('active', true).order('description').limit(30);
+    if (search) query = query.or(contains(['code', 'description', 'manufacturer', 'reference'], search));
     return expectData<any[]>(query, { service: 'quotesService', operation: 'list quote materials' });
   },
   economics(quotes: any[]) {

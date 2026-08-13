@@ -83,6 +83,24 @@ create trigger quote_lines_recalculate_trigger
   after insert or update or delete on public.quote_lines
   for each row execute function public.dmp_quote_lines_recalculate_trigger();
 
+create or replace function public.dmp_quotes_recalculate_on_discount_trigger()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  perform public.dmp_recalculate_quote_totals(new.id);
+  return new;
+end;
+$$;
+
+drop trigger if exists quotes_recalculate_on_discount_trigger on public.quotes;
+create trigger quotes_recalculate_on_discount_trigger
+  after update of discount_amount on public.quotes
+  for each row
+  when (new.discount_amount is distinct from old.discount_amount)
+  execute function public.dmp_quotes_recalculate_on_discount_trigger();
+
 update public.quote_lines
 set total_cost = round(coalesce(quantity, 0) * coalesce(unit_cost, 0), 2),
     total_price = round(coalesce(quantity, 0) * coalesce(unit_price, 0), 2),

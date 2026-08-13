@@ -20,12 +20,30 @@ function normalizeQuote(payload: Record<string, any>, defaults = false) {
   return next;
 }
 
-function normalizeLine(payload: Record<string, any>) {
-  const line = cleanPayload(payload, lineColumns);
-  const quantity = Number(line.quantity ?? 1);
-  const unitCost = Number(line.unit_cost ?? 0);
-  const unitPrice = Number(line.unit_price ?? 0);
-  const taxRate = Number(line.tax_rate ?? 21);
+function firstPayloadValue(payload: Record<string, any>, keys: string[]) {
+  const key = keys.find((item) => payload[item] !== undefined && payload[item] !== null && payload[item] !== '');
+  return key ? payload[key] : undefined;
+}
+
+function numericField(value: any, fallback: number, field: string) {
+  const next = value === undefined || value === null || value === '' ? fallback : Number(value);
+  if (!Number.isFinite(next)) throw new Error(`validacion del formulario: ${field} no es un numero valido.`);
+  return next;
+}
+
+export function normalizeQuoteLinePayload(payload: Record<string, any>) {
+  const expanded = { ...payload };
+  const unitPriceValue = firstPayloadValue(payload, ['unit_price', 'unitPrice', 'price', 'salePrice', 'sale_price', 'unitSale', 'sellingPrice']);
+  if (unitPriceValue !== undefined) expanded.unit_price = unitPriceValue;
+  const line = cleanPayload(expanded, lineColumns);
+  const quantity = numericField(line.quantity, 1, 'la cantidad');
+  const unitCost = numericField(line.unit_cost, 0, 'el coste unitario');
+  const unitPrice = numericField(line.unit_price, unitCost, 'la venta unitaria');
+  const taxRate = numericField(line.tax_rate, 21, 'el IVA');
+  if (quantity <= 0) throw new Error('validacion del formulario: la cantidad debe ser mayor que cero.');
+  if (unitCost < 0) throw new Error('validacion del formulario: el coste unitario no puede ser negativo.');
+  if (unitPrice < 0) throw new Error('validacion del formulario: la venta unitaria no puede ser negativa.');
+  if (taxRate < 0) throw new Error('validacion del formulario: el IVA no puede ser negativo.');
   const totalCost = Math.round(quantity * unitCost * 100) / 100;
   const totalPrice = Math.round(quantity * unitPrice * 100) / 100;
   return { ...line, quantity, unit_cost: unitCost, unit_price: unitPrice, tax_rate: taxRate, total_cost: totalCost, total_price: totalPrice, total: totalPrice };
@@ -87,10 +105,22 @@ export const quotesService = {
   async addLine(quoteId: string, payload: Record<string, any>) {
     const quote = await this.get(quoteId);
     const position = payload.position ?? ((quote.quote_lines ?? []).filter((line: any) => !line.deleted_at).length + 1);
-    return expectData<any>(supabase.from('quote_lines').insert({ ...normalizeLine({ ...payload, position }), quote_id: quoteId, company_id: quote.company_id }).select().maybeSingle(), { service: 'quotesService', operation: 'add quote line', resource: quoteId });
+    const normalizedPayload = { ...normalizeQuoteLinePayload({ ...payload, position }), quote_id: quoteId, company_id: quote.company_id };
+    try {
+      return await expectData<any>(supabase.from('quote_lines').insert(normalizedPayload).select().maybeSingle(), { service: 'quotesService', operation: 'add quote line', resource: quoteId });
+    } catch (error: any) {
+      console.error('DMP quote line debug', { payloadBeforeNormalize: payload, normalizedPayload, message: error?.message, details: error?.details, hint: error?.hint, code: error?.code });
+      throw error;
+    }
   },
-  updateLine(lineId: string, payload: Record<string, any>) {
-    return expectData<any>(supabase.from('quote_lines').update(normalizeLine(payload)).eq('id', lineId).select().maybeSingle(), { service: 'quotesService', operation: 'update quote line', resource: lineId });
+  async updateLine(lineId: string, payload: Record<string, any>) {
+    const normalizedPayload = normalizeQuoteLinePayload(payload);
+    try {
+      return await expectData<any>(supabase.from('quote_lines').update(normalizedPayload).eq('id', lineId).select().maybeSingle(), { service: 'quotesService', operation: 'update quote line', resource: lineId });
+    } catch (error: any) {
+      console.error('DMP quote line debug', { payloadBeforeNormalize: payload, normalizedPayload, message: error?.message, details: error?.details, hint: error?.hint, code: error?.code });
+      throw error;
+    }
   },
   deleteLine(lineId: string) {
     return expectData<any>(supabase.from('quote_lines').update({ deleted_at: new Date().toISOString() }).eq('id', lineId).select().maybeSingle(), { service: 'quotesService', operation: 'delete quote line', resource: lineId });

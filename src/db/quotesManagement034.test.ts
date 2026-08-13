@@ -4,6 +4,7 @@ import pgQuery from 'pg-query-emscripten';
 
 const migration = readFileSync(new URL('../../supabase/migrations/034_fix_quotes_management.sql', import.meta.url), 'utf8');
 const economicsFixMigration = readFileSync(new URL('../../supabase/migrations/036_fix_quote_line_economics.sql', import.meta.url), 'utf8');
+const unitPriceFixMigration = readFileSync(new URL('../../supabase/migrations/037_fix_quote_unit_price_mapping.sql', import.meta.url), 'utf8');
 const quotesService = readFileSync(new URL('../services/quotesService.ts', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
 const clientsService = readFileSync(new URL('../services/clientsService.ts', import.meta.url), 'utf8');
@@ -13,6 +14,7 @@ describe('quotes management 034', () => {
     const parser = await pgQuery();
     expect(parser.parse(migration).parse_tree.stmts.length).toBeGreaterThan(0);
     expect(parser.parse(economicsFixMigration).parse_tree.stmts.length).toBeGreaterThan(0);
+    expect(parser.parse(unitPriceFixMigration).parse_tree.stmts.length).toBeGreaterThan(0);
   });
 
   it('keeps quote code automatic and company scoped', () => {
@@ -68,11 +70,18 @@ describe('quotes management 034', () => {
       expect(sql).toContain('new.total_price := round(new.quantity * new.unit_price, 2)');
       expect(sql).toContain('quote_lines_set_totals_trigger');
       expect(sql).toContain('quote_lines_recalculate_trigger');
+      expect(sql).toContain('quotes_recalculate_on_discount_trigger');
       expect(sql).toContain('sum(total_price * tax_rate / 100)');
       expect(sql).not.toContain('new.unit_price, 0) * (1 - coalesce(new.discount_percent, 0) / 100)');
     }
     expect(quotesService).toContain('const totalCost = Math.round(quantity * unitCost * 100) / 100');
     expect(quotesService).toContain('const totalPrice = Math.round(quantity * unitPrice * 100) / 100');
+    expect(quotesService).toContain("['unit_price', 'unitPrice', 'price', 'salePrice', 'sale_price', 'unitSale', 'sellingPrice']");
+    expect(quotesService).not.toContain('unitPrice || 1');
+    expect(quotesService).not.toContain('line.unit_price || 1');
+    expect(unitPriceFixMigration).toContain('alter table public.quote_lines alter column unit_price set default 0');
+    expect(unitPriceFixMigration).toContain('and unit_price = 1');
+    expect(unitPriceFixMigration).toContain('set unit_price = unit_cost');
 
     const lines = [3100, 1500, 300].map((amount) => ({ quantity: 1, unitCost: amount, unitPrice: amount, taxRate: 21 }));
     const subtotalCost = lines.reduce((sum, line) => sum + line.quantity * line.unitCost, 0);
@@ -90,6 +99,9 @@ describe('quotes management 034', () => {
     expect(app).toContain('Enviar al cliente');
     expect(app).toContain('QuoteSendModal');
     expect(app).toContain('Material manual / sin catálogo');
+    expect(app).toContain("unit_price: material?.price");
+    expect(app).toContain('handleUnitCostChange');
+    expect(app).toContain("unit_price: values.unit_price === '' || values.unit_price == null ? values.unit_cost : values.unit_price");
     expect(app).toContain('quotesService.deleteLine');
     expect(app).toContain('window.print()');
     expect(app).not.toContain('window.open');

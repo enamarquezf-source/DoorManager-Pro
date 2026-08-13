@@ -35,15 +35,15 @@ where true;
 
 update public.work_order_materials wom
 set unit_cost = coalesce(nullif(wom.unit_cost, 0), m.cost, wom.unit_price, 0),
-    total_cost = round(coalesce(wom.used_quantity, wom.quantity, 0) * coalesce(nullif(wom.unit_cost, 0), m.cost, wom.unit_price, 0), 2),
-    total_price = round(coalesce(wom.used_quantity, wom.quantity, 0) * coalesce(wom.unit_price, m.price, 0), 2)
+    total_cost = round(coalesce(wom.used_quantity, 0) * coalesce(nullif(wom.unit_cost, 0), m.cost, wom.unit_price, 0), 2),
+    total_price = round(coalesce(wom.used_quantity, 0) * coalesce(wom.unit_price, m.price, 0), 2)
 from public.materials m
 where wom.material_id = m.id
   and wom.deleted_at is null;
 
 update public.work_order_materials
-set total_cost = round(coalesce(used_quantity, quantity, 0) * coalesce(unit_cost, unit_price, 0), 2),
-    total_price = round(coalesce(used_quantity, quantity, 0) * coalesce(unit_price, 0), 2)
+set total_cost = round(coalesce(used_quantity, 0) * coalesce(unit_cost, unit_price, 0), 2),
+    total_price = round(coalesce(used_quantity, 0) * coalesce(unit_price, 0), 2)
 where deleted_at is null
   and material_id is null;
 
@@ -77,8 +77,8 @@ as $$
 begin
   new.unit_cost := coalesce(new.unit_cost, new.unit_price, 0);
   new.unit_price := coalesce(new.unit_price, 0);
-  new.total_cost := round(coalesce(new.used_quantity, new.quantity, 0) * new.unit_cost, 2);
-  new.total_price := round(coalesce(new.used_quantity, new.quantity, 0) * new.unit_price, 2);
+  new.total_cost := round(coalesce(new.used_quantity, 0) * new.unit_cost, 2);
+  new.total_price := round(coalesce(new.used_quantity, 0) * new.unit_price, 2);
   return new;
 end;
 $$;

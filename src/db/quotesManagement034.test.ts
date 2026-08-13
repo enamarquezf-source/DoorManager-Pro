@@ -84,7 +84,7 @@ describe('quotes management 034', () => {
     expect(quotesService).toContain("supabase.from('quote_lines').select('*')");
     expect(quotesService).toContain('optionalRelated');
     expect(quotesService).toContain('DMP get quote failed');
-    expect(quotesService).toContain("select('id, code, description, manufacturer, reference, unit, cost, price')");
+    expect(quotesService).toContain("select('id, code, description, manufacturer, reference, unit, cost, price, stock_quantity");
     expect(quotesService).not.toContain('quote_lines!quote_lines_quote_id_fkey');
   });
 

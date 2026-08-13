@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, expectData } from './query';
 import { codesService } from './codesService';
 
-const materialColumns = ['company_id', 'code', 'description', 'manufacturer', 'reference', 'unit', 'cost', 'price', 'minimum_stock', 'active'];
+const materialColumns = ['company_id', 'code', 'description', 'manufacturer', 'reference', 'unit', 'cost', 'price', 'stock_quantity', 'minimum_stock', 'stock_controlled', 'allow_negative_stock', 'active'];
 
 function cleanPayload(payload: Record<string, any>) {
   return Object.fromEntries(materialColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
@@ -10,8 +10,10 @@ function cleanPayload(payload: Record<string, any>) {
 
 function normalizeMaterial(payload: Record<string, any>) {
   const next = cleanPayload(payload);
-  for (const key of ['cost', 'price', 'minimum_stock']) if (key in next) next[key] = Number(next[key] ?? 0);
+  for (const key of ['cost', 'price', 'stock_quantity', 'minimum_stock']) if (key in next) next[key] = Number(next[key] ?? 0);
   if ('active' in next) next.active = next.active === true || next.active === 'true' || next.active === 'Activo';
+  if ('stock_controlled' in next) next.stock_controlled = next.stock_controlled === true || next.stock_controlled === 'true';
+  if ('allow_negative_stock' in next) next.allow_negative_stock = next.allow_negative_stock === true || next.allow_negative_stock === 'true';
   return next;
 }
 
@@ -34,5 +36,11 @@ export const materialsService = {
   },
   deactivate(id: string) {
     return expectData<any>(supabase.from('materials').update({ active: false, deleted_at: new Date().toISOString() }).eq('id', id).select().maybeSingle(), { service: 'materialsService', operation: 'deactivate material', resource: id });
+  },
+  movements(materialId: string) {
+    return expectData<any[]>(supabase.from('material_stock_movements').select('*, profiles!material_stock_movements_created_by_fkey(first_name,last_name), work_orders!material_stock_movements_work_order_id_fkey(code,title)').eq('material_id', materialId).is('deleted_at', null).order('created_at', { ascending: false }).limit(80), { service: 'materialsService', operation: 'list material stock movements', resource: materialId });
+  },
+  adjustStock(materialId: string, payload: { movement_type: string; quantity: number | string; reason: string; unit_cost?: number | string }) {
+    return expectData<number>(supabase.rpc('dmp_adjust_material_stock', { p_material_id: materialId, p_movement_type: payload.movement_type, p_quantity: Number(payload.quantity), p_reason: payload.reason, p_unit_cost: payload.unit_cost === '' || payload.unit_cost == null ? null : Number(payload.unit_cost) }), { service: 'materialsService', operation: 'adjust material stock', resource: materialId });
   },
 };

@@ -96,7 +96,7 @@ export const quotesService = {
     return this.update(id, { status: 'Enviado', sent_at: new Date().toISOString(), sent_to_email: email });
   },
   async materialOptions(search = '') {
-    let query = supabase.from('materials').select('id, code, description, manufacturer, reference, unit, cost, price').is('deleted_at', null).eq('active', true).order('description').limit(30);
+    let query = supabase.from('materials').select('id, code, description, manufacturer, reference, unit, cost, price, stock_quantity, minimum_stock, stock_controlled, allow_negative_stock').is('deleted_at', null).eq('active', true).order('description').limit(30);
     if (search) query = query.or(contains(['code', 'description', 'manufacturer', 'reference'], search));
     return expectData<any[]>(query, { service: 'quotesService', operation: 'list quote materials' });
   },

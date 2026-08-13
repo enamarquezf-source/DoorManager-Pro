@@ -158,6 +158,7 @@ describe('canAccessRoute', () => {
     expect(canManageWorkOrderMaterials(profile('Tecnico'), workOrder, { registered_by: 'Tecnico-id' })).toBe(true);
     expect(canManageWorkOrderCosts(profile('Tecnico'), workOrder, { registered_by: 'Tecnico-id' })).toBe(true);
     expect(canViewWorkOrderCosts(profile('Tecnico'))).toBe(false);
+    expect(canViewWorkOrderCosts(profile('Comercial'))).toBe(false);
   });
 
   it('bloquea horas y materiales a tecnicos no asignados o con asignacion historica', () => {

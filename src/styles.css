@@ -108,7 +108,7 @@ main { padding: 24px; }
 .quick-actions a, .quick-actions button { min-height: 44px; }
 .dashboard-list article { grid-template-columns: minmax(150px, 210px) minmax(0, 1fr) auto; }
 .interactive-bars { min-height: 190px; display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 12px; align-items: end; padding-top: 12px; }
-.interactive-bars a { display: grid; grid-template-rows: 1fr auto auto; gap: 6px; align-items: end; justify-items: center; color: var(--dark); text-decoration: none; border: 1px solid #e7edf5; border-radius: 14px; padding: 10px; background: #f8fafc; min-width: 0; }
+.interactive-bars a, .interactive-bars > div { display: grid; grid-template-rows: 1fr auto auto; gap: 6px; align-items: end; justify-items: center; color: var(--dark); text-decoration: none; border: 1px solid #e7edf5; border-radius: 14px; padding: 10px; background: #f8fafc; min-width: 0; }
 .interactive-bars a:hover { background: #eef6ff; }
 .interactive-bars span { width: 100%; max-width: 44px; border-radius: 10px 10px 4px 4px; background: linear-gradient(180deg, var(--info), var(--maintenance)); min-height: 12px; }
 .interactive-bars strong { font-size: 18px; }

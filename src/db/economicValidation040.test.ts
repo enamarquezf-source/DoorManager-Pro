@@ -25,6 +25,6 @@ describe('economic validation 040', () => {
     expect(app).toContain('Venta sin IVA');
     expect(app).toContain('Coste real');
     expect(app).toContain('Margen');
-    expect(app).toContain('IVA y beneficio no se mezclan');
+    expect(app).toContain('Venta sin IVA, coste real y margen');
   });
 });

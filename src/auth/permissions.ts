@@ -157,7 +157,8 @@ export function canManageWorkOrderCosts(profile: Profile | null | undefined, wor
   if (hasAny(profile, ['Tecnico'])) return hasActiveTechnicianAssignment(activeProfile, workOrder) && (!row || row.registered_by === activeProfile.id);
   return false;
 }
-export function canViewWorkOrderCosts(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina', 'Comercial']); }
+export function canViewInternalEconomics(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina']); }
+export function canViewWorkOrderCosts(profile: Profile | null | undefined) { return canViewInternalEconomics(profile); }
 export function canCreateCheck(profile: Profile | null | undefined) { return hasAny(profile, operationalRoles); }
 export function canExecuteCheck(profile: Profile | null | undefined) { return hasAny(profile, operationalRoles); }
 export function canManageCheck(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT']); }

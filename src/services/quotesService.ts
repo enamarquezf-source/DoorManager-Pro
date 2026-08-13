@@ -25,7 +25,10 @@ function normalizeLine(payload: Record<string, any>) {
   const quantity = Number(line.quantity ?? 1);
   const unitCost = Number(line.unit_cost ?? 0);
   const unitPrice = Number(line.unit_price ?? 0);
-  return { ...line, quantity, unit_cost: unitCost, unit_price: unitPrice, total_cost: quantity * unitCost, total_price: quantity * unitPrice, total: quantity * unitPrice };
+  const taxRate = Number(line.tax_rate ?? 21);
+  const totalCost = Math.round(quantity * unitCost * 100) / 100;
+  const totalPrice = Math.round(quantity * unitPrice * 100) / 100;
+  return { ...line, quantity, unit_cost: unitCost, unit_price: unitPrice, tax_rate: taxRate, total_cost: totalCost, total_price: totalPrice, total: totalPrice };
 }
 
 async function optionalRelated(table: string, id: string, columns: string, quoteId: string) {

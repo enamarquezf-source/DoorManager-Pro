@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import pgQuery from 'pg-query-emscripten';
 
 const migration = readFileSync(new URL('../../supabase/migrations/034_fix_quotes_management.sql', import.meta.url), 'utf8');
+const economicsFixMigration = readFileSync(new URL('../../supabase/migrations/036_fix_quote_line_economics.sql', import.meta.url), 'utf8');
 const quotesService = readFileSync(new URL('../services/quotesService.ts', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
 const clientsService = readFileSync(new URL('../services/clientsService.ts', import.meta.url), 'utf8');
@@ -11,6 +12,7 @@ describe('quotes management 034', () => {
   it('parses migration SQL', async () => {
     const parser = await pgQuery();
     expect(parser.parse(migration).parse_tree.stmts.length).toBeGreaterThan(0);
+    expect(parser.parse(economicsFixMigration).parse_tree.stmts.length).toBeGreaterThan(0);
   });
 
   it('keeps quote code automatic and company scoped', () => {
@@ -58,6 +60,28 @@ describe('quotes management 034', () => {
     expect(quotesService).toContain("status: 'Enviado'");
     expect(migration).toContain('dmp_recalculate_quote_totals');
     expect(migration).toContain('estimated_margin');
+  });
+
+  it('keeps quote line amounts equal to entered unit amounts and recalculates totals', () => {
+    for (const sql of [migration, economicsFixMigration]) {
+      expect(sql).toContain('new.total_cost := round(new.quantity * new.unit_cost, 2)');
+      expect(sql).toContain('new.total_price := round(new.quantity * new.unit_price, 2)');
+      expect(sql).toContain('quote_lines_set_totals_trigger');
+      expect(sql).toContain('quote_lines_recalculate_trigger');
+      expect(sql).toContain('sum(total_price * tax_rate / 100)');
+      expect(sql).not.toContain('new.unit_price, 0) * (1 - coalesce(new.discount_percent, 0) / 100)');
+    }
+    expect(quotesService).toContain('const totalCost = Math.round(quantity * unitCost * 100) / 100');
+    expect(quotesService).toContain('const totalPrice = Math.round(quantity * unitPrice * 100) / 100');
+
+    const lines = [3100, 1500, 300].map((amount) => ({ quantity: 1, unitCost: amount, unitPrice: amount, taxRate: 21 }));
+    const subtotalCost = lines.reduce((sum, line) => sum + line.quantity * line.unitCost, 0);
+    const subtotalSale = lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
+    const taxAmount = lines.reduce((sum, line) => sum + line.quantity * line.unitPrice * line.taxRate / 100, 0);
+    expect(subtotalCost).toBe(4900);
+    expect(subtotalSale).toBe(4900);
+    expect(taxAmount).toBe(1029);
+    expect(subtotalSale + taxAmount).toBe(5929);
   });
 
   it('connects UI for edit print send material and manual lines', () => {

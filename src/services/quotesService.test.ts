@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeQuoteLinePayload } from './quotesService';
+import { calculateQuoteEconomics, normalizeQuoteLinePayload } from './quotesService';
 
 describe('quote line normalization', () => {
   it('preserves entered unit prices instead of falling back to quantity 1', () => {
@@ -23,23 +23,39 @@ describe('quote line normalization', () => {
     expect(line.total_price).toBe(3100);
   });
 
-  it('calculates full quote totals with and without discount', () => {
+  it('calculates full quote totals without discount', () => {
     const lines = [3100, 1500, 300].map((amount) => normalizeQuoteLinePayload({ quantity: 1, unit_cost: amount, unit_price: amount, tax_rate: 21 }));
-    const subtotalCost = lines.reduce((sum, line) => sum + line.total_cost, 0);
-    const subtotalSale = lines.reduce((sum, line) => sum + line.total_price, 0);
-    const tax = lines.reduce((sum, line) => sum + line.total_price * line.tax_rate / 100, 0);
-    expect(subtotalCost).toBe(4900);
-    expect(subtotalSale).toBe(4900);
-    expect(tax).toBe(1029);
-    expect(subtotalSale + tax).toBe(5929);
+    const totals = calculateQuoteEconomics(lines, 'percentage', 0);
+    expect(totals).toMatchObject({ subtotalCost: 4900, subtotalSale: 4900, discountAmount: 0, taxableBase: 4900, taxAmount: 1029, totalAmount: 5929, estimatedMargin: 0 });
+  });
 
-    const discount = 10;
-    const taxableBase = subtotalSale - discount;
-    const discountedTax = Math.round(tax * taxableBase / subtotalSale * 100) / 100;
-    expect(taxableBase).toBe(4890);
-    expect(discountedTax).toBe(1026.9);
-    expect(taxableBase + discountedTax).toBe(5916.9);
-    expect(taxableBase - subtotalCost).toBe(-10);
+  it('calculates percentage discount, VAT and margin without mixing VAT into profit', () => {
+    const lines = [3100, 1500, 300].map((amount) => normalizeQuoteLinePayload({ quantity: 1, unit_cost: amount, unit_price: amount, tax_rate: 21 }));
+    const totals = calculateQuoteEconomics(lines, 'percentage', 10);
+    expect(totals).toMatchObject({ subtotalCost: 4900, subtotalSale: 4900, discountAmount: 490, taxableBase: 4410, taxAmount: 926.1, totalAmount: 5336.1, estimatedMargin: -490 });
+    expect(totals.estimatedMargin).toBe(totals.taxableBase - totals.subtotalCost);
+  });
+
+  it('calculates fixed amount discount independently from percentage discounts', () => {
+    const lines = [3100, 1500, 300].map((amount) => normalizeQuoteLinePayload({ quantity: 1, unit_cost: amount, unit_price: amount, tax_rate: 21 }));
+    const totals = calculateQuoteEconomics(lines, 'amount', 10);
+    expect(totals).toMatchObject({ subtotalCost: 4900, subtotalSale: 4900, discountAmount: 10, taxableBase: 4890, taxAmount: 1026.9, totalAmount: 5916.9, estimatedMargin: -10 });
+  });
+
+  it('calculates margin from net sale without VAT when sale is higher than cost', () => {
+    const lines = [
+      normalizeQuoteLinePayload({ quantity: 1, unit_cost: 3100, unit_price: 3800, tax_rate: 21 }),
+      normalizeQuoteLinePayload({ quantity: 1, unit_cost: 1500, unit_price: 1800, tax_rate: 21 }),
+      normalizeQuoteLinePayload({ quantity: 1, unit_cost: 300, unit_price: 400, tax_rate: 21 }),
+    ];
+    const totals = calculateQuoteEconomics(lines, 'percentage', 10);
+    expect(totals).toMatchObject({ subtotalCost: 4900, subtotalSale: 6000, discountAmount: 600, taxableBase: 5400, taxAmount: 1134, totalAmount: 6534, estimatedMargin: 500 });
+  });
+
+  it('caps excessive discount at subtotal sale without breaking totals', () => {
+    const lines = [normalizeQuoteLinePayload({ quantity: 1, unit_cost: 100, unit_price: 100, tax_rate: 21 })];
+    const totals = calculateQuoteEconomics(lines, 'amount', 150);
+    expect(totals).toMatchObject({ discountAmount: 100, taxableBase: 0, taxAmount: 0, totalAmount: 0, estimatedMargin: -100 });
   });
 
   it('keeps an explicit unit_price of 1 only when the payload sends 1', () => {

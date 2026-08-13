@@ -5,6 +5,7 @@ import pgQuery from 'pg-query-emscripten';
 const migration = readFileSync(new URL('../../supabase/migrations/034_fix_quotes_management.sql', import.meta.url), 'utf8');
 const economicsFixMigration = readFileSync(new URL('../../supabase/migrations/036_fix_quote_line_economics.sql', import.meta.url), 'utf8');
 const unitPriceFixMigration = readFileSync(new URL('../../supabase/migrations/037_fix_quote_unit_price_mapping.sql', import.meta.url), 'utf8');
+const discountTaxMarginMigration = readFileSync(new URL('../../supabase/migrations/038_fix_quote_discount_tax_margin.sql', import.meta.url), 'utf8');
 const quotesService = readFileSync(new URL('../services/quotesService.ts', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
 const clientsService = readFileSync(new URL('../services/clientsService.ts', import.meta.url), 'utf8');
@@ -15,6 +16,7 @@ describe('quotes management 034', () => {
     expect(parser.parse(migration).parse_tree.stmts.length).toBeGreaterThan(0);
     expect(parser.parse(economicsFixMigration).parse_tree.stmts.length).toBeGreaterThan(0);
     expect(parser.parse(unitPriceFixMigration).parse_tree.stmts.length).toBeGreaterThan(0);
+    expect(parser.parse(discountTaxMarginMigration).parse_tree.stmts.length).toBeGreaterThan(0);
   });
 
   it('keeps quote code automatic and company scoped', () => {
@@ -71,7 +73,7 @@ describe('quotes management 034', () => {
       expect(sql).toContain('quote_lines_set_totals_trigger');
       expect(sql).toContain('quote_lines_recalculate_trigger');
       expect(sql).toContain('quotes_recalculate_on_discount_trigger');
-      expect(sql).toContain('sum(total_price * tax_rate / 100)');
+      expect(sql).toContain('taxable_base');
       expect(sql).not.toContain('new.unit_price, 0) * (1 - coalesce(new.discount_percent, 0) / 100)');
     }
     expect(quotesService).toContain('const totalCost = Math.round(quantity * unitCost * 100) / 100');
@@ -91,6 +93,29 @@ describe('quotes management 034', () => {
     expect(subtotalSale).toBe(4900);
     expect(taxAmount).toBe(1029);
     expect(subtotalSale + taxAmount).toBe(5929);
+  });
+
+  it('models discount type, taxable base, VAT and margin without VAT profit', () => {
+    for (const sql of [migration, economicsFixMigration, discountTaxMarginMigration]) {
+      expect(sql).toContain("discount_type text not null default 'percentage'");
+      expect(sql).toContain('discount_value numeric(12,2) not null default 0');
+      expect(sql).toContain('taxable_base numeric(12,2) not null default 0');
+      expect(sql).toContain("discount_type in ('percentage','amount')");
+      expect(sql).toContain("v_discount_type = 'percentage'");
+      expect(sql).toContain('discount_amount = round(coalesce(v_discount, 0), 2)');
+      expect(sql).toContain('taxable_base = round(v_taxable, 2)');
+      expect(sql).toContain('estimated_margin = round(v_taxable - v_cost, 2)');
+      expect(sql).not.toContain('estimated_margin = round(v_taxable + v_tax');
+    }
+    expect(quotesService).toContain('export function calculateQuoteEconomics');
+    expect(quotesService).toContain("discountType === 'percentage' ? subtotalSale * Number(discountValue ?? 0) / 100");
+    expect(quotesService).toContain('estimatedMargin: taxableBase - subtotalCost');
+    expect(app).toContain('Tipo de descuento');
+    expect(app).toContain('Descuento %');
+    expect(app).toContain('Descuento €');
+    expect(app).toContain('Base imponible');
+    expect(app).toContain('Total cliente con IVA');
+    expect(app).toContain('Beneficio estimado sin IVA');
   });
 
   it('connects UI for edit print send material and manual lines', () => {

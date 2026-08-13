@@ -18,9 +18,9 @@ $$;
 
 drop trigger if exists quotes_recalculate_on_discount_trigger on public.quotes;
 create trigger quotes_recalculate_on_discount_trigger
-  after update of discount_amount on public.quotes
+  after update of discount_type, discount_value on public.quotes
   for each row
-  when (new.discount_amount is distinct from old.discount_amount)
+  when (new.discount_type is distinct from old.discount_type or new.discount_value is distinct from old.discount_value)
   execute function public.dmp_quotes_recalculate_on_discount_trigger();
 
 with affected as (

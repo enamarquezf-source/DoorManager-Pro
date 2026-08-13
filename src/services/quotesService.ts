@@ -7,7 +7,7 @@ export const quoteStatusFilters = ['Todos', 'Borrador', 'Enviado', 'Aceptado', '
 export const quoteTypes = ['instalacion', 'reparacion', 'mantenimiento'] as const;
 export const quoteLineTypes = ['material', 'labor', 'transport', 'travel', 'mobile_workshop', 'lifting_platform', 'auxiliary_equipment', 'external_cost', 'fee', 'discount', 'other'] as const;
 
-const quoteColumns = ['client_id', 'site_id', 'equipment_id', 'work_order_id', 'opportunity_id', 'case_id', 'quote_type', 'status', 'title', 'description', 'valid_until', 'discount_amount', 'conditions', 'sent_at', 'sent_to_email'];
+const quoteColumns = ['client_id', 'site_id', 'equipment_id', 'work_order_id', 'opportunity_id', 'case_id', 'quote_type', 'status', 'title', 'description', 'valid_until', 'discount_type', 'discount_value', 'discount_amount', 'conditions', 'sent_at', 'sent_to_email'];
 const lineColumns = ['quote_id', 'line_type', 'description', 'quantity', 'unit', 'unit_cost', 'unit_price', 'tax_rate', 'material_id', 'profile_id', 'position', 'discount_percent'];
 
 function cleanPayload(payload: Record<string, any>, columns: string[]) {
@@ -15,9 +15,26 @@ function cleanPayload(payload: Record<string, any>, columns: string[]) {
 }
 
 function normalizeQuote(payload: Record<string, any>, defaults = false) {
-  const next = { ...(defaults ? { status: 'Borrador', quote_type: 'reparacion' } : {}), ...cleanPayload(payload, quoteColumns) };
+  const next: Record<string, any> = { ...(defaults ? { status: 'Borrador', quote_type: 'reparacion', discount_type: 'percentage', discount_value: 0 } : {}), ...cleanPayload(payload, quoteColumns) };
   if (next.status === 'Mandado') next.status = 'Enviado';
+  if (next.discount_type !== undefined && next.discount_type !== 'percentage' && next.discount_type !== 'amount') next.discount_type = 'percentage';
+  if (next.discount_value !== undefined) next.discount_value = numericField(next.discount_value, 0, 'el descuento');
+  if (next.discount_amount !== undefined) next.discount_amount = numericField(next.discount_amount, 0, 'el descuento');
   return next;
+}
+
+export function calculateQuoteEconomics(lines: Array<{ total_cost: number; total_price: number; tax_rate: number }>, discountType = 'percentage', discountValue = 0) {
+  const subtotalCost = Math.round(lines.reduce((sum, line) => sum + Number(line.total_cost ?? 0), 0) * 100) / 100;
+  const subtotalSale = Math.round(lines.reduce((sum, line) => sum + Number(line.total_price ?? 0), 0) * 100) / 100;
+  const rawDiscount = discountType === 'percentage' ? subtotalSale * Number(discountValue ?? 0) / 100 : Number(discountValue ?? 0);
+  const discountAmount = Math.round(Math.min(Math.max(rawDiscount, 0), subtotalSale) * 100) / 100;
+  const taxableBase = Math.round(Math.max(subtotalSale - discountAmount, 0) * 100) / 100;
+  const taxAmount = Math.round(lines.reduce((sum, line) => {
+    const lineSale = Number(line.total_price ?? 0);
+    const lineDiscount = subtotalSale === 0 ? 0 : discountAmount * lineSale / subtotalSale;
+    return sum + Math.max(lineSale - lineDiscount, 0) * Number(line.tax_rate ?? 0) / 100;
+  }, 0) * 100) / 100;
+  return { subtotalCost, subtotalSale, discountAmount, taxableBase, taxAmount, totalAmount: taxableBase + taxAmount, estimatedMargin: taxableBase - subtotalCost };
 }
 
 function firstPayloadValue(payload: Record<string, any>, keys: string[]) {

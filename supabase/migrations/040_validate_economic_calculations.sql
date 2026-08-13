@@ -20,6 +20,47 @@ where deleted_at is null
 create or replace view public.v_work_order_economic_summary
 with (security_invoker = true)
 as
+with material_totals as (
+  select
+    company_id,
+    work_order_id,
+    coalesce(sum(total_cost), 0) as material_cost,
+    coalesce(sum(total_price), 0) as material_sale
+  from public.work_order_materials
+  where deleted_at is null
+  group by company_id, work_order_id
+), time_totals as (
+  select
+    company_id,
+    work_order_id,
+    coalesce(sum(total_cost), 0) as time_cost,
+    coalesce(sum(total_price), 0) as time_sale
+  from public.work_order_time_entries
+  group by company_id, work_order_id
+), auxiliary_totals as (
+  select
+    company_id,
+    work_order_id,
+    coalesce(sum(total_cost), 0) as auxiliary_cost,
+    coalesce(sum(total_price), 0) as auxiliary_sale,
+    coalesce(sum(total_cost) filter (where cost_type = 'desplazamiento'), 0) as travel_cost,
+    coalesce(sum(total_cost) filter (where cost_type = 'taller_movil'), 0) as mobile_workshop_cost,
+    coalesce(sum(total_cost) filter (where cost_type = 'plataforma_elevadora'), 0) as platform_cost,
+    coalesce(sum(total_cost) filter (where cost_type = 'coste_externo'), 0) as external_cost
+  from public.work_order_cost_entries
+  where deleted_at is null
+  group by company_id, work_order_id
+), accepted_quote_sales as (
+  select distinct on (company_id, work_order_id)
+    company_id,
+    work_order_id,
+    coalesce(taxable_base, subtotal_sale, subtotal, 0) as sale_amount
+  from public.quotes
+  where deleted_at is null
+    and work_order_id is not null
+    and status in ('Aceptado','Ejecutado en cliente')
+  order by company_id, work_order_id, updated_at desc
+)
 select
   wo.id,
   wo.company_id,
@@ -57,15 +98,42 @@ from public.work_orders wo
 left join public.clients c on c.id = wo.client_id and c.company_id = wo.company_id
 left join public.sites s on s.id = wo.site_id and s.company_id = wo.company_id
 left join public.equipment e on e.id = wo.main_equipment_id and e.company_id = wo.company_id
-left join lateral (select coalesce(sum(total_cost), 0) material_cost, coalesce(sum(total_price), 0) material_sale from public.work_order_materials where work_order_id = wo.id and company_id = wo.company_id and deleted_at is null) mat on true
-left join lateral (select coalesce(sum(total_cost), 0) time_cost, coalesce(sum(total_price), 0) time_sale from public.work_order_time_entries where work_order_id = wo.id and company_id = wo.company_id) tim on true
-left join lateral (select coalesce(sum(total_cost), 0) auxiliary_cost, coalesce(sum(total_price), 0) auxiliary_sale, coalesce(sum(total_cost) filter (where cost_type = 'desplazamiento'), 0) travel_cost, coalesce(sum(total_cost) filter (where cost_type = 'taller_movil'), 0) mobile_workshop_cost, coalesce(sum(total_cost) filter (where cost_type = 'plataforma_elevadora'), 0) platform_cost, coalesce(sum(total_cost) filter (where cost_type = 'coste_externo'), 0) external_cost from public.work_order_cost_entries where work_order_id = wo.id and company_id = wo.company_id and deleted_at is null) aux on true
-left join lateral (select coalesce(taxable_base, subtotal_sale, subtotal, 0) as sale_amount from public.quotes where work_order_id = wo.id and company_id = wo.company_id and deleted_at is null and status in ('Aceptado','Ejecutado en cliente') order by updated_at desc limit 1) q on true
+left join material_totals mat on mat.work_order_id = wo.id and mat.company_id = wo.company_id
+left join time_totals tim on tim.work_order_id = wo.id and tim.company_id = wo.company_id
+left join auxiliary_totals aux on aux.work_order_id = wo.id and aux.company_id = wo.company_id
+left join accepted_quote_sales q on q.work_order_id = wo.id and q.company_id = wo.company_id
 where wo.deleted_at is null;
 
 create or replace view public.v_client_economic_summary
 with (security_invoker = true)
 as
+with client_work_order_summary as (
+  select
+    company_id,
+    client_id,
+    coalesce(sum(real_cost_amount), 0) as real_cost,
+    coalesce(sum(real_cost_amount) filter (where warranty or economic_status = 'garantia'), 0) as warranty_cost,
+    count(*) filter (where warranty or economic_status = 'garantia') as warranty_work_orders,
+    count(*) filter (where billable and economic_status in ('facturable','pendiente_facturar')) as billable_work_orders,
+    count(*) filter (where economic_status = 'pendiente_facturar' or (status in ('Finalizado tecnicamente','Enviado','Cerrado') and coalesce(invoiced_amount, 0) = 0 and not warranty)) as pending_invoice_work_orders
+  from public.v_work_order_economic_summary
+  where client_id is not null
+  group by company_id, client_id
+), client_quote_summary as (
+  select
+    company_id,
+    client_id,
+    coalesce(sum(coalesce(taxable_base, subtotal_sale, subtotal, 0)), 0) as sale_amount,
+    coalesce(sum(coalesce(tax_amount, 0)), 0) as tax_amount,
+    coalesce(sum(coalesce(total_amount, total, 0)), 0) as total_amount,
+    count(*) filter (where status = 'Aceptado') as accepted_quotes,
+    count(*) filter (where status = 'Ejecutado en cliente') as executed_quotes
+  from public.quotes
+  where deleted_at is null
+    and client_id is not null
+    and status in ('Aceptado','Ejecutado en cliente')
+  group by company_id, client_id
+)
 select
   c.id,
   c.company_id,
@@ -88,35 +156,47 @@ select
   coalesce(q.tax_amount, 0) as quote_tax_amount,
   coalesce(w.real_cost, 0) as real_cost
 from public.clients c
-left join lateral (
-  select
-    coalesce(sum(real_cost_amount), 0) as real_cost,
-    coalesce(sum(real_cost_amount) filter (where warranty or economic_status = 'garantia'), 0) as warranty_cost,
-    count(*) filter (where warranty or economic_status = 'garantia') as warranty_work_orders,
-    count(*) filter (where billable and economic_status in ('facturable','pendiente_facturar')) as billable_work_orders,
-    count(*) filter (where economic_status = 'pendiente_facturar' or (status in ('Finalizado tecnicamente','Enviado','Cerrado') and coalesce(invoiced_amount, 0) = 0 and not warranty)) as pending_invoice_work_orders
-  from public.v_work_order_economic_summary
-  where client_id = c.id
-    and company_id = c.company_id
-) w on true
-left join lateral (
-  select
-    coalesce(sum(coalesce(taxable_base, subtotal_sale, subtotal, 0)), 0) as sale_amount,
-    coalesce(sum(coalesce(tax_amount, 0)), 0) as tax_amount,
-    coalesce(sum(coalesce(total_amount, total, 0)), 0) as total_amount,
-    count(*) filter (where status = 'Aceptado') as accepted_quotes,
-    count(*) filter (where status = 'Ejecutado en cliente') as executed_quotes
-  from public.quotes
-  where client_id = c.id
-    and company_id = c.company_id
-    and deleted_at is null
-    and status in ('Aceptado','Ejecutado en cliente')
-) q on true
+left join client_work_order_summary w on w.client_id = c.id and w.company_id = c.company_id
+left join client_quote_summary q on q.client_id = c.id and q.company_id = c.company_id
 where c.deleted_at is null;
 
 create or replace view public.v_management_metrics
 with (security_invoker = true)
 as
+with client_counts as (
+  select company_id, count(*) as clients
+  from public.clients
+  where deleted_at is null
+  group by company_id
+), equipment_counts as (
+  select company_id, count(*) as equipment
+  from public.equipment
+  where deleted_at is null
+  group by company_id
+), work_order_summary as (
+  select
+    company_id,
+    count(*) as work_orders,
+    count(*) filter (where created_at >= date_trunc('month', now())) as work_orders_this_month,
+    count(*) filter (where status in ('Finalizado tecnicamente','Enviado','Cerrado')) as finished_work_orders,
+    count(*) filter (where economic_status = 'pendiente_facturar' or (status in ('Finalizado tecnicamente','Enviado','Cerrado') and coalesce(invoiced_amount, 0) = 0 and not warranty)) as pending_invoice_work_orders,
+    coalesce(sum(real_cost_amount) filter (where warranty or economic_status = 'garantia'), 0) as warranty_cost,
+    coalesce(sum(real_cost_amount), 0) as real_cost
+  from public.v_work_order_economic_summary
+  group by company_id
+), quote_summary as (
+  select
+    company_id,
+    count(*) filter (where status = 'Aceptado') as accepted_quotes,
+    count(*) filter (where status = 'Ejecutado en cliente') as executed_quotes,
+    coalesce(sum(coalesce(taxable_base, subtotal_sale, subtotal, 0)), 0) as sale_amount,
+    coalesce(sum(coalesce(tax_amount, 0)), 0) as tax_amount,
+    coalesce(sum(coalesce(total_amount, total, 0)), 0) as total_amount
+  from public.quotes
+  where deleted_at is null
+    and status in ('Aceptado','Ejecutado en cliente')
+  group by company_id
+)
 select
   c.id as company_id,
   coalesce(cl.clients, 0) as clients,
@@ -132,14 +212,13 @@ select
   coalesce(q.sale_amount, 0) as sale_amount,
   coalesce(q.tax_amount, 0) as tax_amount,
   coalesce(q.total_amount, 0) as total_amount,
-  coalesce(ec.real_cost, 0) as real_cost,
-  round(coalesce(q.sale_amount, 0) - coalesce(ec.real_cost, 0), 2) as margin_amount,
-  case when coalesce(q.sale_amount, 0) > 0 then round((coalesce(q.sale_amount, 0) - coalesce(ec.real_cost, 0)) / coalesce(q.sale_amount, 0) * 100, 2) else null end as margin_percentage
+  coalesce(wo.real_cost, 0) as real_cost,
+  round(coalesce(q.sale_amount, 0) - coalesce(wo.real_cost, 0), 2) as margin_amount,
+  case when coalesce(q.sale_amount, 0) > 0 then round((coalesce(q.sale_amount, 0) - coalesce(wo.real_cost, 0)) / coalesce(q.sale_amount, 0) * 100, 2) else null end as margin_percentage
 from public.companies c
-left join lateral (select count(*) as clients from public.clients where company_id = c.id and deleted_at is null) cl on true
-left join lateral (select count(*) as equipment from public.equipment where company_id = c.id and deleted_at is null) eq on true
-left join lateral (select count(*) as work_orders, count(*) filter (where created_at >= date_trunc('month', now())) as work_orders_this_month, count(*) filter (where status in ('Finalizado tecnicamente','Enviado','Cerrado')) as finished_work_orders, count(*) filter (where economic_status = 'pendiente_facturar' or (status in ('Finalizado tecnicamente','Enviado','Cerrado') and coalesce(invoiced_amount, 0) = 0 and not warranty)) as pending_invoice_work_orders, coalesce(sum(real_cost_amount) filter (where warranty or economic_status = 'garantia'), 0) as warranty_cost from public.v_work_order_economic_summary where company_id = c.id) wo on true
-left join lateral (select coalesce(sum(real_cost_amount), 0) as real_cost from public.v_work_order_economic_summary where company_id = c.id) ec on true
-left join lateral (select count(*) filter (where status = 'Aceptado') as accepted_quotes, count(*) filter (where status = 'Ejecutado en cliente') as executed_quotes, coalesce(sum(coalesce(taxable_base, subtotal_sale, subtotal, 0)), 0) as sale_amount, coalesce(sum(coalesce(tax_amount, 0)), 0) as tax_amount, coalesce(sum(coalesce(total_amount, total, 0)), 0) as total_amount from public.quotes where company_id = c.id and deleted_at is null and status in ('Aceptado','Ejecutado en cliente')) q on true;
+left join client_counts cl on cl.company_id = c.id
+left join equipment_counts eq on eq.company_id = c.id
+left join work_order_summary wo on wo.company_id = c.id
+left join quote_summary q on q.company_id = c.id;
 
 commit;

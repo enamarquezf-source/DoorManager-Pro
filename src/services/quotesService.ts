@@ -27,6 +27,15 @@ function normalizeLine(payload: Record<string, any>) {
   return { ...line, quantity, unit_cost: unitCost, unit_price: unitPrice, total_cost: quantity * unitCost, total_price: quantity * unitPrice, total: quantity * unitPrice };
 }
 
+async function optionalRelated(table: string, id: string, columns: string, quoteId: string) {
+  try {
+    return await expectData<any>((supabase as any).from(table).select(columns).eq('id', id).maybeSingle(), { service: 'quotesService', operation: `get quote ${table}`, resource: quoteId });
+  } catch (error: any) {
+    console.error('DMP get quote related failed', { quoteId, table, relatedId: id, columns, message: error?.message, details: error?.details, hint: error?.hint, code: error?.code, name: error?.name });
+    return null;
+  }
+}
+
 export const quotesService = {
   async list(search = '') {
     const companyId = await currentCompanyId();
@@ -35,10 +44,23 @@ export const quotesService = {
     return expectData<any[]>(query, { service: 'quotesService', operation: 'list quotes' });
   },
   async get(id: string) {
-    const row = await expectData<any>(supabase.from('quotes').select('*, clients!quotes_client_id_fkey(code,legal_name,email), sites!quotes_site_id_fkey(code,name,address), equipment!quotes_equipment_id_fkey(code,brand,model), work_orders!quotes_work_order_id_fkey(code,title), opportunities!quotes_opportunity_id_fkey(code,title), quote_lines!quote_lines_quote_id_fkey(*)').eq('id', id).maybeSingle(), { service: 'quotesService', operation: 'get quote', resource: id });
-    if (!row) throw new Error('No se ha encontrado el presupuesto solicitado.');
-    row.quote_lines = (row.quote_lines ?? []).sort((a: any, b: any) => Number(a.position ?? 0) - Number(b.position ?? 0));
-    return row;
+    if (!id) throw new Error('No se ha indicado el presupuesto a abrir.');
+    try {
+      const row = await expectData<any>(supabase.from('quotes').select('*').eq('id', id).is('deleted_at', null).maybeSingle(), { service: 'quotesService', operation: 'get quote', resource: id });
+      if (!row) throw new Error('No se ha encontrado el presupuesto solicitado.');
+      const [clients, sites, equipment, workOrders, opportunities, lines] = await Promise.all([
+        row.client_id ? optionalRelated('clients', row.client_id, 'code,legal_name,email', id) : Promise.resolve(null),
+        row.site_id ? optionalRelated('sites', row.site_id, 'code,name,address', id) : Promise.resolve(null),
+        row.equipment_id ? optionalRelated('equipment', row.equipment_id, 'code,brand,model', id) : Promise.resolve(null),
+        row.work_order_id ? optionalRelated('work_orders', row.work_order_id, 'code,title', id) : Promise.resolve(null),
+        row.opportunity_id ? optionalRelated('opportunities', row.opportunity_id, 'code,title', id) : Promise.resolve(null),
+        expectData<any[]>(supabase.from('quote_lines').select('*').eq('quote_id', id).order('position'), { service: 'quotesService', operation: 'get quote lines', resource: id }),
+      ]);
+      return { ...row, clients, sites, equipment, work_orders: workOrders, opportunities, quote_lines: (lines ?? []).filter((line: any) => !line.deleted_at).sort((a: any, b: any) => Number(a.position ?? 0) - Number(b.position ?? 0)) };
+    } catch (error: any) {
+      console.error('DMP get quote failed', { quoteId: id, query: 'quotes + quote_lines + optional related records', message: error?.message, details: error?.details, hint: error?.hint, code: error?.code, name: error?.name });
+      throw error;
+    }
   },
   async create(payload: Record<string, any>) {
     const company_id = payload.company_id || await currentCompanyId();

@@ -59,9 +59,18 @@ describe('quotes management 034', () => {
 
   it('opens quote detail in the same app screen', () => {
     expect(app).toContain('function QuoteDetailPage');
+    expect(app).toContain('path="/app/modulos/presupuestos/:id"');
     expect(app).toContain('/app/modulos/presupuestos/${quote.id}');
     expect(app).toContain('quote-detail-page');
     expect(app).not.toContain('QuoteDetailModal quoteId={selected}');
+  });
+
+  it('loads quote detail without fragile embedded relationships', () => {
+    expect(quotesService).toContain("supabase.from('quotes').select('*')");
+    expect(quotesService).toContain("supabase.from('quote_lines').select('*')");
+    expect(quotesService).toContain('optionalRelated');
+    expect(quotesService).toContain('DMP get quote failed');
+    expect(quotesService).not.toContain('quote_lines!quote_lines_quote_id_fkey');
   });
 
   it('lists quotes in client detail with economic summary', () => {

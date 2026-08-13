@@ -21,6 +21,13 @@ describe('pending sync UI wiring', () => {
     expect(app).toContain('No se enviarán a Supabase');
   });
 
+  it('shows the full pending sync action page from superadmin sync', () => {
+    expect(app).toContain('function SuperadminSync()');
+    expect(app).toContain('return <PendingSyncPage />;');
+    expect(app).toContain('path="/app/superadmin/sincronizacion"');
+    expect(app).not.toContain("'/app/pendientes'])} empty=\"Sin pendientes locales visibles.\"");
+  });
+
   it('logs real handler failures without printing secrets', () => {
     expect(app).toContain('DMP pending sync action failed');
     expect(app).toContain('message: error?.message');

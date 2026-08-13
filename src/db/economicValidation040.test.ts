@@ -19,6 +19,9 @@ describe('economic validation 040', () => {
     expect(migration).not.toContain('left join public.v_work_order_economic_summary w on w.client_id = c.id\nleft join public.quotes q');
     expect(migration).not.toContain('sum(q.total) filter');
     expect(migration).toContain('coalesce(sum(coalesce(taxable_base, subtotal_sale, subtotal, 0)), 0) as sale_amount');
+    expect(migration).toContain('as real_cost_amount');
+    expect(migration.indexOf('as real_cost_amount')).toBeLessThan(migration.indexOf('as sale_amount'));
+    expect(migration.indexOf('as estimated_margin_amount')).toBeLessThan(migration.indexOf('as margin_amount'));
   });
 
   it('updates management UI labels away from VAT-inclusive profit', () => {

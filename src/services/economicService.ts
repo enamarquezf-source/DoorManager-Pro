@@ -55,7 +55,7 @@ export const economicService = {
   async dashboardData(companyScope?: string | null) {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
     let worksQuery = supabase.from('v_work_order_economic_summary').select('*').order('scheduled_date', { ascending: false });
-    let clientsQuery = supabase.from('v_client_economic_summary').select('*').order('margin_amount', { ascending: false });
+    let clientsQuery = supabase.from('v_client_economic_summary').select('*').order('estimated_margin_amount', { ascending: false });
     let quotesQuery = supabase.from('quotes').select('id, company_id, client_id, status, quote_type, issue_date, taxable_base, subtotal_sale, subtotal, tax_amount, total_amount, total, estimated_margin, clients!quotes_client_id_fkey(id,legal_name)').is('deleted_at', null).order('issue_date', { ascending: false });
     if (companyId) {
       worksQuery = worksQuery.eq('company_id', companyId);

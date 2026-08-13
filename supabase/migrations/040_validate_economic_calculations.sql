@@ -44,15 +44,15 @@ select
   coalesce(aux.mobile_workshop_cost, 0) as mobile_workshop_cost,
   coalesce(aux.platform_cost, 0) as platform_cost,
   coalesce(aux.external_cost, 0) as external_cost,
-  round(coalesce(mat.material_cost, 0) + coalesce(tim.time_cost, 0) + coalesce(aux.auxiliary_cost, 0), 2) as real_cost,
   round(coalesce(mat.material_cost, 0) + coalesce(tim.time_cost, 0) + coalesce(aux.auxiliary_cost, 0), 2) as real_cost_amount,
-  case when wo.warranty or wo.billable = false or wo.economic_status in ('garantia','no_facturable') then 0 else coalesce(nullif(wo.estimated_sale_amount, 0), q.sale_amount, mat.material_sale + tim.time_sale + aux.auxiliary_sale, 0) end as sale_amount,
   case when wo.warranty or wo.billable = false or wo.economic_status in ('garantia','no_facturable') then 0 else coalesce(nullif(wo.estimated_sale_amount, 0), q.sale_amount, mat.material_sale + tim.time_sale + aux.auxiliary_sale, 0) end as estimated_sale_amount,
-  case when wo.warranty or wo.billable = false or wo.economic_status in ('garantia','no_facturable') then round(0 - (coalesce(mat.material_cost, 0) + coalesce(tim.time_cost, 0) + coalesce(aux.auxiliary_cost, 0)), 2) else round(coalesce(nullif(wo.estimated_sale_amount, 0), q.sale_amount, mat.material_sale + tim.time_sale + aux.auxiliary_sale, 0) - (coalesce(mat.material_cost, 0) + coalesce(tim.time_cost, 0) + coalesce(aux.auxiliary_cost, 0)), 2) end as margin_amount,
   case when wo.warranty or wo.billable = false or wo.economic_status in ('garantia','no_facturable') then round(0 - (coalesce(mat.material_cost, 0) + coalesce(tim.time_cost, 0) + coalesce(aux.auxiliary_cost, 0)), 2) else round(coalesce(nullif(wo.estimated_sale_amount, 0), q.sale_amount, mat.material_sale + tim.time_sale + aux.auxiliary_sale, 0) - (coalesce(mat.material_cost, 0) + coalesce(tim.time_cost, 0) + coalesce(aux.auxiliary_cost, 0)), 2) end as estimated_margin_amount,
-  case when coalesce(nullif(wo.estimated_sale_amount, 0), q.sale_amount, mat.material_sale + tim.time_sale + aux.auxiliary_sale, 0) > 0 and not (wo.warranty or wo.billable = false or wo.economic_status in ('garantia','no_facturable')) then round((coalesce(nullif(wo.estimated_sale_amount, 0), q.sale_amount, mat.material_sale + tim.time_sale + aux.auxiliary_sale, 0) - (coalesce(mat.material_cost, 0) + coalesce(tim.time_cost, 0) + coalesce(aux.auxiliary_cost, 0))) / coalesce(nullif(wo.estimated_sale_amount, 0), q.sale_amount, mat.material_sale + tim.time_sale + aux.auxiliary_sale, 0) * 100, 2) else null end as margin_percentage,
   wo.invoiced_amount,
-  wo.paid_amount
+  wo.paid_amount,
+  case when wo.warranty or wo.billable = false or wo.economic_status in ('garantia','no_facturable') then 0 else coalesce(nullif(wo.estimated_sale_amount, 0), q.sale_amount, mat.material_sale + tim.time_sale + aux.auxiliary_sale, 0) end as sale_amount,
+  case when wo.warranty or wo.billable = false or wo.economic_status in ('garantia','no_facturable') then round(0 - (coalesce(mat.material_cost, 0) + coalesce(tim.time_cost, 0) + coalesce(aux.auxiliary_cost, 0)), 2) else round(coalesce(nullif(wo.estimated_sale_amount, 0), q.sale_amount, mat.material_sale + tim.time_sale + aux.auxiliary_sale, 0) - (coalesce(mat.material_cost, 0) + coalesce(tim.time_cost, 0) + coalesce(aux.auxiliary_cost, 0)), 2) end as margin_amount,
+  case when coalesce(nullif(wo.estimated_sale_amount, 0), q.sale_amount, mat.material_sale + tim.time_sale + aux.auxiliary_sale, 0) > 0 and not (wo.warranty or wo.billable = false or wo.economic_status in ('garantia','no_facturable')) then round((coalesce(nullif(wo.estimated_sale_amount, 0), q.sale_amount, mat.material_sale + tim.time_sale + aux.auxiliary_sale, 0) - (coalesce(mat.material_cost, 0) + coalesce(tim.time_cost, 0) + coalesce(aux.auxiliary_cost, 0))) / coalesce(nullif(wo.estimated_sale_amount, 0), q.sale_amount, mat.material_sale + tim.time_sale + aux.auxiliary_sale, 0) * 100, 2) else null end as margin_percentage,
+  round(coalesce(mat.material_cost, 0) + coalesce(tim.time_cost, 0) + coalesce(aux.auxiliary_cost, 0), 2) as real_cost
 from public.work_orders wo
 left join public.clients c on c.id = wo.client_id and c.company_id = wo.company_id
 left join public.sites s on s.id = wo.site_id and s.company_id = wo.company_id
@@ -71,27 +71,27 @@ select
   c.company_id,
   c.code,
   c.legal_name,
-  coalesce(w.real_cost, 0) as real_cost,
   coalesce(w.real_cost, 0) as real_cost_amount,
-  coalesce(q.sale_amount, 0) as sale_amount,
   coalesce(q.sale_amount, 0) as estimated_sale_amount,
-  round(coalesce(q.sale_amount, 0) - coalesce(w.real_cost, 0), 2) as margin_amount,
   round(coalesce(q.sale_amount, 0) - coalesce(w.real_cost, 0), 2) as estimated_margin_amount,
-  case when coalesce(q.sale_amount, 0) > 0 then round((coalesce(q.sale_amount, 0) - coalesce(w.real_cost, 0)) / coalesce(q.sale_amount, 0) * 100, 2) else null end as margin_percentage,
-  coalesce(w.warranty_cost, 0) as warranty_cost,
   coalesce(w.warranty_work_orders, 0) as warranty_work_orders,
   coalesce(w.billable_work_orders, 0) as billable_work_orders,
   coalesce(w.pending_invoice_work_orders, 0) as pending_invoice_work_orders,
   coalesce(q.sale_amount, 0) as quote_sale_amount,
-  coalesce(q.tax_amount, 0) as quote_tax_amount,
   coalesce(q.total_amount, 0) as quote_total_amount,
   coalesce(q.accepted_quotes, 0) as accepted_quotes,
-  coalesce(q.executed_quotes, 0) as executed_quotes
+  coalesce(q.executed_quotes, 0) as executed_quotes,
+  coalesce(q.sale_amount, 0) as sale_amount,
+  round(coalesce(q.sale_amount, 0) - coalesce(w.real_cost, 0), 2) as margin_amount,
+  case when coalesce(q.sale_amount, 0) > 0 then round((coalesce(q.sale_amount, 0) - coalesce(w.real_cost, 0)) / coalesce(q.sale_amount, 0) * 100, 2) else null end as margin_percentage,
+  coalesce(w.warranty_cost, 0) as warranty_cost,
+  coalesce(q.tax_amount, 0) as quote_tax_amount,
+  coalesce(w.real_cost, 0) as real_cost
 from public.clients c
 left join lateral (
   select
-    coalesce(sum(real_cost), 0) as real_cost,
-    coalesce(sum(real_cost) filter (where warranty or economic_status = 'garantia'), 0) as warranty_cost,
+    coalesce(sum(real_cost_amount), 0) as real_cost,
+    coalesce(sum(real_cost_amount) filter (where warranty or economic_status = 'garantia'), 0) as warranty_cost,
     count(*) filter (where warranty or economic_status = 'garantia') as warranty_work_orders,
     count(*) filter (where billable and economic_status in ('facturable','pendiente_facturar')) as billable_work_orders,
     count(*) filter (where economic_status = 'pendiente_facturar' or (status in ('Finalizado tecnicamente','Enviado','Cerrado') and coalesce(invoiced_amount, 0) = 0 and not warranty)) as pending_invoice_work_orders
@@ -122,14 +122,14 @@ select
   coalesce(cl.clients, 0) as clients,
   coalesce(eq.equipment, 0) as equipment,
   coalesce(wo.work_orders_this_month, 0) as work_orders_this_month,
+  coalesce(q.accepted_quotes, 0) as accepted_quotes,
+  coalesce(q.sale_amount, 0) as accepted_quote_amount,
   coalesce(wo.work_orders, 0) as work_orders,
   coalesce(wo.finished_work_orders, 0) as finished_work_orders,
   coalesce(wo.warranty_cost, 0) as warranty_cost,
   coalesce(wo.pending_invoice_work_orders, 0) as pending_invoice_work_orders,
-  coalesce(q.accepted_quotes, 0) as accepted_quotes,
   coalesce(q.executed_quotes, 0) as executed_quotes,
   coalesce(q.sale_amount, 0) as sale_amount,
-  coalesce(q.sale_amount, 0) as accepted_quote_amount,
   coalesce(q.tax_amount, 0) as tax_amount,
   coalesce(q.total_amount, 0) as total_amount,
   coalesce(ec.real_cost, 0) as real_cost,
@@ -138,8 +138,8 @@ select
 from public.companies c
 left join lateral (select count(*) as clients from public.clients where company_id = c.id and deleted_at is null) cl on true
 left join lateral (select count(*) as equipment from public.equipment where company_id = c.id and deleted_at is null) eq on true
-left join lateral (select count(*) as work_orders, count(*) filter (where created_at >= date_trunc('month', now())) as work_orders_this_month, count(*) filter (where status in ('Finalizado tecnicamente','Enviado','Cerrado')) as finished_work_orders, count(*) filter (where economic_status = 'pendiente_facturar' or (status in ('Finalizado tecnicamente','Enviado','Cerrado') and coalesce(invoiced_amount, 0) = 0 and not warranty)) as pending_invoice_work_orders, coalesce(sum(real_cost) filter (where warranty or economic_status = 'garantia'), 0) as warranty_cost from public.v_work_order_economic_summary where company_id = c.id) wo on true
-left join lateral (select coalesce(sum(real_cost), 0) as real_cost from public.v_work_order_economic_summary where company_id = c.id) ec on true
+left join lateral (select count(*) as work_orders, count(*) filter (where created_at >= date_trunc('month', now())) as work_orders_this_month, count(*) filter (where status in ('Finalizado tecnicamente','Enviado','Cerrado')) as finished_work_orders, count(*) filter (where economic_status = 'pendiente_facturar' or (status in ('Finalizado tecnicamente','Enviado','Cerrado') and coalesce(invoiced_amount, 0) = 0 and not warranty)) as pending_invoice_work_orders, coalesce(sum(real_cost_amount) filter (where warranty or economic_status = 'garantia'), 0) as warranty_cost from public.v_work_order_economic_summary where company_id = c.id) wo on true
+left join lateral (select coalesce(sum(real_cost_amount), 0) as real_cost from public.v_work_order_economic_summary where company_id = c.id) ec on true
 left join lateral (select count(*) filter (where status = 'Aceptado') as accepted_quotes, count(*) filter (where status = 'Ejecutado en cliente') as executed_quotes, coalesce(sum(coalesce(taxable_base, subtotal_sale, subtotal, 0)), 0) as sale_amount, coalesce(sum(coalesce(tax_amount, 0)), 0) as tax_amount, coalesce(sum(coalesce(total_amount, total, 0)), 0) as total_amount from public.quotes where company_id = c.id and deleted_at is null and status in ('Aceptado','Ejecutado en cliente')) q on true;
 
 commit;

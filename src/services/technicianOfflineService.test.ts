@@ -81,4 +81,27 @@ describe('technicianOfflineService scope helpers', () => {
     expect(detail).not.toContain('sbp_supersecret');
     expect(detail).not.toContain('user:pass@host');
   });
+
+  it('usa el mismo id de cola para listar y borrar seleccionados', async () => {
+    const { queueIdsForTest, deleteQueueItemsForTest } = await import('./technicianOfflineService');
+    const changes: any[] = [
+      { id: 'change-a', type: 'material', payload: {}, status: 'pending', createdAt: '', updatedAt: '' },
+      { id: 'change-b', type: 'work-note', payload: {}, status: 'failed', createdAt: '', updatedAt: '' },
+      { id: 'synced', type: 'photo', payload: {}, status: 'synced', createdAt: '', updatedAt: '' },
+    ];
+    const listedIds = queueIdsForTest(changes);
+    expect(listedIds).toEqual(['change-a', 'change-b']);
+    expect(deleteQueueItemsForTest(changes, ['change-a']).map((item) => item.id)).toEqual(['change-b', 'synced']);
+  });
+
+  it('borra fallidos sin tocar pendientes ni sincronizados', async () => {
+    const { deleteFailedQueueItemsForTest } = await import('./technicianOfflineService');
+    const changes: any[] = [
+      { id: 'pending', type: 'material', payload: {}, status: 'pending', createdAt: '', updatedAt: '' },
+      { id: 'failed', type: 'work-note', payload: {}, status: 'failed', createdAt: '', updatedAt: '' },
+      { id: 'blocked', type: 'photo', payload: {}, status: 'blocked', createdAt: '', updatedAt: '' },
+      { id: 'synced', type: 'signature', payload: {}, status: 'synced', createdAt: '', updatedAt: '' },
+    ];
+    expect(deleteFailedQueueItemsForTest(changes).map((item) => item.id)).toEqual(['pending', 'blocked', 'synced']);
+  });
 });

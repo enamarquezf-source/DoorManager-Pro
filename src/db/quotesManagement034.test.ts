@@ -54,6 +54,14 @@ describe('quotes management 034', () => {
     expect(app).toContain('Material manual / sin catálogo');
     expect(app).toContain('quotesService.deleteLine');
     expect(app).toContain('window.print()');
+    expect(app).not.toContain('window.open');
+  });
+
+  it('opens quote detail in the same app screen', () => {
+    expect(app).toContain('function QuoteDetailPage');
+    expect(app).toContain('/app/modulos/presupuestos/${quote.id}');
+    expect(app).toContain('quote-detail-page');
+    expect(app).not.toContain('QuoteDetailModal quoteId={selected}');
   });
 
   it('lists quotes in client detail with economic summary', () => {

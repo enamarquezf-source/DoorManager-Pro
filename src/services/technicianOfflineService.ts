@@ -139,6 +139,19 @@ export function markStaleChangesBlockedForTest(changes: OfflineChange[], activeW
   return changes.map((item) => item.workOrderId && !active.has(item.workOrderId) && isQueueOpen(item) ? { ...item, status: 'blocked' as const, error: 'El parte ya no está asignado o activo. No se pierde el cambio; requiere revisión SAT.' } : item);
 }
 
+export function queueIdsForTest(changes: OfflineChange[]) {
+  return changes.filter(isQueueOpen).map((item) => item.id);
+}
+
+export function deleteQueueItemsForTest(changes: OfflineChange[], changeIds: string[]) {
+  const ids = new Set(changeIds);
+  return changes.filter((item) => !(ids.has(item.id) && isQueueOpen(item)));
+}
+
+export function deleteFailedQueueItemsForTest(changes: OfflineChange[]) {
+  return changes.filter((item) => item.status !== 'failed');
+}
+
 async function syncChange(item: OfflineChange) {
   if (item.type === 'check-block') await checksService.syncOfflineBlock(item);
   else if (item.type === 'deficiency' && item.checkId) await checksService.syncOfflineDeficiency(item);

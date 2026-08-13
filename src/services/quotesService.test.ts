@@ -52,6 +52,20 @@ describe('quote line normalization', () => {
     expect(totals).toMatchObject({ subtotalCost: 4900, subtotalSale: 6000, discountAmount: 600, taxableBase: 5400, taxAmount: 1134, totalAmount: 6534, estimatedMargin: 500 });
   });
 
+  it('validates the real target quote case: 4900 cost, 6000 sale, 10 percent discount', () => {
+    const totals = calculateQuoteEconomics([
+      normalizeQuoteLinePayload({ quantity: 1, unit_cost: 3100, unit_price: 3800, tax_rate: 21 }),
+      normalizeQuoteLinePayload({ quantity: 1, unit_cost: 1500, unit_price: 1800, tax_rate: 21 }),
+      normalizeQuoteLinePayload({ quantity: 1, unit_cost: 300, unit_price: 400, tax_rate: 21 }),
+    ], 'percentage', 10);
+    expect(totals.subtotalCost).toBe(4900);
+    expect(totals.subtotalSale).toBe(6000);
+    expect(totals.taxableBase).toBe(5400);
+    expect(totals.taxAmount).toBe(1134);
+    expect(totals.totalAmount).toBe(6534);
+    expect(totals.estimatedMargin).toBe(500);
+  });
+
   it('caps excessive discount at subtotal sale without breaking totals', () => {
     const lines = [normalizeQuoteLinePayload({ quantity: 1, unit_cost: 100, unit_price: 100, tax_rate: 21 })];
     const totals = calculateQuoteEconomics(lines, 'amount', 150);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessRoute, canArchiveEntity, canCorrectWorkOrderOperationalFields, canCreateAlert, canManageCheck, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canPermanentlyDeleteEntity, canRestoreEntity, canRole, canViewCheck, canViewWorkOrderCosts, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './permissions';
+import { canAccessRoute, canArchiveEntity, canCorrectWorkOrderOperationalFields, canCreateAlert, canManageCheck, canManageQuotes, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canPermanentlyDeleteEntity, canRestoreEntity, canRole, canViewCheck, canViewSalesEconomics, canViewWorkOrderCosts, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './permissions';
 import type { Profile, RoleName } from '../shared/types';
 
 function profile(primary_area: RoleName, roles: RoleName[] = []): Profile {
@@ -98,14 +98,14 @@ describe('canAccessRoute', () => {
     expect(canManageWorkOrderAssignments(profile('Comercial'))).toBe(false);
   });
 
-  it('centraliza archivo restauracion y borrado definitivo en SAT Gerencia y Superadmin activos', () => {
+  it('centraliza archivo restauracion y borrado definitivo en roles backoffice activos', () => {
     const entity = { id: 'entity-id', company_id: 'company-id' };
-    for (const role of ['SAT', 'Gerencia', 'superadmin'] as RoleName[]) {
+    for (const role of ['SAT', 'Gerencia', 'Oficina', 'superadmin'] as RoleName[]) {
       expect(canArchiveEntity(profile(role), entity)).toBe(true);
       expect(canRestoreEntity(profile(role), entity)).toBe(true);
       expect(canPermanentlyDeleteEntity(profile(role), entity)).toBe(true);
     }
-    for (const role of ['Tecnico', 'Comercial', 'Oficina'] as RoleName[]) {
+    for (const role of ['Tecnico', 'Comercial'] as RoleName[]) {
       expect(canArchiveEntity(profile(role), entity)).toBe(false);
       expect(canRestoreEntity(profile(role), entity)).toBe(false);
       expect(canPermanentlyDeleteEntity(profile(role), entity)).toBe(false);
@@ -119,6 +119,20 @@ describe('canAccessRoute', () => {
     expect(canArchiveEntity(profile('superadmin'), { ...entity, lifecycle_entity: 'profiles' })).toBe(true);
     expect(canRestoreEntity(profile('SAT'), { ...entity, lifecycle_entity: 'profiles' })).toBe(false);
     expect(canPermanentlyDeleteEntity(profile('Gerencia'), { ...entity, lifecycle_entity: 'profiles' })).toBe(false);
+  });
+
+  it('autoriza presupuestos y economia visible por rol solicitado', () => {
+    for (const role of ['superadmin', 'SAT', 'Comercial', 'Gerencia', 'Oficina'] as RoleName[]) {
+      expect(canManageQuotes(profile(role))).toBe(true);
+      expect(canViewSalesEconomics(profile(role))).toBe(true);
+      expect(canAccessRoute(profile(role), '/app/modulos/presupuestos')).toBe(true);
+    }
+    for (const route of ['/app/gerencia', '/app/gerencia/rentabilidad']) {
+      for (const role of ['superadmin', 'SAT', 'Comercial', 'Gerencia', 'Oficina'] as RoleName[]) expect(canAccessRoute(profile(role), route)).toBe(true);
+    }
+    expect(canManageQuotes(profile('Tecnico'))).toBe(false);
+    expect(canViewSalesEconomics(profile('Tecnico'))).toBe(false);
+    expect(canViewWorkOrderCosts(profile('Comercial'))).toBe(false);
   });
 
   it('autoriza al superadmin global solo sobre la empresa seleccionada', () => {

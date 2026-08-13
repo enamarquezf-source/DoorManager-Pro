@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase/client';
 import { expectData } from './query';
 
-export type LifecycleEntity = 'clients' | 'sites' | 'equipment' | 'cases' | 'work_orders' | 'checks' | 'check_templates' | 'profiles';
+export type LifecycleEntity = 'clients' | 'sites' | 'equipment' | 'cases' | 'work_orders' | 'checks' | 'check_templates' | 'profiles' | 'quotes';
 export type ArchiveFilter = 'active' | 'archived' | 'all';
 
 export type LifecycleSummary = {
@@ -33,6 +33,7 @@ export const entityLabels: Record<LifecycleEntity, string> = {
   checks: 'check',
   check_templates: 'plantilla',
   profiles: 'usuario',
+  quotes: 'presupuesto',
 };
 
 export const entityLifecycleService = {

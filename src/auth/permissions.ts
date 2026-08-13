@@ -3,7 +3,8 @@ import type { Profile, RoleName, Workspace } from '../shared/types';
 const adminRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia', 'Oficina'];
 const backOfficeRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia', 'Oficina'];
 const operationalRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia', 'Tecnico'];
-const lifecycleRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia'];
+const lifecycleRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia', 'Oficina'];
+const quoteManagerRoles: RoleName[] = ['superadmin', 'SAT', 'Comercial', 'Gerencia', 'Oficina'];
 export type PlatformLifecycleScope = { platformScope?: boolean; selectedCompanyId?: string | null };
 const workspaceByRole: Record<RoleName, Workspace> = {
   superadmin: 'superadmin',
@@ -159,6 +160,8 @@ export function canManageWorkOrderCosts(profile: Profile | null | undefined, wor
 }
 export function canViewInternalEconomics(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina']); }
 export function canViewWorkOrderCosts(profile: Profile | null | undefined) { return canViewInternalEconomics(profile); }
+export function canViewSalesEconomics(profile: Profile | null | undefined) { return hasAny(profile, quoteManagerRoles); }
+export function canManageQuotes(profile: Profile | null | undefined) { return isActiveProfile(profile) && hasAny(profile, quoteManagerRoles); }
 export function canCreateCheck(profile: Profile | null | undefined) { return hasAny(profile, operationalRoles); }
 export function canExecuteCheck(profile: Profile | null | undefined) { return hasAny(profile, operationalRoles); }
 export function canManageCheck(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT']); }
@@ -191,7 +194,7 @@ export function canAccessRoute(profile: Profile | null | undefined, path: string
   const roles = rolesOf(profile);
   if (!roles.length || !roles.some((role) => roleToWorkspaceSafe(role))) return false;
   if (path.startsWith('/app/superadmin')) return hasAny(profile, ['superadmin']);
-  if (hasAny(profile, ['superadmin']) && (path.startsWith('/app/modulos/presupuestos') || path.startsWith('/app/modulos/materiales') || path.startsWith('/app/modulos/cobros') || path.startsWith('/app/modulos/rentabilidad'))) return true;
+  if (hasAny(profile, ['superadmin']) && (path.startsWith('/app/gerencia') || path.startsWith('/app/modulos/presupuestos') || path.startsWith('/app/modulos/materiales') || path.startsWith('/app/modulos/cobros') || path.startsWith('/app/modulos/rentabilidad'))) return true;
   if (path.startsWith('/app/tecnico') || path.startsWith('/app/pendientes')) return hasAny(profile, ['Tecnico']);
   if (hasAny(profile, ['superadmin'])) return false;
   if (hasAny(profile, ['Tecnico']) && !hasAny(profile, ['SAT', 'Gerencia', 'Comercial', 'Oficina'])) {
@@ -200,7 +203,7 @@ export function canAccessRoute(profile: Profile | null | undefined, path: string
   if (path.startsWith('/app/plantillas')) return hasAny(profile, ['SAT', 'Gerencia']);
   if (path.startsWith('/app/clientes') || path.startsWith('/app/centros') || path.startsWith('/app/equipos') || path.startsWith('/app/expedientes') || path.startsWith('/app/partes') || path.startsWith('/app/trabajos') || path.startsWith('/app/checks') || path.startsWith('/app/deficiencias')) return hasAny(profile, ['SAT', 'Gerencia', 'Comercial', 'Oficina']);
   if (path.startsWith('/app/documentos')) return hasAny(profile, ['SAT', 'Gerencia', 'Oficina']);
-  if (path.startsWith('/app/gerencia')) return hasAny(profile, ['Gerencia', 'SAT', 'Comercial']);
+  if (path.startsWith('/app/gerencia')) return hasAny(profile, ['superadmin', 'Gerencia', 'SAT', 'Comercial', 'Oficina']);
   if (path.startsWith('/app/modulos/tecnicos')) return hasAny(profile, ['SAT', 'Gerencia']);
   if (path.startsWith('/app/modulos/comerciales')) return hasAny(profile, ['SAT', 'Gerencia', 'Comercial']);
   if (path.startsWith('/app/modulos/presupuestos') || path.startsWith('/app/modulos/materiales') || path.startsWith('/app/modulos/cobros') || path.startsWith('/app/modulos/rentabilidad')) return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Comercial', 'Oficina']);

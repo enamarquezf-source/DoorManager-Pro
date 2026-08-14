@@ -22,16 +22,16 @@ describe('materials module', () => {
     for (const nav of ['const sat =', 'const comercial =', 'const oficina =', 'const gerencia =', 'const superadmin =']) expect(app).toContain(nav);
     expect(app).toContain("id: 'materiales', label: 'Materiales', path: '/app/modulos/materiales'");
     expect(permissions).toContain("path.startsWith('/app/modulos/materiales')");
-    expect(permissions).toContain("['superadmin', 'SAT', 'Gerencia', 'Comercial', 'Oficina']");
+    expect(permissions).toContain('economicRoles');
   });
 
   it('implements list create edit search and deactivate UI', () => {
     expect(app).toContain('function MaterialsModule');
     expect(app).toContain('function MaterialForm');
-    expect(app).toContain('materialsService.list(search, scope)');
+    expect(app).toContain('materialsService.list(search, scope, archiveFilter)');
     expect(app).toContain('materialsService.create(values)');
     expect(app).toContain('materialsService.update(initial.id, values)');
-    expect(app).toContain('materialsService.deactivate(removing.id)');
+    expect(app).toContain("entityLifecycleService.archive('materials', removing.id, reason)");
     expect(app).toContain('Desactivar material');
     expect(app).toContain('Ajustar stock');
     expect(app).toContain('Ver movimientos');

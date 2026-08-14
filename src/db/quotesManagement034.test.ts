@@ -175,6 +175,19 @@ describe('quotes management 034', () => {
     expect(quotesService).not.toContain('quote_lines!quote_lines_quote_id_fkey');
   });
 
+  it('keeps the current client available when editing a quote', () => {
+    expect(quotesService).toContain('id,code,legal_name,email,company_id,deleted_at');
+    expect(app).toContain('Cliente asociado actualmente');
+    expect(app).toContain('clientOptions.unshift');
+  });
+
+  it('changes quote status outside the full edit form', () => {
+    expect(quotesService).toContain('async changeStatus');
+    expect(app).toContain('function QuoteStatusSelector');
+    expect(app).toContain('Cambiar estado');
+    expect(app).toContain('Estado del presupuesto actualizado.');
+  });
+
   it('lists quotes in client detail with economic summary', () => {
     expect(clientsService).toContain('quotes!quotes_client_id_fkey');
     expect(app).toContain('Presupuestos del cliente');

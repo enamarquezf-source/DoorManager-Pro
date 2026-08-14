@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessRoute, canArchiveEntity, canCorrectWorkOrderOperationalFields, canCreateAlert, canManageCheck, canManageQuotes, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canPermanentlyDeleteEntity, canRestoreEntity, canRole, canViewCheck, canViewSalesEconomics, canViewWorkOrderCosts, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './permissions';
+import { canAccessRoute, canArchiveEntity, canCorrectWorkOrderOperationalFields, canCreateAlert, canManageCheck, canManageHourRates, canManageQuotes, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canPermanentlyDeleteEntity, canRestoreEntity, canRole, canViewCheck, canViewSalesEconomics, canViewWorkOrderCosts, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './permissions';
 import type { Profile, RoleName } from '../shared/types';
 
 function profile(primary_area: RoleName, roles: RoleName[] = []): Profile {
@@ -132,7 +132,12 @@ describe('canAccessRoute', () => {
     }
     expect(canManageQuotes(profile('Tecnico'))).toBe(false);
     expect(canViewSalesEconomics(profile('Tecnico'))).toBe(false);
-    expect(canViewWorkOrderCosts(profile('Comercial'))).toBe(false);
+    expect(canViewWorkOrderCosts(profile('Comercial'))).toBe(true);
+    for (const role of ['superadmin', 'Gerencia', 'Oficina'] as RoleName[]) {
+      expect(canManageHourRates(profile(role))).toBe(true);
+      expect(canAccessRoute(profile(role), '/app/modulos/tarifas-horas')).toBe(true);
+    }
+    for (const role of ['SAT', 'Comercial', 'Tecnico'] as RoleName[]) expect(canManageHourRates(profile(role))).toBe(false);
   });
 
   it('autoriza al superadmin global solo sobre la empresa seleccionada', () => {
@@ -172,7 +177,7 @@ describe('canAccessRoute', () => {
     expect(canManageWorkOrderMaterials(profile('Tecnico'), workOrder, { registered_by: 'Tecnico-id' })).toBe(true);
     expect(canManageWorkOrderCosts(profile('Tecnico'), workOrder, { registered_by: 'Tecnico-id' })).toBe(true);
     expect(canViewWorkOrderCosts(profile('Tecnico'))).toBe(false);
-    expect(canViewWorkOrderCosts(profile('Comercial'))).toBe(false);
+    expect(canViewWorkOrderCosts(profile('Comercial'))).toBe(true);
   });
 
   it('bloquea horas y materiales a tecnicos no asignados o con asignacion historica', () => {

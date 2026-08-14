@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, expectData } from './query';
 import { codesService } from './codesService';
+import { applyArchiveFilter, type ArchiveFilter } from './entityLifecycleService';
 
 const materialColumns = ['company_id', 'code', 'description', 'manufacturer', 'reference', 'unit', 'cost', 'price', 'stock_quantity', 'minimum_stock', 'stock_controlled', 'allow_negative_stock', 'active'];
 
@@ -18,9 +19,9 @@ function normalizeMaterial(payload: Record<string, any>) {
 }
 
 export const materialsService = {
-  async list(search = '', companyScope?: string | null) {
+  async list(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active') {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
-    let query = supabase.from('materials').select('*').is('deleted_at', null).order('description');
+    let query = applyArchiveFilter(supabase.from('materials').select('*'), archiveFilter).order('description');
     if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'description', 'manufacturer', 'reference', 'unit'], search));
     return expectData<any[]>(query, { service: 'materialsService', operation: 'list materials' });

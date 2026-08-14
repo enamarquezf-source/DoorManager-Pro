@@ -91,7 +91,7 @@ export const quotesService = {
       const row = await expectData<any>(supabase.from('quotes').select('*').eq('id', id).is('deleted_at', null).maybeSingle(), { service: 'quotesService', operation: 'get quote', resource: id });
       if (!row) throw new Error('No se ha encontrado el presupuesto solicitado.');
       const [clients, sites, equipment, workOrders, opportunities, lines] = await Promise.all([
-        row.client_id ? optionalRelated('clients', row.client_id, 'code,legal_name,email', id) : Promise.resolve(null),
+        row.client_id ? optionalRelated('clients', row.client_id, 'id,code,legal_name,email,company_id,deleted_at', id) : Promise.resolve(null),
         row.site_id ? optionalRelated('sites', row.site_id, 'code,name,address', id) : Promise.resolve(null),
         row.equipment_id ? optionalRelated('equipment', row.equipment_id, 'code,brand,model', id) : Promise.resolve(null),
         row.work_order_id ? optionalRelated('work_orders', row.work_order_id, 'code,title', id) : Promise.resolve(null),
@@ -119,6 +119,10 @@ export const quotesService = {
   async update(id: string, payload: Record<string, any>) {
     const updated_by = await currentProfileId();
     return expectData<any>(supabase.from('quotes').update({ ...normalizeQuote(payload), updated_by }).eq('id', id).select().maybeSingle(), { service: 'quotesService', operation: 'update quote', resource: id });
+  },
+  async changeStatus(id: string, status: string, reason = 'Cambio rapido de estado') {
+    const updated_by = await currentProfileId();
+    return expectData<any>(supabase.from('quotes').update({ status: status === 'Mandado' ? 'Enviado' : status, updated_by }).eq('id', id).select().maybeSingle(), { service: 'quotesService', operation: 'change quote status', resource: id });
   },
   async addLine(quoteId: string, payload: Record<string, any>) {
     const quote = await this.get(quoteId);

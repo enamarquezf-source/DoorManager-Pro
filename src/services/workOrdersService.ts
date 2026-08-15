@@ -3,7 +3,7 @@ import { contains, currentCompanyId, currentProfileId, expectData, expectStep } 
 import { filesBucket, withSignedFileUrl } from '../shared/signedFiles';
 import { applyArchiveFilter, type ArchiveFilter } from './entityLifecycleService';
 
-const workOrderColumns = ['case_id', 'client_id', 'site_id', 'main_equipment_id', 'contact_id', 'access_requirement_id', 'title', 'description', 'type', 'priority', 'status', 'origin', 'scheduled_date', 'scheduled_time', 'estimated_duration_minutes', 'planned_material', 'technical_team', 'diagnosis', 'work_performed', 'result'];
+const workOrderColumns = ['case_id', 'quote_id', 'client_id', 'site_id', 'main_equipment_id', 'contact_id', 'access_requirement_id', 'title', 'description', 'type', 'priority', 'status', 'origin', 'scheduled_date', 'scheduled_time', 'estimated_duration_minutes', 'planned_material', 'technical_team', 'diagnosis', 'work_performed', 'result'];
 function workOrderPayload(payload: Record<string, any>) {
   return Object.fromEntries(workOrderColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
 }
@@ -103,7 +103,8 @@ export const workOrdersService = {
         primary_technician:profiles!work_orders_main_technician_id_fkey(*),
         responsible:profiles!work_orders_current_responsible_id_fkey(*, profile_roles!profile_roles_profile_id_fkey(roles!profile_roles_role_id_fkey(name))),
         creator:profiles!work_orders_created_by_fkey(*),
-        updated_by_profile:profiles!work_orders_updated_by_fkey(first_name,last_name,primary_area)
+        updated_by_profile:profiles!work_orders_updated_by_fkey(first_name,last_name,primary_area),
+        quotes!work_orders_quote_id_fkey(id,code,title,status,total_amount,total)
       `).eq('id', workOrderId).maybeSingle());
       if (!workOrder) throw new Error('No se ha encontrado el parte solicitado.');
 

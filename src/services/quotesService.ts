@@ -90,15 +90,16 @@ export const quotesService = {
     try {
       const row = await expectData<any>(supabase.from('quotes').select('*').eq('id', id).is('deleted_at', null).maybeSingle(), { service: 'quotesService', operation: 'get quote', resource: id });
       if (!row) throw new Error('No se ha encontrado el presupuesto solicitado.');
-      const [clients, sites, equipment, workOrders, opportunities, lines] = await Promise.all([
+      const [clients, sites, equipment, workOrders, generatedWorkOrders, opportunities, lines] = await Promise.all([
         row.client_id ? optionalRelated('clients', row.client_id, 'id,code,legal_name,email,company_id,deleted_at', id) : Promise.resolve(null),
         row.site_id ? optionalRelated('sites', row.site_id, 'code,name,address', id) : Promise.resolve(null),
         row.equipment_id ? optionalRelated('equipment', row.equipment_id, 'code,brand,model', id) : Promise.resolve(null),
         row.work_order_id ? optionalRelated('work_orders', row.work_order_id, 'code,title', id) : Promise.resolve(null),
+        expectData<any[]>(supabase.from('work_orders').select('id,code,title,status,scheduled_date,quote_id').eq('quote_id', id).is('deleted_at', null).order('created_at', { ascending: false }), { service: 'quotesService', operation: 'get quote generated work orders', resource: id }),
         row.opportunity_id ? optionalRelated('opportunities', row.opportunity_id, 'code,title', id) : Promise.resolve(null),
         expectData<any[]>(supabase.from('quote_lines').select('*').eq('quote_id', id).order('position'), { service: 'quotesService', operation: 'get quote lines', resource: id }),
       ]);
-      return { ...row, clients, sites, equipment, work_orders: workOrders, opportunities, quote_lines: (lines ?? []).filter((line: any) => !line.deleted_at).sort((a: any, b: any) => Number(a.position ?? 0) - Number(b.position ?? 0)) };
+      return { ...row, clients, sites, equipment, work_orders: workOrders, generated_work_orders: generatedWorkOrders ?? [], opportunities, quote_lines: (lines ?? []).filter((line: any) => !line.deleted_at).sort((a: any, b: any) => Number(a.position ?? 0) - Number(b.position ?? 0)) };
     } catch (error: any) {
       console.error('DMP get quote failed', { quoteId: id, query: 'quotes + quote_lines + optional related records', message: error?.message, details: error?.details, hint: error?.hint, code: error?.code, name: error?.name });
       throw error;
@@ -150,8 +151,10 @@ export const quotesService = {
   sendToClient(id: string, email: string) {
     return this.update(id, { status: 'Enviado', sent_at: new Date().toISOString(), sent_to_email: email });
   },
-  async materialOptions(search = '') {
+  async materialOptions(search = '', companyScope?: string | null) {
+    const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
     let query = supabase.from('materials').select('id, code, description, manufacturer, reference, unit, cost, price, stock_quantity, minimum_stock, stock_controlled, allow_negative_stock').is('deleted_at', null).eq('active', true).order('description').limit(30);
+    if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'description', 'manufacturer', 'reference'], search));
     return expectData<any[]>(query, { service: 'quotesService', operation: 'list quote materials' });
   },

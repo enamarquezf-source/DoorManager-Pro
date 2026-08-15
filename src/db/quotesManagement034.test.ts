@@ -6,9 +6,11 @@ const migration = readFileSync(new URL('../../supabase/migrations/034_fix_quotes
 const economicsFixMigration = readFileSync(new URL('../../supabase/migrations/036_fix_quote_line_economics.sql', import.meta.url), 'utf8');
 const unitPriceFixMigration = readFileSync(new URL('../../supabase/migrations/037_fix_quote_unit_price_mapping.sql', import.meta.url), 'utf8');
 const discountTaxMarginMigration = readFileSync(new URL('../../supabase/migrations/038_fix_quote_discount_tax_margin.sql', import.meta.url), 'utf8');
+const superadminScopeMigration = readFileSync(new URL('../../supabase/migrations/043_superadmin_company_scope_permissions.sql', import.meta.url), 'utf8');
 const quotesService = readFileSync(new URL('../services/quotesService.ts', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
 const clientsService = readFileSync(new URL('../services/clientsService.ts', import.meta.url), 'utf8');
+const workOrdersService = readFileSync(new URL('../services/workOrdersService.ts', import.meta.url), 'utf8');
 
 describe('quotes management 034', () => {
   it('parses migration SQL', async () => {
@@ -17,6 +19,7 @@ describe('quotes management 034', () => {
     expect(parser.parse(economicsFixMigration).parse_tree.stmts.length).toBeGreaterThan(0);
     expect(parser.parse(unitPriceFixMigration).parse_tree.stmts.length).toBeGreaterThan(0);
     expect(parser.parse(discountTaxMarginMigration).parse_tree.stmts.length).toBeGreaterThan(0);
+    expect(parser.parse(superadminScopeMigration).parse_tree.stmts.length).toBeGreaterThan(0);
   });
 
   it('keeps quote code automatic and company scoped', () => {
@@ -193,5 +196,20 @@ describe('quotes management 034', () => {
     expect(app).toContain('Presupuestos del cliente');
     expect(app).toContain('Resumen economico');
     expect(app).toContain('quoteStats');
+  });
+
+  it('generates work orders from accepted quotes without consuming materials', () => {
+    expect(superadminScopeMigration).toContain('alter table public.work_orders add column if not exists quote_id uuid references public.quotes(id)');
+    expect(superadminScopeMigration).toContain('v_quote_id uuid := nullif(p_payload->>\'quote_id\', \'\')::uuid');
+    expect(superadminScopeMigration).toContain('quote_id, client_id, site_id');
+    expect(workOrdersService).toContain("'quote_id'");
+    expect(workOrdersService).toContain('quotes!work_orders_quote_id_fkey');
+    expect(quotesService).toContain("supabase.from('work_orders').select('id,code,title,status,scheduled_date,quote_id').eq('quote_id', id)");
+    expect(app).toContain('Generar parte');
+    expect(app).toContain('generated_work_orders');
+    expect(app).toContain('quoteWorkOrderInitial');
+    expect(app).toContain('planned_material: quotePlannedMaterial(lines)');
+    expect(app).toContain('Los materiales quedan como previstos, sin descontar stock');
+    expect(app).not.toContain('workOrdersService.upsertMaterial(line');
   });
 });

@@ -41,7 +41,7 @@ describe('046 planned materials and technical closeout UX', () => {
     expect(app).toContain('WorkOrderFinalizeModal');
     expect(app).toContain('if (saving) return');
     expect(app).toContain('workOrdersService.finalizeTechnical');
-    expect(app).toContain('Hay {pending.length} material(es) previsto(s) sin confirmar');
+    expect(app).toContain('Hay {pending.length} concepto(s) operativo(s) previsto(s) sin confirmar');
   });
 
   it('shows all closeout summary sections before finalizing', () => {

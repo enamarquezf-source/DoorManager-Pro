@@ -142,6 +142,8 @@ main { padding: 24px; }
 .finalize-modal > div { width: min(1040px, 100%); }
 .finalize-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .planned-materials { display: grid; gap: 10px; }
+.planned-group { display: grid; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.planned-group h4 { margin: 0; color: var(--dark); font-size: 13px; letter-spacing: .04em; }
 .compact-list small { color: var(--text-soft); }
 .compact-list article > button, .compact-list article > a { border: 1px solid var(--line); border-radius: 10px; background: white; padding: 8px 10px; font-weight: 800; color: var(--dark); text-decoration: none; text-align: center; }
 .filters { display: grid; grid-template-columns: minmax(260px, 1.5fr) repeat(3, minmax(140px, 1fr)); gap: 10px; }

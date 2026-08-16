@@ -213,6 +213,8 @@ describe('quotes management 034', () => {
     expect(quoteWorkOrderFixMigration).toContain("lower(coalesce(v_quote.status, '')) not in ('aceptado','ejecutado en cliente')");
     expect(workOrdersService).toContain("'quote_id'");
     expect(workOrdersService).toContain('quotes!work_orders_quote_id_fkey');
+    expect(workOrdersService).toContain("supabase.rpc('create_work_order_full', { p_payload:");
+    expect(workOrdersService).toContain("resource: 'create_work_order_full'");
     expect(quotesService).toContain("supabase.from('work_orders').select('id,code,title,status,scheduled_date,quote_id').eq('quote_id', id)");
     expect(app).toContain('Generar parte');
     expect(app).toContain('generated_work_orders');
@@ -234,9 +236,16 @@ describe('quotes management 034', () => {
     expect(quoteWorkOrderFixMigration).toContain('validacion del formulario: presupuesto sin cliente');
     expect(quoteWorkOrderFixMigration).toContain('validacion del formulario: presupuesto sin centro para crear parte');
     expect(quoteWorkOrderFixMigration).toContain('validacion del formulario: presupuesto no aceptado para generar parte');
-    expect(app).toContain("disabled={!canManageQuote || data.status !== 'Aceptado' || generatedWorks.length > 0 || !data.site_id}");
+    expect(app).toContain("disabled={!canManageQuote || data.status !== 'Aceptado' || generatedWorks.length > 0}");
+    expect(app).not.toContain("|| !data.site_id}>Generar parte");
     expect(app).toContain('DMP generate work order from quote failed');
+    expect(app).toContain('quoteStatus');
     expect(app).toContain('quoteCompanyId');
+    expect(app).toContain('quoteSiteId');
+    expect(app).toContain('quoteEquipmentId');
+    expect(app).toContain('quoteCaseId');
+    expect(app).toContain("rpcName: 'create_work_order_full'");
+    expect(app).toContain('Codigo: ${err.code}');
     expect(app).toContain('No se pudo generar el parte desde el presupuesto');
     expect(quoteWorkOrderFixMigration).not.toContain('stock_deducted_quantity');
     expect(quoteWorkOrderFixMigration).not.toContain('adjustStock');

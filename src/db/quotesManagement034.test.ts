@@ -7,6 +7,7 @@ const economicsFixMigration = readFileSync(new URL('../../supabase/migrations/03
 const unitPriceFixMigration = readFileSync(new URL('../../supabase/migrations/037_fix_quote_unit_price_mapping.sql', import.meta.url), 'utf8');
 const discountTaxMarginMigration = readFileSync(new URL('../../supabase/migrations/038_fix_quote_discount_tax_margin.sql', import.meta.url), 'utf8');
 const superadminScopeMigration = readFileSync(new URL('../../supabase/migrations/043_superadmin_company_scope_permissions.sql', import.meta.url), 'utf8');
+const quoteWorkOrderFixMigration = readFileSync(new URL('../../supabase/migrations/044_fix_generate_work_order_from_quote.sql', import.meta.url), 'utf8');
 const quotesService = readFileSync(new URL('../services/quotesService.ts', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
 const clientsService = readFileSync(new URL('../services/clientsService.ts', import.meta.url), 'utf8');
@@ -20,6 +21,7 @@ describe('quotes management 034', () => {
     expect(parser.parse(unitPriceFixMigration).parse_tree.stmts.length).toBeGreaterThan(0);
     expect(parser.parse(discountTaxMarginMigration).parse_tree.stmts.length).toBeGreaterThan(0);
     expect(parser.parse(superadminScopeMigration).parse_tree.stmts.length).toBeGreaterThan(0);
+    expect(parser.parse(quoteWorkOrderFixMigration).parse_tree.stmts.length).toBeGreaterThan(0);
   });
 
   it('keeps quote code automatic and company scoped', () => {
@@ -199,16 +201,16 @@ describe('quotes management 034', () => {
   });
 
   it('generates work orders from accepted quotes without consuming materials', () => {
-    expect(superadminScopeMigration).toContain('alter table public.work_orders add column if not exists quote_id uuid references public.quotes(id)');
-    expect(superadminScopeMigration).toContain('v_quote_id uuid := nullif(p_payload->>\'quote_id\', \'\')::uuid');
-    expect(superadminScopeMigration).toContain('quote_id, client_id, site_id');
-    expect(superadminScopeMigration).toContain("public.has_any_role(array['superadmin','SAT','Comercial','Gerencia','Oficina'])");
-    expect(superadminScopeMigration).toContain('if not public.is_platform_superadmin() then perform public.assert_member_of_current_company(v_company_id); end if;');
-    expect(superadminScopeMigration).toContain('v_quote.company_id <> v_company_id or v_quote.client_id <> v_client_id');
-    expect(superadminScopeMigration).toContain('v_quote.site_id is not null and v_quote.site_id is distinct from v_site_id');
-    expect(superadminScopeMigration).toContain('v_quote.equipment_id is not null and v_quote.equipment_id is distinct from v_equipment_id');
-    expect(superadminScopeMigration).toContain('v_quote.case_id is not null and v_quote.case_id is distinct from v_case_id');
-    expect(superadminScopeMigration).toContain("lower(coalesce(v_quote.status, '')) not in ('aceptado','accepted','ejecutado en cliente')");
+    expect(quoteWorkOrderFixMigration).toContain('alter table public.work_orders add column if not exists quote_id uuid references public.quotes(id)');
+    expect(quoteWorkOrderFixMigration).toContain('v_quote_id uuid := nullif(p_payload->>\'quote_id\', \'\')::uuid');
+    expect(quoteWorkOrderFixMigration).toContain('quote_id, client_id, site_id');
+    expect(quoteWorkOrderFixMigration).toContain("public.has_any_role(array['superadmin','SAT','Comercial','Gerencia','Oficina'])");
+    expect(quoteWorkOrderFixMigration).toContain('if not public.is_platform_superadmin() then perform public.assert_member_of_current_company(v_company_id); end if;');
+    expect(quoteWorkOrderFixMigration).toContain('v_quote.company_id <> v_company_id or v_quote.client_id <> v_client_id');
+    expect(quoteWorkOrderFixMigration).toContain('v_quote.site_id is not null and v_quote.site_id is distinct from v_site_id');
+    expect(quoteWorkOrderFixMigration).toContain('v_quote.equipment_id is not null and v_quote.equipment_id is distinct from v_equipment_id');
+    expect(quoteWorkOrderFixMigration).toContain('v_quote.case_id is not null and v_quote.case_id is distinct from v_case_id');
+    expect(quoteWorkOrderFixMigration).toContain("lower(coalesce(v_quote.status, '')) not in ('aceptado','ejecutado en cliente')");
     expect(workOrdersService).toContain("'quote_id'");
     expect(workOrdersService).toContain('quotes!work_orders_quote_id_fkey');
     expect(quotesService).toContain("supabase.from('work_orders').select('id,code,title,status,scheduled_date,quote_id').eq('quote_id', id)");
@@ -218,25 +220,25 @@ describe('quotes management 034', () => {
     expect(app).toContain('planned_material: quotePlannedMaterial(lines)');
     expect(app).toContain('Los materiales quedan como previstos, sin descontar stock');
     expect(app).toContain('Presupuesto origen');
-    expect(superadminScopeMigration).not.toContain('insert into public.work_order_materials');
+    expect(quoteWorkOrderFixMigration).not.toContain('insert into public.work_order_materials');
     expect(app).not.toContain('workOrdersService.upsertMaterial(line');
   });
 
   it('covers role, company and clear error rules for quote to work order generation', () => {
-    for (const role of ['superadmin', 'SAT', 'Comercial', 'Gerencia', 'Oficina']) expect(superadminScopeMigration).toContain(role);
-    expect(superadminScopeMigration).not.toContain("'Tecnico']) then raise exception 'No tienes permisos para crear partes'");
-    expect(superadminScopeMigration).toContain('work_orders_platform_superadmin_insert');
-    expect(superadminScopeMigration).toContain('work_orders_insert_quote_authorized_roles');
-    expect(superadminScopeMigration).toContain("company_id = public.current_company_id() and public.has_any_role(array['superadmin','SAT','Comercial','Gerencia','Oficina'])");
-    expect(superadminScopeMigration).toContain('validacion del formulario: presupuesto sin empresa');
-    expect(superadminScopeMigration).toContain('validacion del formulario: presupuesto sin cliente');
-    expect(superadminScopeMigration).toContain('validacion del formulario: presupuesto sin centro para crear parte');
-    expect(superadminScopeMigration).toContain('validacion del formulario: presupuesto no aceptado para generar parte');
+    for (const role of ['superadmin', 'SAT', 'Comercial', 'Gerencia', 'Oficina']) expect(quoteWorkOrderFixMigration).toContain(role);
+    expect(quoteWorkOrderFixMigration).not.toContain("'Tecnico']) then raise exception 'No tienes permisos para crear partes'");
+    expect(quoteWorkOrderFixMigration).toContain('work_orders_platform_superadmin_insert');
+    expect(quoteWorkOrderFixMigration).toContain('work_orders_insert_quote_authorized_roles');
+    expect(quoteWorkOrderFixMigration).toContain("company_id = public.current_company_id() and public.has_any_role(array['superadmin','SAT','Comercial','Gerencia','Oficina'])");
+    expect(quoteWorkOrderFixMigration).toContain('validacion del formulario: presupuesto sin empresa');
+    expect(quoteWorkOrderFixMigration).toContain('validacion del formulario: presupuesto sin cliente');
+    expect(quoteWorkOrderFixMigration).toContain('validacion del formulario: presupuesto sin centro para crear parte');
+    expect(quoteWorkOrderFixMigration).toContain('validacion del formulario: presupuesto no aceptado para generar parte');
     expect(app).toContain("disabled={!canManageQuote || data.status !== 'Aceptado' || generatedWorks.length > 0 || !data.site_id}");
     expect(app).toContain('DMP generate work order from quote failed');
     expect(app).toContain('quoteCompanyId');
     expect(app).toContain('No se pudo generar el parte desde el presupuesto');
-    expect(superadminScopeMigration).not.toContain('stock_deducted_quantity');
-    expect(superadminScopeMigration).not.toContain('adjustStock');
+    expect(quoteWorkOrderFixMigration).not.toContain('stock_deducted_quantity');
+    expect(quoteWorkOrderFixMigration).not.toContain('adjustStock');
   });
 });

@@ -43,6 +43,8 @@ export type WorkOrderFullDetail = {
   time_entries: any[];
   notes: any[];
   materials: any[];
+  planned_material_lines: any[];
+  planned_material_decisions: any[];
   cost_entries: any[];
   checks: any[];
   alerts: any[];
@@ -114,6 +116,8 @@ export const workOrdersService = {
       const timeEntries = await expectStep('Detalle parte / horas', () => expectData<any[]>(supabase.from('work_order_time_entries').select('*, profiles!work_order_time_entries_profile_id_fkey(first_name,last_name,primary_area), created_by_profile:profiles!work_order_time_entries_created_by_fkey(first_name,last_name,primary_area), updated_by_profile:profiles!work_order_time_entries_updated_by_fkey(first_name,last_name,primary_area)').eq('work_order_id', workOrderId).order('work_date', { ascending: true })));
       const notes = await expectStep('Detalle parte / notas', () => expectData<any[]>(supabase.from('work_order_notes').select('*, profiles!work_order_notes_created_by_fkey(first_name,last_name)').eq('work_order_id', workOrderId).order('created_at', { ascending: true })));
       const materials = await expectStep('Detalle parte / materiales', () => expectData<any[]>(supabase.from('work_order_materials').select('*, materials!work_order_materials_material_id_fkey(*), profiles!work_order_materials_registered_by_fkey(first_name,last_name,primary_area)').eq('work_order_id', workOrderId).is('deleted_at', null).order('created_at', { ascending: true })));
+      const plannedMaterialLines = workOrder.quote_id ? await expectStep('Detalle parte / materiales previstos', () => expectData<any[]>(supabase.from('quote_lines').select('*, materials!quote_lines_material_id_fkey(*)').eq('quote_id', workOrder.quote_id).is('deleted_at', null).or('line_type.eq.material,material_id.not.is.null').order('position', { ascending: true }))) : [];
+      const plannedMaterialDecisions = workOrder.quote_id ? await expectStep('Detalle parte / decisiones materiales previstos', () => expectData<any[]>(supabase.from('work_order_planned_material_decisions').select('*, work_order_materials!work_order_planned_material_decisions_work_order_material_id_fkey(*)').eq('work_order_id', workOrderId).is('deleted_at', null))) : [];
       const costEntries = await expectStep('Detalle parte / recursos y costes', () => expectData<any[]>(supabase.from('work_order_cost_entries').select('*, profiles!work_order_cost_entries_registered_by_fkey(first_name,last_name,primary_area)').eq('work_order_id', workOrderId).is('deleted_at', null).order('incurred_at', { ascending: true })));
       const checks = await expectStep('Detalle parte / checks', () => expectData<any[]>(supabase.from('checks').select('*, check_templates!checks_template_id_fkey(*, check_template_sections!check_template_sections_template_id_fkey(*, check_template_items!check_template_items_section_id_fkey(*))), equipment!checks_equipment_id_fkey(*, equipment_types!equipment_equipment_type_id_fkey(*)), profiles!checks_technician_id_fkey(first_name,last_name), check_section_results!check_section_results_check_id_fkey(*), check_photos!check_photos_check_id_fkey(*)').eq('work_order_id', workOrderId).is('deleted_at', null).order('created_at', { ascending: false })));
       const deficiencies = await expectStep('Detalle parte / deficiencias', () => expectData<any[]>(supabase.from('deficiencies').select('*, equipment!deficiencies_equipment_id_fkey(*), checks!deficiencies_check_id_fkey(code), profiles!deficiencies_responsible_profile_id_fkey(first_name,last_name)').eq('work_order_id', workOrderId).is('deleted_at', null).order('created_at', { ascending: false })));
@@ -139,6 +143,8 @@ export const workOrdersService = {
         time_entries: timeEntries,
         notes,
         materials,
+        planned_material_lines: plannedMaterialLines,
+        planned_material_decisions: plannedMaterialDecisions,
         cost_entries: costEntries,
         checks,
         alerts: alertRows,
@@ -155,6 +161,7 @@ export const workOrdersService = {
         work_order_time_entries: timeEntries,
         work_order_notes: notes,
         work_order_materials: materials,
+        work_order_planned_material_decisions: plannedMaterialDecisions,
         work_order_cost_entries: costEntries,
       };
     } catch (error) {
@@ -206,7 +213,13 @@ export const workOrdersService = {
     }));
   },
   async changeStatus(workOrderId: string, status: string, reason: string, manualCorrection = false) {
+    if (status === 'Finalizado tecnicamente') {
+      return expectData<void>(supabase.rpc('dmp_finalize_work_order_technical', { p_work_order_id: workOrderId, p_payload: { reason: reason || 'Cierre tecnico del parte' } }), { service: 'workOrdersService', operation: 'Finalizar parte tecnico', resource: 'dmp_finalize_work_order_technical' });
+    }
     return expectData<void>(supabase.rpc('dmp_change_work_order_status', { p_work_order_id: workOrderId, p_new_status: status, p_reason: reason || (manualCorrection ? 'Correccion manual' : 'Cambio directo de estado') }));
+  },
+  async finalizeTechnical(workOrderId: string, payload: Record<string, any> = {}) {
+    return expectData<any>(supabase.rpc('dmp_finalize_work_order_technical', { p_work_order_id: workOrderId, p_payload: payload }), { service: 'workOrdersService', operation: 'Finalizar parte tecnico', resource: 'dmp_finalize_work_order_technical' });
   },
   async requestReturn(workOrderId: string, reason: string) {
     return expectData<void>(supabase.rpc('request_work_order_return', { p_work_order_id: workOrderId, p_changed_by: null, p_reason: reason }));
@@ -242,6 +255,9 @@ export const workOrdersService = {
   },
   upsertMaterial(payload: Record<string, any>) {
     return expectData<string>(supabase.rpc('dmp_upsert_work_order_material', { p_payload: payload }), { service: 'workOrdersService', operation: 'Guardar material del parte', resource: 'dmp_upsert_work_order_material' });
+  },
+  setPlannedMaterialDecision(payload: Record<string, any>) {
+    return expectData<string>(supabase.rpc('dmp_set_work_order_planned_material_decision', { p_payload: payload }), { service: 'workOrdersService', operation: 'Registrar decision de material previsto', resource: 'dmp_set_work_order_planned_material_decision' });
   },
   deleteMaterial(id: string, reason: string) {
     return expectData<void>(supabase.rpc('dmp_delete_work_order_material', { p_material_usage_id: id, p_reason: reason }));

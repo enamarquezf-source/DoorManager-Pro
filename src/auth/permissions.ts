@@ -6,7 +6,7 @@ const operationalRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia', 'Tecnico'
 const lifecycleRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia', 'Oficina'];
 const quoteManagerRoles: RoleName[] = ['superadmin', 'SAT', 'Comercial', 'Gerencia', 'Oficina'];
 const economicRoles: RoleName[] = ['superadmin', 'SAT', 'Comercial', 'Gerencia', 'Oficina'];
-export type PlatformLifecycleScope = { platformScope?: boolean; selectedCompanyId?: string | null };
+export type PlatformLifecycleScope = { platformScope?: boolean };
 const workspaceByRole: Record<RoleName, Workspace> = {
   superadmin: 'superadmin',
   SAT: 'sat',
@@ -57,7 +57,7 @@ function isActiveProfile(profile: Profile | null | undefined) {
 
 function sameCompanyOrSuperadmin(profile: Profile | null | undefined, entity?: any, scope: PlatformLifecycleScope = {}) {
   if (!profile) return false;
-  if (scope.platformScope === true && hasAny(profile, ['superadmin'])) return !!scope.selectedCompanyId && entity?.company_id === scope.selectedCompanyId;
+  if (scope.platformScope === true && hasAny(profile, ['superadmin'])) return true;
   return !entity?.company_id || entity.company_id === profile.company_id;
 }
 

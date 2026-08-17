@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase/client';
 import type { Profile, RoleName } from '../shared/types';
-import { expectData } from './query';
+import { currentCompanyId, expectData } from './query';
 
 export const profilesService = {
   async getCurrentProfile(): Promise<Profile> {
@@ -13,20 +13,23 @@ export const profilesService = {
     return { ...profile, roles: roles.map((row) => row.roles?.name).filter(Boolean) as RoleName[] };
   },
   async listTechnicians(companyScope?: string | null) {
+    const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
     let query = supabase.from('profiles').select('*, profile_roles!profile_roles_profile_id_fkey(roles!profile_roles_role_id_fkey(name))').eq('active', true).is('deleted_at', null).order('first_name');
-    if (companyScope) query = query.eq('company_id', companyScope);
+    if (companyId) query = query.eq('company_id', companyId);
     const rows = await expectData<any[]>(query, { service: 'profilesService', operation: 'Listado de tecnicos', resource: 'profiles' });
     return rows.filter((row) => row.primary_area === 'Tecnico' || row.profile_roles?.some((item: any) => item.roles?.name === 'Tecnico'));
   },
   async listCommercials(companyScope?: string | null) {
+    const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
     let query = supabase.from('profiles').select('*, profile_roles!profile_roles_profile_id_fkey(roles!profile_roles_role_id_fkey(name))').eq('active', true).is('deleted_at', null).order('first_name');
-    if (companyScope) query = query.eq('company_id', companyScope);
+    if (companyId) query = query.eq('company_id', companyId);
     const rows = await expectData<any[]>(query, { service: 'profilesService', operation: 'Listado de comerciales', resource: 'profiles' });
     return rows.filter((row) => row.primary_area === 'Comercial' || row.profile_roles?.some((item: any) => item.roles?.name === 'Comercial'));
   },
-  listActive(companyScope?: string | null) {
+  async listActive(companyScope?: string | null) {
+    const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
     let query = supabase.from('profiles').select('*, profile_roles!profile_roles_profile_id_fkey(roles!profile_roles_role_id_fkey(name))').eq('active', true).is('deleted_at', null).order('first_name');
-    if (companyScope) query = query.eq('company_id', companyScope);
+    if (companyId) query = query.eq('company_id', companyId);
     return expectData<any[]>(query);
   },
 };

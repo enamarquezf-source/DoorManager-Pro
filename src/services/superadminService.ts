@@ -3,11 +3,15 @@ import { normalizedRoleNames } from '../auth/permissions';
 import { currentCompanyId, expectData } from './query';
 
 export const superadminService = {
-  companies() {
-    return expectData<any[]>(supabase.from('companies').select('*').order('name'));
+  async operatingCompany() {
+    const companyId = await currentCompanyId();
+    return expectData<any>(supabase.from('companies').select('*').eq('id', companyId).single());
   },
-  async overview(companyId: string | null = null) {
-    const overview = await expectData<any>(supabase.rpc('superadmin_global_overview', { p_company_id: companyId }));
+  updateOperatingCompany(payload: Record<string, any>) {
+    return expectData<any>(supabase.from('companies').update(companyPayload(payload)).eq('id', payload.id).select().single());
+  },
+  async overview() {
+    const overview = await expectData<any>(supabase.rpc('superadmin_global_overview', { p_company_id: null }));
     const roles = await expectData<any[]>(supabase.from('roles').select('*').order('name'));
     return {
       ...overview,
@@ -24,9 +28,10 @@ export const superadminService = {
       audit: overview.audit ?? [],
     };
   },
-  async users(companyId: string | null = null) {
+  async users() {
+    const companyId = await currentCompanyId();
     let query = supabase.from('profiles').select('*, companies!profiles_company_id_fkey(name), profile_roles!profile_roles_profile_id_fkey(roles!profile_roles_role_id_fkey(id,name))').order('created_at', { ascending: false });
-    if (companyId) query = query.eq('company_id', companyId);
+    query = query.eq('company_id', companyId);
     return expectData<any[]>(query);
   },
   roles() {
@@ -107,12 +112,18 @@ export const superadminService = {
     for (let index = 0; index < items.length; index += 1) await expectData<any>(supabase.from('check_template_items').update({ position: 1000 + index }).eq('id', items[index].id));
     for (let index = 0; index < items.length; index += 1) await expectData<any>(supabase.from('check_template_items').update({ position: index + 1 }).eq('id', items[index].id));
   },
-  audit(companyId: string | null = null) {
+  async audit() {
+    const companyId = await currentCompanyId();
     let query = supabase.from('audit_log').select('*, companies!audit_log_company_id_fkey(name), profiles!audit_log_changed_by_fkey(first_name,last_name,email)').order('changed_at', { ascending: false }).limit(100);
-    if (companyId) query = query.eq('company_id', companyId);
+    query = query.eq('company_id', companyId);
     return expectData<any[]>(query);
   },
 };
+
+function companyPayload(payload: Record<string, any>) {
+  const fields = ['name', 'trade_name', 'tax_id', 'address', 'postal_code', 'city', 'province', 'country', 'phone', 'email', 'website', 'logo_url', 'fiscal_notes'];
+  return Object.fromEntries(fields.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
+}
 
 function templatePayload(payload: Record<string, any>) {
   return {

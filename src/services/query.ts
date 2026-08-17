@@ -66,9 +66,9 @@ export function toSpanishSupabaseError(error: any) {
 }
 
 export async function currentCompanyId() {
-  const { data, error } = await supabase.rpc('current_company_id');
+  const { data, error } = await supabase.rpc('dmp_operating_company_id');
   if (error) throw new Error(error.message);
-  if (!data) throw new Error('El usuario autenticado no tiene perfil enlazado a una empresa.');
+  if (!data) throw new Error('No hay una empresa operadora activa configurada.');
   return data as string;
 }
 

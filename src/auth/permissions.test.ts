@@ -140,25 +140,17 @@ describe('canAccessRoute', () => {
     for (const role of ['SAT', 'Comercial', 'Tecnico'] as RoleName[]) expect(canManageHourRates(profile(role))).toBe(false);
   });
 
-  it('autoriza al superadmin global solo sobre la empresa seleccionada', () => {
-    const selectedEntity = { id: 'entity-id', company_id: 'selected-company' };
-    const otherEntity = { id: 'entity-id', company_id: 'other-company' };
-    const scope = { platformScope: true, selectedCompanyId: 'selected-company' };
-    expect(canArchiveEntity(profile('superadmin'), selectedEntity, scope)).toBe(true);
-    expect(canRestoreEntity(profile('superadmin'), selectedEntity, scope)).toBe(true);
-    expect(canPermanentlyDeleteEntity(profile('superadmin'), selectedEntity, scope)).toBe(true);
-    expect(canArchiveEntity(profile('superadmin'), otherEntity, scope)).toBe(false);
-  });
-
-  it('bloquea al superadmin global sin empresa seleccionada', () => {
-    const entity = { id: 'entity-id', company_id: 'selected-company' };
-    expect(canArchiveEntity(profile('superadmin'), entity, { platformScope: true, selectedCompanyId: null })).toBe(false);
-    expect(canPermanentlyDeleteEntity(profile('superadmin'), entity, { platformScope: true, selectedCompanyId: null })).toBe(false);
+  it('autoriza al superadmin en alcance de plataforma sin empresa seleccionada', () => {
+    const entity = { id: 'entity-id', company_id: 'operating-company' };
+    const scope = { platformScope: true };
+    expect(canArchiveEntity(profile('superadmin'), entity, scope)).toBe(true);
+    expect(canRestoreEntity(profile('superadmin'), entity, scope)).toBe(true);
+    expect(canPermanentlyDeleteEntity(profile('superadmin'), entity, scope)).toBe(true);
   });
 
   it('mantiene SAT y Gerencia limitados a su empresa aunque haya alcance de plataforma', () => {
     const entity = { id: 'entity-id', company_id: 'other-company' };
-    const scope = { platformScope: true, selectedCompanyId: 'other-company' };
+    const scope = { platformScope: true };
     expect(canArchiveEntity(profile('SAT'), entity, scope)).toBe(false);
     expect(canArchiveEntity(profile('Gerencia'), entity, scope)).toBe(false);
   });

@@ -62,6 +62,16 @@ describe('UI sanitization, responsive layout and permissions', () => {
     expect(canViewInternalEconomics(technicianProfile)).toBe(false);
   });
 
+  it('removes manual company selection from superadmin UI', () => {
+    expect(app).not.toContain('SuperadminCompanyScope');
+    expect(app).not.toContain('useSuperadminScope');
+    expect(app).not.toContain('dmp-superadmin-company-scope');
+    expect(app).not.toContain('Empresa seleccionada');
+    expect(app).not.toContain('Selecciona una empresa');
+    expect(app).toContain('Datos de empresa');
+    expect(app).toContain('superadminService.operatingCompany()');
+  });
+
   it('keeps lifecycle actions coherent and preserves historical records', () => {
     expect(lifecycle).toContain("export type LifecycleEntity = 'clients' | 'sites' | 'equipment' | 'equipment_components' | 'cases' | 'work_orders' | 'checks' | 'check_templates' | 'profiles' | 'quotes' | 'materials' | 'documents' | 'alerts' | 'opportunities'");
     expect(lifecycle).toContain('dmp_archive_entity');

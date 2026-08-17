@@ -10,7 +10,7 @@ describe('check template visibility regression', () => {
     expect(superadminService).toContain('async templates(companyScope?: string | null)');
     expect(superadminService).toContain('const companyId = companyScope === undefined ? await currentCompanyId() : companyScope');
     expect(superadminService).toContain('if (companyId) query = query.eq');
-    expect(app).toContain('const templateScope = isPlatformScope ? companyId : undefined');
+    expect(app).toContain('const templateScope = undefined');
   });
 
   it('permite a SAT ver plantillas de su empresa y no convierte undefined en global', () => {
@@ -19,8 +19,9 @@ describe('check template visibility regression', () => {
     expect(superadminService).not.toContain('templates(companyId: string | null = null)');
   });
 
-  it('mantiene Superadmin global con null y filtrado por UUID al seleccionar empresa', () => {
-    expect(app).toContain('isPlatformScope ? companyId : undefined');
+  it('mantiene Superadmin en la empresa operadora sin selector manual', () => {
+    expect(app).not.toContain('isPlatformScope ? companyId : undefined');
+    expect(app).not.toContain('SuperadminCompanyScope');
     expect(superadminService).toContain('if (companyId) query = query.eq');
   });
 

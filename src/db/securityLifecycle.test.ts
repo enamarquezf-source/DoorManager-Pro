@@ -111,7 +111,8 @@ describe('security lifecycle controls', () => {
     expect(app).toContain('LifecycleConfirmModal');
     expect(app).toContain('ELIMINAR ${target.code}');
     expect(permissions).toContain('PlatformLifecycleScope');
-    expect(app).toContain('selectedCompanyId: companyId');
+    expect(app).toContain('platformScope: workspace === \'superadmin\'');
+    expect(app).not.toContain('selectedCompanyId');
     expect(permissions).not.toContain('global_scope_authorized');
   });
 

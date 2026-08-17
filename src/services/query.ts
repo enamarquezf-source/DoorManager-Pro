@@ -54,6 +54,8 @@ export function toSpanishSupabaseError(error: any) {
   if (message.includes('Could not find the function') || message.includes('function') && message.includes('does not exist')) return `Funcion de Supabase no disponible o migracion pendiente: ${message}`;
   if (message.includes('schema cache')) return `Cache de esquema de Supabase sin actualizar o migracion pendiente: ${message}`;
   if (message.includes('No se ha encontrado')) return message;
+  if (message.includes('audit_log_operation_check')) return 'Error de auditoria: la operacion no esta permitida por la migracion aplicada. Ejecuta la migracion correctiva y vuelve a intentarlo.';
+  if (message.includes('violates check constraint')) return `Restriccion de base de datos incumplida: ${message}`;
   if (/^(respuesta de Supabase|validacion del formulario|permiso|perfil activo|empresa|asignacion|parte|estado editable|insercion):/i.test(message)) return message;
   if (message.includes('duplicate key')) return 'Ya existe un registro con esos datos.';
   if (message.includes('violates foreign key')) return 'El registro relacionado seleccionado no existe o no pertenece a tu empresa.';

@@ -90,8 +90,12 @@ export const workOrdersService = {
   async getTechnicianAssigned(id: string) {
     const profileId = await currentProfileId();
     const assignment = await expectData<any>(supabase.from('work_order_assignments').select('id, status, work_orders!work_order_assignments_work_order_id_fkey(status,deleted_at)').eq('work_order_id', id).eq('technician_id', profileId).is('deleted_at', null).not('status', 'in', '(Finalizado,Cancelado)').maybeSingle(), { service: 'workOrdersService', operation: 'Permiso técnico / asignación activa', resource: 'work_order_assignments' });
-    if (!assignment) throw new Error('No tienes permiso para acceder a este parte');
-    if (!['Pendiente','Trabajo descargado','En desplazamiento','En intervencion','Pausado','Pendiente de material'].includes(assignment.work_orders?.status)) throw new Error('Este parte ya no está en trabajo activo. Revísalo desde Historial.');
+    if (!assignment) {
+      const work = await expectData<any>(supabase.from('work_orders').select('status,deleted_at').eq('id', id).maybeSingle(), { service: 'workOrdersService', operation: 'Motivo de bloqueo tecnico', resource: id });
+      if (work?.status) throw new Error(`Parte bloqueado. Motivo: ${work.status === 'Finalizado tecnicamente' ? 'Finalizado técnicamente' : work.status === 'Cerrado' ? 'Cerrado por SAT' : work.status === 'Cancelado' ? 'Cancelado' : 'Usuario sin asignación activa'}.`);
+      throw new Error('Parte bloqueado. Motivo: usuario sin permiso o parte no disponible.');
+    }
+    if (!['Pendiente','Trabajo descargado','En desplazamiento','En intervencion','Pausado','Pendiente de material'].includes(assignment.work_orders?.status)) throw new Error(`Parte bloqueado. Motivo: ${assignment.work_orders?.status === 'Finalizado tecnicamente' ? 'Finalizado técnicamente' : assignment.work_orders?.status ?? 'no está en trabajo activo'}. Revísalo desde Historial.`);
     return this.getWorkOrderFullDetail(id);
   },
   async getWorkOrderFullDetail(workOrderId: string): Promise<WorkOrderFullDetail> {
@@ -226,7 +230,11 @@ export const workOrdersService = {
     return expectData<void>(supabase.rpc('dmp_change_work_order_status', { p_work_order_id: workOrderId, p_new_status: status, p_reason: reason || (manualCorrection ? 'Correccion manual' : 'Cambio directo de estado') }));
   },
   async finalizeTechnical(workOrderId: string, payload: Record<string, any> = {}) {
-    return expectData<any>(supabase.rpc('dmp_finalize_work_order_technical', { p_work_order_id: workOrderId, p_payload: payload }), { service: 'workOrdersService', operation: 'Finalizar parte tecnico', resource: 'dmp_finalize_work_order_technical' });
+    const { data, error } = await supabase.rpc('dmp_finalize_work_order_technical', { p_work_order_id: workOrderId, p_payload: payload });
+    if (error) {
+      console.error('DMP finalize technical work order failed', { workOrderId, payload, currentStatus: payload.currentStatus, message: error?.message, details: error?.details, hint: error?.hint, code: error?.code, name: error?.name });
+    }
+    return expectData<any>(Promise.resolve({ data, error }), { service: 'workOrdersService', operation: 'Finalizar parte tecnico', resource: 'dmp_finalize_work_order_technical' });
   },
   async requestReturn(workOrderId: string, reason: string) {
     return expectData<void>(supabase.rpc('request_work_order_return', { p_work_order_id: workOrderId, p_changed_by: null, p_reason: reason }));

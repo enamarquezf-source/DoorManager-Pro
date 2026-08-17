@@ -23,7 +23,7 @@ export const equipmentService = {
   async types(companyScope?: string | null) {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
     let query = supabase.from('equipment_types').select('*').eq('active', true).order('name');
-    if (companyId) query = query.eq('company_id', companyId);
+    if (companyId) query = query.or(`company_id.eq.${companyId},company_id.is.null`);
     return expectData<any[]>(query);
   },
   async get(id: string) {

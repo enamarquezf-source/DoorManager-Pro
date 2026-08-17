@@ -3,7 +3,7 @@ import { contains, currentCompanyId, expectData } from './query';
 import { codesService } from './codesService';
 import { applyArchiveFilter, type ArchiveFilter } from './entityLifecycleService';
 
-const materialColumns = ['company_id', 'code', 'description', 'manufacturer', 'reference', 'unit', 'cost', 'price', 'stock_quantity', 'minimum_stock', 'stock_controlled', 'allow_negative_stock', 'active'];
+const materialColumns = ['company_id', 'code', 'description', 'manufacturer', 'reference', 'unit', 'cost', 'price', 'stock_quantity', 'minimum_stock', 'stock_controlled', 'allow_negative_stock', 'is_specific', 'active'];
 
 function cleanPayload(payload: Record<string, any>) {
   return Object.fromEntries(materialColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
@@ -15,6 +15,7 @@ function normalizeMaterial(payload: Record<string, any>) {
   if ('active' in next) next.active = next.active === true || next.active === 'true' || next.active === 'Activo';
   if ('stock_controlled' in next) next.stock_controlled = next.stock_controlled === true || next.stock_controlled === 'true';
   if ('allow_negative_stock' in next) next.allow_negative_stock = next.allow_negative_stock === true || next.allow_negative_stock === 'true';
+  if ('is_specific' in next) next.is_specific = next.is_specific === true || next.is_specific === 'true';
   return next;
 }
 

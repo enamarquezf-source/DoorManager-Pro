@@ -9,7 +9,7 @@ export const quoteTypes = ['instalacion', 'reparacion', 'mantenimiento'] as cons
 export const quoteLineTypes = ['material', 'labor', 'transport', 'travel', 'mobile_workshop', 'lifting_platform', 'auxiliary_equipment', 'external_cost', 'fee', 'discount', 'other'] as const;
 
 const quoteColumns = ['client_id', 'site_id', 'equipment_id', 'work_order_id', 'opportunity_id', 'case_id', 'quote_type', 'status', 'title', 'description', 'valid_until', 'discount_type', 'discount_value', 'discount_amount', 'conditions', 'sent_at', 'sent_to_email'];
-const lineColumns = ['quote_id', 'line_type', 'description', 'quantity', 'unit', 'unit_cost', 'unit_price', 'tax_rate', 'material_id', 'profile_id', 'position', 'discount_percent'];
+const lineColumns = ['quote_id', 'line_type', 'description', 'quantity', 'unit', 'unit_cost', 'unit_price', 'tax_rate', 'material_id', 'profile_id', 'position', 'discount_percent', 'quote_rate_id'];
 
 function cleanPayload(payload: Record<string, any>, columns: string[]) {
   return Object.fromEntries(columns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));

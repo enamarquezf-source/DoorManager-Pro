@@ -31,7 +31,7 @@ describe('052 material lifecycle and rate traceability', () => {
     expect(migration).toContain("'usos en partes', (select count(*) from public.work_order_materials where material_id = p_entity_id)");
     expect(migration).toContain("'movimientos de stock', (select count(*) from public.material_stock_movements where material_id = p_entity_id)");
     expect(migration).toContain("'lineas de presupuesto', (select count(*) from public.quote_lines where material_id = p_entity_id)");
-    expect(migration).toContain('select coalesce(deleted_at is not null or active = false, false), code, description into v_archived, v_code, v_name from public.materials where id = p_entity_id');
+    expect(migration).toContain('select coalesce(deleted_at is not null, false), code, description into v_archived, v_code, v_name from public.materials where id = p_entity_id');
     expect(previousDependencies).not.toContain("elsif p_entity = 'materials' then");
   });
 
@@ -48,14 +48,24 @@ describe('052 material lifecycle and rate traceability', () => {
   it('marks a specific material as consumed (active=false) without deleting it when stock drains to zero', () => {
     expect(migration).toContain('create or replace function public.dmp_apply_material_stock_movement(');
     expect(migration).toContain('if v_material.is_specific and p_source = \'work_order\' and p_movement_type = \'out\' and coalesce(v_new, 0) <= 0 then');
-    expect(migration).toContain("set active = false, deleted_at = null, deleted_by = p_created_by,");
-    expect(migration).toContain("delete_reason = 'Consumido: stock agotado en parte de trabajo'");
+    expect(migration).toContain("set active = false, deleted_at = null, deleted_by = null, delete_reason = null, updated_at = now()");
     expect(migration).toContain("'Material específico consumido: stock agotado en parte de trabajo'");
+    expect(migration).toContain("jsonb_build_object('status', 'consumed', 'is_specific', true, 'stock_quantity', v_new)");
+    expect(migration).toContain("jsonb_build_object('status', 'consumed', 'operation', 'UPDATE')");
     expect(migration).toContain('insert into public.audit_log(company_id, table_name, record_id, operation, changed_by, old_data, new_data)');
     expect(migration).toContain('insert into public.activity_log');
     expect(migration).not.toContain("deleted_at = coalesce(deleted_at, now())");
     expect(previousStockMovement).not.toContain('v_material.is_specific');
     expect(previousStockMovement).not.toContain("if v_material.is_specific and p_source = 'work_order'");
+  });
+
+  it('does NOT log consumption as SOFT_DELETE/eliminacion logica: it uses UPDATE/modificacion', () => {
+    expect(migration).not.toContain("'materials', v_material.id, 'SOFT_DELETE'");
+    expect(migration).not.toContain("'eliminacion logica', 'materials', v_material.id");
+    expect(migration).not.toContain("delete_reason = 'Consumido: stock agotado en parte de trabajo'");
+    expect(migration).not.toContain('jsonb_build_object(\'reason\', \'Consumido: stock agotado en parte de trabajo\', \'operation\', \'SOFT_DELETE\')');
+    expect(migration).toContain("'materials', v_material.id, 'UPDATE', p_created_by, to_jsonb(v_material)");
+    expect(migration).toContain("'modificacion', 'materials', v_material.id");
   });
 
   it('keeps recurring materials active when stock reaches zero', () => {
@@ -80,9 +90,24 @@ describe('052 material lifecycle and rate traceability', () => {
     expect(migration).toContain("values (v_material.company_id, v_material.id, p_work_order_id, p_work_order_material_id, p_quote_id, p_movement_type, p_quantity, v_previous, v_new, p_unit_cost, nullif(p_reason, ''), p_source, p_created_by)");
   });
 
-  it('clears delete_reason on auto-reactivation of consumed specific materials', () => {
+  it('clears deleted_at/deleted_by/delete_reason on auto-reactivation of consumed specific materials', () => {
     expect(migration).toContain('set active = true, deleted_at = null, deleted_by = null, delete_reason = null, updated_at = now()');
-    expect(migration).not.toContain('"Consumido: stock agotado"');
+  });
+
+  it('distinguishes consumido from archivado: consumed keeps deleted_at null and is NOT reported as archived', () => {
+    const archivedLine = migration.split('\n').find((line: string) => /coalesce\(deleted_at is not null, false\), code, description into v_archived/.test(line));
+    expect(archivedLine).toBeDefined();
+    expect(archivedLine).not.toMatch(/or active = false/);
+    expect(migration).toContain('if v_old->>\'deleted_at\' is null then raise exception \'El registro no está archivado\'; end if;');
+    expect(migration).toContain('update public.materials set active = true, deleted_at = null, deleted_by = null, delete_reason = null, updated_at = now() where id = p_entity_id returning to_jsonb(materials.*) into v_new;');
+  });
+
+  it('exposes four distinct UI states: Activo, Sin stock, Consumido and Archivado', () => {
+    expect(app).toContain("function materialStockStatus(material: any) { if (Number(material.stock_quantity ?? 0) <= 0) return 'Sin stock'; if (Number(material.minimum_stock ?? 0) > 0 && Number(material.stock_quantity ?? 0) <= Number(material.minimum_stock ?? 0)) return 'Bajo stock'; return 'Activo'; }");
+    expect(app).toContain("function materialDisplayStatus(material: any) { if (material.deleted_at) return 'Archivado'; if (material.active === false) return material.is_specific === true ? 'Consumido' : 'Inactivo'; return materialStockStatus(material); }");
+    expect(app).not.toMatch(/materialDisplayStatus\([^)]*\)\s*\{\s*if \(material\.active === false\) return 'Inactivo'/);
+    expect(app).toContain("'Archivado'");
+    expect(app).toContain("'Consumido'");
   });
 
   it('freezes proposed rate values in quote lines without recalculating history', () => {

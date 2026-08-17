@@ -3,8 +3,9 @@
 
 begin;
 
--- Material especifico / a medida: se desactiva (consumido) cuando el consumo deja su stock a cero
--- y se reactiva automaticamente al recuperar stock. El archivado administrativo sigue usando deleted_at.
+-- Material especifico / a medida: se desactiva (consumido) cuando el consumo deja su stock a cero.
+-- Consumido es active=false con deleted_at/deleted_by/delete_reason nulos, distinto de Archivado (deleted_at no nulo).
+-- Se reactiva automaticamente al recuperar stock. El archivado administrativo sigue usando deleted_at.
 alter table public.materials add column if not exists is_specific boolean not null default false;
 create index if not exists materials_is_specific_company_idx on public.materials(company_id, is_specific, deleted_at);
 
@@ -145,7 +146,7 @@ begin
       'fotos', (select count(*) from public.work_order_photos where taken_by = p_entity_id) + (select count(*) from public.check_photos where taken_by = p_entity_id)
     );
   elsif p_entity = 'materials' then
-    select coalesce(deleted_at is not null or active = false, false), code, description into v_archived, v_code, v_name from public.materials where id = p_entity_id;
+    select coalesce(deleted_at is not null, false), code, description into v_archived, v_code, v_name from public.materials where id = p_entity_id;
     v_counts := jsonb_build_object(
       'usos en partes', (select count(*) from public.work_order_materials where material_id = p_entity_id),
       'movimientos de stock', (select count(*) from public.material_stock_movements where material_id = p_entity_id),
@@ -256,9 +257,10 @@ begin
 end;
 $$;
 
--- dmp_apply_material_stock_movement: marca como consumido (active=false) a materiales especificos
+-- dmp_apply_material_stock_movement: marca como consumido (active=false, sin deleted_at) a materiales especificos
 -- al agotarse su stock por consumo, y los reactiva (active=true) cuando un movimiento deja stock disponible.
 -- Consumido no es archivado: deleted_at queda reservado al archivado administrativo (dmp_archive_entity).
+-- El consumo se audita como UPDATE/modificacion (no como SOFT_DELETE/eliminacion logica).
 -- Los materiales recurrentes con stock a cero permanecen activos.
 create or replace function public.dmp_apply_material_stock_movement(
   p_material_id uuid,
@@ -300,16 +302,15 @@ begin
   update public.materials set stock_quantity = v_new, last_stock_movement_at = now(), updated_at = now() where id = v_material.id;
   if v_material.is_specific and p_source = 'work_order' and p_movement_type = 'out' and coalesce(v_new, 0) <= 0 then
     update public.materials
-       set active = false, deleted_at = null, deleted_by = p_created_by,
-           delete_reason = 'Consumido: stock agotado en parte de trabajo', updated_at = now()
+       set active = false, deleted_at = null, deleted_by = null, delete_reason = null, updated_at = now()
      where id = v_material.id;
     insert into public.audit_log(company_id, table_name, record_id, operation, changed_by, old_data, new_data)
-    values (v_material.company_id, 'materials', v_material.id, 'SOFT_DELETE', p_created_by, to_jsonb(v_material),
-            jsonb_build_object('reason', 'Consumido: stock agotado en parte de trabajo', 'is_specific', true, 'stock_quantity', v_new));
+    values (v_material.company_id, 'materials', v_material.id, 'UPDATE', p_created_by, to_jsonb(v_material),
+            jsonb_build_object('status', 'consumed', 'is_specific', true, 'stock_quantity', v_new));
     insert into public.activity_log(company_id, actor_profile_id, action, entity_type, entity_id, description, metadata)
-    values (v_material.company_id, p_created_by, 'eliminacion logica', 'materials', v_material.id,
+    values (v_material.company_id, p_created_by, 'modificacion', 'materials', v_material.id,
             'Material específico consumido: stock agotado en parte de trabajo',
-            jsonb_build_object('reason', 'Consumido: stock agotado en parte de trabajo', 'operation', 'SOFT_DELETE'));
+            jsonb_build_object('status', 'consumed', 'operation', 'UPDATE'));
   elsif v_material.is_specific and not v_material.active and v_material.deleted_at is null and p_movement_type in ('in','return','correction','adjustment') and coalesce(v_new, 0) > 0 then
     update public.materials
        set active = true, deleted_at = null, deleted_by = null, delete_reason = null, updated_at = now()

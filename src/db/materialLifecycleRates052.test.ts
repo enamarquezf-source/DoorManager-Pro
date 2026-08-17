@@ -45,12 +45,15 @@ describe('052 material lifecycle and rate traceability', () => {
     expect(previousDependencies).not.toContain("elsif p_entity = 'materials' then");
   });
 
-  it('auto-archives specific materials only when consumption drains stock to zero', () => {
+  it('marks a specific material as consumed (active=false) without deleting it when stock drains to zero', () => {
     expect(migration).toContain('create or replace function public.dmp_apply_material_stock_movement(');
     expect(migration).toContain('if v_material.is_specific and p_source = \'work_order\' and p_movement_type = \'out\' and coalesce(v_new, 0) <= 0 then');
-    expect(migration).toContain('delete_reason = \'Consumido: stock agotado en parte de trabajo\'');
+    expect(migration).toContain("set active = false, deleted_at = null, deleted_by = p_created_by,");
+    expect(migration).toContain("delete_reason = 'Consumido: stock agotado en parte de trabajo'");
+    expect(migration).toContain("'Material específico consumido: stock agotado en parte de trabajo'");
     expect(migration).toContain('insert into public.audit_log(company_id, table_name, record_id, operation, changed_by, old_data, new_data)');
     expect(migration).toContain('insert into public.activity_log');
+    expect(migration).not.toContain("deleted_at = coalesce(deleted_at, now())");
     expect(previousStockMovement).not.toContain('v_material.is_specific');
     expect(previousStockMovement).not.toContain("if v_material.is_specific and p_source = 'work_order'");
   });
@@ -61,21 +64,69 @@ describe('052 material lifecycle and rate traceability', () => {
     expect(migration).toContain('-- Los materiales recurrentes con stock a cero permanecen activos.');
   });
 
+  it('auto-reactivates a consumed specific material when stock becomes available again', () => {
+    expect(migration).toContain('elsif v_material.is_specific and not v_material.active and v_material.deleted_at is null and');
+    expect(migration).toContain('p_movement_type in (\'in\',\'return\',\'correction\',\'adjustment\') and coalesce(v_new, 0) > 0 then');
+    expect(migration).toContain('set active = true, deleted_at = null, deleted_by = null, delete_reason = null, updated_at = now()');
+    expect(migration).toContain("'Material específico reactivado al recuperar stock'");
+    expect(migration).toContain("jsonb_build_object('reason', 'Material específico reactivado al recuperar stock', 'is_specific', true, 'stock_quantity', v_new)");
+  });
+
+  it('lets returns and corrections move stock on consumed materials because deleted_at stays null', () => {
+    expect(migration).toContain('select * into v_material from public.materials where id = p_material_id and deleted_at is null for update');
+    expect(migration).toContain("p_movement_type in ('in','initial','return')");
+    expect(migration).toContain("p_source = 'work_order' and p_movement_type = 'out'");
+    expect(migration).toContain('update public.materials set stock_quantity = v_new, last_stock_movement_at = now()');
+    expect(migration).toContain("values (v_material.company_id, v_material.id, p_work_order_id, p_work_order_material_id, p_quote_id, p_movement_type, p_quantity, v_previous, v_new, p_unit_cost, nullif(p_reason, ''), p_source, p_created_by)");
+  });
+
+  it('clears delete_reason on auto-reactivation of consumed specific materials', () => {
+    expect(migration).toContain('set active = true, deleted_at = null, deleted_by = null, delete_reason = null, updated_at = now()');
+    expect(migration).not.toContain('"Consumido: stock agotado"');
+  });
+
   it('freezes proposed rate values in quote lines without recalculating history', () => {
     expect(migration).toContain('quote_rate_id');
     expect(migration).toContain('-- Trazabilidad de tarifa propuesta en lineas de presupuesto. No recalcula valores historicos.');
-    expect(app).toContain('quote_rate_id: proposedRate.id');
     expect(quotesService).toContain('quote_rate_id');
   });
 
-  it('exposes UI for specific materials, restore action and rate proposal', () => {
+  it('exposes a single quote_rate_id through the quote line columns', () => {
+    expect(quotesService).toContain('quote_rate_id');
+    expect(quotesService).toContain('lineColumns = [\'quote_id\', \'line_type\', \'description\', \'quantity\', \'unit\', \'unit_cost\', \'unit_price\', \'tax_rate\', \'material_id\', \'profile_id\', \'position\', \'discount_percent\', \'quote_rate_id\']');
+  });
+
+  it('exposes UI states without exposing deleted_at: Activo, Sin stock, Consumido, Archivado', () => {
+    expect(app).toContain("if (material.deleted_at) return 'Archivado'; if (material.active === false) return material.is_specific === true ? 'Consumido' : 'Inactivo'; return materialStockStatus(material)");
+    expect(app).toContain('stockStatus === \'Activo\' ? \'ok\'');
+    expect(app).toContain('Reactivar');
+    expect(app).toContain("materialsService.reactivate(reactivating.id)");
+    expect(app).toContain('materialsService.reactivate');
     expect(app).toContain('Material específico / a medida');
-    expect(app).toContain('Se archiva automáticamente al quedar su stock a cero por consumo en partes');
+    expect(app).toContain('queda como Consumido (sin borrar historial); se reactiva automáticamente si vuelve a haber stock');
+  });
+
+  it('reactivates materials only through an explicit service method, keeping the restore flow for archived records', () => {
+    expect(materialsService).toContain('reactivate(id: string)');
+    expect(materialsService).toContain('{ active: true, deleted_at: null, deleted_by: null, delete_reason: null }');
     expect(app).toContain("entityLifecycleService.restore('materials', removing.id, reason)");
     expect(app).toContain('Restaurar material');
     expect(app).toContain('Motivo de restauración');
-    expect(app).toContain('Tarifa vigente aplicada solo al crear la línea');
-    expect(app).toContain('hourRatesService.list(\'\', quoteCompanyId)');
+  });
+
+  it('shows a labor rate selector with valid options by category and technician instead of an arbitrary first rate', () => {
+    expect(app).toContain('Tarifa de mano de obra');
+    expect(app).toContain('rate.technician_profile_id ? fullName(rate.profiles) : rate.category');
+    expect(app).toContain('selectLaborRate');
+    expect(app).toContain("quote_rate_id: rate.id, unit: 'h', unit_cost: rate.hourly_cost, unit_price: rate.hourly_price");
+    expect(app).not.toContain('proposedRate');
+    expect(app).toContain('Elige la tarifa de mano de obra vigente para precargar coste y precio hora');
+  });
+
+  it('shows the rate used when the line was created when editing and keeps saved snapshots', () => {
+    expect(app).toContain('Tarifa utilizada al crear la línea');
+    expect(app).toContain('Se conservan los valores guardados aunque la tarifa cambie o se archive');
+    expect(app).not.toContain('Tarifa vigente aplicada solo al crear la línea');
   });
 
   it('keeps migration declarative: no service role, no RLS disable, keeps company_id', () => {

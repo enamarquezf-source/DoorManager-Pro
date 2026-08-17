@@ -39,6 +39,9 @@ export const materialsService = {
   deactivate(id: string) {
     return expectData<any>(supabase.from('materials').update({ active: false, deleted_at: new Date().toISOString() }).eq('id', id).select().maybeSingle(), { service: 'materialsService', operation: 'deactivate material', resource: id });
   },
+  reactivate(id: string) {
+    return expectData<any>(supabase.from('materials').update({ active: true, deleted_at: null, deleted_by: null, delete_reason: null }).eq('id', id).select().maybeSingle(), { service: 'materialsService', operation: 'reactivate material', resource: id });
+  },
   movements(materialId: string) {
     return expectData<any[]>(supabase.from('material_stock_movements').select('*, profiles!material_stock_movements_created_by_fkey(first_name,last_name), work_orders!material_stock_movements_work_order_id_fkey(code,title)').eq('material_id', materialId).is('deleted_at', null).order('created_at', { ascending: false }).limit(80), { service: 'materialsService', operation: 'list material stock movements', resource: materialId });
   },

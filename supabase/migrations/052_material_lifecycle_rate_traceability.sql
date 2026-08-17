@@ -3,7 +3,8 @@
 
 begin;
 
--- Material especifico / a medida: se archiva automaticamente cuando el consumo deja su stock a cero.
+-- Material especifico / a medida: se desactiva (consumido) cuando el consumo deja su stock a cero
+-- y se reactiva automaticamente al recuperar stock. El archivado administrativo sigue usando deleted_at.
 alter table public.materials add column if not exists is_specific boolean not null default false;
 create index if not exists materials_is_specific_company_idx on public.materials(company_id, is_specific, deleted_at);
 
@@ -255,7 +256,9 @@ begin
 end;
 $$;
 
--- dmp_apply_material_stock_movement: auto-archiva materiales especificos al agotarse su stock por consumo.
+-- dmp_apply_material_stock_movement: marca como consumido (active=false) a materiales especificos
+-- al agotarse su stock por consumo, y los reactiva (active=true) cuando un movimiento deja stock disponible.
+-- Consumido no es archivado: deleted_at queda reservado al archivado administrativo (dmp_archive_entity).
 -- Los materiales recurrentes con stock a cero permanecen activos.
 create or replace function public.dmp_apply_material_stock_movement(
   p_material_id uuid,
@@ -297,7 +300,7 @@ begin
   update public.materials set stock_quantity = v_new, last_stock_movement_at = now(), updated_at = now() where id = v_material.id;
   if v_material.is_specific and p_source = 'work_order' and p_movement_type = 'out' and coalesce(v_new, 0) <= 0 then
     update public.materials
-       set active = false, deleted_at = coalesce(deleted_at, now()), deleted_by = p_created_by,
+       set active = false, deleted_at = null, deleted_by = p_created_by,
            delete_reason = 'Consumido: stock agotado en parte de trabajo', updated_at = now()
      where id = v_material.id;
     insert into public.audit_log(company_id, table_name, record_id, operation, changed_by, old_data, new_data)
@@ -305,8 +308,19 @@ begin
             jsonb_build_object('reason', 'Consumido: stock agotado en parte de trabajo', 'is_specific', true, 'stock_quantity', v_new));
     insert into public.activity_log(company_id, actor_profile_id, action, entity_type, entity_id, description, metadata)
     values (v_material.company_id, p_created_by, 'eliminacion logica', 'materials', v_material.id,
-            'Material específico archivado al consumirse su stock',
+            'Material específico consumido: stock agotado en parte de trabajo',
             jsonb_build_object('reason', 'Consumido: stock agotado en parte de trabajo', 'operation', 'SOFT_DELETE'));
+  elsif v_material.is_specific and not v_material.active and v_material.deleted_at is null and p_movement_type in ('in','return','correction','adjustment') and coalesce(v_new, 0) > 0 then
+    update public.materials
+       set active = true, deleted_at = null, deleted_by = null, delete_reason = null, updated_at = now()
+     where id = v_material.id;
+    insert into public.audit_log(company_id, table_name, record_id, operation, changed_by, old_data, new_data)
+    values (v_material.company_id, 'materials', v_material.id, 'UPDATE', p_created_by, to_jsonb(v_material),
+            jsonb_build_object('reason', 'Material específico reactivado al recuperar stock', 'is_specific', true, 'stock_quantity', v_new));
+    insert into public.activity_log(company_id, actor_profile_id, action, entity_type, entity_id, description, metadata)
+    values (v_material.company_id, p_created_by, 'modificacion', 'materials', v_material.id,
+            'Material específico reactivado al recuperar stock',
+            jsonb_build_object('reason', 'Material específico reactivado al recuperar stock', 'operation', 'UPDATE'));
   end if;
   insert into public.material_stock_movements(company_id, material_id, work_order_id, work_order_material_id, quote_id, movement_type, quantity, previous_stock, new_stock, unit_cost, reason, source, created_by)
   values (v_material.company_id, v_material.id, p_work_order_id, p_work_order_material_id, p_quote_id, p_movement_type, p_quantity, v_previous, v_new, p_unit_cost, nullif(p_reason, ''), p_source, p_created_by);

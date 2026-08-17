@@ -67,7 +67,10 @@ export function toSpanishSupabaseError(error: any) {
 
 export async function currentCompanyId() {
   const { data, error } = await supabase.rpc('dmp_operating_company_id');
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error('DMP operating company resolution failed', { message: error?.message, details: error?.details, hint: error?.hint, code: error?.code, name: error?.name });
+    throw new Error('No se ha podido determinar la empresa de DoorManager. Revisa la configuración de empresa operadora.');
+  }
   if (!data) throw new Error('No hay una empresa operadora activa configurada.');
   return data as string;
 }

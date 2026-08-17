@@ -29,7 +29,7 @@ describe('046 planned materials and technical closeout UX', () => {
     expect(service).toContain("supabase.from('quote_lines')");
     expect(service).toContain('planned_material_lines');
     expect(service).toContain('work_order_planned_material_decisions');
-    expect(app).toContain('Sin materiales previstos estructurados. Texto heredado');
+    expect(app).toContain('Sin materiales previstos. Material indicado');
     expect(app).not.toContain('lower(description) = lower');
   });
 

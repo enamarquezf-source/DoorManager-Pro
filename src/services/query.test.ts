@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { SupabaseOperationError, toSpanishSupabaseError } from './query';
 
 describe('query error mapping', () => {
-  it('no oculta errores de RPC no disponible o migracion pendiente', () => {
+  it('muestra errores de operación no disponible sin detalles técnicos en UI', () => {
     const message = 'Could not find the function public.dmp_update_work_order_operational_fields(p_payload, p_work_order_id) in the schema cache';
 
-    expect(toSpanishSupabaseError({ message })).toContain('dmp_update_work_order_operational_fields');
-    expect(toSpanishSupabaseError({ message })).toContain('migracion pendiente');
+    expect(toSpanishSupabaseError({ message })).toContain('Esta operación no está disponible ahora mismo');
+    expect(toSpanishSupabaseError({ message })).not.toContain('dmp_update_work_order_operational_fields');
+    expect(toSpanishSupabaseError({ message })).not.toContain('migracion pendiente');
   });
 
   it('conserva metadatos seguros del error original de Supabase', () => {

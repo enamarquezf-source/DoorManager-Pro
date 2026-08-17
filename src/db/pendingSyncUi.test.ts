@@ -18,7 +18,7 @@ describe('pending sync UI wiring', () => {
     expect(app).toContain('technicianOfflineService.syncSelected(ids, setMessage)');
     expect(app).toContain('technicianOfflineService.syncOne(changeId, setMessage)');
     expect(app).toContain('Vas a eliminar');
-    expect(app).toContain('No se enviarán a Supabase');
+    expect(app).toContain('No se enviarán');
   });
 
   it('shows the full pending sync action page from superadmin sync', () => {

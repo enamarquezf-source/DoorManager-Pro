@@ -33,7 +33,7 @@ describe('047 planned quote lines to real execution', () => {
   it('does not convert labor, fee, discount or material through the generic cost RPC', () => {
     expect(migration).toContain("v_line.line_type in ('material','labor','fee','discount')");
     expect(app).toContain('La mano de obra prevista no crea horas');
-    expect(app).toContain('Fee/discount se mantienen en presupuesto/facturación');
+    expect(app).toContain('Concepto comercial sin coste operativo asociado');
     expect(service).toContain('planned_material_lines');
   });
 

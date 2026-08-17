@@ -34,7 +34,7 @@ export function technicianDayCounts(activeRows: any[], historyRows: any[], today
 }
 
 export function technicianDayEmptyMessage(tab: TechnicianDayTab, activeCount: number, filteredCount: number, error?: string | null) {
-  if (error) return /perfil|sesion|sesión|auth|jwt/i.test(error) ? `Sesión o perfil no válido: ${error}` : `Error al consultar Supabase: ${error}`;
+  if (error) return /perfil|sesion|sesión|auth|jwt/i.test(error) ? `Sesión o perfil no válido: ${error}` : `No se han podido cargar los trabajos: ${error}`;
   if (tab === 'todos' && activeCount === 0) return 'No existen asignaciones activas para tu perfil.';
   if (activeCount > 0 && filteredCount === 0) return 'Existen asignaciones activas, pero este filtro no tiene resultados.';
   return 'No hay datos para este filtro.';

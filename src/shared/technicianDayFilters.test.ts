@@ -39,10 +39,10 @@ describe('technician day filters', () => {
     expect(counts.finalizados).toBe(2);
   });
 
-  it('diagnostica vacío, filtro sin resultados, Supabase y sesión/perfil', () => {
+  it('diagnostica vacío, filtro sin resultados, conexión y sesión/perfil', () => {
     expect(technicianDayEmptyMessage('todos', 0, 0)).toContain('No existen asignaciones activas');
     expect(technicianDayEmptyMessage('urgentes', 3, 0)).toContain('filtro no tiene resultados');
-    expect(technicianDayEmptyMessage('todos', 0, 0, 'Failed to fetch')).toContain('Error al consultar Supabase');
+    expect(technicianDayEmptyMessage('todos', 0, 0, 'Failed to fetch')).toContain('No se han podido cargar los trabajos');
     expect(technicianDayEmptyMessage('todos', 0, 0, 'perfil activo no encontrado')).toContain('Sesión o perfil no válido');
   });
 });

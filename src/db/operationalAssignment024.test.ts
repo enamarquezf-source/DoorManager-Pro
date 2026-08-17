@@ -65,7 +65,8 @@ describe('operational assignment 024', () => {
     expect(migration).toContain('indica material de catalogo o descripcion no catalogada');
     expect(workOrdersService).toContain('Guardar horas del parte');
     expect(workOrdersService).toContain('Guardar material del parte');
-    expect(queryService).toContain('respuesta de Supabase|validacion del formulario|permiso|perfil activo|empresa|asignacion|parte|estado editable|insercion');
+    expect(queryService).toContain('No se ha podido completar la operación. Revisa los datos e inténtalo de nuevo.');
+    expect(queryService).toContain('validacion del formulario|permiso|perfil activo|empresa|asignacion|parte|estado editable|insercion');
     expect(app).toContain('validacion del formulario: indica inicio y fin');
     expect(app).toContain('validacion del formulario: elige catálogo o describe el material');
   });
@@ -170,7 +171,7 @@ describe('operational assignment 024', () => {
     expect(technicianBlock).toContain('WorkOrderMaterialsCard workOrder={data}');
     expect(technicianBlock).toContain("setMode('time')");
     expect(technicianBlock).toContain("setMode('material')");
-    expect(technicianBlock).toContain('RPC segura');
+    expect(technicianBlock).toContain('Horas y materiales se guardan al confirmar');
     expect(technicianBlock).not.toContain('type="material"');
   });
 });

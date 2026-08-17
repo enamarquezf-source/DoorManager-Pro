@@ -196,9 +196,8 @@ export function canAccessRoute(profile: Profile | null | undefined, path: string
   const roles = rolesOf(profile);
   if (!roles.length || !roles.some((role) => roleToWorkspaceSafe(role))) return false;
   if (path.startsWith('/app/superadmin')) return hasAny(profile, ['superadmin']);
-  if (hasAny(profile, ['superadmin']) && (path.startsWith('/app/gerencia') || path.startsWith('/app/modulos/presupuestos') || path.startsWith('/app/modulos/materiales') || path.startsWith('/app/modulos/cobros') || path.startsWith('/app/modulos/rentabilidad') || path.startsWith('/app/modulos/tarifas-horas'))) return true;
+  if (hasAny(profile, ['superadmin']) && (path === '/app/inicio' || path.startsWith('/app/clientes') || path.startsWith('/app/centros') || path.startsWith('/app/equipos') || path.startsWith('/app/expedientes') || path.startsWith('/app/partes') || path.startsWith('/app/trabajos') || path.startsWith('/app/checks') || path.startsWith('/app/deficiencias') || path.startsWith('/app/documentos') || path.startsWith('/app/avisos') || path.startsWith('/app/gerencia') || path.startsWith('/app/modulos'))) return true;
   if (path.startsWith('/app/tecnico') || path.startsWith('/app/pendientes')) return hasAny(profile, ['Tecnico']);
-  if (hasAny(profile, ['superadmin'])) return false;
   if (hasAny(profile, ['Tecnico']) && !hasAny(profile, ['SAT', 'Gerencia', 'Comercial', 'Oficina'])) {
     return path === '/app/checks' || path.startsWith('/app/checks/') || path.startsWith('/app/avisos');
   }

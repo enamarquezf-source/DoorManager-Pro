@@ -47,16 +47,17 @@ export async function expectStep<T>(operation: string, loader: () => Promise<T>)
 
 export function toSpanishSupabaseError(error: any) {
   const message = error?.message ?? String(error ?? '');
-  if (message.includes('more than one relationship')) return 'Error al cargar datos relacionados. Hay una relación ambigua en la consulta de Supabase.';
+  if (message.includes('more than one relationship')) return 'No se han podido cargar los datos relacionados. Reinténtalo o avisa a administración.';
   if (message.includes('permission denied') || message.includes('row-level security')) return 'No tienes permisos para realizar esta operación con tu rol actual.';
   if (message.includes('JWT') || message.includes('auth')) return 'Tu sesión no permite realizar esta operación. Vuelve a iniciar sesión si el problema continúa.';
-  if (message.includes('Failed to fetch') || message.includes('NetworkError') || message.includes('fetch failed')) return 'No hay conexión con Supabase. Revisa la red e inténtalo de nuevo.';
-  if (message.includes('Could not find the function') || message.includes('function') && message.includes('does not exist')) return `Funcion de Supabase no disponible o migracion pendiente: ${message}`;
-  if (message.includes('schema cache')) return `Cache de esquema de Supabase sin actualizar o migracion pendiente: ${message}`;
+  if (message.includes('Failed to fetch') || message.includes('NetworkError') || message.includes('fetch failed')) return 'No hay conexión. Revisa la red e inténtalo de nuevo.';
+  if (message.includes('Could not find the function') || message.includes('function') && message.includes('does not exist')) return 'Esta operación no está disponible ahora mismo. Reinténtalo o avisa a administración.';
+  if (message.includes('schema cache')) return 'Los datos no están disponibles todavía. Reinténtalo en unos segundos.';
   if (message.includes('No se ha encontrado')) return message;
-  if (message.includes('audit_log_operation_check')) return 'Error de auditoria: la operacion no esta permitida por la migracion aplicada. Ejecuta la migracion correctiva y vuelve a intentarlo.';
-  if (message.includes('violates check constraint')) return `Restriccion de base de datos incumplida: ${message}`;
-  if (/^(respuesta de Supabase|validacion del formulario|permiso|perfil activo|empresa|asignacion|parte|estado editable|insercion):/i.test(message)) return message;
+  if (message.includes('audit_log_operation_check')) return 'No se ha podido registrar la operación. Reinténtalo o avisa a administración.';
+  if (message.includes('violates check constraint')) return 'Los datos no cumplen una regla de validación. Revisa la información introducida.';
+  if (/^respuesta de Supabase:/i.test(message)) return message.replace(/^respuesta de Supabase:\s*/i, '');
+  if (/^(validacion del formulario|permiso|perfil activo|empresa|asignacion|parte|estado editable|insercion):/i.test(message)) return message;
   if (message.includes('duplicate key')) return 'Ya existe un registro con esos datos.';
   if (message.includes('violates foreign key')) return 'El registro relacionado seleccionado no existe o no pertenece a tu empresa.';
   if (message.includes('null value') && message.includes('code')) return 'No se ha podido generar el código automático. Inténtalo de nuevo.';

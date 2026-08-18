@@ -127,7 +127,13 @@ export const quotesService = {
     return expectData<any>(supabase.from('quotes').update({ ...editable, updated_by }).eq('id', id).select().maybeSingle(), { service: 'quotesService', operation: 'update quote', resource: id });
   },
   async changeStatus(id: string, status: string, reason = 'Cambio rapido de estado', sentToEmail?: string) {
-    return expectData<any>(supabase.rpc('dmp_change_quote_status', { p_quote_id: id, p_new_status: status === 'Mandado' ? 'Enviado' : status, p_reason: reason, p_sent_to_email: sentToEmail ?? null }), { service: 'quotesService', operation: 'change quote status', resource: id });
+    const targetStatus = status === 'Mandado' ? 'Enviado' : status;
+    try {
+      return await expectData<any>(supabase.rpc('dmp_change_quote_status', { p_quote_id: id, p_new_status: targetStatus, p_reason: reason, p_sent_to_email: sentToEmail ?? null }), { service: 'quotesService', operation: 'change quote status', resource: id });
+    } catch (error: any) {
+      console.error('DMP quote operation failed', { action: 'change quote status', quoteId: id, targetStatus, message: error?.message, details: error?.details, hint: error?.hint, code: error?.code, name: error?.name });
+      throw error;
+    }
   },
   async addLine(quoteId: string, payload: Record<string, any>) {
     const quote = await this.get(quoteId);

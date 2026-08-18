@@ -6,9 +6,20 @@
 -- No modifica migraciones 001-052, mantiene RLS y no usa claves de servicio.
 -- Correcciones:
 --   QUO-01/02: quote_status_history + transicion segura dmp_quote_transition_apply
---     (unica logica server-side de validacion y trazabilidad). La guarda de estado NO
---     depende de la identidad de current_user ni del propietario SQL de ninguna funcion:
---     solo admite el UPDATE cuando el mecanismo seguro lo autoriza (set_config).
+--     (unica logica server-side de validacion y trazabilidad). La guarda de estado usa
+--     DOS capas y NO depende de current_user ni del propietario SQL de ninguna funcion:
+--       (1) privilegio (minimo privilegio en public.quotes): anon/authenticated pierden
+--           el UPDATE de tabla; authenticated conserva UPDATE solo sobre las columnas
+--           realmente editables por el formulario. status, sent_at/sent_to_email,
+--           work_order_id, campos economicos calculados y campos de ciclo de vida/auditoria
+--           quedan FUERA del UPDATE directo (funciones con definidor de seguridad).
+--           service_role no se toca (rol de infraestructura; la seguridad no depende de el).
+--       (2) trigger BEFORE UPDATE: solo admite el UPDATE cuando el nucleo seguro marca
+--           una ruta autorizada (set_config) que se limpia AL INSTANTE tras el UPDATE.
+--   El recalculado economico (dmp_recalculate_quote_totals, version efectiva de 038)
+--     pasa a SECURITY DEFINER sin tocar formulas, y los triggers que lo invocan (lineas y
+--     descuento) quedan con definidor de seguridad: los campos calculados ya no son
+--     escribibles por el cliente pero el recalc interno sigue funcionando.
 --   QUO-03/10: position auto = max(position)+1 con advisory lock por presupuesto.
 --   QUO-04: discount_percent por linea aplicado de verdad (total_price descontado) +
 --     backfill CONSERVADOR: solo presupuestos editables (Borrador/Enviado) y solo lineas
@@ -18,7 +29,20 @@
 --     reconciliar ni borrar nada) + indice unico parcial + validacion en create_work_order_full.
 --   QUO-06: 'Enviado' exige email de destino y registra sent_at/sent_to_email.
 --   QUO-07: deleteLine (frontend) rellena deleted_by/delete_reason.
--- Version: 053.2 (guardia sin owner, nucleo unico, preflight, backfill conservador).
+--   QUO-08: guarda de superficie INSERT. Las politicas INSERT de quotes solo validan
+--     company_id + rol (with check), por lo que un POST directo a /rest/v1/quotes (rol
+--     authenticated) PODIA crear un presupuesto ya 'Aceptado' con sent_at/sent_to_email,
+--     totales arbitrarios y/o ciclo de vida relleno, sin pasar por la logica segura.
+--     Un BEFORE INSERT trigger normaliza todo new a nivel de DATOS (independiente del rol
+--     invocador): status siempre 'Borrador' (el unico cambio valido posterior es via
+--     dmp_change_quote_status -> dmp_quote_transition_apply), envio y ciclo de vida a
+--     null, y economicos calculados a 0 (los escribe dmp_recalculate_quote_totals al
+--     insertar lineas). NO toca company_id (lo envia el servicio con currentCompanyId() y
+--     lo valida la RLS), NO toca code (sigue la via trg_quotes_auto_code -> next_dmp_code)
+--     ni created_by (lo envia el servicio con currentProfileId()): el alta legitima de
+--     quotesService.create() no necesita cambios y el trigger 034 de code sigue funcionando.
+-- Version: 053.5 (minimo privilegio: revoke UPDATE de tabla + grants por columna +
+-- recalc SECURITY DEFINER desde 038 + guarda BEFORE INSERT de superficie).
 
 begin;
 
@@ -54,7 +78,9 @@ create policy quote_status_history_update_denied on public.quote_status_history 
 create policy quote_status_history_delete_denied on public.quote_status_history for delete to authenticated using (false);
 
 -- ============================================================
--- QUO-02: matriz de transiciones validas (sin inventar estados)
+-- QUO-02: matriz de transiciones validas (sin inventar estados).
+-- Unificada con el nucleo dmp_quote_transition_apply: estado -> mismo estado es
+-- INVALIDO tambien aqui (no se genera historial falso p.ej. Aceptado -> Aceptado).
 -- ============================================================
 
 create or replace function public.dmp_quote_has_generated_work_order(p_quote_id uuid)
@@ -78,8 +104,7 @@ set search_path = public
 as $$
   select
     (
-      p_previous = p_new
-      or (p_previous = 'Borrador' and p_new in ('Enviado','Aceptado','Rechazado','Caducado','Cancelado'))
+      (p_previous = 'Borrador' and p_new in ('Enviado','Aceptado','Rechazado','Caducado','Cancelado'))
       or (p_previous = 'Enviado' and p_new in ('Borrador','Aceptado','Rechazado','Caducado','Cancelado'))
       or (p_previous = 'Aceptado' and p_new in ('Rechazado','Caducado','Cancelado','Ejecutado en cliente'))
       or (p_previous = 'Ejecutado en cliente' and false)
@@ -87,16 +112,155 @@ as $$
       or (p_previous = 'Caducado' and p_new in ('Borrador','Enviado'))
       or (p_previous = 'Cancelado' and p_new in ('Borrador','Enviado'))
     )
+    and p_new is distinct from p_previous
     and not (p_new in ('Borrador','Enviado') and p_has_work_order);
 $$;
 
+-- Nucleos internos de QUO-02: solo los invoca codigo con definidor de seguridad
+-- (dmp_quote_transition_apply y create_work_order_full). No se conceden a nadie fuera
+-- del propietario para que no queden expuestas como RPC a PUBLIC/anon/authenticated.
+revoke all on function public.dmp_quote_has_generated_work_order(uuid) from public;
+revoke all on function public.dmp_quote_has_generated_work_order(uuid) from anon;
+revoke all on function public.dmp_quote_has_generated_work_order(uuid) from authenticated;
+
+revoke all on function public.dmp_quote_status_transition_valid(text, text, boolean) from public;
+revoke all on function public.dmp_quote_status_transition_valid(text, text, boolean) from anon;
+revoke all on function public.dmp_quote_status_transition_valid(text, text, boolean) from authenticated;
+
 -- ============================================================
--- QUO-01/02: guarda de estado server-side.
--- Es UNA PUERTA, no una segunda validacion: la unica logica de validacion y
--- trazabilidad vive en dmp_quote_transition_apply (nucleo). Cualquier UPDATE del
--- status que no provenga del nucleo (que marca la ruta autorizada con set_config)
--- se deniega, SIN depender de current_user ni del propietario SQL de la funcion.
+-- QUO-01/02: guarda de estado server-side en DOS capas.
+--   CAPA 1 (privilegio, autoritativa): se aplica el PRINCIPIO DE MINIMO PRIVILEGIO.
+--   En produccion se verifico que anon, authenticated y service_role tenian UPDATE a
+--   nivel de tabla sobre public.quotes (pudiendo modificar TODAS las columnas, incluidos
+--   status y totales). Desde 053 los roles de cliente (anon/authenticated) PIERDEN el
+--   UPDATE de tabla y solo authenticated conserva UPDATE por COLUMNA sobre las columnas
+--   realmente editables por el formulario. status, sent_at/sent_to_email, work_order_id,
+--   los campos economicos calculados (subtotal_cost, subtotal_sale, subtotal,
+--   discount_amount, taxable_base, tax_amount, total, total_amount, estimated_margin) y
+--   los de ciclo de vida/auditoria (deleted_at, deleted_by, delete_reason, id, company_id,
+--   code, created_by, created_at, issue_date) quedan FUERA del UPDATE directo: solo los
+--   escriben funciones con definidor de seguridad. service_role NO se toca: es el rol de
+--   infraestructura y DoorManager no lo usa en runtime; la seguridad funcional no depende
+--   de el.
+--   PostgREST respeta los privilegios por columna: un PATCH /quotes con "status", totales
+--   o campos de envio falla por permisos ANTES de tocar RLS o triggers.
+--   CAPA 2 (trigger): defensa en profundidad para cualquier UPDATE que llegue a la
+--   columna status desde contextos con privilegio (definidor de seguridad / owner). Solo
+--   admite la operacion marcada por el nucleo dmp_quote_transition_apply (unica logica
+--   de validacion y trazabilidad) y SIN depender de current_user ni del propietario SQL.
 -- ============================================================
+
+revoke update on public.quotes from anon, authenticated;
+
+grant update (client_id, site_id, equipment_id, opportunity_id, case_id, quote_type, title, description, valid_until, discount_type, discount_value, conditions, updated_by, updated_at) on public.quotes to authenticated;
+
+-- ============================================================
+-- QUO-01/02/04: recalculado de totales como SECURITY DEFINER.
+-- Con la CAPA 1 el cliente ya NO puede UPDATE de los campos economicos. El recalculado
+-- debe seguir funcionando internamente (triggers de lineas y de descuento), asi que
+-- dmp_recalculate_quote_totals se redefine AQUI con la version efectiva de 038 (mismas
+-- formulas, sin cambios) pero como SECURITY DEFINER: se ejecuta como propietario y
+-- actualiza los campos calculados sin depender de permisos del invocador.
+-- EXECUTE se restringe: no es una RPC de cliente, solo la invocan los triggers y el
+-- codigo server-side con definidor de seguridad (el UPDATE que hace ya omitia status).
+-- ============================================================
+
+create or replace function public.dmp_recalculate_quote_totals(p_quote_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_cost numeric(12,2);
+  v_sale numeric(12,2);
+  v_tax numeric(12,2);
+  v_discount numeric(12,2);
+  v_taxable numeric(12,2);
+  v_discount_type text;
+  v_discount_value numeric(12,2);
+begin
+  select
+    coalesce(sum(total_cost), 0),
+    coalesce(sum(total_price), 0)
+  into v_cost, v_sale
+  from public.quote_lines
+  where quote_id = p_quote_id
+    and deleted_at is null;
+
+  select coalesce(discount_type, 'percentage'), coalesce(discount_value, discount_amount, 0)
+  into v_discount_type, v_discount_value
+  from public.quotes
+  where id = p_quote_id;
+
+  v_discount := least(case when v_discount_type = 'percentage' then v_sale * coalesce(v_discount_value, 0) / 100 else coalesce(v_discount_value, 0) end, v_sale);
+  v_taxable := greatest(v_sale - coalesce(v_discount, 0), 0);
+
+  select coalesce(sum(case when v_sale = 0 then 0 else greatest(total_price - (total_price / v_sale) * coalesce(v_discount, 0), 0) * tax_rate / 100 end), 0)
+  into v_tax
+  from public.quote_lines
+  where quote_id = p_quote_id
+    and deleted_at is null;
+
+  update public.quotes
+  set subtotal_cost = round(v_cost, 2),
+      subtotal_sale = round(v_sale, 2),
+      subtotal = round(v_sale, 2),
+      discount_amount = round(coalesce(v_discount, 0), 2),
+      taxable_base = round(v_taxable, 2),
+      tax_amount = round(v_tax, 2),
+      total = round(v_taxable + v_tax, 2),
+      total_amount = round(v_taxable + v_tax, 2),
+      estimated_margin = round(v_taxable - v_cost, 2),
+      updated_at = now()
+  where id = p_quote_id;
+end;
+$$;
+
+revoke all on function public.dmp_recalculate_quote_totals(uuid) from public;
+revoke all on function public.dmp_recalculate_quote_totals(uuid) from anon;
+revoke all on function public.dmp_recalculate_quote_totals(uuid) from authenticated;
+
+-- Los disparadores que invocan el recalculado se redefinen como SECURITY DEFINER:
+-- el cuerpo del trigger se ejecuta como propietario y puede llamar a
+-- dmp_recalculate_quote_totals (cuyo EXECUTE quedo restringido a PUBLIC/anon/
+-- authenticated) cuando un rol de cliente edita lineas o el descuento. Solo se
+-- declaran como funciones de disparo (returns trigger): no son RPC de cliente.
+create or replace function public.dmp_quote_lines_recalculate_trigger()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.dmp_recalculate_quote_totals(coalesce(new.quote_id, old.quote_id));
+  return coalesce(new, old);
+end;
+$$;
+
+drop trigger if exists quote_lines_recalculate_trigger on public.quote_lines;
+create trigger quote_lines_recalculate_trigger
+  after insert or update or delete on public.quote_lines
+  for each row execute function public.dmp_quote_lines_recalculate_trigger();
+
+create or replace function public.dmp_quotes_recalculate_on_discount_trigger()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.dmp_recalculate_quote_totals(new.id);
+  return new;
+end;
+$$;
+
+drop trigger if exists quotes_recalculate_on_discount_trigger on public.quotes;
+create trigger quotes_recalculate_on_discount_trigger
+  after update of discount_type, discount_value on public.quotes
+  for each row
+  when (new.discount_type is distinct from old.discount_type or new.discount_value is distinct from old.discount_value)
+  execute function public.dmp_quotes_recalculate_on_discount_trigger();
 
 create or replace function public.dmp_quotes_status_guard_trigger()
 returns trigger
@@ -122,6 +286,63 @@ drop trigger if exists quotes_status_guard_trigger on public.quotes;
 create trigger quotes_status_guard_trigger
   before update of status on public.quotes
   for each row execute function public.dmp_quotes_status_guard_trigger();
+
+-- ============================================================
+-- QUO-08: guarda de superficie INSERT (cierre del bypass de integridad).
+-- La politica INSERT de quotes (with check) solo valida company_id + rol; una llamada
+-- directa con rol authenticated podia crear un presupuesto ya 'Aceptado', con
+-- sent_at/sent_to_email, totales arbitrarios o ciclo de vida relleno. Este trigger
+-- normaliza TODO new a nivel de datos y es INDEPENDIENTE del rol invocador (aplica
+-- tambien a service_role: la integridad no depende de quien inserta).
+--   - status: siempre 'Borrador'. El unico cambio valido posterior es el mecanismo
+--     seguro (dmp_change_quote_status -> dmp_quote_transition_apply): un presupuesto
+--     no puede NACER en otro estado.
+--   - envio (sent_at/sent_to_email) y ciclo de vida (deleted_at/deleted_by/delete_reason):
+--     server-managed, se neutralizan SIEMPRE.
+--   - economicos calculados (subtotal_cost, subtotal_sale, subtotal, discount_amount,
+--     taxable_base, tax_amount, total, total_amount, estimated_margin): a 0; los escribe
+--     dmp_recalculate_quote_totals (SECURITY DEFINER) en cuanto se insertan lineas.
+--   - updated_at: sello de servidor.
+-- NO toca company_id (lo aporta quotesService.create() con currentCompanyId() y lo valida
+-- la RLS with check), NO toca code (sigue la via trg_quotes_auto_code -> next_dmp_code de
+-- 034) ni created_by (lo envia el servicio con currentProfileId()): el alta legitima no
+-- necesita cambios y el trigger de codigo sigue funcionando.
+-- ============================================================
+
+create or replace function public.dmp_quote_insert_normalize_trigger()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  new.status := 'Borrador';
+
+  new.sent_at := null;
+  new.sent_to_email := null;
+  new.deleted_at := null;
+  new.deleted_by := null;
+  new.delete_reason := null;
+
+  new.subtotal_cost := 0;
+  new.subtotal_sale := 0;
+  new.subtotal := 0;
+  new.discount_amount := 0;
+  new.taxable_base := 0;
+  new.tax_amount := 0;
+  new.total := 0;
+  new.total_amount := 0;
+  new.estimated_margin := 0;
+
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
+drop trigger if exists quotes_insert_normalize_trigger on public.quotes;
+create trigger quotes_insert_normalize_trigger
+  before insert on public.quotes
+  for each row execute function public.dmp_quote_insert_normalize_trigger();
 
 -- ============================================================
 -- QUO-01/02/06: nucleo unico de transicion de estado de presupuestos.
@@ -186,16 +407,31 @@ begin
 
   v_previous := v_quote.status;
 
-  perform set_config('dmp.quote_status_change', 'true', true);
+  -- Ruta autorizada para el trigger, en un sub-bloque que SIEMPRE restaura/limpia el
+  -- marcador inmediatamente despues del UPDATE, incluso ante excepcion: si aqui se lanza
+  -- una excepcion, se limpia el marcador y se relanza (nunca queda 'true' para sintaxis
+  -- posterior del mismo/later contexto de la transaccion). Con is_local = true el valor
+  -- va ligado al contexto local y ademas esta capa es defensa en profundidad: la CAPA 1
+  -- de privilegio de columna ya impide el UPDATE directo desde PostgREST/anonymous/ROL de
+  -- servicio SIN depender de este GUC.
+  begin
+    perform set_config('dmp.quote_status_change', 'true', true);
 
-  update public.quotes
-  set status = p_new_status,
-      sent_at = case when p_new_status = 'Enviado' then coalesce(sent_at, now()) else sent_at end,
-      sent_to_email = case when p_new_status = 'Enviado' then trim(p_sent_to_email) else sent_to_email end,
-      updated_by = v_actor,
-      updated_at = now()
-  where id = v_quote.id
-  returning to_jsonb(quotes.*) into v_quote;
+    update public.quotes
+    set status = p_new_status,
+        sent_at = case when p_new_status = 'Enviado' then coalesce(sent_at, now()) else sent_at end,
+        sent_to_email = case when p_new_status = 'Enviado' then trim(p_sent_to_email) else sent_to_email end,
+        updated_by = v_actor,
+        updated_at = now()
+    where id = v_quote.id
+    returning to_jsonb(quotes.*) into v_quote;
+
+    -- Limpieza inmediata: la ruta autorizada queda cerrada para el resto del trafico.
+    perform set_config('dmp.quote_status_change', '', true);
+  exception when others then
+    perform set_config('dmp.quote_status_change', '', true);
+    raise;
+  end;
 
   insert into public.quote_status_history(company_id, quote_id, previous_status, new_status, changed_by, reason, manual_correction)
   values (v_quote.company_id, v_quote.id, v_previous, v_quote.status, v_actor, v_reason, v_forced_reason);

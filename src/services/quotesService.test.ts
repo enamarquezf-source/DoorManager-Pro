@@ -77,4 +77,34 @@ describe('quote line normalization', () => {
     expect(line.unit_price).toBe(1);
     expect(line.total_price).toBe(1);
   });
+
+  it('keeps discount_percent 0 with the existing behavior', () => {
+    const line = normalizeQuoteLinePayload({ quantity: 2, unit_cost: 100, unit_price: 200, tax_rate: 21, discount_percent: 0 });
+    expect(line.total_cost).toBe(200);
+    expect(line.total_price).toBe(400);
+    expect(line.discount_percent).toBe(0);
+  });
+
+  it('applies discount_percent to the line sale without touching cost', () => {
+    const line = normalizeQuoteLinePayload({ quantity: 2, unit_cost: 100, unit_price: 200, tax_rate: 21, discount_percent: 10 });
+    expect(line.total_cost).toBe(200);
+    expect(line.total_price).toBe(360);
+    expect(line.total).toBe(360);
+  });
+
+  it('rejects discount_percent out of the 0..100 range', () => {
+    expect(() => normalizeQuoteLinePayload({ quantity: 1, unit_cost: 100, unit_price: 200, discount_percent: 101 })).toThrow(/descuento de la línea/);
+    expect(() => normalizeQuoteLinePayload({ quantity: 1, unit_cost: 100, unit_price: 200, discount_percent: -1 })).toThrow(/descuento de la línea/);
+  });
+
+  it('applies only the global discount once on previously discounted line totals', () => {
+    const lines = [
+      normalizeQuoteLinePayload({ quantity: 1, unit_cost: 100, unit_price: 200, tax_rate: 21, discount_percent: 10 }),
+      normalizeQuoteLinePayload({ quantity: 1, unit_cost: 100, unit_price: 200, tax_rate: 21, discount_percent: 10 }),
+    ];
+    const totals = calculateQuoteEconomics(lines, 'percentage', 10);
+    expect(totals.subtotalSale).toBe(360);
+    expect(totals.discountAmount).toBe(36);
+    expect(totals.taxableBase).toBe(324);
+  });
 });

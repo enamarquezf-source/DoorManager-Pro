@@ -12,6 +12,7 @@ const quotesService = readFileSync(new URL('../services/quotesService.ts', impor
 const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
 const clientsService = readFileSync(new URL('../services/clientsService.ts', import.meta.url), 'utf8');
 const workOrdersService = readFileSync(new URL('../services/workOrdersService.ts', import.meta.url), 'utf8');
+const quoteIntegrityMigration = readFileSync(new URL('../../supabase/migrations/053_quote_integrity_traceability.sql', import.meta.url), 'utf8');
 
 describe('quotes management 034', () => {
   it('parses migration SQL', async () => {
@@ -66,7 +67,7 @@ describe('quotes management 034', () => {
     expect(quotesService).toContain('updateLine');
     expect(quotesService).toContain('deleteLine');
     expect(quotesService).toContain('sendToClient');
-    expect(quotesService).toContain("status: 'Enviado'");
+    expect(quotesService).toContain("'Enviado'");
     expect(migration).toContain('dmp_recalculate_quote_totals');
     expect(migration).toContain('estimated_margin');
   });
@@ -79,10 +80,11 @@ describe('quotes management 034', () => {
       expect(sql).toContain('quote_lines_recalculate_trigger');
       expect(sql).toContain('quotes_recalculate_on_discount_trigger');
       expect(sql).toContain('taxable_base');
-      expect(sql).not.toContain('new.unit_price, 0) * (1 - coalesce(new.discount_percent, 0) / 100)');
     }
+    expect(quoteIntegrityMigration).toContain('new.total_price := round(new.quantity * new.unit_price * (1 - new.discount_percent / 100), 2)');
+    expect(quoteIntegrityMigration).toContain('el descuento de la linea debe estar entre 0 y 100');
     expect(quotesService).toContain('const totalCost = Math.round(quantity * unitCost * 100) / 100');
-    expect(quotesService).toContain('const totalPrice = Math.round(quantity * unitPrice * 100) / 100');
+    expect(quotesService).toContain('Math.round(quantity * unitPrice * (1 - discountPercent / 100) * 100) / 100');
     expect(quotesService).toContain("['unit_price', 'unitPrice', 'price', 'salePrice', 'sale_price', 'unitSale', 'sellingPrice']");
     expect(quotesService).not.toContain('unitPrice || 1');
     expect(quotesService).not.toContain('line.unit_price || 1');
@@ -143,7 +145,8 @@ describe('quotes management 034', () => {
   it('keeps quote statuses ready for future invoicing without changing totals on status edits', () => {
     for (const status of ['Borrador', 'Enviado', 'Aceptado', 'Ejecutado en cliente', 'Rechazado', 'Caducado', 'Cancelado']) expect(quotesService).toContain(status);
     expect(app).toContain('Estados candidatos para fases futuras: Aceptado y Ejecutado en cliente');
-    expect(quotesService).toContain('return this.update(id, { status: \'Enviado\'');
+    expect(quotesService).toContain("supabase.rpc('dmp_change_quote_status'");
+    expect(quotesService).toContain("return this.changeStatus(id, 'Enviado', 'Envio al cliente', email);");
     expect(quotesService).not.toContain('tax_amount: payload.status');
     expect(quotesService).not.toContain('total_amount: payload.status');
   });

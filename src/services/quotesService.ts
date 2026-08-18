@@ -58,13 +58,15 @@ export function normalizeQuoteLinePayload(payload: Record<string, any>) {
   const unitCost = numericField(line.unit_cost, 0, 'el coste unitario');
   const unitPrice = numericField(line.unit_price, unitCost, 'la venta unitaria');
   const taxRate = numericField(line.tax_rate, 21, 'el IVA');
+  const discountPercent = numericField(line.discount_percent, 0, 'el descuento de la línea');
   if (quantity <= 0) throw new Error('validacion del formulario: la cantidad debe ser mayor que cero.');
   if (unitCost < 0) throw new Error('validacion del formulario: el coste unitario no puede ser negativo.');
   if (unitPrice < 0) throw new Error('validacion del formulario: la venta unitaria no puede ser negativa.');
   if (taxRate < 0) throw new Error('validacion del formulario: el IVA no puede ser negativo.');
+  if (discountPercent < 0 || discountPercent > 100) throw new Error('validacion del formulario: el descuento de la línea debe estar entre 0 y 100.');
   const totalCost = Math.round(quantity * unitCost * 100) / 100;
-  const totalPrice = Math.round(quantity * unitPrice * 100) / 100;
-  return { ...line, quantity, unit_cost: unitCost, unit_price: unitPrice, tax_rate: taxRate, total_cost: totalCost, total_price: totalPrice, total: totalPrice };
+  const totalPrice = Math.round(quantity * unitPrice * (1 - discountPercent / 100) * 100) / 100;
+  return { ...line, quantity, unit_cost: unitCost, unit_price: unitPrice, tax_rate: taxRate, discount_percent: discountPercent, total_cost: totalCost, total_price: totalPrice, total: totalPrice };
 }
 
 async function optionalRelated(table: string, id: string, columns: string, quoteId: string) {
@@ -119,16 +121,16 @@ export const quotesService = {
   },
   async update(id: string, payload: Record<string, any>) {
     const updated_by = await currentProfileId();
-    return expectData<any>(supabase.from('quotes').update({ ...normalizeQuote(payload), updated_by }).eq('id', id).select().maybeSingle(), { service: 'quotesService', operation: 'update quote', resource: id });
+    const normalized = normalizeQuote(payload);
+    const { status: _status, ...rest } = normalized;
+    return expectData<any>(supabase.from('quotes').update({ ...rest, updated_by }).eq('id', id).select().maybeSingle(), { service: 'quotesService', operation: 'update quote', resource: id });
   },
-  async changeStatus(id: string, status: string, reason = 'Cambio rapido de estado') {
-    const updated_by = await currentProfileId();
-    return expectData<any>(supabase.from('quotes').update({ status: status === 'Mandado' ? 'Enviado' : status, updated_by }).eq('id', id).select().maybeSingle(), { service: 'quotesService', operation: 'change quote status', resource: id });
+  async changeStatus(id: string, status: string, reason = 'Cambio rapido de estado', sentToEmail?: string) {
+    return expectData<any>(supabase.rpc('dmp_change_quote_status', { p_quote_id: id, p_new_status: status === 'Mandado' ? 'Enviado' : status, p_reason: reason, p_sent_to_email: sentToEmail ?? null }), { service: 'quotesService', operation: 'change quote status', resource: id });
   },
   async addLine(quoteId: string, payload: Record<string, any>) {
     const quote = await this.get(quoteId);
-    const position = payload.position ?? ((quote.quote_lines ?? []).filter((line: any) => !line.deleted_at).length + 1);
-    const normalizedPayload = { ...normalizeQuoteLinePayload({ ...payload, position }), quote_id: quoteId, company_id: quote.company_id };
+    const normalizedPayload = { ...normalizeQuoteLinePayload(payload), quote_id: quoteId, company_id: quote.company_id };
     try {
       return await expectData<any>(supabase.from('quote_lines').insert(normalizedPayload).select().maybeSingle(), { service: 'quotesService', operation: 'add quote line', resource: quoteId });
     } catch (error: any) {
@@ -145,11 +147,12 @@ export const quotesService = {
       throw error;
     }
   },
-  deleteLine(lineId: string) {
-    return expectData<any>(supabase.from('quote_lines').update({ deleted_at: new Date().toISOString() }).eq('id', lineId).select().maybeSingle(), { service: 'quotesService', operation: 'delete quote line', resource: lineId });
+  async deleteLine(lineId: string, reason = 'Línea eliminada') {
+    const deleted_by = await currentProfileId();
+    return expectData<any>(supabase.from('quote_lines').update({ deleted_at: new Date().toISOString(), deleted_by, delete_reason: reason, updated_at: new Date().toISOString() }).eq('id', lineId).select().maybeSingle(), { service: 'quotesService', operation: 'delete quote line', resource: lineId });
   },
   sendToClient(id: string, email: string) {
-    return this.update(id, { status: 'Enviado', sent_at: new Date().toISOString(), sent_to_email: email });
+    return this.changeStatus(id, 'Enviado', 'Envio al cliente', email);
   },
   async materialOptions(search = '', companyScope?: string | null) {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;

@@ -15,7 +15,7 @@ const mockSupabase = vi.hoisted(() => {
 
 vi.mock('../lib/supabase/client', () => ({ supabase: mockSupabase.supabase }));
 
-import { entityLifecycleService, type LifecycleSummary } from './entityLifecycleService';
+import { entityLifecycleService } from './entityLifecycleService';
 import {
   quotePurgeBlocks,
   quotePurgeCanShowButton,
@@ -27,26 +27,23 @@ import {
 const archivedQuote = { id: 'q-1', code: 'PRE-0002', title: 'Presupuesto archivado', deleted_at: '2026-02-01T10:00:00.000Z' };
 const activeQuote = { id: 'q-1', code: 'PRE-0001', title: 'Presupuesto activo', deleted_at: null };
 
-const superadminSummary = { can_permanently_delete: true } as LifecycleSummary;
-
 describe('quotePurgeFlow: visibilidad del botón de purga', () => {
-  it('muestra el botón solo para superadmin, con presupuesto archivado y dependencias que permiten el borrado definitivo', () => {
-    expect(quotePurgeCanShowButton(archivedQuote, 'superadmin', superadminSummary)).toBe(true);
+  it('muestra el botón para un presupuesto archivado visto por superadmin aunque tenga dependencias bloqueantes', () => {
+    expect(quotePurgeCanShowButton(archivedQuote, 'superadmin')).toBe(true);
   });
 
-  it('oculta el botón si el presupuesto no está archivado', () => {
-    expect(quotePurgeCanShowButton(activeQuote, 'superadmin', superadminSummary)).toBe(false);
+  it('muestra el botón para un presupuesto archivado por superadmin aunque tenga partes relacionados (la decisión se toma en el dry-run)', () => {
+    expect(quotePurgeCanShowButton({ ...archivedQuote, generated_work_orders: [{ id: 'wo-1', code: 'PAR-2026-000009' }] }, 'superadmin')).toBe(true);
+  });
+
+  it('oculta el botón si el presupuesto no está archivado aunque sea superadmin', () => {
+    expect(quotePurgeCanShowButton(activeQuote, 'superadmin')).toBe(false);
   });
 
   it('oculta el botón para roles sin acceso a la purga (SAT, Gerencia, Oficina, Comercial, Técnico)', () => {
     for (const workspace of ['sat', 'gerencia', 'oficina', 'comercial', 'tecnico']) {
-      expect(quotePurgeCanShowButton(archivedQuote, workspace, superadminSummary)).toBe(false);
+      expect(quotePurgeCanShowButton(archivedQuote, workspace)).toBe(false);
     }
-  });
-
-  it('oculta el botón si la consulta de dependencias no permite el borrado definitivo', () => {
-    expect(quotePurgeCanShowButton(archivedQuote, 'superadmin', { can_permanently_delete: false } as LifecycleSummary)).toBe(false);
-    expect(quotePurgeCanShowButton(archivedQuote, 'superadmin', null)).toBe(false);
   });
 });
 

@@ -1260,9 +1260,7 @@ function QuoteDetailModal({ quoteId, onClose, onChanged }: { quoteId: string; on
   const changed = () => { setMode(null); setEditingLine(null); setRemovingLine(null); reload(); onChanged(); };
   const printQuote = (nextMode: 'client' | 'internal') => { setPrintMode(nextMode); setTimeout(() => window.print(), 50); };
   const canManageQuote = canManageQuotes(profile);
-  const canLoadPurge = Boolean(data?.deleted_at && workspace === 'superadmin');
-  const { data: purgeSummary } = useLoad(() => canLoadPurge ? entityLifecycleService.dependencies('quotes', quoteId) : Promise.resolve(null), [quoteId, canLoadPurge], null as any);
-  const showPurgeButton = quotePurgeCanShowButton(data, workspace, purgeSummary);
+  const showPurgeButton = quotePurgeCanShowButton(data, workspace);
   const lines = (data?.quote_lines ?? []).filter((line: any) => !line.deleted_at);
   const generatedWorks = data?.generated_work_orders ?? [];
   const marginPercent = Number(data?.taxable_base ?? 0) > 0 ? Number(data?.estimated_margin ?? 0) / Number(data?.taxable_base ?? 0) * 100 : 0;

@@ -1,7 +1,5 @@
-import type { LifecycleSummary } from './entityLifecycleService';
-
-export function quotePurgeCanShowButton(quote: any, workspace: string, summary: LifecycleSummary | null) {
-  return Boolean(quote?.deleted_at && workspace === 'superadmin' && summary?.can_permanently_delete);
+export function quotePurgeCanShowButton(quote: any, workspace: string) {
+  return Boolean(quote?.deleted_at && workspace === 'superadmin');
 }
 
 export function quotePurgeExpectedConfirmation(code: string) {

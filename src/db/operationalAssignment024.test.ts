@@ -66,7 +66,7 @@ describe('operational assignment 024', () => {
     expect(workOrdersService).toContain('Guardar horas del parte');
     expect(workOrdersService).toContain('Guardar material del parte');
     expect(queryService).toContain('No se ha podido completar la operación. Revisa los datos e inténtalo de nuevo.');
-    expect(queryService).toContain('validacion del formulario|permiso|perfil activo|empresa|asignacion|parte|estado editable|insercion');
+    expect(queryService).toContain('validacion del formulario|purga|permiso|perfil activo|empresa|asignacion|parte|estado editable|insercion');
     expect(app).toContain('validacion del formulario: indica inicio y fin');
     expect(app).toContain('validacion del formulario: elige catálogo o describe el material');
   });

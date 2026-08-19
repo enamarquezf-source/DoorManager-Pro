@@ -54,6 +54,17 @@ export const entityLifecycleService = {
   permanentlyDelete(entity: LifecycleEntity, id: string, reason: string, confirmation: string) {
     return expectData<LifecycleSummary>(supabase.rpc('dmp_permanently_delete_entity', { p_entity: entity, p_entity_id: id, p_reason: reason, p_confirmation: confirmation }));
   },
+  purge(entity: LifecycleEntity, id: string, opts: { reason: string; confirmation: string; scope: Record<string, any>; dryRun: boolean }) {
+    return expectData<any>(supabase.rpc('dmp_purge_entity_with_cleanup', {
+      p_entity: entity,
+      p_entity_id: id,
+      p_reason: opts.reason,
+      p_confirmation: opts.confirmation,
+      p_scope: opts.scope ?? {},
+      p_return_stock: true,
+      p_dry_run: opts.dryRun,
+    }));
+  },
 };
 
 export function applyArchiveFilter(query: any, filter: ArchiveFilter, activeColumn?: 'active') {

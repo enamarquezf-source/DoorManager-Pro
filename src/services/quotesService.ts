@@ -91,7 +91,7 @@ export const quotesService = {
   async get(id: string) {
     if (!id) throw new Error('No se ha indicado el presupuesto a abrir.');
     try {
-      const row = await expectData<any>(supabase.from('quotes').select('*').eq('id', id).is('deleted_at', null).maybeSingle(), { service: 'quotesService', operation: 'get quote', resource: id });
+      const row = await expectData<any>(supabase.from('quotes').select('*').eq('id', id).maybeSingle(), { service: 'quotesService', operation: 'get quote', resource: id });
       if (!row) throw new Error('No se ha encontrado el presupuesto solicitado.');
       const [clients, sites, equipment, workOrders, generatedWorkOrders, opportunities, lines] = await Promise.all([
         row.client_id ? optionalRelated('clients', row.client_id, 'id,code,legal_name,email,company_id,deleted_at', id) : Promise.resolve(null),

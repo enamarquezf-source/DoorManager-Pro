@@ -239,7 +239,7 @@ describe('quotes management 034', () => {
     expect(quoteWorkOrderFixMigration).toContain('validacion del formulario: presupuesto sin cliente');
     expect(quoteWorkOrderFixMigration).toContain('validacion del formulario: presupuesto sin centro para crear parte');
     expect(quoteWorkOrderFixMigration).toContain('validacion del formulario: presupuesto no aceptado para generar parte');
-    expect(app).toContain("disabled={!canManageQuote || data.status !== 'Aceptado' || generatedWorks.length > 0}");
+    expect(app).toContain("disabled={!canManageQuote || data.deleted_at || data.status !== 'Aceptado' || generatedWorks.length > 0}");
     expect(app).not.toContain("|| !data.site_id}>Generar parte");
     expect(app).toContain('DMP generate work order from quote failed');
     expect(app).toContain('quoteStatus');

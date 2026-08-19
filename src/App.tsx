@@ -38,7 +38,7 @@ import { checkForNewVersion, currentBuild, type VersionCheckResult } from './sha
 import { buildTechnicalReference, publicErrorMessage } from './shared/errorDiagnostics';
 import type { Profile, RoleName, Severity, Workspace } from './shared/types';
 import { entityLabels, entityLifecycleService, isArchivedRecord, type ArchiveFilter, type LifecycleEntity, type LifecycleSummary } from './services/entityLifecycleService';
-import { quotePurgeBlocks, quotePurgeCanShowButton, quotePurgeExpectedConfirmation, quotePurgeResultOk, quotePurgeScope } from './services/quotePurgeFlow';
+import { quotePurgeBlocks, quotePurgeCanShowButton, quotePurgeExpectedConfirmation, quotePurgePlanMatchesScope, quotePurgeResultOk, quotePurgeScope, quotePurgeScopeKey, type QuotePurgeScopeKey } from './services/quotePurgeFlow';
 
 type AuthContextValue = { initialized: boolean; session: Session | null; profile: Profile | null; profileError: string | null; workspace: Workspace; setWorkspace: (workspace: Workspace) => void; refreshProfile: () => Promise<void>; signOut: () => Promise<void> };
 type LoadState<T> = { data: T; loading: boolean; error: string };
@@ -1270,21 +1270,28 @@ function QuoteDetailModal({ quoteId, onClose, onChanged }: { quoteId: string; on
 function QuotePurgeModal({ quote, onClose, onDeleted }: { quote: any; onClose: () => void; onDeleted: () => void }) {
   const opener = useRef<HTMLElement | null>(typeof document === 'undefined' ? null : document.activeElement as HTMLElement | null);
   const [plan, setPlan] = useState<any>(null);
+  const [planScopeKey, setPlanScopeKey] = useState<QuotePurgeScopeKey | null>(null);
   const [loadError, setLoadError] = useState('');
-  const [reason, setReason] = useState('');
-  const [confirmation, setConfirmation] = useState('');
   const [purgeWorkOrders, setPurgeWorkOrders] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const expected = quotePurgeExpectedConfirmation(quote.code ?? quote.id);
   const blocks = quotePurgeBlocks(plan);
-  const canExecute = !blocks.hardBlock && Boolean(reason.trim()) && confirmation === expected && (!blocks.requiresWorkOrderDecision || purgeWorkOrders);
+  const dryRunId = useRef(0);
+  const runDryRun = (scope: Record<string, any>, scopeKey: QuotePurgeScopeKey) => {
+    const id = ++dryRunId.current;
+    setPlan(null); setLoadError(''); setError('');
+    entityLifecycleService.purge('quotes', quote.id, { confirmation: expected, scope, dryRun: true })
+      .then((result) => { if (id !== dryRunId.current) return; setPlan(result?.plan ?? result); setPlanScopeKey(scopeKey); })
+      .catch((err) => { if (id !== dryRunId.current) return; const raw = err as any; console.error('[QuotePurgeModal] dry-run', { message: err instanceof Error ? err.message : String(err), details: raw?.details, hint: raw?.hint, code: raw?.code }); setLoadError(err instanceof Error ? err.message : 'No se ha podido consultar el plan de purga.'); });
+  };
+  const onWorkOrderDecision = (checked: boolean) => {
+    setPurgeWorkOrders(checked);
+    runDryRun(quotePurgeScope(checked), quotePurgeScopeKey(checked));
+  };
+  const canExecute = Boolean(plan) && !blocks.hardBlock && quotePurgePlanMatchesScope(planScopeKey, purgeWorkOrders) && (!blocks.requiresWorkOrderDecision || purgeWorkOrders);
   useOverlayScrollLock();
-  useEffect(() => {
-    entityLifecycleService.purge('quotes', quote.id, { reason: 'Eliminación de datos de prueba (planificación)', confirmation: expected, scope: {}, dryRun: true })
-      .then((result) => setPlan(result?.plan ?? result))
-      .catch((err) => setLoadError(err instanceof Error ? err.message : 'No se ha podido consultar el plan de purga.'));
-  }, [quote.id, expected]);
+  useEffect(() => { runDryRun({}, 'baseline'); }, [quote.id, expected]);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape' && !saving) onClose(); };
     window.addEventListener('keydown', onKey);
@@ -1294,12 +1301,12 @@ function QuotePurgeModal({ quote, onClose, onDeleted }: { quote: any; onClose: (
     if (saving || !canExecute) return;
     setSaving(true); setError('');
     try {
-      const result = await entityLifecycleService.purge('quotes', quote.id, { reason: reason.trim(), confirmation, scope: quotePurgeScope(purgeWorkOrders), dryRun: false });
+      const result = await entityLifecycleService.purge('quotes', quote.id, { confirmation: expected, scope: quotePurgeScope(purgeWorkOrders), dryRun: false });
       if (quotePurgeResultOk(result)) { onDeleted(); return; }
       setError('La purga no devolvió un resultado esperado.');
-    } catch (err) { setError(err instanceof Error ? err.message : 'No se ha podido completar la purga. Revisa las dependencias indicadas.'); } finally { setSaving(false); }
+    } catch (err) { const raw = err as any; console.error('[QuotePurgeModal] ejecución', { message: err instanceof Error ? err.message : String(err), details: raw?.details, hint: raw?.hint, code: raw?.code }); setError(err instanceof Error ? err.message : 'No se ha podido completar la purga. Revisa las dependencias indicadas.'); } finally { setSaving(false); }
   };
-  return <div className="mini-modal lifecycle-modal" role="dialog" aria-modal="true" aria-labelledby="quote-purge-title"><div><h3 id="quote-purge-title">Eliminar definitivamente el presupuesto</h3><p className="large-note">{quote.code ?? quote.id} · {quote.title} · {quote.clients?.legal_name ?? 'Cliente no informado'}</p>{loadError ? <p className="form-error">{loadError}</p> : !plan ? <p className="large-note">Consultando plan de purga…</p> : <>{blocks.hardBlock && <p className="form-error">El presupuesto tiene {blocks.deficiencies} deficiencias originadas. No se puede purgar hasta resolverlas.</p>}<InfoGrid items={[[ 'Partes generados', String(blocks.generatedWorkOrders) ], [ 'Líneas', String(plan.cascade_dependencies?.lineas ?? 0) ], [ 'Historial de estados', String(plan.cascade_dependencies?.historial ?? 0) ], [ 'Movimientos de stock', String(plan.cascade_dependencies?.movimientos_stock ?? 0) ], [ 'Vínculos', String(plan.cascade_dependencies?.vinculos ?? 0) ]]} /><Card title="Se eliminará en cascada"><DependencyRows dependencies={plan.cascade_dependencies ?? {}} /></Card>{blocks.requiresWorkOrderDecision && <label><input type="checkbox" checked={purgeWorkOrders} onChange={(event) => setPurgeWorkOrders(event.target.checked)} /> Purgar también los {blocks.generatedWorkOrders} partes generados desde este presupuesto</label>}{blocks.requiresWorkOrderDecision && !purgeWorkOrders && <p className="form-error">Debes decidir explícitamente qué hacer con los partes generados para poder ejecutar la purga.</p>}<label>Motivo obligatorio<textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Eliminación de datos de prueba" /></label><label>Confirmación definitiva<input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} placeholder={expected} /></label>{error && <p className="form-error">{error}</p>}<div className="modal-footer"><button type="button" onClick={onClose} disabled={saving}>Cancelar</button><button type="button" className="danger-action" onClick={submit} disabled={saving || !canExecute}>{saving ? 'Purgando…' : 'Purgar definitivamente'}</button></div></>}</div></div>;
+  return <div className="mini-modal lifecycle-modal" role="dialog" aria-modal="true" aria-labelledby="quote-purge-title"><div><h3 id="quote-purge-title">Eliminar definitivamente el presupuesto</h3><p className="large-note">{quote.code ?? quote.id} · {quote.title} · {quote.clients?.legal_name ?? 'Cliente no informado'}</p>{loadError ? <p className="form-error">{loadError}</p> : !plan ? <p className="large-note">Consultando plan de purga…</p> : <>{blocks.hardBlock && <p className="form-error">El presupuesto tiene {blocks.deficiencies} deficiencias originadas. No se puede purgar hasta resolverlas.</p>}<InfoGrid items={[[ 'Partes generados', String(blocks.generatedWorkOrders) ], [ 'Líneas', String(plan.cascade_dependencies?.lineas ?? 0) ], [ 'Historial de estados', String(plan.cascade_dependencies?.historial ?? 0) ], [ 'Movimientos de stock', String(plan.cascade_dependencies?.movimientos_stock ?? 0) ], [ 'Vínculos', String(plan.cascade_dependencies?.vinculos ?? 0) ]]} /><Card title="Se eliminará en cascada"><DependencyRows dependencies={plan.cascade_dependencies ?? {}} /></Card>{blocks.requiresWorkOrderDecision && <label><input type="checkbox" checked={purgeWorkOrders} onChange={(event) => onWorkOrderDecision(event.target.checked)} disabled={saving} /> Purgar también los {blocks.generatedWorkOrders} partes generados desde este presupuesto</label>}{blocks.requiresWorkOrderDecision && !purgeWorkOrders && <p className="form-error">Debes decidir explícitamente qué hacer con los {blocks.generatedWorkOrders} partes generados para poder purgar este presupuesto.</p>}{!blocks.hardBlock && blocks.requiresWorkOrderDecision && purgeWorkOrders && planScopeKey === 'include_work_orders' && <p className="success-note">Plan recalculado: la purga incluirá también {blocks.generatedWorkOrders} {blocks.generatedWorkOrders === 1 ? 'parte' : 'partes'} generados.</p>}{error && <p className="form-error">{error}</p>}<div className="modal-footer"><button type="button" onClick={onClose} disabled={saving}>Cancelar</button>{!blocks.hardBlock && <button type="button" className="danger-action" onClick={submit} disabled={saving || !canExecute}>{saving ? 'Eliminando…' : 'Eliminar definitivamente'}</button>}</div></>}</div></div>;
 }
 
 function QuoteStatusSelector({ quote, onChanged }: { quote: any; onChanged: () => void }) { const { profile } = useAuth(); const [value, setValue] = useState(quote.status); const [confirm, setConfirm] = useState<{ next: string; reason: string; important: boolean } | null>(null); const [saving, setSaving] = useState(false); const [error, setError] = useState(''); if (!canManageQuotes(profile) || quote.deleted_at) return null; const prepare = (next: string) => { if (next === quote.status || saving) return; setValue(next); setConfirm({ next, reason: '', important: ['Aceptado','Ejecutado en cliente','Rechazado','Cancelado'].includes(next) }); }; const submit = async () => { if (!confirm || saving) return; if (confirm.important && !confirm.reason.trim()) { setError('Indica un motivo para este cambio de estado.'); return; } let sentToEmail: string | undefined; if (confirm.next === 'Enviado') { sentToEmail = quote.clients?.email ?? quote.sent_to_email ?? ''; if (!sentToEmail || !sentToEmail.trim()) { setError('Indica el email del cliente para marcar como enviado (usa "Enviar al cliente").'); setValue(quote.status); return; } } setSaving(true); setError(''); try { await quotesService.changeStatus(quote.id, confirm.next, confirm.reason || 'Cambio rapido de estado', sentToEmail); setConfirm(null); onChanged(); } catch (err) { setValue(quote.status); setError(formErrorMessage(err, 'No se ha podido cambiar el estado del presupuesto.')); } finally { setSaving(false); } }; return <Card title="Cambiar estado"><label className="status-selector">Estado:<select value={value} disabled={saving} onChange={(event) => prepare(event.target.value)}>{quoteStatuses.map((status) => <option key={status} value={status}>{status === 'Enviado' ? 'Enviado/Mandado' : displayStatus(status)}</option>)}</select></label><p className="large-note">Acción rápida fuera de Editar presupuesto. Aceptado, ejecutado, rechazado y cancelado piden confirmación.</p>{error && <p className="form-error">{error}</p>}{confirm && <div className="mini-modal" role="dialog" aria-modal="true"><form onSubmit={(event) => { event.preventDefault(); submit(); }}><h3>Confirmar cambio de estado</h3><p>Pasar de {displayStatus(quote.status)} a {displayStatus(confirm.next)}.</p><label>Motivo{confirm.important ? ' *' : ''}<textarea value={confirm.reason} onChange={(event) => setConfirm({ ...confirm, reason: event.target.value })} required={confirm.important} /></label><div className="modal-footer"><button type="button" disabled={saving} onClick={() => { setValue(quote.status); setConfirm(null); }}>Cancelar</button><button className="primary" disabled={saving}>{saving ? 'Guardando...' : 'Cambiar estado'}</button></div></form></div>}</Card>; }

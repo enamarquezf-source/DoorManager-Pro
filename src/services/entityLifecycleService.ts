@@ -41,6 +41,8 @@ export const entityLabels: Record<LifecycleEntity, string> = {
   opportunities: 'oportunidad',
 };
 
+export const STANDARD_PURGE_REASON = 'Eliminación definitiva solicitada por superadmin';
+
 export const entityLifecycleService = {
   dependencies(entity: LifecycleEntity, id: string) {
     return expectData<LifecycleSummary>(supabase.rpc('dmp_lifecycle_dependencies_enhanced', { p_entity: entity, p_entity_id: id }));
@@ -54,13 +56,17 @@ export const entityLifecycleService = {
   permanentlyDelete(entity: LifecycleEntity, id: string, reason: string, confirmation: string) {
     return expectData<LifecycleSummary>(supabase.rpc('dmp_permanently_delete_entity', { p_entity: entity, p_entity_id: id, p_reason: reason, p_confirmation: confirmation }));
   },
-  purge(entity: LifecycleEntity, id: string, opts: { reason: string; confirmation: string; scope: Record<string, any>; dryRun: boolean }) {
+  purge(entity: LifecycleEntity, id: string, opts: { reason?: string; confirmation: string; scope: Record<string, any>; dryRun: boolean }) {
+    const p_reason = (opts.reason ?? STANDARD_PURGE_REASON).trim() || STANDARD_PURGE_REASON;
+    const p_confirmation = opts.confirmation;
+    const p_scope = opts.scope ?? {};
+    console.debug(`[purge] dmp_purge_entity_with_cleanup entity=${entity} id=${id} dry_run=${opts.dryRun} reason=${p_reason} confirmation=${p_confirmation} scope=${JSON.stringify(p_scope)} return_stock=true`);
     return expectData<any>(supabase.rpc('dmp_purge_entity_with_cleanup', {
       p_entity: entity,
       p_entity_id: id,
-      p_reason: opts.reason,
-      p_confirmation: opts.confirmation,
-      p_scope: opts.scope ?? {},
+      p_reason,
+      p_confirmation,
+      p_scope,
       p_return_stock: true,
       p_dry_run: opts.dryRun,
     }));

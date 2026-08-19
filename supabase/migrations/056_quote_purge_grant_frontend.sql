@@ -1,0 +1,13 @@
+-- ============================================================
+-- 056: habilita la purga definitiva desde la app.
+-- 055 revoco la ejecucion de dmp_purge_entity_with_cleanup a public/anon para
+-- endurecer la proteccion, pero NO la concedio a authenticated. Como PostgREST
+-- invoca las RPC con el rol authenticated, la app recibe
+--   "permission denied for function dmp_purge_entity_with_cleanup"
+-- tanto en el dry-run como en la ejecucion real, incluso siendo superadmin.
+-- La autorizacion fuerte NO la aporta el grant, sino la comprobacion previa
+-- public.is_platform_superadmin() dentro de la propia funcion (intacta en 055).
+-- Los helpers internos (dmp_purge_document_links, dmp_refund_work_order_material_stock)
+-- se ejecutan bajo el owner de la funcion (security definer) y no requieren grant.
+-- ============================================================
+grant execute on function public.dmp_purge_entity_with_cleanup(text, uuid, text, text, jsonb, boolean, boolean) to authenticated;

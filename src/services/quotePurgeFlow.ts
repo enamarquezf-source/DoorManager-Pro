@@ -29,6 +29,16 @@ export function quotePurgeScope(purgeWorkOrders: boolean) {
   return purgeWorkOrders ? { purge_related_work_orders: true } : {};
 }
 
+export type QuotePurgeScopeKey = 'baseline' | 'include_work_orders';
+
+export function quotePurgeScopeKey(purgeWorkOrders: boolean): QuotePurgeScopeKey {
+  return purgeWorkOrders ? 'include_work_orders' : 'baseline';
+}
+
+export function quotePurgePlanMatchesScope(planScopeKey: QuotePurgeScopeKey | null, purgeWorkOrders: boolean) {
+  return planScopeKey != null && planScopeKey === quotePurgeScopeKey(purgeWorkOrders);
+}
+
 export function quotePurgeResultOk(result: any) {
   return result?.operation === 'purged' || result?.operation === 'already_deleted';
 }

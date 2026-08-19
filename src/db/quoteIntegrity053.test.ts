@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import pgQuery from 'pg-query-emscripten';
 
-const migration = readFileSync(new URL('../../supabase/migrations/053_quote_integrity_traceability.sql', import.meta.url), 'utf8');
-const quotesService = readFileSync(new URL('../services/quotesService.ts', import.meta.url), 'utf8');
-const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
-const workOrderMigration = readFileSync(new URL('../../supabase/migrations/048_fix_finalize_and_installation_flow.sql', import.meta.url), 'utf8');
+const migration = readFileSync(new URL('../../supabase/migrations/053_quote_integrity_traceability.sql', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const quotesService = readFileSync(new URL('../services/quotesService.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const workOrderMigration = readFileSync(new URL('../../supabase/migrations/048_fix_finalize_and_installation_flow.sql', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 describe('quote integrity and traceability 053', () => {
   it('parses migration SQL', async () => {

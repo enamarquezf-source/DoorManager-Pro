@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 
-const purgeMigration = readFileSync(new URL('../../supabase/migrations/055_test_data_purge_controls.sql', import.meta.url), 'utf8');
-const fixMigration = readFileSync(new URL('../../supabase/migrations/057_fix_quote_purge_runtime.sql', import.meta.url), 'utf8');
+const purgeMigration = readFileSync(new URL('../../supabase/migrations/055_test_data_purge_controls.sql', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const fixMigration = readFileSync(new URL('../../supabase/migrations/057_fix_quote_purge_runtime.sql', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 // Extrae el cuerpo de dmp_purge_entity_with_cleanup (create or replace function ... $$;) de una migracion.
 function purgeBody(sql: string) {

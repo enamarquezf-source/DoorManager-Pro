@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import pgQuery from 'pg-query-emscripten';
 
-const migration = readFileSync(new URL('../../supabase/migrations/039_economic_work_order_summary.sql', import.meta.url), 'utf8');
-const initialSchema = readFileSync(new URL('../../supabase/migrations/001_initial_dmp_schema.sql', import.meta.url), 'utf8');
-const economicService = readFileSync(new URL('../services/economicService.ts', import.meta.url), 'utf8');
+const migration = readFileSync(new URL('../../supabase/migrations/039_economic_work_order_summary.sql', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const initialSchema = readFileSync(new URL('../../supabase/migrations/001_initial_dmp_schema.sql', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const economicService = readFileSync(new URL('../services/economicService.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 describe('economic summary 039', () => {
   it('parses migration SQL', async () => {

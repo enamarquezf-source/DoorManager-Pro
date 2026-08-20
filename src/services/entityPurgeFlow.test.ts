@@ -229,8 +229,13 @@ describe('entityPurgeFlow: UX simplificada y autorización (escaneo de fuentes)'
     expect(purgeFlowSource).not.toContain("'profiles'");
   });
 
-  it('no se ha creado una migración 058 sin autorización', () => {
+  it('se ha creado la migración 058 (fix P0 de coste de materiales) con autorización y es declarativa', () => {
     const migrations = readdirSync(new URL('../../supabase/migrations/', import.meta.url));
-    expect(migrations.some((name) => name.startsWith('058_'))).toBe(false);
+    const m058 = migrations.find((name) => name.startsWith('058_'));
+    expect(m058).toBeDefined();
+    const content = readFileSync(new URL('../../supabase/migrations/' + m058, import.meta.url), 'utf8');
+    expect(content).toContain('-- Idempotente. Mantiene RLS y company_id. Sin borrados destructivos y sin service_role.');
+    expect(content).not.toContain('disable row level security');
+    expect(content).not.toContain('delete from public.work_order_materials');
   });
 });

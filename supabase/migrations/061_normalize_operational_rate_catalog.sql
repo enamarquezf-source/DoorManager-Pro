@@ -55,14 +55,14 @@ select count(*)::bigint as row_count,
 from public.work_order_time_entries;
 
 create temp table dmp_061_legacy (
-  id uuid primary key,
-  code text not null,
+  source_rate_id uuid primary key,
+  legacy_code text not null,
   expected_name text not null,
   expected_classification text not null,
   is_labor boolean not null
 ) on commit drop;
 
-insert into dmp_061_legacy(id, code, expected_name, expected_classification, is_labor)
+insert into dmp_061_legacy(source_rate_id, legacy_code, expected_name, expected_classification, is_labor)
 values
   ('b05f7d96-e166-403a-8aea-432ef7ef764e', 'legacy-cost-b05f7d96-e166-403a-8aea-432ef7ef764e', 'Desplazamiento', 'cost', false),
   ('4ac78458-45e3-4088-8a57-8dec8127c4cc', 'legacy-cost-4ac78458-45e3-4088-8a57-8dec8127c4cc', 'Grúa', 'cost', false),
@@ -72,6 +72,7 @@ values
 do $$
 declare
   e record;
+  v_catalog_id uuid;
   v_catalog_count bigint;
   v_time_rate_refs bigint;
   v_time_version_refs bigint;
@@ -83,45 +84,56 @@ declare
   v_matching_versions bigint;
 begin
   for e in select * from dmp_061_legacy loop
-    select count(*) into v_catalog_count
+    select c.id into v_catalog_id
     from public.rate_catalog c
     where c.company_id = '00000000-0000-0000-0000-000000000001'::uuid
-      and c.id = e.id and c.code = e.code
-      and c.name = e.expected_name and c.classification = e.expected_classification;
-    if v_catalog_count <> 1 then
-      raise exception '061 preflight: concepto legacy incompatible o inexistente %', e.code;
+      and c.code = e.legacy_code;
+
+    if v_catalog_id is null then
+      raise exception '061 preflight: concepto legacy inexistente %', e.legacy_code;
     end if;
 
-    select count(*) into v_time_rate_refs from public.work_order_time_entries t where t.rate_id = e.id;
+    select count(*) into v_catalog_count
+    from public.rate_catalog c
+    where c.id = v_catalog_id
+      and c.company_id = '00000000-0000-0000-0000-000000000001'::uuid
+      and c.code = e.legacy_code
+      and c.classification = e.expected_classification;
+
+    if v_catalog_count <> 1 then
+      raise exception '061 preflight: concepto legacy incompatible %', e.legacy_code;
+    end if;
+
+    select count(*) into v_time_rate_refs from public.work_order_time_entries t where t.rate_id = v_catalog_id;
     select count(*) into v_time_version_refs
     from public.work_order_time_entries t
     join public.rate_versions v on v.id = t.rate_version_id
-    where v.rate_id = e.id;
-    select count(*) into v_cost_concept_refs from public.work_order_cost_entries c where c.concept_id = e.id;
-    select count(*) into v_cost_rate_refs from public.work_order_cost_entries c where c.rate_id = e.id;
-    select count(*) into v_quote_concept_refs from public.quote_lines q where q.concept_id = e.id;
+    where v.rate_id = v_catalog_id;
+    select count(*) into v_cost_concept_refs from public.work_order_cost_entries c where c.concept_id = v_catalog_id;
+    select count(*) into v_cost_rate_refs from public.work_order_cost_entries c where c.rate_id = v_catalog_id;
+    select count(*) into v_quote_concept_refs from public.quote_lines q where q.concept_id = v_catalog_id;
     select count(*) into v_quote_version_refs
     from public.quote_lines q
     join public.rate_versions v on v.id = q.rate_version_id
-    where v.rate_id = e.id;
+    where v.rate_id = v_catalog_id;
 
     if v_time_rate_refs <> 0 or v_time_version_refs <> 0 or v_cost_concept_refs <> 0
        or v_cost_rate_refs <> 0 or v_quote_concept_refs <> 0 or v_quote_version_refs <> 0 then
-      raise exception '061 preflight: concepto legacy % tiene referencias operativas', e.code;
+      raise exception '061 preflight: concepto legacy % tiene referencias operativas', e.legacy_code;
     end if;
 
-    select count(*) into v_version_count from public.rate_versions v where v.rate_id = e.id;
+    select count(*) into v_version_count from public.rate_versions v where v.rate_id = v_catalog_id;
     if e.is_labor then
       select count(*) into v_matching_versions
       from public.rate_versions v
-      where v.rate_id = e.id and v.cost_amount = 22 and v.sale_amount = 110
+      where v.rate_id = v_catalog_id and v.cost_amount = 22 and v.sale_amount = 110
         and v.valid_from = '2026-08-14'::date and v.valid_to is null
         and v.technician_profile_id is null;
       if v_version_count <> 1 or v_matching_versions <> 1 then
         raise exception '061 preflight: version legacy de Técnico incompatible o ambigua';
       end if;
     elsif v_version_count <> 0 then
-      raise exception '061 preflight: concepto legacy de coste % tiene versiones inesperadas', e.code;
+      raise exception '061 preflight: concepto legacy de coste % tiene versiones inesperadas', e.legacy_code;
     end if;
   end loop;
 end $$;
@@ -239,32 +251,70 @@ begin
   end loop;
 end $$;
 
-update public.rate_versions v
-set active = false,
-    deleted_at = coalesce(v.deleted_at, now()),
-    updated_at = now(),
-    notes = case when position('Archivada por 061' in coalesce(v.notes, '')) = 0
-      then coalesce(v.notes, '') || case when coalesce(v.notes, '') = '' then '' else ' · ' end || 'Archivada por 061'
-      else v.notes end
-where v.company_id = '00000000-0000-0000-0000-000000000001'::uuid
-  and v.rate_id = 'd54e03d2-b18f-48d6-aae8-ba52f88fc7f2'::uuid
-  and (v.active or v.deleted_at is null or position('Archivada por 061' in coalesce(v.notes, '')) = 0);
+do $$
+declare
+  e record;
+  v_catalog_id uuid;
+  v_version_id uuid;
+begin
+  for e in select * from dmp_061_legacy loop
+    select c.id into v_catalog_id
+    from public.rate_catalog c
+    where c.company_id = '00000000-0000-0000-0000-000000000001'::uuid
+      and c.code = e.legacy_code;
 
-update public.rate_catalog c
-set active = false,
-    deleted_at = coalesce(c.deleted_at, now()),
-    updated_at = now(),
-    notes = case when position('Archivado por 061' in coalesce(c.notes, '')) = 0
-      then coalesce(c.notes, '') || case when coalesce(c.notes, '') = '' then '' else ' · ' end || 'Archivado por 061'
-      else c.notes end
-where c.company_id = '00000000-0000-0000-0000-000000000001'::uuid
-  and c.id in (
-    'b05f7d96-e166-403a-8aea-432ef7ef764e'::uuid,
-    '4ac78458-45e3-4088-8a57-8dec8127c4cc'::uuid,
-    '7de2c892-ecf4-41af-a77d-200bef3e3bd8'::uuid,
-    'd54e03d2-b18f-48d6-aae8-ba52f88fc7f2'::uuid
-  )
-  and (c.active or c.deleted_at is null or position('Archivado por 061' in coalesce(c.notes, '')) = 0);
+    if v_catalog_id is null then
+      continue;
+    end if;
+
+    select v.id into v_version_id
+    from public.rate_versions v
+    where v.rate_id = v_catalog_id
+      and v.company_id = '00000000-0000-0000-0000-000000000001'::uuid
+      and v.cost_amount = 22 and v.sale_amount = 110
+      and v.valid_from = '2026-08-14'::date and v.valid_to is null
+      and v.technician_profile_id is null;
+
+    if v_version_id is not null then
+      update public.rate_versions v
+      set active = false,
+          deleted_at = coalesce(v.deleted_at, now()),
+          updated_at = now(),
+          notes = case when position('Archivada por 061' in coalesce(v.notes, '')) = 0
+            then coalesce(v.notes, '') || case when coalesce(v.notes, '') = '' then '' else ' · ' end || 'Archivada por 061'
+            else v.notes end
+      where v.id = v_version_id
+        and (v.active or v.deleted_at is null or position('Archivada por 061' in coalesce(v.notes, '')) = 0);
+    end if;
+  end loop;
+end $$;
+
+do $$
+declare
+  e record;
+  v_catalog_id uuid;
+begin
+  for e in select * from dmp_061_legacy loop
+    select c.id into v_catalog_id
+    from public.rate_catalog c
+    where c.company_id = '00000000-0000-0000-0000-000000000001'::uuid
+      and c.code = e.legacy_code;
+
+    if v_catalog_id is null then
+      continue;
+    end if;
+
+    update public.rate_catalog c
+    set active = false,
+        deleted_at = coalesce(c.deleted_at, now()),
+        updated_at = now(),
+        notes = case when position('Archivado por 061' in coalesce(c.notes, '')) = 0
+          then coalesce(c.notes, '') || case when coalesce(c.notes, '') = '' then '' else ' · ' end || 'Archivado por 061'
+          else c.notes end
+    where c.id = v_catalog_id
+      and (c.active or c.deleted_at is null or position('Archivado por 061' in coalesce(c.notes, '')) = 0);
+  end loop;
+end $$;
 
 do $$
 begin

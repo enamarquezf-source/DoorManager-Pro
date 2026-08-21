@@ -24,7 +24,7 @@ export const hourRatesService = {
       const result = await expectData<any[]>(supabase.rpc('dmp_rate_catalog_for_selection', { p_kind: kind }), { service: 'hourRatesService', operation: 'list selectable rate catalog' });
       return result.filter((row) => (!search || [row.code, row.name].some((value) => String(value ?? '').toLowerCase().includes(search.toLowerCase()))) && (row.rate_version_id || row.id === includeId));
     }
-    let query = supabase.from('rate_catalog').select('*, rate_versions(*)').order('name');
+    let query = supabase.from('rate_catalog').select('*, rate_versions!rate_versions_catalog_company_fk(*)').order('name');
     if (!includeArchived) query = query.is('deleted_at', null).eq('active', true);
     if (kind) query = query.eq('kind', kind).eq('classification', kind === 'labor' ? 'labor' : 'cost');
     if (companyId) query = query.eq('company_id', companyId);

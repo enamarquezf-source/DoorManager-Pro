@@ -37,6 +37,11 @@ describe('060 generic rate architecture', () => {
     expect(migration).toContain('060 preflight: work_order_cost_entries contiene rate_id de otra empresa');
   });
 
+  it('disambiguates the catalog-to-version PostgREST relation', () => {
+    expect(ratesService).toContain("rate_versions!rate_versions_catalog_company_fk(*)");
+    expect(ratesService).not.toContain("select('*, rate_versions(*)')");
+  });
+
   it('keeps 059 source semantics and makes concepts dynamic without losing legacy codes', () => {
     expect(migration059).toContain("check (source in ('quote','manual','additional'))");
     expect(migration).toContain("('desplazamiento','Desplazamiento')");

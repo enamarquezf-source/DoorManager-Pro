@@ -27,6 +27,18 @@ describe('061 operational rate catalog normalization', () => {
     expect(migration).toContain('version legacy de Técnico incompatible o ambigua');
   });
 
+  it('requires generic legacy PEMP concepts to have no versions or operational references', () => {
+    const legacyPemp = migration.slice(migration.indexOf("'7de2c892-ecf4-41af-a77d-200bef3e3bd8'"), migration.indexOf('create temp table dmp_061_expected_catalog'));
+    expect(legacyPemp).toContain('v_time_rate_refs');
+    expect(legacyPemp).toContain('v_time_version_refs');
+    expect(legacyPemp).toContain('v_cost_concept_refs');
+    expect(legacyPemp).toContain('v_cost_rate_refs');
+    expect(legacyPemp).toContain('v_quote_concept_refs');
+    expect(legacyPemp).toContain('v_quote_version_refs');
+    expect(legacyPemp).toContain("elsif v_version_count <> 0 then");
+    expect(legacyPemp).toContain('versiones inesperadas');
+  });
+
   it('creates the canonical concepts and versions with the confirmed economics', () => {
     for (const value of [
       "('tecnico', 'Técnico', 'labor', 'labor', 'h', 'hour', null)",

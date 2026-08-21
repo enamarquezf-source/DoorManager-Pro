@@ -168,6 +168,19 @@ describe('060 generic rate architecture', () => {
     expect(app).toContain('Venta adicional');
   });
 
+  it('qualifies quote columns in joined economic aggregates', () => {
+    const clientViewStart = migration.indexOf('create or replace view public.v_client_economic_summary');
+    const managementViewStart = migration.indexOf('create or replace view public.v_management_metrics');
+    const clientView = migration.slice(clientViewStart, managementViewStart);
+    const managementView = migration.slice(managementViewStart, migration.indexOf('revoke all on function public.dmp_resolve_rate'));
+    expect(clientView).toContain("count(*) filter (where q.status='Aceptado')");
+    expect(clientView).toContain("count(*) filter (where q.status='Ejecutado en cliente')");
+    expect(clientView).toContain('q.total_amount,q.total');
+    expect(clientView).toContain('q.tax_amount');
+    expect(clientView).not.toMatch(/filter\s*\(where\s+status\s*=/i);
+    expect(managementView).not.toMatch(/filter\s*\(where\s+status\s*=/i);
+  });
+
   it('keeps audit fields and protects used versions from destructive edits', () => {
     expect(migration).toContain('created_by uuid references public.profiles(id)');
     expect(migration).toContain('updated_by uuid references public.profiles(id)');

@@ -305,9 +305,9 @@ with w as (
   from public.v_work_order_economic_summary where client_id is not null group by company_id, client_id
 ), q as (
   select q.company_id, q.client_id, round(sum(case when wo.id is not null and (wo.warranty or not wo.billable or wo.economic_status in ('garantia','no_facturable')) then 0 else coalesce(q.taxable_base,q.subtotal_sale,q.subtotal,0) end),2) quoted_sale_amount,
-    round(sum(coalesce(total_amount,total,0)),2) quote_total_amount, round(sum(coalesce(tax_amount,0)),2) quote_tax_amount,
-    count(*) filter (where status='Aceptado') accepted_quotes, count(*) filter (where status='Ejecutado en cliente') executed_quotes
-  from public.quotes q left join public.work_orders wo on wo.company_id=q.company_id and (wo.quote_id=q.id or wo.id=q.work_order_id) and wo.deleted_at is null
+     round(sum(coalesce(q.total_amount,q.total,0)),2) quote_total_amount, round(sum(coalesce(q.tax_amount,0)),2) quote_tax_amount,
+     count(*) filter (where q.status='Aceptado') accepted_quotes, count(*) filter (where q.status='Ejecutado en cliente') executed_quotes
+   from public.quotes q left join public.work_orders wo on wo.company_id=q.company_id and (wo.quote_id=q.id or wo.id=q.work_order_id) and wo.deleted_at is null
   where q.deleted_at is null and q.status in ('Aceptado','Ejecutado en cliente') group by q.company_id, q.client_id
 ), calc as (
   select c.*, coalesce(w.real_cost_amount,0) real_cost_amount, coalesce(q.quoted_sale_amount, w.quoted_sale_amount,0) quoted_sale_amount,

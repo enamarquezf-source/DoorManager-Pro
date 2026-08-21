@@ -58,13 +58,14 @@ describe('047 planned quote lines to real execution', () => {
     for (const text of ['CONCEPTOS PREVISTOS DEL PRESUPUESTO', 'MATERIALES PREVISTOS', 'MANO DE OBRA PREVISTA', 'DESPLAZAMIENTOS', 'TALLER MÓVIL', 'PLATAFORMA / MEDIOS AUXILIARES', 'COSTES EXTERNOS / OTROS', 'Confirmar concepto previsto', 'Modificar cantidad', 'No realizado']) expect(app).toContain(text);
   });
 
-  it('compares expected quote amounts with real execution without VAT in margin', () => {
-    expect(app).toContain('PREVISTO vs REAL');
-    expect(app).toContain('Venta aceptada');
-    expect(app).toContain('Coste previsto');
-    expect(app).toContain('Coste total real');
-    expect(app).toContain('Margen real');
-    expect(app).toContain('quoteSale - materialCost - timeCost - auxCost');
+  it('shows the canonical SQL economic snapshot at technical close', () => {
+    expect(app).toContain('ECONOMÍA CANÓNICA');
+    expect(app).toContain('Venta presupuestada');
+    expect(app).toContain('Venta adicional');
+    expect(app).toContain('Venta total');
+    expect(app).toContain('Coste real');
+    expect(app).toContain('Margen');
+    expect(app).not.toContain('quoteSale - materialCost - timeCost - auxCost');
   });
 
   it('keeps stock and finalization behavior unchanged', () => {

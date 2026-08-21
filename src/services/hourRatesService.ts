@@ -1,7 +1,9 @@
 import { supabase } from '../lib/supabase/client';
-import { contains, currentCompanyId, expectData } from './query';
+import { contains, currentCompanyId, currentProfileId, expectData } from './query';
 
 const rateColumns = ['company_id', 'technician_profile_id', 'category', 'hourly_cost', 'hourly_price', 'valid_from', 'valid_to', 'active', 'notes'];
+const catalogColumns = ['company_id', 'code', 'name', 'kind', 'classification', 'unit', 'billing_mode', 'period_days', 'contributes_to_sale', 'active', 'notes'];
+const versionColumns = ['company_id', 'rate_id', 'technician_profile_id', 'category', 'cost_amount', 'sale_amount', 'valid_from', 'valid_to', 'active', 'notes'];
 
 function normalizeRate(payload: Record<string, any>) {
   const next = Object.fromEntries(rateColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
@@ -11,7 +13,52 @@ function normalizeRate(payload: Record<string, any>) {
   return next;
 }
 
+export function hasUsableRateVersion(row: any, today = new Date().toISOString().slice(0, 10)) {
+  return (row.rate_versions ?? []).some((version: any) => version.active !== false && !version.deleted_at && version.valid_from <= today && (!version.valid_to || version.valid_to >= today));
+}
+
 export const hourRatesService = {
+  async catalog(search = '', companyScope?: string | null, kind?: string, includeArchived = false, includeId?: string) {
+    const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
+    if (!includeArchived && kind === 'cost') {
+      const result = await expectData<any[]>(supabase.rpc('dmp_rate_catalog_for_selection', { p_kind: kind }), { service: 'hourRatesService', operation: 'list selectable rate catalog' });
+      return result.filter((row) => (!search || [row.code, row.name].some((value) => String(value ?? '').toLowerCase().includes(search.toLowerCase()))) && (row.rate_version_id || row.id === includeId));
+    }
+    let query = supabase.from('rate_catalog').select('*, rate_versions(*)').order('name');
+    if (!includeArchived) query = query.is('deleted_at', null).eq('active', true);
+    if (kind) query = query.eq('kind', kind).eq('classification', kind === 'labor' ? 'labor' : 'cost');
+    if (companyId) query = query.eq('company_id', companyId);
+    if (search) query = query.or(contains(['code', 'name', 'notes'], search));
+    const rows = await expectData<any[]>(query, { service: 'hourRatesService', operation: 'list rate catalog' });
+    if (includeArchived) return rows;
+    return rows.filter((row) => hasUsableRateVersion(row) || row.id === includeId);
+  },
+  async createCatalog(payload: Record<string, any>) {
+    const company_id = payload.company_id || await currentCompanyId();
+    const body = Object.fromEntries(catalogColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
+    body.classification = body.classification ?? body.kind ?? 'cost';
+    const profileId = await currentProfileId();
+    return expectData<any>(supabase.from('rate_catalog').insert({ ...body, company_id, created_by: profileId, updated_by: profileId }).select().maybeSingle(), { service: 'hourRatesService', operation: 'create rate catalog entry' });
+  },
+  async updateCatalog(id: string, payload: Record<string, any>) {
+    const body = Object.fromEntries(catalogColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
+    const updated_by = await currentProfileId();
+    return expectData<any>(supabase.from('rate_catalog').update({ ...body, updated_by }).eq('id', id).select().maybeSingle(), { service: 'hourRatesService', operation: 'update rate catalog entry', resource: id });
+  },
+  async createVersion(payload: Record<string, any>) {
+    const company_id = payload.company_id || await currentCompanyId();
+    const body = Object.fromEntries(versionColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
+    const profileId = await currentProfileId();
+    return expectData<any>(supabase.from('rate_versions').insert({ ...body, company_id, created_by: profileId, updated_by: profileId }).select().maybeSingle(), { service: 'hourRatesService', operation: 'create rate version' });
+  },
+  async archiveCatalog(id: string) {
+    const updated_by = await currentProfileId();
+    return expectData<any>(supabase.from('rate_catalog').update({ active: false, deleted_at: new Date().toISOString(), updated_by }).eq('id', id).select().maybeSingle(), { service: 'hourRatesService', operation: 'archive rate catalog entry', resource: id });
+  },
+  async archiveVersion(id: string) {
+    const updated_by = await currentProfileId();
+    return expectData<any>(supabase.from('rate_versions').update({ active: false, deleted_at: new Date().toISOString(), updated_by }).eq('id', id).select().maybeSingle(), { service: 'hourRatesService', operation: 'archive rate version', resource: id });
+  },
   async list(search = '', companyScope?: string | null) {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
     let query = supabase.from('technician_hour_rates').select('*, profiles!technician_hour_rates_technician_profile_id_fkey(first_name,last_name,primary_area)').is('deleted_at', null).order('valid_from', { ascending: false });

@@ -99,7 +99,7 @@ describe('059 prevent duplicate work order costs', () => {
 
   it('frontend warns about the planned concept and offers additional confirmation without text requirements', () => {
     expect(app).toContain('Coste adicional al presupuestado');
-    expect(app).toContain('procedente del presupuesto y está contabilizado');
+    expect(app).toContain('concepto procedente del presupuesto ya esta contabilizado');
     expect(app).toContain('Añadir como coste adicional');
     expect(app).toContain('additional_to_planned = true');
     expect(app).toContain('pendingAdditional');
@@ -107,7 +107,7 @@ describe('059 prevent duplicate work order costs', () => {
   });
 
   it('frontend respects cost visibility permissions', () => {
-    expect(app).toContain('Coste contabilizado: ${money');
+    expect(app).toContain('Tarifa: {selected.name}');
   });
 
   it('service forwards the upsert through the RPC', () => {
@@ -132,8 +132,8 @@ describe('059 prevent duplicate work order costs', () => {
   });
 
   it('frontend detects a quote concept of the same type BEFORE saving (opens modal)', () => {
-    expect(app).toContain('row.cost_type === values.cost_type && row.quote_line_id && !row.deleted_at');
-    expect(app).toContain('if (confirmedPlanned && !asAdditional) { setPendingAdditional(true); return; }');
+    expect(app).toContain('(row.concept_id === values.concept_id || row.rate_id === values.rate_id) && row.quote_line_id && !row.deleted_at');
+    expect(app).toContain('if (planned && !asAdditional) { setPendingAdditional(true); return; }');
   });
 
   it('frontend opens the additional modal when backend returns the adicional signal', () => {
@@ -143,12 +143,12 @@ describe('059 prevent duplicate work order costs', () => {
 
   it('distinguishes adicional from real backend errors', () => {
     expect(app).toContain("if (!asAdditional && message.includes('adicional:'))");
-    expect(app).toContain("else { setError(err instanceof Error ? err.message : 'No se ha podido registrar el recurso o coste.'); }");
+    expect(app).toContain("else setError(message || 'No se ha podido registrar el recurso o coste.');");
   });
 
   it('guards against double submit during saving', () => {
     expect(app).toContain('const saveCost = async (asAdditional = false) => { if (saving) return;');
-    expect(app).toContain('setSaving(false); } }; const submit = (event: FormEvent, asAdditional = false) => { event.preventDefault(); saveCost(asAdditional); };');
+    expect(app).toContain('const submit = (event: FormEvent) => { event.preventDefault(); saveCost(false); };');
   });
 
   it('reuses an explicit saveCost function instead of artificial submit events', () => {
@@ -157,11 +157,11 @@ describe('059 prevent duplicate work order costs', () => {
   });
 
   it('editing an existing entry does not trigger the additional guard', () => {
-    expect(app).toContain('const confirmedPlanned = !values.id &&');
+    expect(app).toContain('const planned = !values.id &&');
   });
 
   it('manual or additional source of the same type without quote_line_id does not warn', () => {
-    expect(app).toContain('row.cost_type === values.cost_type && row.quote_line_id && !row.deleted_at');
+    expect(app).toContain('(row.concept_id === values.concept_id || row.rate_id === values.rate_id) && row.quote_line_id && !row.deleted_at');
   });
 
   it('soft-deleted quote concepts do not warn', () => {

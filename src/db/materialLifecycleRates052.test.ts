@@ -118,7 +118,7 @@ describe('052 material lifecycle and rate traceability', () => {
 
   it('exposes a single quote_rate_id through the quote line columns', () => {
     expect(quotesService).toContain('quote_rate_id');
-    expect(quotesService).toContain('lineColumns = [\'quote_id\', \'line_type\', \'description\', \'quantity\', \'unit\', \'unit_cost\', \'unit_price\', \'tax_rate\', \'material_id\', \'profile_id\', \'position\', \'discount_percent\', \'quote_rate_id\']');
+    expect(quotesService).toContain('lineColumns = [\'quote_id\', \'line_type\', \'description\', \'quantity\', \'unit\', \'unit_cost\', \'unit_price\', \'tax_rate\', \'material_id\', \'profile_id\', \'position\', \'discount_percent\', \'quote_rate_id\', \'concept_id\', \'rate_version_id\', \'billing_mode\', \'period_days\', \'contributes_to_sale\']');
   });
 
   it('exposes UI states without exposing deleted_at: Activo, Sin stock, Consumido, Archivado', () => {

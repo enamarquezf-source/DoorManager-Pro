@@ -22,10 +22,8 @@ describe('economic summary 039', () => {
     expect(migration).not.toContain('wom.quantity');
     expect(materialTrigger).not.toContain('new.quantity');
     expect(migration).not.toContain('used_quantity, quantity');
-    const materialCostLine = economicService.split('\n').find((line) => line.includes('const materialCost')) ?? '';
-    const materialSaleLine = economicService.split('\n').find((line) => line.includes('const materialSale')) ?? '';
-    expect(materialCostLine).toContain('Number(row.used_quantity ?? 0)');
-    expect(materialSaleLine).toContain('Number(row.used_quantity ?? 0)');
-    expect(materialCostLine + materialSaleLine).not.toContain('row.quantity');
+    expect(economicService).toContain("from('v_work_order_economic_summary')");
+    expect(economicService).not.toContain('const materialCost');
+    expect(economicService).not.toContain('const materialSale');
   });
 });

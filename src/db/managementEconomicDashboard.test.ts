@@ -9,7 +9,8 @@ describe('management economic dashboard', () => {
   it('loads real economic sources instead of mock metrics', () => {
     expect(economicService).toContain("supabase.from('v_work_order_economic_summary')");
     expect(economicService).toContain("supabase.from('v_client_economic_summary')");
-    expect(economicService).toContain("supabase.from('quotes')");
+    expect(economicService).toContain("supabase.from('v_management_metrics')");
+    expect(economicService).not.toContain("supabase.from('quotes')");
     expect(app).toContain('Panel de control económico');
     expect(app).toContain('Coste real de trabajos');
     expect(app).toContain('Desglose de costes');

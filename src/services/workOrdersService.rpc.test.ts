@@ -62,7 +62,7 @@ describe('workOrdersService operational RPCs', () => {
 
     await expect(workOrdersService.upsertCostEntry(payload)).resolves.toBe('saved-id');
 
-    expect(rpc).toHaveBeenCalledWith('dmp_upsert_work_order_cost_entry', { p_payload: payload });
+    expect(rpc).toHaveBeenCalledWith('dmp_upsert_work_order_cost_entry', { p_payload: { work_order_id: 'wo-1', cost_type: 'desplazamiento', description: 'Desplazamiento urbano', quantity: 12, unit: 'km', incurred_at: '2026-08-10' } });
     expect(from).not.toHaveBeenCalledWith('work_order_cost_entries');
   });
 

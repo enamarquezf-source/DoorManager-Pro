@@ -12,6 +12,15 @@ function workOrderOperationalPayload(payload: Record<string, any>) {
   return Object.fromEntries(workOrderOperationalColumns.filter((key) => key in payload && payload[key] !== undefined).map((key) => [key, payload[key]]));
 }
 
+export function serverResolvedEconomicPayload(payload: Record<string, any>) {
+  const next = { ...payload };
+  delete next.hourly_cost;
+  delete next.hourly_price;
+  delete next.unit_cost;
+  delete next.unit_price;
+  return next;
+}
+
 function dataUrlToBlob(dataUrl: string) {
   const [header, base64] = dataUrl.split(',');
   const mime = header.match(/data:(.*);base64/)?.[1] ?? 'application/octet-stream';
@@ -260,7 +269,7 @@ export const workOrdersService = {
     return expectData<any[]>(query);
   },
   upsertTimeEntry(payload: Record<string, any>) {
-    return expectData<string>(supabase.rpc('dmp_upsert_work_order_time_entry', { p_payload: payload }), { service: 'workOrdersService', operation: 'Guardar horas del parte', resource: 'dmp_upsert_work_order_time_entry' });
+    return expectData<string>(supabase.rpc('dmp_upsert_work_order_time_entry', { p_payload: serverResolvedEconomicPayload(payload) }), { service: 'workOrdersService', operation: 'Guardar horas del parte', resource: 'dmp_upsert_work_order_time_entry' });
   },
   timeWorkerOptions(workOrderId: string) {
     return expectData<any[]>(supabase.rpc('dmp_work_order_time_worker_options', { p_work_order_id: workOrderId }), { service: 'workOrdersService', operation: 'Trabajadores disponibles para horas', resource: 'dmp_work_order_time_worker_options' });
@@ -281,7 +290,7 @@ export const workOrdersService = {
     return expectData<void>(supabase.rpc('dmp_delete_work_order_material', { p_material_usage_id: id, p_reason: reason }));
   },
   upsertCostEntry(payload: Record<string, any>) {
-    return expectData<string>(supabase.rpc('dmp_upsert_work_order_cost_entry', { p_payload: payload }), { service: 'workOrdersService', operation: 'Guardar recurso o coste del parte', resource: 'dmp_upsert_work_order_cost_entry' });
+    return expectData<string>(supabase.rpc('dmp_upsert_work_order_cost_entry', { p_payload: serverResolvedEconomicPayload(payload) }), { service: 'workOrdersService', operation: 'Guardar recurso o coste del parte', resource: 'dmp_upsert_work_order_cost_entry' });
   },
   deleteCostEntry(id: string, reason: string) {
     return expectData<string>(supabase.rpc('dmp_delete_work_order_cost_entry', { p_cost_entry_id: id, p_reason: reason }));

@@ -415,21 +415,27 @@ from public.rate_catalog rc
 where ql.concept_id is null and rc.classification = 'cost'
   and rc.company_id = ql.company_id
   and rc.code = case ql.line_type when 'transport' then 'desplazamiento' when 'travel' then 'desplazamiento' when 'mobile_workshop' then 'taller_movil' when 'lifting_platform' then 'plataforma_elevadora' when 'auxiliary_equipment' then 'medio_auxiliar' when 'external_cost' then 'coste_externo' when 'other' then 'otro' else null end;
+with candidates as (
+  select ql.id as quote_line_id, rc.id as concept_id, rc.billing_mode, rc.period_days, rv.id as rate_version_id
+  from public.quote_lines ql
+  join public.technician_hour_rates h on h.id = ql.quote_rate_id
+  join public.rate_catalog rc on rc.company_id = h.company_id and rc.code = 'legacy-hour-' || h.id::text and rc.classification = 'labor'
+  join public.quotes q on q.id = ql.quote_id and q.company_id = ql.company_id
+  left join lateral (
+    select (array_agg(v.id order by case when v.technician_profile_id = ql.profile_id then 0 else 1 end, v.valid_from desc, v.created_at desc))[1] as id
+    from public.rate_versions v
+    where v.company_id = ql.company_id and v.rate_id = rc.id and v.active and v.deleted_at is null
+      and v.valid_from <= coalesce(q.issue_date, current_date)
+      and (v.valid_to is null or v.valid_to >= coalesce(q.issue_date, current_date))
+      and (v.technician_profile_id = ql.profile_id or v.technician_profile_id is null)
+    having count(*) = 1
+  ) rv on true
+  where ql.concept_id is null and rv.id is not null
+)
 update public.quote_lines ql
-set concept_id = rc.id, rate_version_id = rv.id, billing_mode = rc.billing_mode, period_days = rc.period_days
-from public.technician_hour_rates h
-join public.rate_catalog rc on rc.company_id = h.company_id and rc.code = 'legacy-hour-' || h.id::text and rc.classification = 'labor'
-join public.quotes q on q.id = ql.quote_id and q.company_id = ql.company_id
-left join lateral (
-  select (array_agg(v.id order by case when v.technician_profile_id = ql.profile_id then 0 else 1 end, v.valid_from desc, v.created_at desc))[1] as id
-  from public.rate_versions v
-  where v.company_id = ql.company_id and v.rate_id = rc.id and v.active and v.deleted_at is null
-    and v.valid_from <= coalesce(q.issue_date, current_date)
-    and (v.valid_to is null or v.valid_to >= coalesce(q.issue_date, current_date))
-    and (v.technician_profile_id = ql.profile_id or v.technician_profile_id is null)
-  having count(*) = 1
-) rv on true
-where ql.concept_id is null and ql.quote_rate_id = h.id and rv.id is not null;
+set concept_id = c.concept_id, rate_version_id = c.rate_version_id, billing_mode = c.billing_mode, period_days = c.period_days
+from candidates c
+where c.quote_line_id = ql.id;
 
 alter table public.rate_catalog enable row level security;
 alter table public.rate_versions enable row level security;

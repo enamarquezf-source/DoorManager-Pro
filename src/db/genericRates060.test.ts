@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
+import pgQuery from 'pg-query-emscripten';
 import { hasUsableRateVersion } from '../services/hourRatesService';
 import { serverResolvedEconomicPayload } from '../services/workOrdersService';
 
@@ -10,6 +11,7 @@ const ratesService = readFileSync(new URL('../services/hourRatesService.ts', imp
 const economicService = readFileSync(new URL('../services/economicService.ts', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
 const costForm = app.slice(app.indexOf('function WorkOrderCostForm'), app.indexOf('function WorkProgress'));
+const quoteLineBackfill = migration.slice(migration.indexOf('with candidates as ('), migration.indexOf('alter table public.rate_catalog enable row level security'));
 
 describe('060 generic rate architecture', () => {
   it('parses as PostgreSQL and does not alter prior migrations', async () => {
@@ -152,6 +154,16 @@ describe('060 generic rate architecture', () => {
     expect(migration).toContain('v.valid_from <= coalesce(q.issue_date, current_date)');
     expect(migration).toContain('v.valid_to is null or v.valid_to >= coalesce(q.issue_date, current_date)');
     expect(migration).toContain("if v_count <> 1 then raise exception 'tarifa: linea historica sin una unica version vigente; no se inventa relacion'");
+  });
+
+  it('uses a visible quote-line relation before joins and preserves unambiguous backfill', async () => {
+    const parser = await pgQuery();
+    expect(parser.parse(quoteLineBackfill).parse_tree.stmts).toHaveLength(1);
+    expect(quoteLineBackfill).toContain('from public.quote_lines ql');
+    expect(quoteLineBackfill.indexOf('from public.quote_lines ql')).toBeLessThan(quoteLineBackfill.indexOf('join public.quotes q'));
+    expect(quoteLineBackfill).toContain('having count(*) = 1');
+    expect(quoteLineBackfill).toContain('where c.quote_line_id = ql.id');
+    expect(quoteLineBackfill).not.toMatch(/update public\.quote_lines ql[\s\S]*from public\.technician_hour_rates h[\s\S]*join public\.quotes q on q\.id = ql\.quote_id/);
   });
 
   it('keeps rate economics private while exposing selector metadata', () => {

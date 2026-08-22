@@ -65,7 +65,7 @@ export function toSpanishSupabaseError(error: any) {
   return 'No se ha podido completar la operación. Revisa los datos e inténtalo de nuevo.';
 }
 
-export async function currentCompanyId() {
+export async function operatingCompanyId() {
   const { data, error } = await supabase.rpc('dmp_operating_company_id');
   if (error) {
     console.error('DMP operating company resolution failed', { message: error?.message, details: error?.details, hint: error?.hint, code: error?.code, name: error?.name });
@@ -74,6 +74,19 @@ export async function currentCompanyId() {
   if (!data) throw new Error('No hay una empresa operadora activa configurada.');
   return data as string;
 }
+
+export async function currentProfileCompanyId() {
+  const { data, error } = await supabase.rpc('current_company_id');
+  if (error) {
+    console.error('DMP profile company resolution failed', { message: error?.message, details: error?.details, hint: error?.hint, code: error?.code, name: error?.name });
+    throw new Error('No se ha podido determinar la empresa del perfil autenticado.');
+  }
+  if (!data) throw new Error('El usuario autenticado no tiene una empresa operativa válida.');
+  return data as string;
+}
+
+// Compatibility alias: existing CRUD services still use the single-company runtime contract.
+export const currentCompanyId = operatingCompanyId;
 
 export async function currentProfileId() {
   const { data, error } = await supabase.rpc('current_profile_id');

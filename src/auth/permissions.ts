@@ -164,8 +164,8 @@ export function canViewWorkOrderCosts(profile: Profile | null | undefined) { ret
 export function canViewSalesEconomics(profile: Profile | null | undefined) { return hasAny(profile, quoteManagerRoles); }
 export function canManageQuotes(profile: Profile | null | undefined) { return isActiveProfile(profile) && hasAny(profile, quoteManagerRoles); }
 export function canManageHourRates(profile: Profile | null | undefined) { return isActiveProfile(profile) && hasAny(profile, ['superadmin', 'Gerencia', 'Oficina']); }
-export function canCreateCheck(profile: Profile | null | undefined) { return hasAny(profile, operationalRoles); }
-export function canExecuteCheck(profile: Profile | null | undefined) { return hasAny(profile, operationalRoles); }
+export function canCreateCheck(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT']); }
+export function canExecuteCheck(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Tecnico']); }
 export function canManageCheck(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT']); }
 export function canViewCheck(profile: Profile | null | undefined, check?: any) {
   if (!profile) return false;

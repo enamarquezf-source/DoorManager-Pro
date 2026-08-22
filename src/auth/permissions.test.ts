@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessRoute, canArchiveEntity, canCorrectWorkOrderOperationalFields, canCreateAlert, canManageCheck, canManageHourRates, canManageQuotes, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canPermanentlyDeleteEntity, canRestoreEntity, canRole, canViewCheck, canViewSalesEconomics, canViewWorkOrderCosts, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './permissions';
+import { canAccessRoute, canArchiveEntity, canCorrectWorkOrderOperationalFields, canCreateAlert, canCreateCheck, canExecuteCheck, canManageCheck, canManageHourRates, canManageQuotes, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canPermanentlyDeleteEntity, canRestoreEntity, canRole, canViewCheck, canViewSalesEconomics, canViewWorkOrderCosts, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './permissions';
 import type { Profile, RoleName } from '../shared/types';
 
 function profile(primary_area: RoleName, roles: RoleName[] = []): Profile {
@@ -82,6 +82,21 @@ describe('canAccessRoute', () => {
     expect(canManageCheck(tecnico)).toBe(false);
     expect(canManageCheck(profile('SAT'))).toBe(true);
     expect(canManageCheck(profile('superadmin'))).toBe(true);
+  });
+
+  it('separa crear checks de ejecutar checks', () => {
+    expect(canCreateCheck(profile('superadmin'))).toBe(true);
+    expect(canCreateCheck(profile('SAT'))).toBe(true);
+    expect(canCreateCheck(profile('Gerencia'))).toBe(false);
+    expect(canCreateCheck(profile('Tecnico'))).toBe(false);
+    expect(canCreateCheck(profile('Comercial'))).toBe(false);
+    expect(canCreateCheck(profile('Oficina'))).toBe(false);
+    expect(canExecuteCheck(profile('superadmin'))).toBe(true);
+    expect(canExecuteCheck(profile('SAT'))).toBe(true);
+    expect(canExecuteCheck(profile('Tecnico'))).toBe(true);
+    expect(canExecuteCheck(profile('Gerencia'))).toBe(false);
+    expect(canExecuteCheck(profile('Comercial'))).toBe(false);
+    expect(canExecuteCheck(profile('Oficina'))).toBe(false);
   });
 
   it('limita checks de tecnico puro a asignaciones propias', () => {

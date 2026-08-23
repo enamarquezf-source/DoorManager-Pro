@@ -1246,9 +1246,7 @@ function CheckBlockPage({
   const [saving, setSaving] = useState(false);
   const [localLoaded, setLocalLoaded] = useState(false);
   const zones = data ? buildFunctionalCheckBlocks(data) : [];
-  const zone =
-    zones.find((item) => item.id === blockId || item.sectionId === blockId) ??
-    zones[0];
+  const zone = zones.find((item) => item.id === blockId || item.sectionId === blockId);
   const section = zone
     ? { id: zone.sectionId, title: zone.name, check_template_items: zone.items }
     : null;
@@ -1342,14 +1340,17 @@ function CheckBlockPage({
         </Card>
       </section>
     );
-  if (!section || !isUuid(section.id))
+  if (!zone || !section || !isUuid(section.id))
     return (
       <section className="page">
-        <BackButton />
-        <Card title="Sección no disponible">
+        <div className="actions">
+          <Link className="link-button" to={workspace === "superadmin" ? `/app/superadmin/checks/${id}` : `/app/checks/${id}`}>Volver</Link>
+          {data.work_order_id && <Link className="primary" to={`/app/partes/${data.work_order_id}`}>Volver al parte</Link>}
+        </div>
+        <Card title="Bloque no encontrado">
           <p className="form-error">
-            Este bloque no corresponde a una sección real UUID de la plantilla
-            asociada al check. No se enviará ningún resultado sintético.
+            El bloque solicitado no corresponde a una sección real de la
+            plantilla asociada al check. No se guardará sobre otra sección.
           </p>
         </Card>
       </section>
@@ -1393,6 +1394,7 @@ function CheckBlockPage({
   };
   const save = async () => {
     if (
+      !zone ||
       !section ||
       !isUuid(section.id) ||
       !hasChanges ||
@@ -1674,9 +1676,7 @@ function CheckBlockPageV2({
   const [saving, setSaving] = useState(false);
   const [localLoaded, setLocalLoaded] = useState(false);
   const zones = data ? buildFunctionalCheckBlocks(data) : [];
-  const zone =
-    zones.find((item) => item.id === blockId || item.sectionId === blockId) ??
-    zones[0];
+  const zone = zones.find((item) => item.id === blockId || item.sectionId === blockId);
   const section = zone
     ? { id: zone.sectionId, title: zone.name, check_template_items: zone.items }
     : null;
@@ -1772,14 +1772,17 @@ function CheckBlockPageV2({
         </Card>
       </section>
     );
-  if (!section || !isUuid(section.id))
+  if (!zone || !section || !isUuid(section.id))
     return (
       <section className="page">
-        <BackButton />
-        <Card title="Sección no disponible">
+        <div className="actions">
+          <Link className="link-button" to={workspace === "superadmin" ? `/app/superadmin/checks/${id}` : `/app/checks/${id}`}>Volver</Link>
+          {data.work_order_id && <Link className="primary" to={`/app/partes/${data.work_order_id}`}>Volver al parte</Link>}
+        </div>
+        <Card title="Bloque no encontrado">
           <p className="form-error">
-            Este bloque no corresponde a una sección real UUID de la plantilla
-            asociada al check. No se enviará ningún resultado sintético.
+            El bloque solicitado no corresponde a una sección real de la
+            plantilla asociada al check. No se guardará sobre otra sección.
           </p>
         </Card>
       </section>

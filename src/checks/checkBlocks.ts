@@ -1,4 +1,4 @@
-import { equipmentCheckTemplates, type CheckZone } from './sectionalZones';
+import { templateForEquipment, visibleTemplateZones, visualZoneMatchesSection, type CheckZone } from './sectionalZones';
 
 export type FunctionalCheckBlock = {
   id: string;
@@ -19,18 +19,16 @@ export function equipmentTypeName(equipment?: any) {
 }
 
 export function visualTemplateForEquipment(equipment?: any) {
-  const type = slug(equipmentTypeName(equipment));
-  if (!type) return null;
-  return equipmentCheckTemplates.find((item) => type.includes(item.key) || type.includes(slug(item.name))) ?? null;
+  return templateForEquipment(equipment);
 }
 
 export function buildFunctionalCheckBlocks(check: any): FunctionalCheckBlock[] {
   const sections = [...(check?.check_templates?.check_template_sections ?? [])].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
-  const visual = visualTemplateForEquipment(check?.equipment);
+  const visual = visibleTemplateZones(check?.equipment);
   const results = check?.check_section_results ?? [];
   return sections.map((section) => {
     const sectionSlug = slug(section.slug ?? section.key ?? section.title);
-    const zone = visual?.zones.find((item) => item.id === sectionSlug || slug(item.name) === sectionSlug || sectionSlug.includes(item.id) || item.id.includes(sectionSlug));
+    const zone = visual.find((item) => visualZoneMatchesSection(item, section));
     return {
       id: sectionSlug || section.id,
       sectionId: section.id,

@@ -95,7 +95,7 @@ export const checksService = {
   },
   async create(payload: Record<string, any>) {
     const company_id = payload.company_id || await currentCompanyId();
-    const technician_id = payload.technician_id || await currentProfileId();
+    const technician_id = payload.technician_id === '' ? null : payload.technician_id ?? null;
     const code = await codesService.next('checks', 'CHK', true, 6, company_id);
     return expectData<any>(supabase.from('checks').insert({ ...checkPayload(payload), company_id, technician_id, code }).select().maybeSingle());
   },

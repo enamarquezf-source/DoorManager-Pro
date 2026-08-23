@@ -25,4 +25,23 @@ describe('checksService offline sync helpers', () => {
     expect(source).toContain("query.eq('equipment_type_id', equipmentTypeId)");
     expect(source).not.toContain('equipment_type_id.is.null`);');
   });
+
+  it('no asigna el creador SAT como tecnico del check', async () => {
+    const source = await import('node:fs').then((fs) => fs.readFileSync(new URL('./checksService.ts', import.meta.url), 'utf8'));
+    expect(source).toContain('const technician_id = payload.technician_id === \'\' ? null : payload.technician_id ?? null;');
+    expect(source).not.toContain('const technician_id = payload.technician_id || await currentProfileId();');
+  });
+
+  it('mantiene la regla backend para creador y tecnico operativo separados', async () => {
+    const migration = await import('node:fs').then((fs) => fs.readFileSync(new URL('../../supabase/migrations/064_resolve_check_technician_from_work_order.sql', import.meta.url), 'utf8'));
+    expect(migration).toContain('before insert on public.checks');
+    expect(migration).toContain('wo.main_technician_id');
+    expect(migration).toContain("a.role = 'Principal'");
+    expect(migration).toContain('v_active_count = 1');
+    expect(migration).toContain('new.technician_id := null');
+    expect(migration).toContain('set search_path = pg_catalog, public');
+    expect(migration).toContain('wo.company_id = new.company_id');
+    expect(migration).not.toContain('current_profile_id()');
+    expect(migration).not.toContain('new.created_by');
+  });
 });

@@ -8,6 +8,7 @@ const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
 const versionForm = app.slice(app.indexOf("} else { await hourRatesService.createVersion"), app.indexOf("} onSaved();", app.indexOf("} else { await hourRatesService.createVersion")));
 const managementModule = app.slice(app.indexOf('function RateCatalogModuleV2'), app.indexOf('function ManagementPage060'));
 const rateForm = app.slice(app.indexOf('function RateCatalogForm'), app.indexOf('function RateCatalogModuleV2'));
+const styles = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
 
 describe('066 rate version management', () => {
   it('parses the migration', async () => {
@@ -54,5 +55,16 @@ describe('066 rate version management', () => {
     expect(rateForm).toContain('readOnly');
     expect(app).toContain('Error al crear la nueva versión de tarifa.');
     expect(app).toContain('Error al editar el concepto.');
+  });
+
+  it('filters concepts by state without hiding version history', () => {
+    expect(managementModule).toContain("useState<'active' | 'archived' | 'all'>('active')");
+    expect(managementModule).toContain('item.active === true && !item.deleted_at');
+    expect(managementModule).toContain('item.active !== true || Boolean(item.deleted_at)');
+    expect(managementModule).toContain('aria-pressed={status === value}');
+    expect(managementModule).toContain('item.rate_versions ?? []');
+    expect(managementModule).toContain('hourRatesService.archiveCatalog(item.id).then(rates.reload)');
+    expect(styles).toContain('.rate-status-filter');
+    expect(styles).toContain('grid-template-columns: repeat(3, minmax(0, 1fr))');
   });
 });

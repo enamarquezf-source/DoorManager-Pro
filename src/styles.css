@@ -160,6 +160,9 @@ main { padding: 24px; }
 .filters { display: grid; grid-template-columns: minmax(260px, 1.5fr) repeat(3, minmax(140px, 1fr)); gap: 10px; }
 .filters label, .filters select, .filters input { height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--line); border-radius: 12px; background: white; color: var(--text-soft); }
 .sat-filters { grid-template-columns: repeat(2, minmax(180px, 1fr)); }
+.rate-status-filter { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; }
+.rate-status-filter button { border: 1px solid var(--line); border-radius: 12px; background: white; color: var(--dark); padding: 8px 11px; min-height: 40px; font-weight: 800; }
+.rate-status-filter button.active, .rate-status-filter button[aria-pressed="true"] { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
 .sat-work-list { display: grid; gap: 12px; }
 .sat-work-card { border: 1px solid var(--line); border-radius: 18px; background: white; padding: 14px; display: grid; gap: 12px; box-shadow: 0 10px 28px rgba(15, 23, 42, .05); }
 .sat-work-card header, .sat-work-card footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -407,6 +410,8 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
   .mobile-session-actions { display: flex; }
   main { padding: 14px; }
   .stats-grid { grid-template-columns: 1fr; }
+  .rate-status-filter { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .rate-status-filter button { padding-left: 6px; padding-right: 6px; }
   .dashboard-kpis { grid-template-columns: 1fr; }
   .dashboard-list article { grid-template-columns: 1fr; }
   .page-head, .detail-hero { align-items: flex-start; flex-direction: column; }

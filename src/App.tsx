@@ -995,164 +995,896 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
   return <section className="check-mobile"><BackButton /><header><p className="eyebrow">Check {data.check_templates?.name ?? 'Plantilla no informada'}</p><h2>{data.code} · {data.equipment?.code}</h2><p>{reviewed} de {zones.length} bloques revisados</p>{!typeName && <p className="form-error">Tipo de equipo no disponible. Corrige el equipo antes de ejecutar bloques incompatibles.</p>}{templateTypeMismatch(data) && <p className="form-error">La plantilla asignada no coincide con el tipo real del equipo.</p>}{template?.placeholder && <p className="large-note">Falta imagen específica de este equipo. Las secciones reales se muestran como tarjetas.</p>}<div className="actions">{manageAllowed && <button onClick={() => setMode('edit')}>Modificar check</button>}<SyncButton checkId={id} onSynced={reload} />{entityPurgeCanShowButton('checks', data, workspace) && <button className="danger-action" onClick={() => setPurgeOpen(true)}>Eliminar definitivamente</button>}</div></header>{actionError && <p className="form-error">{actionError}</p>}<div className="progress"><span style={{ width: `${Math.min(100, (reviewed / zones.length) * 100)}%` }} /></div><div className={`door-check ${template?.placeholder ? 'placeholder' : ''}`} aria-label="Zonas táctiles del equipo">{template?.image ? <img src={template?.image} alt={template?.name ?? data.check_templates?.name ?? 'Equipo'} /> : <div className="equipment-placeholder"><Factory size={48} /><strong>{template?.name ?? data.check_templates?.name ?? 'Equipo'}</strong><span>Imagen específica pendiente</span></div>}{physicalZones.map((zone) => <Link key={zone.id} style={{ ...zone.visual?.area, zIndex: zone.visual?.zIndex }} className={`hotspot ${severityForStatus(sectionStatus(zone))}`} to={blockHref(zone.id)} aria-label={`Revisar ${zone.name}`}><span>{zone.name}</span></Link>)}</div><div className="block-list status-summary" aria-label="Resumen de bloques revisados">{zones.map((zone) => <Link className="check-block-card" to={blockHref(zone.id)} key={zone.id}><div><strong>{zone.name}</strong><small>{zone.visual?.area ? 'Zona sobre imagen' : 'Bloque general fuera de imagen'} · {incidences(zone.id)} incidencias · {pending.some((item) => item.blockId === zone.id) ? 'Pendiente de sincronizar' : 'Sincronizado'}</small></div><Badge tone={severityForStatus(sectionStatus(zone))}>{displayStatus(sectionStatus(zone))}</Badge></Link>)}</div>{executeAllowed && <button className="primary wide big" disabled={!allReviewed} onClick={() => setMode('finish')}>Finalizar check</button>}{!allReviewed && <p className="large-note">Para finalizar, todos los bloques, incluido Funcionamiento general, deben estar revisados o marcados como No aplicable.</p>}{mode === 'edit' && manageAllowed && <CheckForm initial={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}{mode === 'finish' && <ConfirmModal title="Completar check" text="Se finalizará el check en Supabase. Sincroniza antes los bloques pendientes." onCancel={() => setMode(null)} onConfirm={finish} />}{purgeOpen && <GenericEntityPurgeModal config={checksPurgeConfig} record={data} onClose={() => setPurgeOpen(false)} onDeleted={() => navigate(workspace === 'superadmin' ? '/app/superadmin/checks' : '/app/checks')} />}</section>;
 }
 
-function CheckBlockPage({ forcedId, forcedBlockId }: { forcedId?: string; forcedBlockId?: string } = {}) {
-  const { id: routeId = '', blockId: routeBlockId = 'hoja' } = useParams();
+function CheckBlockPage({
+  forcedId,
+  forcedBlockId,
+}: { forcedId?: string; forcedBlockId?: string } = {}) {
+  const { id: routeId = "", blockId: routeBlockId = "hoja" } = useParams();
   const id = forcedId ?? routeId;
   const blockId = forcedBlockId ?? routeBlockId;
   const navigate = useNavigate();
   const { profile, workspace } = useAuth();
-  const { data, loading, error } = useLoad(() => workspace === 'tecnico' ? checksService.getTechnicianAssigned(id) : checksService.get(id), [id, workspace], null as any);
-  const [status, setStatus] = useState('Sin revisar');
-  const [confirmedStatus, setConfirmedStatus] = useState('Sin revisar');
-  const [observations, setObservations] = useState('');
-  const [intervention, setIntervention] = useState('');
-  const [severity, setSeverity] = useState('Leve');
+  const { data, loading, error } = useLoad(
+    () =>
+      workspace === "tecnico"
+        ? checksService.getTechnicianAssigned(id)
+        : checksService.get(id),
+    [id, workspace],
+    null as any,
+  );
+  const [status, setStatus] = useState("Sin revisar");
+  const [confirmedStatus, setConfirmedStatus] = useState("Sin revisar");
+  const [observations, setObservations] = useState("");
+  const [intervention, setIntervention] = useState("");
+  const [severity, setSeverity] = useState("Leve");
   const [components, setComponents] = useState<string[]>([]);
   const [photos, setPhotos] = useState<Record<string, any>[]>([]);
-  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveState, setSaveState] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
   const [saving, setSaving] = useState(false);
   const [localLoaded, setLocalLoaded] = useState(false);
   const zones = data ? buildFunctionalCheckBlocks(data) : [];
-  const zone = zones.find((item) => item.id === blockId || item.sectionId === blockId) ?? zones[0];
-  const section = zone ? { id: zone.sectionId, title: zone.name, check_template_items: zone.items } : null;
-  const existing = data?.check_section_results?.find((item: any) => item.section_id === section?.id);
-  const itemResults = (data?.check_item_results ?? []).filter((item: any) => (section?.check_template_items ?? []).some((templateItem: any) => templateItem.id === item.item_id));
-  const remotePhotos = (data?.check_photos ?? []).filter((photo: any) => !photo.files?.metadata?.section_id || photo.files?.metadata?.section_id === section?.id || photo.description === section?.title);
-  const relatedDeficiencies = (data?.deficiencies ?? []).filter((item: any) => item.section_id === section?.id);
+  const zone =
+    zones.find((item) => item.id === blockId || item.sectionId === blockId) ??
+    zones[0];
+  const section = zone
+    ? { id: zone.sectionId, title: zone.name, check_template_items: zone.items }
+    : null;
+  const existing = data?.check_section_results?.find(
+    (item: any) => item.section_id === section?.id,
+  );
+  const itemResults = (data?.check_item_results ?? []).filter((item: any) =>
+    (section?.check_template_items ?? []).some(
+      (templateItem: any) => templateItem.id === item.item_id,
+    ),
+  );
+  const remotePhotos = (data?.check_photos ?? []).filter(
+    (photo: any) =>
+      !photo.files?.metadata?.section_id ||
+      photo.files?.metadata?.section_id === section?.id ||
+      photo.description === section?.title,
+  );
+  const relatedDeficiencies = (data?.deficiencies ?? []).filter(
+    (item: any) => item.section_id === section?.id,
+  );
   useEffect(() => {
     setLocalLoaded(false);
     technicianOfflineService.sectionState(id, blockId).then((local) => {
       if (local) {
         const normalized = normalizeCheckStatus(local.status);
-        setStatus(normalized); setConfirmedStatus(normalized); setObservations(local.observations ?? ''); setIntervention(local.intervention ?? ''); setSeverity(local.severity ?? 'Leve'); setComponents(local.components ?? []); setPhotos(local.photos ?? []);
+        setStatus(normalized);
+        setConfirmedStatus(normalized);
+        setObservations(local.observations ?? "");
+        setIntervention(local.intervention ?? "");
+        setSeverity(local.severity ?? "Leve");
+        setComponents(local.components ?? []);
+        setPhotos(local.photos ?? []);
       } else if (existing) {
         const normalized = normalizeCheckStatus(existing.result);
         const remote = remoteBlockState(existing);
-        setStatus(normalized); setConfirmedStatus(normalized); setObservations(remote.observations); setIntervention(remote.intervention); setSeverity(remote.severity); setComponents(remote.components); setPhotos([]);
+        setStatus(normalized);
+        setConfirmedStatus(normalized);
+        setObservations(remote.observations);
+        setIntervention(remote.intervention);
+        setSeverity(remote.severity);
+        setComponents(remote.components);
+        setPhotos([]);
       } else {
-        setStatus('Sin revisar'); setConfirmedStatus('Sin revisar'); setObservations(''); setIntervention(''); setSeverity('Leve'); setComponents([]); setPhotos([]);
+        setStatus("Sin revisar");
+        setConfirmedStatus("Sin revisar");
+        setObservations("");
+        setIntervention("");
+        setSeverity("Leve");
+        setComponents([]);
+        setPhotos([]);
       }
       setLocalLoaded(true);
     });
-  }, [id, blockId, existing?.id, existing?.result, existing?.observations, existing?.intervention, existing?.severity, JSON.stringify(existing?.components ?? [])]);
+  }, [
+    id,
+    blockId,
+    existing?.id,
+    existing?.result,
+    existing?.observations,
+    existing?.intervention,
+    existing?.severity,
+    JSON.stringify(existing?.components ?? []),
+  ]);
   if (!canExecuteCheck(profile)) return <AccessDenied />;
-  if (workspace === 'tecnico' && (error || (!loading && !data))) return <AccessDenied />;
-  if (loading || error || !data) return <StateBlock loading={loading} error={error} retry={undefined} empty={!data} />;
-  if (!equipmentTypeName(data.equipment)) return <section className="page"><BackButton /><Card title="Tipo de equipo no disponible"><p className="form-error">No se puede ejecutar este bloque porque el equipo no tiene tipo. Corrige el equipo desde SAT antes de sincronizar resultados.</p>{data.equipment_id && <Link className="primary" to={`/app/equipos/${data.equipment_id}`}>Abrir/corregir equipo</Link>}</Card></section>;
-  if (!section || !isUuid(section.id)) return <section className="page"><BackButton /><Card title="Sección no disponible"><p className="form-error">Este bloque no corresponde a una sección real UUID de la plantilla asociada al check. No se enviará ningún resultado sintético.</p></Card></section>;
+  if (workspace === "tecnico" && (error || (!loading && !data)))
+    return <AccessDenied />;
+  if (loading || error || !data)
+    return (
+      <StateBlock
+        loading={loading}
+        error={error}
+        retry={undefined}
+        empty={!data}
+      />
+    );
+  if (!equipmentTypeName(data.equipment))
+    return (
+      <section className="page">
+        <BackButton />
+        <Card title="Tipo de equipo no disponible">
+          <p className="form-error">
+            No se puede ejecutar este bloque porque el equipo no tiene tipo.
+            Corrige el equipo desde SAT antes de sincronizar resultados.
+          </p>
+          {data.equipment_id && (
+            <Link className="primary" to={`/app/equipos/${data.equipment_id}`}>
+              Abrir/corregir equipo
+            </Link>
+          )}
+        </Card>
+      </section>
+    );
+  if (!section || !isUuid(section.id))
+    return (
+      <section className="page">
+        <BackButton />
+        <Card title="Sección no disponible">
+          <p className="form-error">
+            Este bloque no corresponde a una sección real UUID de la plantilla
+            asociada al check. No se enviará ningún resultado sintético.
+          </p>
+        </Card>
+      </section>
+    );
   const needsDetail = checkProblemStatuses.includes(status);
-  const hasChanges = localLoaded && status !== 'Sin revisar' && (status !== confirmedStatus || observations.trim() || intervention.trim() || components.length || photos.length);
-  const toggleComponent = (component: string) => setComponents((current) => current.includes(component) ? current.filter((item) => item !== component) : [...current, component]);
-  const selectStatus = (nextStatus: string) => { setStatus(nextStatus); setSaveState('idle'); if (!checkProblemStatuses.includes(nextStatus)) { setObservations(''); setIntervention(''); setComponents([]); setPhotos([]); } };
+  const hasChanges =
+    localLoaded &&
+    status !== "Sin revisar" &&
+    (status !== confirmedStatus ||
+      observations.trim() ||
+      intervention.trim() ||
+      components.length ||
+      photos.length);
+  const toggleComponent = (component: string) =>
+    setComponents((current) =>
+      current.includes(component)
+        ? current.filter((item) => item !== component)
+        : [...current, component],
+    );
+  const selectStatus = (nextStatus: string) => {
+    setStatus(nextStatus);
+    setSaveState("idle");
+    if (!checkProblemStatuses.includes(nextStatus)) {
+      setObservations("");
+      setIntervention("");
+      setComponents([]);
+      setPhotos([]);
+    }
+  };
   const addPhotos = async (files: FileList | null) => {
     if (!files?.length) return;
     try {
-      const nextPhotos = await Promise.all(Array.from(files).map(fileToLocalPhoto));
+      const nextPhotos = await Promise.all(
+        Array.from(files).map(fileToLocalPhoto),
+      );
       setPhotos((current) => [...current, ...nextPhotos]);
-      setSaveState('idle');
+      setSaveState("idle");
     } catch {
-      setSaveState('error');
+      setSaveState("error");
     }
   };
   const save = async () => {
-    if (!section || !isUuid(section.id) || !hasChanges || status === 'Sin revisar') return;
-    setSaving(true); setSaveState('saving');
-    const persisted = status.replace('Favorable tras intervención', 'Favorable tras intervencion');
+    if (
+      !section ||
+      !isUuid(section.id) ||
+      !hasChanges ||
+      status === "Sin revisar"
+    )
+      return;
+    setSaving(true);
+    setSaveState("saving");
+    const persisted = status.replace(
+      "Favorable tras intervención",
+      "Favorable tras intervencion",
+    );
     try {
-      await technicianOfflineService.upsert({ type: 'check-block', workOrderId: data.work_order_id, checkId: id, blockId: zone.id, sectionId: section.id, payload: { blockId: zone.id, sectionId: section.id, sectionTitle: zone.name, status, persistedStatus: persisted, items: section.check_template_items ?? [], components: status === 'Todo favorable' ? (zone.items ?? []).map((item: any) => item.component ?? item.title) : components, observations: needsDetail ? observations : '', intervention: needsDetail ? intervention : '', incidence: needsDetail, severity, date: new Date().toISOString(), user: data.technician_id } });
-      if (needsDetail) await technicianOfflineService.upsert({ type: 'deficiency', workOrderId: data.work_order_id, checkId: id, blockId: zone.id, sectionId: section.id, payload: { id: `${zone.id}-deficiency`, sectionId: section.id, severity, description: observations, recommendedAction: intervention } });
-      if (needsDetail) await Promise.all(photos.map((photo) => technicianOfflineService.upsert({ type: 'photo', workOrderId: data.work_order_id, checkId: id, blockId: zone.id, sectionId: section.id, payload: { ...photo, sectionId: section.id, sectionTitle: zone.name, description: observations } })));
-      setConfirmedStatus(status); setSaveState('saved');
-      setTimeout(() => navigate(workspace === 'superadmin' ? `/app/superadmin/checks/${id}` : `/app/checks/${id}`), 450);
-    } catch { setSaveState('error'); }
-    finally { setSaving(false); }
+      await technicianOfflineService.upsert({
+        type: "check-block",
+        workOrderId: data.work_order_id,
+        checkId: id,
+        blockId: zone.id,
+        sectionId: section.id,
+        payload: {
+          blockId: zone.id,
+          sectionId: section.id,
+          sectionTitle: zone.name,
+          status,
+          persistedStatus: persisted,
+          items: section.check_template_items ?? [],
+          components:
+            status === "Todo favorable"
+              ? (zone.items ?? []).map(
+                  (item: any) => item.component ?? item.title,
+                )
+              : components,
+          observations: needsDetail ? observations : "",
+          intervention: needsDetail ? intervention : "",
+          incidence: needsDetail,
+          severity,
+          date: new Date().toISOString(),
+          user: data.technician_id,
+        },
+      });
+      if (needsDetail)
+        await technicianOfflineService.upsert({
+          type: "deficiency",
+          workOrderId: data.work_order_id,
+          checkId: id,
+          blockId: zone.id,
+          sectionId: section.id,
+          payload: {
+            id: `${zone.id}-deficiency`,
+            sectionId: section.id,
+            severity,
+            description: observations,
+            recommendedAction: intervention,
+          },
+        });
+      if (needsDetail)
+        await Promise.all(
+          photos.map((photo) =>
+            technicianOfflineService.upsert({
+              type: "photo",
+              workOrderId: data.work_order_id,
+              checkId: id,
+              blockId: zone.id,
+              sectionId: section.id,
+              payload: {
+                ...photo,
+                sectionId: section.id,
+                sectionTitle: zone.name,
+                description: observations,
+              },
+            }),
+          ),
+        );
+      setConfirmedStatus(status);
+      setSaveState("saved");
+      setTimeout(
+        () =>
+          navigate(
+            workspace === "superadmin"
+              ? `/app/superadmin/checks/${id}`
+              : `/app/checks/${id}`,
+          ),
+        450,
+      );
+    } catch {
+      setSaveState("error");
+    } finally {
+      setSaving(false);
+    }
   };
-  return <section className="check-mobile block-page"><button className="link-button sticky-back" onClick={() => navigate(workspace === 'superadmin' ? `/app/superadmin/checks/${id}` : `/app/checks/${id}`)}><ChevronLeft size={16} /> Volver a la puerta</button><header><p className="eyebrow">Detalle del bloque</p><h2>{zone.name}</h2><Badge tone={severityForStatus(status)}>{displayStatus(status)}</Badge></header><div className="status-grid">{checkStatuses.map((item) => <button type="button" key={item} className={status === item ? 'active' : ''} onClick={() => selectStatus(item)}>{item}</button>)}</div>{status === 'Sin revisar' && <p className="large-note">Selecciona un estado. No se guardará hasta pulsar Confirmar selección.</p>}{needsDetail && <Card title="Observación e intervención"><label>Observación<textarea value={observations} onChange={(event) => { setObservations(event.target.value); setSaveState('idle'); }} /></label><label>Intervención<textarea value={intervention} onChange={(event) => { setIntervention(event.target.value); setSaveState('idle'); }} placeholder="Intervención realizada si aplica" /></label></Card>}{needsDetail && <Card title="Incidencia del bloque"><div className="component-select">{(zone.items ?? []).map((item: any) => { const component = item.component ?? item.title; return <label key={component}><input type="checkbox" checked={components.includes(component)} onChange={() => { toggleComponent(component); setSaveState('idle'); }} /> {component}</label>; })}</div><FormSelect label="Gravedad" value={severity} onChange={(value) => { setSeverity(value); setSaveState('idle'); }} options={['Leve','Media','Alta','Critica'].map((value) => ({ value, label: displayStatus(value) }))} /><div className="photo-strip"><label className="component-photo">Añadir foto real<input type="file" accept="image/*" capture="environment" multiple onChange={(event) => addPhotos(event.target.files)} /></label></div>{photos.length > 0 && <div className="photo-list">{photos.map((photo) => <span key={photo.id ?? photo.name}>{photo.name ?? 'Foto'} · Foto pendiente de sincronizar<button type="button" onClick={() => { setPhotos((current) => current.filter((item) => item !== photo)); setSaveState('idle'); }}>Quitar</button></span>)}</div>}<p className="large-note">Las fotos quedan guardadas en este dispositivo. Foto guardada localmente y pendiente de sincronización.</p></Card>}<button className="primary wide sticky-save" disabled={!hasChanges || saving} onClick={save}>{saving ? 'Guardando...' : saveState === 'saved' ? 'Guardado localmente' : 'Confirmar selección'}</button>{saveState === 'saved' && <p className="success-note">Bloque guardado localmente y pendiente de sincronización segura.</p>}{saveState === 'error' && <p className="form-error">No se ha podido guardar el bloque localmente.</p>}</section>;
+  return (
+    <section className="check-mobile block-page">
+      <header>
+        <p className="eyebrow">Detalle del bloque</p>
+        <h2>{zone.name}</h2>
+        <Badge tone={severityForStatus(status)}>{displayStatus(status)}</Badge>
+        <div className="actions">
+          <Link
+            className="link-button"
+            to={
+              workspace === "superadmin"
+                ? `/app/superadmin/checks/${id}`
+                : `/app/checks/${id}`
+            }
+          >
+            <ChevronLeft size={16} /> Volver
+          </Link>
+          {data.work_order_id && (
+            <Link className="primary" to={`/app/partes/${data.work_order_id}`}>
+              Volver al parte
+            </Link>
+          )}
+        </div>
+      </header>
+      <div className="status-grid">
+        {checkStatuses.map((item) => (
+          <button
+            type="button"
+            key={item}
+            className={status === item ? "active" : ""}
+            onClick={() => selectStatus(item)}
+          >
+            {item}
+          </button>
+        ))}
+      </div>
+      {status === "Sin revisar" && (
+        <p className="large-note">
+          Selecciona un estado. No se guardará hasta pulsar Confirmar selección.
+        </p>
+      )}
+      {needsDetail && (
+        <Card title="Observación e intervención">
+          <label>
+            Observación
+            <textarea
+              value={observations}
+              onChange={(event) => {
+                setObservations(event.target.value);
+                setSaveState("idle");
+              }}
+            />
+          </label>
+          <label>
+            Intervención
+            <textarea
+              value={intervention}
+              onChange={(event) => {
+                setIntervention(event.target.value);
+                setSaveState("idle");
+              }}
+              placeholder="Intervención realizada si aplica"
+            />
+          </label>
+        </Card>
+      )}
+      {needsDetail && (
+        <Card title="Incidencia del bloque">
+          <div className="component-select">
+            {(zone.items ?? []).map((item: any) => {
+              const component = item.component ?? item.title;
+              return (
+                <label key={component}>
+                  <input
+                    type="checkbox"
+                    checked={components.includes(component)}
+                    onChange={() => {
+                      toggleComponent(component);
+                      setSaveState("idle");
+                    }}
+                  />{" "}
+                  {component}
+                </label>
+              );
+            })}
+          </div>
+          <FormSelect
+            label="Gravedad"
+            value={severity}
+            onChange={(value) => {
+              setSeverity(value);
+              setSaveState("idle");
+            }}
+            options={["Leve", "Media", "Alta", "Critica"].map((value) => ({
+              value,
+              label: displayStatus(value),
+            }))}
+          />
+          <div className="photo-strip">
+            <label className="component-photo">
+              Añadir foto real
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                multiple
+                onChange={(event) => addPhotos(event.target.files)}
+              />
+            </label>
+          </div>
+          {photos.length > 0 && (
+            <div className="photo-list">
+              {photos.map((photo) => (
+                <span key={photo.id ?? photo.name}>
+                  {photo.name ?? "Foto"} · Foto pendiente de sincronizar
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPhotos((current) =>
+                        current.filter((item) => item !== photo),
+                      );
+                      setSaveState("idle");
+                    }}
+                  >
+                    Quitar
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <p className="large-note">
+            Las fotos quedan guardadas en este dispositivo. Foto guardada
+            localmente y pendiente de sincronización.
+          </p>
+        </Card>
+      )}
+      <button
+        className="primary wide sticky-save"
+        disabled={!hasChanges || saving}
+        onClick={save}
+      >
+        {saving
+          ? "Guardando..."
+          : saveState === "saved"
+            ? "Guardado localmente"
+            : "Confirmar selección"}
+      </button>
+      {saveState === "saved" && (
+        <p className="success-note">
+          Bloque guardado localmente y pendiente de sincronización segura.
+        </p>
+      )}
+      {saveState === "error" && (
+        <p className="form-error">
+          No se ha podido guardar el bloque localmente.
+        </p>
+      )}
+    </section>
+  );
 }
 
-function CheckBlockPageV2({ forcedId, forcedBlockId }: { forcedId?: string; forcedBlockId?: string } = {}) {
-  const { id: routeId = '', blockId: routeBlockId = '' } = useParams();
+function CheckBlockPageV2({
+  forcedId,
+  forcedBlockId,
+}: { forcedId?: string; forcedBlockId?: string } = {}) {
+  const { id: routeId = "", blockId: routeBlockId = "" } = useParams();
   const id = forcedId ?? routeId;
   const blockId = forcedBlockId ?? routeBlockId;
   const navigate = useNavigate();
   const { profile, workspace } = useAuth();
-  const { data, loading, error } = useLoad(() => workspace === 'tecnico' ? checksService.getTechnicianAssigned(id) : checksService.get(id), [id, workspace], null as any);
-  const [status, setStatus] = useState('Sin revisar');
-  const [confirmedStatus, setConfirmedStatus] = useState('Sin revisar');
-  const [observations, setObservations] = useState('');
-  const [intervention, setIntervention] = useState('');
-  const [severity, setSeverity] = useState('Leve');
+  const { data, loading, error } = useLoad(
+    () =>
+      workspace === "tecnico"
+        ? checksService.getTechnicianAssigned(id)
+        : checksService.get(id),
+    [id, workspace],
+    null as any,
+  );
+  const [status, setStatus] = useState("Sin revisar");
+  const [confirmedStatus, setConfirmedStatus] = useState("Sin revisar");
+  const [observations, setObservations] = useState("");
+  const [intervention, setIntervention] = useState("");
+  const [severity, setSeverity] = useState("Leve");
   const [components, setComponents] = useState<string[]>([]);
   const [photos, setPhotos] = useState<Record<string, any>[]>([]);
-  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveState, setSaveState] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
   const [saving, setSaving] = useState(false);
   const [localLoaded, setLocalLoaded] = useState(false);
   const zones = data ? buildFunctionalCheckBlocks(data) : [];
-  const zone = zones.find((item) => item.id === blockId || item.sectionId === blockId) ?? zones[0];
-  const section = zone ? { id: zone.sectionId, title: zone.name, check_template_items: zone.items } : null;
-  const existing = data?.check_section_results?.find((item: any) => item.section_id === section?.id);
-  const itemResults = (data?.check_item_results ?? []).filter((item: any) => (section?.check_template_items ?? []).some((templateItem: any) => templateItem.id === item.item_id));
-  const remotePhotos = (data?.check_photos ?? []).filter((photo: any) => !photo.files?.metadata?.section_id || photo.files?.metadata?.section_id === section?.id || photo.description === section?.title);
-  const relatedDeficiencies = (data?.deficiencies ?? []).filter((item: any) => item.section_id === section?.id);
+  const zone =
+    zones.find((item) => item.id === blockId || item.sectionId === blockId) ??
+    zones[0];
+  const section = zone
+    ? { id: zone.sectionId, title: zone.name, check_template_items: zone.items }
+    : null;
+  const existing = data?.check_section_results?.find(
+    (item: any) => item.section_id === section?.id,
+  );
+  const itemResults = (data?.check_item_results ?? []).filter((item: any) =>
+    (section?.check_template_items ?? []).some(
+      (templateItem: any) => templateItem.id === item.item_id,
+    ),
+  );
+  const remotePhotos = (data?.check_photos ?? []).filter(
+    (photo: any) =>
+      !photo.files?.metadata?.section_id ||
+      photo.files?.metadata?.section_id === section?.id ||
+      photo.description === section?.title,
+  );
+  const relatedDeficiencies = (data?.deficiencies ?? []).filter(
+    (item: any) => item.section_id === section?.id,
+  );
   useEffect(() => {
     if (!data || !zone) return;
     setLocalLoaded(false);
     technicianOfflineService.sectionState(id, zone.id).then((local) => {
       if (local) {
         const normalized = normalizeCheckStatus(local.status);
-        setStatus(normalized); setConfirmedStatus(normalized); setObservations(local.observations ?? ''); setIntervention(local.intervention ?? ''); setSeverity(local.severity ?? 'Leve'); setComponents(local.components ?? []); setPhotos(local.photos ?? []);
+        setStatus(normalized);
+        setConfirmedStatus(normalized);
+        setObservations(local.observations ?? "");
+        setIntervention(local.intervention ?? "");
+        setSeverity(local.severity ?? "Leve");
+        setComponents(local.components ?? []);
+        setPhotos(local.photos ?? []);
       } else if (existing) {
         const normalized = normalizeCheckStatus(existing.result);
-        setStatus(normalized); setConfirmedStatus(normalized); setObservations(existing.observations ?? ''); setIntervention(existing.intervention ?? ''); setSeverity(existing.severity ?? 'Leve'); setComponents(Array.isArray(existing.components) ? existing.components : []); setPhotos([]);
+        setStatus(normalized);
+        setConfirmedStatus(normalized);
+        setObservations(existing.observations ?? "");
+        setIntervention(existing.intervention ?? "");
+        setSeverity(existing.severity ?? "Leve");
+        setComponents(
+          Array.isArray(existing.components) ? existing.components : [],
+        );
+        setPhotos([]);
       } else {
-        setStatus('Sin revisar'); setConfirmedStatus('Sin revisar'); setObservations(''); setIntervention(''); setSeverity('Leve'); setComponents([]); setPhotos([]);
+        setStatus("Sin revisar");
+        setConfirmedStatus("Sin revisar");
+        setObservations("");
+        setIntervention("");
+        setSeverity("Leve");
+        setComponents([]);
+        setPhotos([]);
       }
       setLocalLoaded(true);
     });
-  }, [id, zone?.id, existing?.id, existing?.result, existing?.observations, existing?.intervention, existing?.severity, JSON.stringify(existing?.components ?? [])]);
+  }, [
+    id,
+    zone?.id,
+    existing?.id,
+    existing?.result,
+    existing?.observations,
+    existing?.intervention,
+    existing?.severity,
+    JSON.stringify(existing?.components ?? []),
+  ]);
   if (!canExecuteCheck(profile)) return <AccessDenied />;
-  if (workspace === 'tecnico' && (error || (!loading && !data))) return <AccessDenied />;
-  if (loading || error || !data) return <StateBlock loading={loading} error={error} retry={undefined} empty={!data} />;
-  if (!equipmentTypeName(data.equipment)) return <section className="page"><BackButton /><Card title="Tipo de equipo no disponible"><p className="form-error">No se puede ejecutar este bloque porque el equipo no tiene tipo. Corrige el equipo desde SAT antes de sincronizar resultados.</p>{data.equipment_id && <Link className="primary" to={`/app/equipos/${data.equipment_id}`}>Abrir/corregir equipo</Link>}</Card></section>;
-  if (!section || !isUuid(section.id)) return <section className="page"><BackButton /><Card title="Sección no disponible"><p className="form-error">Este bloque no corresponde a una sección real UUID de la plantilla asociada al check. No se enviará ningún resultado sintético.</p></Card></section>;
+  if (workspace === "tecnico" && (error || (!loading && !data)))
+    return <AccessDenied />;
+  if (loading || error || !data)
+    return (
+      <StateBlock
+        loading={loading}
+        error={error}
+        retry={undefined}
+        empty={!data}
+      />
+    );
+  if (!equipmentTypeName(data.equipment))
+    return (
+      <section className="page">
+        <BackButton />
+        <Card title="Tipo de equipo no disponible">
+          <p className="form-error">
+            No se puede ejecutar este bloque porque el equipo no tiene tipo.
+            Corrige el equipo desde SAT antes de sincronizar resultados.
+          </p>
+          {data.equipment_id && (
+            <Link className="primary" to={`/app/equipos/${data.equipment_id}`}>
+              Abrir/corregir equipo
+            </Link>
+          )}
+        </Card>
+      </section>
+    );
+  if (!section || !isUuid(section.id))
+    return (
+      <section className="page">
+        <BackButton />
+        <Card title="Sección no disponible">
+          <p className="form-error">
+            Este bloque no corresponde a una sección real UUID de la plantilla
+            asociada al check. No se enviará ningún resultado sintético.
+          </p>
+        </Card>
+      </section>
+    );
   const needsDetail = checkProblemStatuses.includes(status);
-  const hasChanges = workspace === 'tecnico' && localLoaded && status !== 'Sin revisar' && (status !== confirmedStatus || observations.trim() !== (existing?.observations ?? '') || intervention.trim() !== (existing?.intervention ?? '') || JSON.stringify(components) !== JSON.stringify(Array.isArray(existing?.components) ? existing.components : []) || photos.length);
-  const toggleComponent = (component: string) => setComponents((current) => current.includes(component) ? current.filter((item) => item !== component) : [...current, component]);
-  const selectStatus = (nextStatus: string) => { setStatus(nextStatus); setSaveState('idle'); if (!checkProblemStatuses.includes(nextStatus)) { setObservations(''); setIntervention(''); setComponents([]); setPhotos([]); } };
-  const addPhotos = async (files: FileList | null) => { if (!files?.length) return; try { const nextPhotos = await Promise.all(Array.from(files).map(fileToLocalPhoto)); setPhotos((current) => [...current, ...nextPhotos]); setSaveState('idle'); } catch { setSaveState('error'); } };
+  const hasChanges =
+    workspace === "tecnico" &&
+    localLoaded &&
+    status !== "Sin revisar" &&
+    (status !== confirmedStatus ||
+      observations.trim() !== (existing?.observations ?? "") ||
+      intervention.trim() !== (existing?.intervention ?? "") ||
+      JSON.stringify(components) !==
+        JSON.stringify(
+          Array.isArray(existing?.components) ? existing.components : [],
+        ) ||
+      photos.length);
+  const toggleComponent = (component: string) =>
+    setComponents((current) =>
+      current.includes(component)
+        ? current.filter((item) => item !== component)
+        : [...current, component],
+    );
+  const selectStatus = (nextStatus: string) => {
+    setStatus(nextStatus);
+    setSaveState("idle");
+    if (!checkProblemStatuses.includes(nextStatus)) {
+      setObservations("");
+      setIntervention("");
+      setComponents([]);
+      setPhotos([]);
+    }
+  };
+  const addPhotos = async (files: FileList | null) => {
+    if (!files?.length) return;
+    try {
+      const nextPhotos = await Promise.all(
+        Array.from(files).map(fileToLocalPhoto),
+      );
+      setPhotos((current) => [...current, ...nextPhotos]);
+      setSaveState("idle");
+    } catch {
+      setSaveState("error");
+    }
+  };
   const save = async () => {
     if (!hasChanges) return;
-    setSaving(true); setSaveState('saving');
-    const persisted = status.replace('Favorable tras intervención', 'Favorable tras intervencion');
+    setSaving(true);
+    setSaveState("saving");
+    const persisted = status.replace(
+      "Favorable tras intervención",
+      "Favorable tras intervencion",
+    );
     try {
-      await technicianOfflineService.upsert({ type: 'check-block', workOrderId: data.work_order_id, checkId: id, blockId: zone.id, sectionId: section.id, payload: { blockId: zone.id, sectionId: section.id, sectionTitle: zone.name, status, persistedStatus: persisted, items: section.check_template_items ?? [], components: status === 'Todo favorable' ? (zone.items ?? []).map((item: any) => item.component ?? item.title) : components, observations: needsDetail ? observations : '', intervention: needsDetail ? intervention : '', incidence: needsDetail, severity, date: new Date().toISOString(), user: data.technician_id } });
-      if (needsDetail) await Promise.all(photos.map((photo) => technicianOfflineService.upsert({ type: 'photo', workOrderId: data.work_order_id, checkId: id, blockId: zone.id, sectionId: section.id, payload: { ...photo, sectionId: section.id, sectionTitle: zone.name, description: observations } })));
-      setConfirmedStatus(status); setSaveState('saved');
-    } catch { setSaveState('error'); }
-    finally { setSaving(false); }
+      await technicianOfflineService.upsert({
+        type: "check-block",
+        workOrderId: data.work_order_id,
+        checkId: id,
+        blockId: zone.id,
+        sectionId: section.id,
+        payload: {
+          blockId: zone.id,
+          sectionId: section.id,
+          sectionTitle: zone.name,
+          status,
+          persistedStatus: persisted,
+          items: section.check_template_items ?? [],
+          components:
+            status === "Todo favorable"
+              ? (zone.items ?? []).map(
+                  (item: any) => item.component ?? item.title,
+                )
+              : components,
+          observations: needsDetail ? observations : "",
+          intervention: needsDetail ? intervention : "",
+          incidence: needsDetail,
+          severity,
+          date: new Date().toISOString(),
+          user: data.technician_id,
+        },
+      });
+      if (needsDetail)
+        await Promise.all(
+          photos.map((photo) =>
+            technicianOfflineService.upsert({
+              type: "photo",
+              workOrderId: data.work_order_id,
+              checkId: id,
+              blockId: zone.id,
+              sectionId: section.id,
+              payload: {
+                ...photo,
+                sectionId: section.id,
+                sectionTitle: zone.name,
+                description: observations,
+              },
+            }),
+          ),
+        );
+      setConfirmedStatus(status);
+      setSaveState("saved");
+    } catch {
+      setSaveState("error");
+    } finally {
+      setSaving(false);
+    }
   };
-  return <section className="check-mobile block-page"><button className="link-button sticky-back" onClick={() => navigate(workspace === 'superadmin' ? `/app/superadmin/checks/${id}` : `/app/checks/${id}`)}><ChevronLeft size={16} /> Volver al check</button><header><p className="eyebrow">Detalle del bloque</p><h2>{zone.name}</h2><Badge tone={severityForStatus(status)}>{displayStatus(status)}</Badge><small>{data.check_templates?.name ?? 'Plantilla no informada'} · {equipmentTypeName(data.equipment) ?? 'Tipo no disponible'} · Técnico: {fullName(data.profiles) || '-'}</small></header><Card title="Resultado remoto"><InfoGrid items={[[ 'Estado', displayStatus(status) ], [ 'Observaciones', observations || '-' ], [ 'Intervención', intervention || '-' ], [ 'Gravedad', severity || '-' ], [ 'Componentes', components.join(', ') || '-' ], [ 'Sincronizado', existing?.synced_at ? formatDate(existing.synced_at) : existing?.updated_at ? formatDate(existing.updated_at) : '-' ]]}/></Card><Card title="Ítems de la sección"><div className="work-detail-list">{(section.check_template_items ?? []).map((item: any) => { const result = itemResults.find((row: any) => row.item_id === item.id); return <article key={item.id}><Badge tone={severityForStatus(result?.result ?? status)}>{displayStatus(result?.result ?? status)}</Badge><p><strong>{item.title}</strong><br /><small>{item.component ?? 'Componente no informado'}</small><br />{result?.observations ?? ''}</p></article>; })}</div></Card><Card title={`Fotos del bloque (${remotePhotos.length})`}><div className="media-grid">{remotePhotos.map((photo: any) => photo.signed_url ? <a key={photo.id} href={photo.signed_url} target="_blank" rel="noreferrer"><img src={photo.signed_url} alt={photo.description ?? photo.files?.name ?? 'Foto del bloque'} /><strong>{photo.description ?? photo.files?.name ?? 'Foto del bloque'}</strong><small>{formatDate(photo.taken_at ?? photo.created_at)}</small></a> : <article key={photo.id} className="media-error"><strong>{photo.description ?? photo.files?.name ?? 'Foto del bloque'}</strong><p className="form-error">{photo.file_error ?? 'No se ha podido cargar el archivo'}</p></article>)}{!remotePhotos.length && <p className="large-note">Sin fotos remotas para este bloque.</p>}</div></Card><Card title={`Deficiencias (${relatedDeficiencies.length})`}><CompactRows rows={relatedDeficiencies.map((item: any) => [item.code ?? item.severity, item.description ?? '-', severityForStatus(item.severity), `/app/deficiencias/${item.id}`])} empty="Sin deficiencias relacionadas." /></Card>{workspace === 'tecnico' && <><div className="status-grid">{checkStatuses.map((item) => <button type="button" key={item} className={status === item ? 'active' : ''} onClick={() => selectStatus(item)}>{item}</button>)}</div>{needsDetail && <Card title="Editar observación e intervención"><label>Observación<textarea value={observations} onChange={(event) => { setObservations(event.target.value); setSaveState('idle'); }} /></label><label>Intervención<textarea value={intervention} onChange={(event) => { setIntervention(event.target.value); setSaveState('idle'); }} /></label><FormSelect label="Gravedad" value={severity} onChange={(value) => { setSeverity(value); setSaveState('idle'); }} options={['Leve','Media','Alta','Critica'].map((value) => ({ value, label: displayStatus(value) }))} /><div className="component-select">{(zone.items ?? []).map((item: any) => { const component = item.component ?? item.title; return <label key={component}><input type="checkbox" checked={components.includes(component)} onChange={() => { toggleComponent(component); setSaveState('idle'); }} /> {component}</label>; })}</div><label className="component-photo">Añadir foto real<input type="file" accept="image/*" capture="environment" multiple onChange={(event) => addPhotos(event.target.files)} /></label></Card>}<div className="confirm-bar"><button className="primary wide big" disabled={!hasChanges || saving || status === 'Sin revisar'} onClick={save}>{saving ? 'Guardando...' : 'Confirmar selección'}</button>{saveState === 'saved' && <p className="success-note">Guardado localmente. Sincroniza para enviarlo a Supabase.</p>}{saveState === 'error' && <p className="form-error">No se ha podido guardar el bloque.</p>}</div></>}</section>;
+  return (
+    <section className="check-mobile block-page">
+      <header>
+        <p className="eyebrow">Detalle del bloque</p>
+        <h2>{zone.name}</h2>
+        <Badge tone={severityForStatus(status)}>{displayStatus(status)}</Badge>
+        <small>
+          {data.check_templates?.name ?? "Plantilla no informada"} ·{" "}
+          {equipmentTypeName(data.equipment) ?? "Tipo no disponible"} · Técnico:{" "}
+          {fullName(data.profiles) || "-"}
+        </small>
+        <div className="actions">
+          <Link
+            className="link-button"
+            to={
+              workspace === "superadmin"
+                ? `/app/superadmin/checks/${id}`
+                : `/app/checks/${id}`
+            }
+          >
+            <ChevronLeft size={16} /> Volver
+          </Link>
+          {data.work_order_id && (
+            <Link className="primary" to={`/app/partes/${data.work_order_id}`}>
+              Volver al parte
+            </Link>
+          )}
+        </div>
+      </header>
+      <Card title="Resultado remoto">
+        <InfoGrid
+          items={[
+            ["Estado", displayStatus(status)],
+            ["Observaciones", observations || "-"],
+            ["Intervención", intervention || "-"],
+            ["Gravedad", severity || "-"],
+            ["Componentes", components.join(", ") || "-"],
+            [
+              "Sincronizado",
+              existing?.synced_at
+                ? formatDate(existing.synced_at)
+                : existing?.updated_at
+                  ? formatDate(existing.updated_at)
+                  : "-",
+            ],
+          ]}
+        />
+      </Card>
+      <Card title="Ítems de la sección">
+        <div className="work-detail-list">
+          {(section.check_template_items ?? []).map((item: any) => {
+            const result = itemResults.find(
+              (row: any) => row.item_id === item.id,
+            );
+            return (
+              <article key={item.id}>
+                <Badge tone={severityForStatus(result?.result ?? status)}>
+                  {displayStatus(result?.result ?? status)}
+                </Badge>
+                <p>
+                  <strong>{item.title}</strong>
+                  <br />
+                  <small>{item.component ?? "Componente no informado"}</small>
+                  <br />
+                  {result?.observations ?? ""}
+                </p>
+              </article>
+            );
+          })}
+        </div>
+      </Card>
+      <Card title={`Fotos del bloque (${remotePhotos.length})`}>
+        <div className="media-grid">
+          {remotePhotos.map((photo: any) =>
+            photo.signed_url ? (
+              <a
+                key={photo.id}
+                href={photo.signed_url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <img
+                  src={photo.signed_url}
+                  alt={
+                    photo.description ?? photo.files?.name ?? "Foto del bloque"
+                  }
+                />
+                <strong>
+                  {photo.description ?? photo.files?.name ?? "Foto del bloque"}
+                </strong>
+                <small>{formatDate(photo.taken_at ?? photo.created_at)}</small>
+              </a>
+            ) : (
+              <article key={photo.id} className="media-error">
+                <strong>
+                  {photo.description ?? photo.files?.name ?? "Foto del bloque"}
+                </strong>
+                <p className="form-error">
+                  {photo.file_error ?? "No se ha podido cargar el archivo"}
+                </p>
+              </article>
+            ),
+          )}
+          {!remotePhotos.length && (
+            <p className="large-note">Sin fotos remotas para este bloque.</p>
+          )}
+        </div>
+      </Card>
+      <Card title={`Deficiencias (${relatedDeficiencies.length})`}>
+        <CompactRows
+          rows={relatedDeficiencies.map((item: any) => [
+            item.code ?? item.severity,
+            item.description ?? "-",
+            severityForStatus(item.severity),
+            `/app/deficiencias/${item.id}`,
+          ])}
+          empty="Sin deficiencias relacionadas."
+        />
+      </Card>
+      {workspace === "tecnico" && (
+        <>
+          <div className="status-grid">
+            {checkStatuses.map((item) => (
+              <button
+                type="button"
+                key={item}
+                className={status === item ? "active" : ""}
+                onClick={() => selectStatus(item)}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+          {needsDetail && (
+            <Card title="Editar observación e intervención">
+              <label>
+                Observación
+                <textarea
+                  value={observations}
+                  onChange={(event) => {
+                    setObservations(event.target.value);
+                    setSaveState("idle");
+                  }}
+                />
+              </label>
+              <label>
+                Intervención
+                <textarea
+                  value={intervention}
+                  onChange={(event) => {
+                    setIntervention(event.target.value);
+                    setSaveState("idle");
+                  }}
+                />
+              </label>
+              <FormSelect
+                label="Gravedad"
+                value={severity}
+                onChange={(value) => {
+                  setSeverity(value);
+                  setSaveState("idle");
+                }}
+                options={["Leve", "Media", "Alta", "Critica"].map((value) => ({
+                  value,
+                  label: displayStatus(value),
+                }))}
+              />
+              <div className="component-select">
+                {(zone.items ?? []).map((item: any) => {
+                  const component = item.component ?? item.title;
+                  return (
+                    <label key={component}>
+                      <input
+                        type="checkbox"
+                        checked={components.includes(component)}
+                        onChange={() => {
+                          toggleComponent(component);
+                          setSaveState("idle");
+                        }}
+                      />{" "}
+                      {component}
+                    </label>
+                  );
+                })}
+              </div>
+              <label className="component-photo">
+                Añadir foto real
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  multiple
+                  onChange={(event) => addPhotos(event.target.files)}
+                />
+              </label>
+            </Card>
+          )}
+          <div className="confirm-bar">
+            <button
+              className="primary wide big"
+              disabled={!hasChanges || saving || status === "Sin revisar"}
+              onClick={save}
+            >
+              {saving ? "Guardando..." : "Confirmar selección"}
+            </button>
+            {saveState === "saved" && (
+              <p className="success-note">
+                Guardado localmente. Sincroniza para enviarlo a Supabase.
+              </p>
+            )}
+            {saveState === "error" && (
+              <p className="form-error">No se ha podido guardar el bloque.</p>
+            )}
+          </div>
+        </>
+      )}
+    </section>
+  );
 }
 
-function DeficienciesPage() {
-  const [params, setParams] = useSearchParams();
-  const [search, setSearch] = useState('');
-  const initial = deficiencyFiltersFromParams(params);
-  const [state, setState] = useState(initial.state);
-  const [severity, setSeverity] = useState(initial.severity);
-  const [origin, setOrigin] = useState(initial.origin);
-  const { data, loading, error, reload } = useLoad(() => deficienciesService.list(search), [search], [] as any[]);
-  useEffect(() => { const next = deficiencyFiltersFromParams(params); setState(next.state); setSeverity(next.severity); setOrigin(next.origin); }, [params]);
-  const updateFilter = (key: 'state' | 'severity' | 'origin', value: string) => { const updated = new URLSearchParams(params); if (key === 'state') { updated.delete('filtro'); value === 'todos' ? updated.delete('estado') : updated.set('estado', value); } if (key === 'severity') value === 'todas' ? updated.delete('gravedad') : updated.set('gravedad', value); if (key === 'origin') value === 'todos' ? updated.delete('origen') : updated.set('origen', value); setParams(updated, { replace: true }); };
-  const clear = () => { setParams(new URLSearchParams(), { replace: true }); };
-  const rows = data.filter((item) => {
-    const byState = state === 'todos' || (state === 'abierta' ? isOpenDeficiencyStatus(item.status) : state === 'valoracion' ? ['pendiente-de-valoracion','en-valoracion'].includes(normalizeParam(item.status)) : normalizeParam(item.status) === state);
-    const bySeverity = severity === 'todas' || normalizeParam(item.severity) === severity;
-    const byOrigin = origin === 'todos' || normalizeParam(item.origin ?? item.source ?? item.type) === origin;
-    return byState && bySeverity && byOrigin;
-  });
-  return <ListPage title="Deficiencias" summary="Deficiencias y acciones correctivas conectadas." search={search} setSearch={setSearch} loading={loading} error={error} retry={reload} empty={!rows.length}><div className="filters sat-filters"><FormSelect label="Estado" value={state} onChange={(value) => updateFilter('state', value)} options={[['todos','Todos'],['abierta','Abiertas'],['pendiente','Pendientes'],['valoracion','En valoración'],['presupuestada','Presupuestadas'],['corregida','Corregidas'],['cerrada','Cerradas']].map(([value, label]) => ({ value, label }))} /><FormSelect label="Gravedad" value={severity} onChange={(value) => updateFilter('severity', value)} options={[['todas','Todas'],['baja','Baja'],['media','Media'],['alta','Alta'],['critica','Crítica']].map(([value, label]) => ({ value, label }))} /><FormSelect label="Origen" value={origin} onChange={(value) => updateFilter('origin', value)} options={[['todos','Todos'],['oportunidad','Oportunidad']].map(([value, label]) => ({ value, label }))} /><button className="link-button" onClick={clear}>Limpiar filtros</button></div>{origin === 'oportunidad' && <p className="large-note">No se mezclan oportunidades con deficiencias salvo registros que tengan origen explícito de oportunidad.</p>}<WorkTable rows={rows} columns={['code', 'description', 'severity', 'status']} route="/app/deficiencias" /></ListPage>;
-}
+function DeficienciesPage() { const [params, setParams] = useSearchParams(); const [search, setSearch] = useState(''); const initial = deficiencyFiltersFromParams(params); const [state, setState] = useState(initial.state); const [severity, setSeverity] = useState(initial.severity); const [origin, setOrigin] = useState(initial.origin); const { data, loading, error, reload } = useLoad(() => deficienciesService.list(search), [search], [] as any[]); useEffect(() => { const next = deficiencyFiltersFromParams(params); setState(next.state); setSeverity(next.severity); setOrigin(next.origin); }, [params]); const updateFilter = (key: 'state' | 'severity' | 'origin', value: string) => { const updated = new URLSearchParams(params); if (key === 'state') { updated.delete('filtro'); value === 'todos' ? updated.delete('estado') : updated.set('estado', value); } if (key === 'severity') value === 'todas' ? updated.delete('gravedad') : updated.set('gravedad', value); if (key === 'origin') value === 'todos' ? updated.delete('origen') : updated.set('origen', value); setParams(updated, { replace: true }); }; const clear = () => { setParams(new URLSearchParams(), { replace: true }); }; const rows = data.filter((item) => { const byState = state === 'todos' || (state === 'abierta' ? isOpenDeficiencyStatus(item.status) : state === 'valoracion' ? ['pendiente-de-valoracion','en-valoracion'].includes(normalizeParam(item.status)) : normalizeParam(item.status) === state); const bySeverity = severity === 'todas' || normalizeParam(item.severity) === severity; const byOrigin = origin === 'todos' || normalizeParam(item.origin ?? item.source ?? item.type) === origin; return byState && bySeverity && byOrigin; }); return <ListPage title="Deficiencias" summary="Deficiencias y acciones correctivas conectadas." search={search} setSearch={setSearch} loading={loading} error={error} retry={reload} empty={!rows.length}><div className="filters sat-filters"><FormSelect label="Estado" value={state} onChange={(value) => updateFilter('state', value)} options={[['todos','Todos'],['abierta','Abiertas'],['pendiente','Pendientes'],['valoracion','En valoración'],['presupuestada','Presupuestadas'],['corregida','Corregidas'],['cerrada','Cerradas']].map(([value, label]) => ({ value, label }))} /><FormSelect label="Gravedad" value={severity} onChange={(value) => updateFilter('severity', value)} options={['todas','baja','media','alta','critica'].map((value) => ({ value, label: displayStatus(value) }))} /><FormSelect label="Origen" value={origin} onChange={(value) => updateFilter('origin', value)} options={[['todos','Todos'],['oportunidad','Oportunidad']].map(([value, label]) => ({ value, label }))} /><button className="link-button" onClick={clear}>Limpiar filtros</button></div>{origin === 'oportunidad' && <p className="large-note">No se mezclan oportunidades con deficiencias salvo registros que tengan origen explícito de oportunidad.</p>}<WorkTable rows={rows} columns={['code', 'description', 'severity', 'status']} route="/app/deficiencias" /></ListPage>; }
 
 function DeficiencyDetailPage() { const { id = '' } = useParams(); const { data, loading, error, reload } = useLoad(() => deficienciesService.get(id), [id], null as any); const [action, setAction] = useState(''); const [message, setMessage] = useState(''); const [actionError, setActionError] = useState(''); if (loading || error || !data) return <StateBlock loading={loading} error={error} retry={reload} empty={!data} />; const changeStatus = async () => { try { setActionError(''); await deficienciesService.update(id, { status: 'En valoracion' }); setMessage('Estado actualizado.'); reload(); } catch (err) { console.error(err); setActionError(err instanceof Error ? err.message : 'No se ha podido cambiar el estado.'); } }; const addAction = async (event: FormEvent) => { event.preventDefault(); try { setActionError(''); await deficienciesService.addAction(id, { description: action, status: 'Pendiente' }); setAction(''); setMessage('Acción correctiva creada.'); reload(); } catch (err) { console.error(err); setActionError(err instanceof Error ? err.message : 'No se ha podido crear la acción correctiva.'); } }; return <section className="page"><BackButton /><Hero title={`${data.code} · ${data.description}`} subtitle={`${data.clients?.legal_name ?? ''} · ${displayStatus(data.status)}`} tone={severityForPriority(data.severity)} /><div className="actions">{data.work_order_id && <Link to={`/app/partes/${data.work_order_id}`}>Abrir parte</Link>}{data.check_id && <Link to={`/app/checks/${data.check_id}`}>Abrir check</Link>}{data.equipment_id && <Link to={`/app/equipos/${data.equipment_id}`}>Abrir equipo</Link>}{data.client_id && <Link to={`/app/clientes/${data.client_id}`}>Abrir cliente</Link>}{data.site_id && <Link to={`/app/centros/${data.site_id}`}>Abrir centro</Link>}<button onClick={changeStatus}>Cambiar a valoración</button></div>{message && <p className="success-note">{message}</p>}{actionError && <p className="form-error">{actionError}</p>}<Card title="Detalle"><InfoGrid items={[[ 'Gravedad', displayStatus(data.severity) ], [ 'Estado', displayStatus(data.status) ], [ 'Origen', displayStatus(data.origin ?? data.source ?? '-') ], [ 'Acción recomendada', data.recommended_action ?? '-' ], [ 'Responsable', fullName(data.profiles) || '-' ]]} /></Card><Card title="Acciones correctivas"><form onSubmit={addAction}><label>Añadir acción recomendada<input value={action} onChange={(event) => setAction(event.target.value)} required /></label><button className="primary">Guardar acción</button></form><Timeline items={(data.corrective_actions ?? []).map((item: any) => `${displayStatus(item.status)} · ${item.description}`)} /></Card></section>; }
 

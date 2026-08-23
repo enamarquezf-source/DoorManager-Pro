@@ -990,7 +990,6 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
   if (!canViewCheck(profile, data)) return <AccessDenied />;
   const template = visualTemplateForEquipment(data.equipment);
   const zones = buildFunctionalCheckBlocks(data);
-  const physicalZones = zones.filter((zone) => zone.visual?.area);
   const typeName = equipmentTypeName(data.equipment);
   const sectionStatus = (zone: any) => {
     const local = pending.find(
@@ -1104,7 +1103,7 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
       </div>
       <div
         className={`door-check ${template?.placeholder ? "placeholder" : ""}`}
-        aria-label="Zonas táctiles del equipo"
+        aria-label="Imagen del equipo"
       >
         {template?.image ? (
           <img
@@ -1120,17 +1119,6 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
             <span>Imagen específica pendiente</span>
           </div>
         )}
-        {physicalZones.map((zone) => (
-          <Link
-            key={zone.id}
-            style={{ ...zone.visual?.area, zIndex: zone.visual?.zIndex }}
-            className={`hotspot ${severityForStatus(sectionStatus(zone))}`}
-            to={blockHref(zone.id)}
-            aria-label={`Revisar ${zone.name}`}
-          >
-            <span>{zone.name}</span>
-          </Link>
-        ))}
       </div>
       <div
         className="block-list status-summary"
@@ -1145,9 +1133,7 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
             <div>
               <strong>{zone.name}</strong>
               <small>
-                {zone.visual?.area
-                  ? "Zona sobre imagen"
-                  : "Bloque general fuera de imagen"}{" "}
+                "Sección del check"{" "}
                 · {incidences(zone.id)} incidencias ·{" "}
                 {pending.some((item) => item.blockId === zone.id)
                   ? "Pendiente de sincronizar"

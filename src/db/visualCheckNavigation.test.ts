@@ -13,10 +13,13 @@ describe('visual check navigation safety', () => {
     expect(source).toContain('Volver al parte');
   });
 
-  it('keeps lower section cards and visual hotspots on the same block routes', () => {
+  it('keeps the clean equipment image and lower section cards on the same block routes', () => {
     const detail = app.slice(app.indexOf('function CheckDetailPage('), app.indexOf('function CheckBlockPage('));
     expect(detail).toContain('door-check');
+    expect(detail).toContain('template?.image');
     expect(detail).toContain('className="block-list status-summary"');
     expect(detail).toContain('to={blockHref(zone.id)}');
+    expect(detail).not.toContain('physicalZones.map');
+    expect(detail).not.toContain('className={`hotspot');
   });
 });

@@ -22,7 +22,7 @@ export type OfflineChange = {
   attempts?: number;
 };
 
-export type OfflineSyncScope = { workOrderId?: string; checkId?: string; changeId?: string };
+export type OfflineSyncScope = { workOrderId?: string; checkId?: string; changeId?: string; remoteLocalChangeIds?: string[] };
 export type OfflineQueueSummary = ReturnType<typeof summarizeChanges>;
 
 const dbName = 'doormanager-pro-tecnico';
@@ -97,6 +97,11 @@ export function changeMatchesScope(item: Pick<OfflineChange, 'id' | 'workOrderId
 
 function isQueueOpen(item: OfflineChange) {
   return item.status === 'pending' || item.status === 'failed' || item.status === 'blocked';
+}
+
+export function checkPendingChangesForTest(changes: OfflineChange[], checkId: string, remoteLocalChangeIds: string[] = []) {
+  const reconciled = new Set(remoteLocalChangeIds);
+  return changes.filter((item) => item.checkId === checkId && isQueueOpen(item) && !reconciled.has(item.id));
 }
 
 function dispatchQueueChanged() {
@@ -195,11 +200,11 @@ export const technicianOfflineService = {
   async pendingForWorkOrder(workOrderId: string) {
     return (await this.pending()).filter((item) => item.workOrderId === workOrderId);
   },
-  async pendingForCheck(checkId: string) {
-    return (await this.pending()).filter((item) => item.checkId === checkId);
+  async pendingForCheck(checkId: string, remoteLocalChangeIds: string[] = []) {
+    return checkPendingChangesForTest(await this.pending(), checkId, remoteLocalChangeIds);
   },
-  async sectionState(checkId: string, blockId: string) {
-    const pending = await this.pendingForCheck(checkId);
+  async sectionState(checkId: string, blockId: string, remoteLocalChangeIds: string[] = []) {
+    const pending = await this.pendingForCheck(checkId, remoteLocalChangeIds);
     return pending.find((item) => item.type === 'check-block' && item.blockId === blockId)?.payload;
   },
   summarize(changes: OfflineChange[]) {

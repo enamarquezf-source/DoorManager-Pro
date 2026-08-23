@@ -815,15 +815,21 @@ function MediaGallery({ photos, signatures }: { photos: any[]; signatures: any[]
 function AccessDenied() { return <section className="page"><Card title="Sin permiso"><p className="form-error">No tienes permiso para acceder a este trabajo</p><Link className="primary" to="/app/tecnico">Volver a Mi jornada</Link></Card></section>; }
 function AccessDeniedZone() { const { workspace, signOut } = useAuth(); const home = homeForWorkspace(workspace); return <section className="page"><Card title="No tienes permiso para acceder a esta zona"><p className="form-error">No tienes permiso para acceder a esta zona</p><div className="actions"><Link className="primary" to={home}>{workspace === 'tecnico' ? 'Volver a Mi jornada' : workspace === 'superadmin' ? 'Volver a Superadmin' : 'Volver al inicio'}</Link><button onClick={() => signOut()}>Cerrar sesión</button></div></Card></section>; }
 
-function useOfflineQueue(scope?: { workOrderId?: string; checkId?: string }) {
+function remoteLocalChangeIds(check: any) {
+  return [...(check?.check_section_results ?? []), ...(check?.check_item_results ?? []), ...(check?.check_photos ?? []), ...(check?.deficiencies ?? [])]
+    .map((item: any) => item.local_change_id)
+    .filter(Boolean);
+}
+
+function useOfflineQueue(scope?: { workOrderId?: string; checkId?: string; remoteLocalChangeIds?: string[] }) {
   const [pending, setPending] = useState<any[]>([]);
-  const reload = async () => setPending(scope?.checkId ? await technicianOfflineService.pendingForCheck(scope.checkId) : scope?.workOrderId ? await technicianOfflineService.pendingForWorkOrder(scope.workOrderId) : await technicianOfflineService.queueItems());
-  useEffect(() => { reload(); window.addEventListener('dmp-offline-queue-changed', reload); return () => window.removeEventListener('dmp-offline-queue-changed', reload); }, [scope?.workOrderId, scope?.checkId]);
+  const reload = async () => setPending(scope?.checkId ? await technicianOfflineService.pendingForCheck(scope.checkId, scope.remoteLocalChangeIds) : scope?.workOrderId ? await technicianOfflineService.pendingForWorkOrder(scope.workOrderId) : await technicianOfflineService.queueItems());
+  useEffect(() => { reload(); window.addEventListener('dmp-offline-queue-changed', reload); return () => window.removeEventListener('dmp-offline-queue-changed', reload); }, [scope?.workOrderId, scope?.checkId, JSON.stringify(scope?.remoteLocalChangeIds ?? [])]);
   return { pending, summary: technicianOfflineService.summarize(pending), reload };
 }
 
-function SyncButton({ workOrderId, checkId, onSynced }: { workOrderId?: string; checkId?: string; onSynced?: () => void }) {
-  const { pending, summary, reload } = useOfflineQueue({ workOrderId, checkId });
+function SyncButton({ workOrderId, checkId, remoteLocalChangeIds: remoteIds, onSynced }: { workOrderId?: string; checkId?: string; remoteLocalChangeIds?: string[]; onSynced?: () => void }) {
+  const { pending, summary, reload } = useOfflineQueue({ workOrderId, checkId, remoteLocalChangeIds: remoteIds });
   const [syncing, setSyncing] = useState(false);
   const [message, setMessage] = useState('');
   const sync = async () => {
@@ -951,48 +957,263 @@ function WorkOrderSignatureForm({ workOrderId }: { workOrderId: string }) {
 function ChecksPage() { const { profile, workspace } = useAuth(); const scope = undefined; const [tab, setTab] = useState<'pending' | 'done'>('pending'); const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>('active'); const loader = () => workspace === 'tecnico' ? (tab === 'pending' ? checksService.pendingForCurrentTechnician() : checksService.completedForCurrentTechnician()) : archiveFilter === 'active' ? (tab === 'pending' ? checksService.pending(scope) : checksService.completed(scope)) : checksService.list('', scope, archiveFilter); const { data, loading, error, reload } = useLoad(loader, [tab, workspace, scope, archiveFilter], [] as any[]); const [creating, setCreating] = useState(false); return <section className="page"><div className="page-head"><div><h2>Checks</h2><p>{workspace === 'tecnico' ? 'Checks asignados al técnico autenticado.' : 'Por realizar, realizados y archivados con datos reales.'}</p></div>{canCreateCheck(profile) && workspace !== 'tecnico' && <button className="primary" onClick={() => setCreating(true)}>Crear check</button>}</div>{workspace !== 'tecnico' && <ArchiveFilterTabs value={archiveFilter} onChange={setArchiveFilter} />}<div className="tabs"><button className={tab === 'pending' ? 'active' : ''} onClick={() => setTab('pending')}>Por realizar</button><button className={tab === 'done' ? 'active' : ''} onClick={() => setTab('done')}>Realizados</button></div><StateBlock loading={loading} error={error} retry={reload} empty={!data.length}><WorkTable rows={data} columns={['code', 'equipment_code', 'work_order_code', 'status', 'global_result']} route={workspace === 'superadmin' ? '/app/superadmin/checks' : '/app/checks'} lifecycleEntity={workspace === 'tecnico' ? undefined : 'checks'} onLifecycleChanged={reload} /></StateBlock>{creating && <CheckForm initial={{}} onClose={() => setCreating(false)} onSaved={() => { setCreating(false); reload(); }} />}</section>; }
 
 function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
-  const { id: routeId = '' } = useParams();
+  const { id: routeId = "" } = useParams();
   const navigate = useNavigate();
   const { profile, workspace } = useAuth();
   const id = forcedId ?? routeId;
-  const { data, loading, error, reload } = useLoad(() => workspace === 'tecnico' ? checksService.getTechnicianAssigned(id) : checksService.get(id), [id, workspace], null as any);
-  const [mode, setMode] = useState<'finish' | 'edit' | null>(null);
+  const { data, loading, error, reload } = useLoad(
+    () =>
+      workspace === "tecnico"
+        ? checksService.getTechnicianAssigned(id)
+        : checksService.get(id),
+    [id, workspace],
+    null as any,
+  );
+  const [mode, setMode] = useState<"finish" | "edit" | null>(null);
   const [purgeOpen, setPurgeOpen] = useState(false);
-  const [actionError, setActionError] = useState('');
-  const { pending } = useOfflineQueue({ checkId: id });
-  if (workspace === 'tecnico' && (error || (!loading && !data))) return <AccessDenied />;
-  if (loading || error || !data) return <StateBlock loading={loading} error={error} retry={reload} empty={!data} />;
+  const [actionError, setActionError] = useState("");
+  const { pending } = useOfflineQueue({
+    checkId: id,
+    remoteLocalChangeIds: remoteLocalChangeIds(data),
+  });
+  if (workspace === "tecnico" && (error || (!loading && !data)))
+    return <AccessDenied />;
+  if (loading || error || !data)
+    return (
+      <StateBlock
+        loading={loading}
+        error={error}
+        retry={reload}
+        empty={!data}
+      />
+    );
   if (!canViewCheck(profile, data)) return <AccessDenied />;
   const template = visualTemplateForEquipment(data.equipment);
   const zones = buildFunctionalCheckBlocks(data);
   const physicalZones = zones.filter((zone) => zone.visual?.area);
   const typeName = equipmentTypeName(data.equipment);
   const sectionStatus = (zone: any) => {
-    const local = pending.find((item) => item.type === 'check-block' && item.blockId === zone.id);
-    if (local?.payload?.status) return normalizeCheckStatus(local.payload.status);
-    return normalizeCheckStatus(zone.result?.result ?? 'Sin revisar');
+    const local = pending.find(
+      (item) => item.type === "check-block" && item.blockId === zone.id,
+    );
+    if (local?.payload?.status)
+      return normalizeCheckStatus(local.payload.status);
+    return normalizeCheckStatus(zone.result?.result ?? "Sin revisar");
   };
-  const incidences = (zone: any) => pending.filter((item) => item.blockId === zone.id && item.payload.incidence).length;
-  const reviewed = zones.filter((zone) => sectionStatus(zone) !== 'Sin revisar').length;
+  const incidences = (zone: any) =>
+    pending.filter((item) => item.blockId === zone.id && item.payload.incidence)
+      .length;
+  const pendingDetails = pending.map((item) => {
+    const zone = zones.find((candidate) => candidate.id === item.blockId);
+    return `${zone?.name ?? item.blockId ?? "Bloque"} — ${item.status}`;
+  });
+  const pendingDescription = pending.length
+    ? `Hay ${pending.length} cambios locales pendientes de sincronizar: ${pendingDetails.join("; ")}.`
+    : "Se finalizará el check en Supabase.";
+  const reviewed = zones.filter(
+    (zone) => sectionStatus(zone) !== "Sin revisar",
+  ).length;
   const allReviewed = zones.length > 0 && reviewed === zones.length;
-  const globalResult = zones.some((zone) => sectionStatus(zone) === 'No favorable') ? 'No favorable' : zones.some((zone) => sectionStatus(zone) === 'Problema leve') ? 'Problema leve' : 'Todo favorable';
+  const globalResult = zones.some(
+    (zone) => sectionStatus(zone) === "No favorable",
+  )
+    ? "No favorable"
+    : zones.some((zone) => sectionStatus(zone) === "Problema leve")
+      ? "Problema leve"
+      : "Todo favorable";
   const canFinishCheck = allReviewed && pending.length === 0;
-  const blockHref = (zoneId: CheckBlockId) => workspace === 'superadmin' ? `/app/superadmin/checks/${id}/bloque/${zoneId}` : `/app/checks/${id}/bloque/${zoneId}`;
+  const blockHref = (zoneId: CheckBlockId) =>
+    workspace === "superadmin"
+      ? `/app/superadmin/checks/${id}/bloque/${zoneId}`
+      : `/app/checks/${id}/bloque/${zoneId}`;
   const manageAllowed = canManageCheck(profile);
-  const executeAllowed = canExecuteCheck(profile) && canFinishCheck;
+  const executeAllowed = canExecuteCheck(profile) && allReviewed;
   const finish = async () => {
     try {
-      setActionError('');
-      if (!canFinishCheck) throw new Error('Sincroniza primero los cambios locales pendientes y revisa todos los bloques antes de finalizar el check.');
+      setActionError("");
+      if (!canFinishCheck)
+        throw new Error(
+          "Sincroniza primero los cambios locales pendientes y revisa todos los bloques antes de finalizar el check.",
+        );
       await checksService.finish(id, globalResult);
       setMode(null);
       reload();
     } catch (err) {
       console.error(err);
-      setActionError(err instanceof Error ? err.message : 'No se ha podido finalizar el check.');
+      setActionError(
+        err instanceof Error
+          ? err.message
+          : "No se ha podido finalizar el check.",
+      );
     }
   };
-  return <section className="check-mobile"><BackButton /><header><p className="eyebrow">Check {data.check_templates?.name ?? 'Plantilla no informada'}</p><h2>{data.code} · {data.equipment?.code}</h2><p>{reviewed} de {zones.length} bloques revisados</p>{!typeName && <p className="form-error">Tipo de equipo no disponible. Corrige el equipo antes de ejecutar bloques incompatibles.</p>}{templateTypeMismatch(data) && <p className="form-error">La plantilla asignada no coincide con el tipo real del equipo.</p>}{template?.placeholder && <p className="large-note">Falta imagen específica de este equipo. Las secciones reales se muestran como tarjetas.</p>}<div className="actions">{manageAllowed && <button onClick={() => setMode('edit')}>Modificar check</button>}<SyncButton checkId={id} onSynced={reload} />{entityPurgeCanShowButton('checks', data, workspace) && <button className="danger-action" onClick={() => setPurgeOpen(true)}>Eliminar definitivamente</button>}</div></header>{actionError && <p className="form-error">{actionError}</p>}<div className="progress"><span style={{ width: `${Math.min(100, (reviewed / zones.length) * 100)}%` }} /></div><div className={`door-check ${template?.placeholder ? 'placeholder' : ''}`} aria-label="Zonas táctiles del equipo">{template?.image ? <img src={template?.image} alt={template?.name ?? data.check_templates?.name ?? 'Equipo'} /> : <div className="equipment-placeholder"><Factory size={48} /><strong>{template?.name ?? data.check_templates?.name ?? 'Equipo'}</strong><span>Imagen específica pendiente</span></div>}{physicalZones.map((zone) => <Link key={zone.id} style={{ ...zone.visual?.area, zIndex: zone.visual?.zIndex }} className={`hotspot ${severityForStatus(sectionStatus(zone))}`} to={blockHref(zone.id)} aria-label={`Revisar ${zone.name}`}><span>{zone.name}</span></Link>)}</div><div className="block-list status-summary" aria-label="Resumen de bloques revisados">{zones.map((zone) => <Link className="check-block-card" to={blockHref(zone.id)} key={zone.id}><div><strong>{zone.name}</strong><small>{zone.visual?.area ? 'Zona sobre imagen' : 'Bloque general fuera de imagen'} · {incidences(zone.id)} incidencias · {pending.some((item) => item.blockId === zone.id) ? 'Pendiente de sincronizar' : 'Sincronizado'}</small></div><Badge tone={severityForStatus(sectionStatus(zone))}>{displayStatus(sectionStatus(zone))}</Badge></Link>)}</div>{executeAllowed && <button className="primary wide big" disabled={!allReviewed} onClick={() => setMode('finish')}>Finalizar check</button>}{!allReviewed && <p className="large-note">Para finalizar, todos los bloques, incluido Funcionamiento general, deben estar revisados o marcados como No aplicable.</p>}{mode === 'edit' && manageAllowed && <CheckForm initial={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}{mode === 'finish' && <ConfirmModal title="Completar check" text="Se finalizará el check en Supabase. Sincroniza antes los bloques pendientes." onCancel={() => setMode(null)} onConfirm={finish} />}{purgeOpen && <GenericEntityPurgeModal config={checksPurgeConfig} record={data} onClose={() => setPurgeOpen(false)} onDeleted={() => navigate(workspace === 'superadmin' ? '/app/superadmin/checks' : '/app/checks')} />}</section>;
+  return (
+    <section className="check-mobile">
+      <BackButton />
+      <header>
+        <p className="eyebrow">
+          Check {data.check_templates?.name ?? "Plantilla no informada"}
+        </p>
+        <h2>
+          {data.code} · {data.equipment?.code}
+        </h2>
+        <p>
+          {reviewed} de {zones.length} bloques revisados
+        </p>
+        {!typeName && (
+          <p className="form-error">
+            Tipo de equipo no disponible. Corrige el equipo antes de ejecutar
+            bloques incompatibles.
+          </p>
+        )}
+        {templateTypeMismatch(data) && (
+          <p className="form-error">
+            La plantilla asignada no coincide con el tipo real del equipo.
+          </p>
+        )}
+        {template?.placeholder && (
+          <p className="large-note">
+            Falta imagen específica de este equipo. Las secciones reales se
+            muestran como tarjetas.
+          </p>
+        )}
+        <div className="actions">
+          {manageAllowed && <button onClick={() => setMode('edit')}>Modificar check</button>}
+          <SyncButton
+            checkId={id}
+            remoteLocalChangeIds={remoteLocalChangeIds(data)}
+            onSynced={reload}
+          />
+          {entityPurgeCanShowButton('checks', data, workspace) && (
+            <button
+              className="danger-action"
+              onClick={() => setPurgeOpen(true)}
+            >
+              Eliminar definitivamente
+            </button>
+          )}
+        </div>
+      </header>
+      {actionError && <p className="form-error">{actionError}</p>}
+      <div className="progress">
+        <span
+          style={{
+            width: `${Math.min(100, (reviewed / zones.length) * 100)}%`,
+          }}
+        />
+      </div>
+      <div
+        className={`door-check ${template?.placeholder ? "placeholder" : ""}`}
+        aria-label="Zonas táctiles del equipo"
+      >
+        {template?.image ? (
+          <img
+            src={template?.image}
+            alt={template?.name ?? data.check_templates?.name ?? "Equipo"}
+          />
+        ) : (
+          <div className="equipment-placeholder">
+            <Factory size={48} />
+            <strong>
+              {template?.name ?? data.check_templates?.name ?? "Equipo"}
+            </strong>
+            <span>Imagen específica pendiente</span>
+          </div>
+        )}
+        {physicalZones.map((zone) => (
+          <Link
+            key={zone.id}
+            style={{ ...zone.visual?.area, zIndex: zone.visual?.zIndex }}
+            className={`hotspot ${severityForStatus(sectionStatus(zone))}`}
+            to={blockHref(zone.id)}
+            aria-label={`Revisar ${zone.name}`}
+          >
+            <span>{zone.name}</span>
+          </Link>
+        ))}
+      </div>
+      <div
+        className="block-list status-summary"
+        aria-label="Resumen de bloques revisados"
+      >
+        {zones.map((zone) => (
+          <Link
+            className="check-block-card"
+            to={blockHref(zone.id)}
+            key={zone.id}
+          >
+            <div>
+              <strong>{zone.name}</strong>
+              <small>
+                {zone.visual?.area
+                  ? "Zona sobre imagen"
+                  : "Bloque general fuera de imagen"}{" "}
+                · {incidences(zone.id)} incidencias ·{" "}
+                {pending.some((item) => item.blockId === zone.id)
+                  ? "Pendiente de sincronizar"
+                  : "Sincronizado"}
+              </small>
+            </div>
+            <Badge tone={severityForStatus(sectionStatus(zone))}>
+              {displayStatus(sectionStatus(zone))}
+            </Badge>
+          </Link>
+        ))}
+      </div>
+      {executeAllowed && (
+        <button
+          className="primary wide big"
+          disabled={!allReviewed}
+          onClick={() => setMode("finish")}
+        >
+          Finalizar check
+        </button>
+      )}
+      {!allReviewed && (
+        <p className="large-note">
+          Para finalizar, todos los bloques, incluido Funcionamiento general,
+          deben estar revisados o marcados como No aplicable.
+        </p>
+      )}
+      {allReviewed && pending.length > 0 && (
+        <p className="state-warning">
+          {pendingDescription} Sincroniza estos cambios antes de finalizar.
+        </p>
+      )}
+      {mode === "edit" && manageAllowed && (
+        <CheckForm
+          initial={data}
+          onClose={() => setMode(null)}
+          onSaved={() => {
+            setMode(null);
+            reload();
+          }}
+        />
+      )}
+      {mode === "finish" && (
+        <ConfirmModal
+          title="Completar check"
+          text={pendingDescription}
+          onCancel={() => setMode(null)}
+          onConfirm={finish}
+        />
+      )}
+      {purgeOpen && (
+        <GenericEntityPurgeModal
+          config={checksPurgeConfig}
+          record={data}
+          onClose={() => setPurgeOpen(false)}
+          onDeleted={() =>
+            navigate(
+              workspace === "superadmin"
+                ? "/app/superadmin/checks"
+                : "/app/checks",
+            )
+          }
+        />
+      )}
+    </section>
+  );
 }
 
 function CheckBlockPage({
@@ -1050,7 +1271,7 @@ function CheckBlockPage({
   );
   useEffect(() => {
     setLocalLoaded(false);
-    technicianOfflineService.sectionState(id, blockId).then((local) => {
+    technicianOfflineService.sectionState(id, blockId, remoteLocalChangeIds(data)).then((local) => {
       if (local) {
         const normalized = normalizeCheckStatus(local.status);
         setStatus(normalized);
@@ -1090,6 +1311,7 @@ function CheckBlockPage({
     existing?.intervention,
     existing?.severity,
     JSON.stringify(existing?.components ?? []),
+    JSON.stringify(remoteLocalChangeIds(data)),
   ]);
   if (!canExecuteCheck(profile)) return <AccessDenied />;
   if (workspace === "tecnico" && (error || (!loading && !data)))
@@ -1478,7 +1700,7 @@ function CheckBlockPageV2({
   useEffect(() => {
     if (!data || !zone) return;
     setLocalLoaded(false);
-    technicianOfflineService.sectionState(id, zone.id).then((local) => {
+    technicianOfflineService.sectionState(id, zone.id, remoteLocalChangeIds(data)).then((local) => {
       if (local) {
         const normalized = normalizeCheckStatus(local.status);
         setStatus(normalized);
@@ -1519,6 +1741,7 @@ function CheckBlockPageV2({
     existing?.intervention,
     existing?.severity,
     JSON.stringify(existing?.components ?? []),
+    JSON.stringify(remoteLocalChangeIds(data)),
   ]);
   if (!canExecuteCheck(profile)) return <AccessDenied />;
   if (workspace === "tecnico" && (error || (!loading && !data)))
@@ -1563,7 +1786,6 @@ function CheckBlockPageV2({
     );
   const needsDetail = checkProblemStatuses.includes(status);
   const hasChanges =
-    workspace === "tecnico" &&
     localLoaded &&
     status !== "Sin revisar" &&
     (status !== confirmedStatus ||
@@ -1783,7 +2005,7 @@ function CheckBlockPageV2({
           empty="Sin deficiencias relacionadas."
         />
       </Card>
-      {workspace === "tecnico" && (
+      {canExecuteCheck(profile) && (
         <>
           <div className="status-grid">
             {checkStatuses.map((item) => (

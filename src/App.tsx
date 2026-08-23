@@ -41,6 +41,7 @@ import { entityLabels, entityLifecycleService, isArchivedRecord, type ArchiveFil
 import { quotePurgeBlocks, quotePurgeCanShowButton, quotePurgeExpectedConfirmation, quotePurgePlanMatchesScope, quotePurgeResultOk, quotePurgeScope, quotePurgeScopeKey, type QuotePurgeScopeKey } from './services/quotePurgeFlow';
 import { workOrderPurgeBlocks, workOrderPurgeCanShowButton, workOrderPurgeExpectedConfirmation, workOrderPurgePlanItems, workOrderPurgePlanMatchesScope, workOrderPurgeResultOk, workOrderPurgeScope, workOrderPurgeScopeKey, type WorkOrderPurgeScopeKey } from './services/workOrderPurgeFlow';
 import { entityPurgeBlockers, entityPurgeCanShowButton, entityPurgeExpectedConfirmation, entityPurgePlanMatchesScope, entityPurgeResultOk, entityPurgeScope, entityPurgeScopeKey, casesPurgeConfig, checksPurgeConfig, equipmentPurgeConfig, type EntityPurgeConfig, type EntityPurgeDecision, type PurgeScopeKey } from './services/entityPurgeFlow';
+import { filterEquipmentForContext, filterSitesForClient } from './shared/clientCenterEquipment';
 
 type AuthContextValue = { initialized: boolean; session: Session | null; profile: Profile | null; profileError: string | null; workspace: Workspace; setWorkspace: (workspace: Workspace) => void; refreshProfile: () => Promise<void>; signOut: () => Promise<void> };
 type LoadState<T> = { data: T; loading: boolean; error: string };
@@ -2770,8 +2771,8 @@ function WorkOrderForm({ initial, sourceQuote, onClose, onSaved }: any) {
   const equipmentTypes = useLoad(() => equipmentService.types(initial?.company_id), [initial?.company_id], [] as any[]);
   const cases = useLoad(() => casesService.list('', initial?.company_id), [initial?.company_id], [] as any[]);
   const technicians = useLoad(() => profilesService.listTechnicians(initial?.company_id), [initial?.company_id], [] as any[]);
-  const filteredSites = sites.data.filter((site) => !values.client_id || site.client_id === values.client_id);
-  const filteredEquipment = equipment.data.filter((item) => (!values.client_id || item.client_id === values.client_id) && (!values.site_id || item.site_id === values.site_id));
+  const filteredSites = filterSitesForClient(sites.data, values.client_id);
+  const filteredEquipment = filterEquipmentForContext(equipment.data, values.client_id, values.site_id);
   const filteredCases = cases.data.filter((item) => (!values.client_id || item.client_id === values.client_id) && (!values.site_id || !item.site_id || item.site_id === values.site_id) && !['Cerrado', 'Cancelado'].includes(item.status));
   const set = (key: string, value: any) => setValues((current) => ({ ...current, [key]: value }));
   const submit = async (event: FormEvent) => {
@@ -2849,9 +2850,16 @@ function CheckForm({ initial, onClose, onSaved }: any) {
   const [values, setValues] = useState<Record<string, any>>({ status: 'Por realizar', global_result: 'Sin revisar', ...initial });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const workOrders = useLoad(() => workOrdersService.options(initial?.company_id), [initial?.company_id], [] as any[]);
-  const equipment = useLoad(() => equipmentService.list('', initial?.company_id), [initial?.company_id], [] as any[]);
-  const selectedEquipment = equipment.data.find((item) => item.id === values.equipment_id);
+  const workOrdersLoad = useLoad(() => workOrdersService.options(initial?.company_id), [initial?.company_id], [] as any[]);
+  const equipmentLoad = useLoad(() => equipmentService.list('', initial?.company_id), [initial?.company_id], [] as any[]);
+  const contextEquipment = initial?.equipment_id ? equipmentLoad.data.find((item) => item.id === initial.equipment_id) : null;
+  const workOrders = { ...workOrdersLoad, data: contextEquipment ? workOrdersLoad.data.filter((item) => item.client_id === contextEquipment.client_id && item.site_id === contextEquipment.site_id) : workOrdersLoad.data };
+  const selectedWorkOrder = workOrders.data.find((item) => item.id === values.work_order_id);
+  const checkEquipment = initial?.equipment_id
+    ? equipmentLoad.data.filter((item) => item.id === initial.equipment_id)
+    : filterEquipmentForContext(equipmentLoad.data, selectedWorkOrder?.client_id, selectedWorkOrder?.site_id);
+  const equipment = { ...equipmentLoad, data: checkEquipment };
+  const selectedEquipment = checkEquipment.find((item) => item.id === values.equipment_id);
   const templateCompanyId = selectedEquipment?.company_id ?? initial?.company_id;
   const templates = useLoad(() => selectedEquipment ? checksService.templates(selectedEquipment.equipment_type_id ?? null, templateCompanyId) : Promise.resolve([]), [selectedEquipment?.id, selectedEquipment?.equipment_type_id, templateCompanyId], [] as any[]);
   const activeTemplateCount = useLoad(() => selectedEquipment ? checksService.activeTemplateCount(templateCompanyId) : Promise.resolve(0), [selectedEquipment?.id, templateCompanyId], 0);
@@ -2860,7 +2868,8 @@ function CheckForm({ initial, onClose, onSaved }: any) {
   const set = (key: string, value: any) => setValues((current) => ({ ...current, [key]: value }));
   const selectWorkOrder = (workOrderId: string) => {
     const workOrder = workOrders.data.find((item) => item.id === workOrderId);
-    setValues((current) => ({ ...current, work_order_id: workOrderId, equipment_id: workOrder?.main_equipment_id ?? current.equipment_id, template_id: '' }));
+    const compatibleEquipment = filterEquipmentForContext(equipmentLoad.data, workOrder?.client_id, workOrder?.site_id);
+    setValues((current) => ({ ...current, work_order_id: workOrderId, equipment_id: workOrder?.main_equipment_id ?? (compatibleEquipment.some((item) => item.id === current.equipment_id) ? current.equipment_id : ''), template_id: '' }));
   };
   const submit = async (event: FormEvent) => {
     event.preventDefault();

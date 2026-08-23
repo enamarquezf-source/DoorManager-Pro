@@ -34,30 +34,26 @@ export const hourRatesService = {
     return rows.filter((row) => hasUsableRateVersion(row) || row.id === includeId);
   },
   async createCatalog(payload: Record<string, any>) {
-    const company_id = payload.company_id || await currentCompanyId();
-    const body = Object.fromEntries(catalogColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
+    const body = Object.fromEntries(catalogColumns.filter((key) => key !== 'company_id' && key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
     body.classification = body.classification ?? body.kind ?? 'cost';
-    const profileId = await currentProfileId();
-    return expectData<any>(supabase.from('rate_catalog').insert({ ...body, company_id, created_by: profileId, updated_by: profileId }).select().maybeSingle(), { service: 'hourRatesService', operation: 'create rate catalog entry' });
+    return expectData<any>(supabase.rpc('dmp_create_rate_catalog', { p_payload: body }), { service: 'hourRatesService', operation: 'create rate catalog entry' });
   },
   async updateCatalog(id: string, payload: Record<string, any>) {
     const body = Object.fromEntries(catalogColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
-    const updated_by = await currentProfileId();
-    return expectData<any>(supabase.from('rate_catalog').update({ ...body, updated_by }).eq('id', id).select().maybeSingle(), { service: 'hourRatesService', operation: 'update rate catalog entry', resource: id });
+    return expectData<any>(supabase.rpc('dmp_update_rate_catalog', { p_catalog_id: id, p_payload: body }), { service: 'hourRatesService', operation: 'update rate catalog entry', resource: id });
   },
   async createVersion(payload: Record<string, any>) {
-    const company_id = payload.company_id || await currentCompanyId();
-    const body = Object.fromEntries(versionColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
-    const profileId = await currentProfileId();
-    return expectData<any>(supabase.from('rate_versions').insert({ ...body, company_id, created_by: profileId, updated_by: profileId }).select().maybeSingle(), { service: 'hourRatesService', operation: 'create rate version' });
+    const body = Object.fromEntries(versionColumns.filter((key) => key !== 'company_id' && key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
+    return expectData<any>(supabase.rpc('dmp_create_rate_version', { p_payload: body }).then(async (result) => {
+      if (result.error) return result;
+      return supabase.from('rate_versions').select('*').eq('id', result.data).maybeSingle();
+    }), { service: 'hourRatesService', operation: 'create rate version' });
   },
   async archiveCatalog(id: string) {
-    const updated_by = await currentProfileId();
-    return expectData<any>(supabase.from('rate_catalog').update({ active: false, deleted_at: new Date().toISOString(), updated_by }).eq('id', id).select().maybeSingle(), { service: 'hourRatesService', operation: 'archive rate catalog entry', resource: id });
+    return expectData<any>(supabase.rpc('dmp_archive_rate_catalog', { p_catalog_id: id }), { service: 'hourRatesService', operation: 'archive rate catalog entry', resource: id });
   },
   async archiveVersion(id: string) {
-    const updated_by = await currentProfileId();
-    return expectData<any>(supabase.from('rate_versions').update({ active: false, deleted_at: new Date().toISOString(), updated_by }).eq('id', id).select().maybeSingle(), { service: 'hourRatesService', operation: 'archive rate version', resource: id });
+    return expectData<any>(supabase.rpc('dmp_archive_rate_version', { p_version_id: id }), { service: 'hourRatesService', operation: 'archive rate version', resource: id });
   },
   async list(search = '', companyScope?: string | null) {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;

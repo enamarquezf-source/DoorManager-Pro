@@ -15,4 +15,8 @@ describe('query error mapping', () => {
 
     expect(error).toMatchObject({ name: 'SupabaseOperationError', code: '23514', details: 'Constraint audit_log_operation_check', hint: 'Permite OPERATIONAL_UPDATE' });
   });
+
+  it('conserva el diagnóstico funcional de tarifas sin exponer detalles internos', () => {
+    expect(toSpanishSupabaseError({ message: 'tarifa: no existe una tarifa horaria vigente aplicable al tecnico para la fecha indicada' })).toBe('tarifa: no existe una tarifa horaria vigente aplicable al tecnico para la fecha indicada');
+  });
 });

@@ -57,7 +57,7 @@ export function toSpanishSupabaseError(error: any) {
   if (message.includes('audit_log_operation_check')) return 'No se ha podido registrar la operación. Reinténtalo o avisa a administración.';
   if (message.includes('violates check constraint')) return 'Los datos no cumplen una regla de validación. Revisa la información introducida.';
   if (/^respuesta de Supabase:/i.test(message)) return message.replace(/^respuesta de Supabase:\s*/i, '');
-  if (/^(validacion del formulario|purga|permiso|perfil activo|empresa|asignacion|parte|estado editable|insercion|adicional):/i.test(message)) return message;
+  if (/^(validacion del formulario|purga|permiso|perfil activo|empresa|asignacion|parte|estado editable|insercion|adicional|tarifa):/i.test(message)) return message;
   if (message.includes('duplicate key')) return 'Ya existe un registro con esos datos.';
   if (message.includes('violates foreign key')) return 'El registro relacionado seleccionado no existe o no pertenece a tu empresa.';
   if (message.includes('null value') && message.includes('code')) return 'No se ha podido generar el código automático. Inténtalo de nuevo.';

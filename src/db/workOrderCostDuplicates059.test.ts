@@ -126,7 +126,7 @@ describe('059 prevent duplicate work order costs', () => {
   });
 
   it('backend adicional signal passes through error normalization (not generic)', () => {
-    expect(query).toContain('|adicional):/i.test(message)');
+    expect(query).toContain('|adicional|tarifa):/i.test(message)');
     expect(query).toContain("return message;");
     expect(query).not.toMatch(/adicional[^)]*\n\s*return 'No se ha podido completar/);
   });

@@ -6,6 +6,7 @@ import { canViewWorkOrderCosts } from '../auth/permissions';
 const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
 const workOrdersService = readFileSync(new URL('./workOrdersService.ts', import.meta.url), 'utf8');
+const mobileDetail = app.slice(app.indexOf('function TechnicianWorkOrderUx'), app.indexOf('function TechnicianWorkOrderProgress'));
 
 describe('detalle del parte UX V1', () => {
   it('muestra cabecera compacta con prioridad, técnico y agenda cuando existen', () => {
@@ -78,6 +79,50 @@ describe('detalle del parte UX V1', () => {
     expect(app).toContain('work-more-label');
     expect(app).toContain('Finalizar técnicamente');
     expect(app).not.toContain('disabled={warnings.length');
+  });
+
+  it('mantiene operaciones SAT visibles fuera de Más', () => {
+    expect(app).toContain("setMode('cost')}>Recursos");
+    expect(app).toContain("setTab('media')}>Evidencias");
+    expect(app).toContain('workOrderPurgeCanShowButton(data, workspace)');
+    expect(app).toContain('SyncButton workOrderId={data.id}');
+  });
+
+  it('presenta una variante móvil técnica alimentada por el mismo detalle cargado', () => {
+    expect(app).toContain('if (workspace === \'tecnico\') return <TechnicianWorkOrderUx data={data} profile={profile} reload={reload} />;');
+    expect(mobileDetail).toContain('workOrderOperationalMetrics(data)');
+    expect(mobileDetail).toContain('workOrderDetailWarnings(data)');
+    expect(mobileDetail).toContain('workOrderCheckAction(data, canCreateCheck(profile))');
+    expect(mobileDetail).toContain('technician-work-order-actions');
+    expect(mobileDetail).toContain("setMode('photo')");
+    expect(mobileDetail).toContain('WorkOrderPhotoForm workOrderId={data.id}');
+    expect(mobileDetail).toContain("setMode('signature')");
+    expect(mobileDetail).toContain('WorkOrderSignatureForm workOrderId={data.id}');
+    expect(mobileDetail).toContain("setMode('deficiency')");
+    expect(mobileDetail).toContain('WorkOrderDeficiencyForm workOrderId={data.id}');
+    expect(mobileDetail).not.toMatch(/door|puerta|seccional|barrera|automatismo/i);
+  });
+
+  it('mantiene la ejecución técnica sin importes y con avisos no bloqueantes', () => {
+    expect(mobileDetail).toContain('technician-pending-list');
+    expect(mobileDetail).toContain('WorkOrderStatusSelector');
+    expect(mobileDetail).toContain('WorkOrderFinalizeModal');
+    expect(mobileDetail).not.toContain('economicService');
+    expect(mobileDetail).not.toContain('money(');
+    expect(styles).toContain('.technician-work-order-actions');
+    expect(styles).toContain('.technician-work-order-menu');
+  });
+
+  it('reutiliza el flujo seguro de foto offline sin añadir backend', () => {
+    expect(mobileDetail).toContain("setMode('photo')");
+    expect(app).toContain("technicianOfflineService.upsert({ type: 'photo', workOrderId");
+    expect(workOrdersService).toContain("supabase.rpc('register_work_order_photo'");
+  });
+
+  it('conserva el RPC actual de finalización y el modelo genérico de equipos', () => {
+    expect(workOrdersService).toContain("supabase.rpc('dmp_finalize_work_order_technical'");
+    expect(mobileDetail).toContain('equipmentTypeName(data.primary_equipment)');
+    expect(mobileDetail).toContain('Tipo:');
   });
 
   it('mantiene una presentación compacta para resumen, economía y móvil', () => {

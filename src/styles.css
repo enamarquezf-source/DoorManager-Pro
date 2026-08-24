@@ -344,6 +344,33 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
 .work-economic-grid .work-economic-total strong, .work-economic-grid .work-economic-margin strong { font-size: 18px; }
 .work-economic-grid .work-economic-margin.positive { background: #ecfdf5; border-color: #a7e3c1; color: #08633f; }
 .work-economic-grid .work-economic-margin.negative { background: #fff1f2; border-color: #f2b8b5; color: #9f2f2f; }
+.technician-work-order-v2 { width: min(760px, 100%); gap: 12px; margin-inline: auto; }
+.technician-work-order-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 16px; background: white; box-shadow: 0 6px 18px rgba(15,23,42,.04); }
+.technician-work-order-header h2 { margin: 0 0 4px; font-size: clamp(21px, 4vw, 28px); line-height: 1.15; }
+.technician-work-order-header p { margin: 0; color: var(--text-soft); }
+.technician-work-order-header h2 strong { color: var(--info); }
+.technician-work-order-context { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 7px; color: var(--text-soft); font-size: 12px; }
+.technician-work-order-context strong { color: var(--dark); }
+.technician-progress-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.technician-progress-grid div { padding: 8px; border: 1px solid #e7edf5; border-radius: 10px; background: #f8fafc; }
+.technician-progress-grid strong, .technician-progress-grid span { display: block; }
+.technician-progress-grid strong { font-size: 16px; line-height: 1.15; }
+.technician-progress-grid span { margin-top: 3px; color: var(--text-soft); font-size: 11px; font-weight: 800; }
+.technician-work-order-actions { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; }
+.technician-work-order-actions > button, .technician-work-order-more > button { min-height: 46px; border: 1px solid var(--line); border-radius: 12px; padding: 9px 8px; background: white; color: var(--dark); font-weight: 850; }
+.technician-work-order-actions > button:hover, .technician-work-order-more > button:hover { background: #eef6ff; border-color: #b9d5ff; }
+.technician-work-order-more { position: relative; }
+.technician-work-order-menu { position: absolute; right: 0; top: calc(100% + 7px); z-index: 8; min-width: 230px; padding: 8px; border: 1px solid var(--line); border-radius: 13px; background: white; box-shadow: 0 14px 34px rgba(15,23,42,.14); display: grid; gap: 6px; }
+.technician-work-order-menu button, .technician-work-order-menu .sync-box { width: 100%; min-height: 42px; }
+.technician-work-order-menu button { border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; background: #f8fafc; color: var(--dark); font-weight: 800; text-align: left; }
+.technician-work-order-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.technician-hours-summary strong, .technician-hours-summary span, .technician-hours-summary small { display: block; }
+.technician-hours-summary strong { font-size: 26px; line-height: 1.1; }
+.technician-hours-summary span { margin-top: 4px; color: var(--text-soft); font-size: 12px; font-weight: 800; }
+.technician-hours-summary small { margin-top: 9px; color: var(--text-soft); }
+.technician-pending-list { display: flex; flex-wrap: wrap; gap: 7px; }
+.technician-pending-list span { padding: 6px 9px; border: 1px solid #f5d38a; border-radius: 9px; background: #fffbeb; color: #805b12; font-size: 12px; font-weight: 800; }
+.technician-status-card .card header button { display: none; }
 .work-progress { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
 .work-progress article { border: 1px solid #e7edf5; border-radius: 14px; padding: 10px; background: #f8fafc; display: grid; gap: 4px; }
 .work-progress article.done { border-color: #9bd7bd; background: #ecfdf5; }
@@ -528,6 +555,18 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
   .work-primary-actions .work-more > button { width: auto; }
   .work-primary-actions > button, .work-primary-actions .work-more > button { min-height: 42px; padding: 8px 10px; font-size: 13px; }
   .work-more-menu { position: fixed; left: 12px; right: 12px; top: auto; bottom: 12px; min-width: 0; }
+  .technician-work-order-v2 { gap: 10px; }
+  .technician-work-order-header { padding: 12px; border-radius: 14px; }
+  .technician-work-order-header h2 { font-size: 20px; }
+  .technician-work-order-context { display: grid; gap: 3px; }
+  .technician-progress-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .technician-progress-grid div { padding: 7px; }
+  .technician-progress-grid strong { font-size: 15px; }
+  .technician-progress-grid span { font-size: 10px; }
+  .technician-work-order-actions { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; }
+  .technician-work-order-actions > button, .technician-work-order-more > button { min-height: 46px; padding: 8px 4px; font-size: 12px; }
+  .technician-work-order-menu { position: fixed; left: 12px; right: 12px; top: auto; bottom: 12px; min-width: 0; }
+  .technician-work-order-summary-grid { grid-template-columns: 1fr; gap: 10px; }
   .work-detail-list article, .check-summary-card { grid-template-columns: 1fr; align-items: start; }
   .media-grid { grid-template-columns: 1fr; }
   .journey-card .primary, .sync-box, .sync-box .primary { width: 100%; }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { workOrderCheckAction, workOrderDetailWarnings, workOrderOperationalMetrics } from '../shared/workOrderDetailUx';
+import { workOrderCheckAction, workOrderDetailWarnings, workOrderOperationalMetrics, workOrderWarningTone } from '../shared/workOrderDetailUx';
 import { canViewWorkOrderCosts } from '../auth/permissions';
 
 const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
@@ -34,6 +34,9 @@ describe('detalle del parte UX V1', () => {
 
   it('genera avisos informativos sin convertirlos en validaciones', () => {
     expect(workOrderDetailWarnings({ checks: [{ status: 'Por realizar' }], time_entries: [], materials: [], cost_entries: [], deficiencies: [], photos: [], signatures: [], diagnosis: '', work_performed: '', result: '' })).toEqual(expect.arrayContaining(['1 check pendiente', 'Sin horas registradas', 'Sin materiales registrados', 'Sin fotos registradas', 'No hay firma registrada', 'Información operativa incompleta']));
+    expect(workOrderWarningTone('Sin materiales registrados')).toBe('neutral');
+    expect(workOrderWarningTone('1 check pendiente')).toBe('attention');
+    expect(workOrderWarningTone('2 deficiencias abiertas')).toBe('important');
     expect(app).not.toContain('Debes añadir materiales');
   });
 
@@ -63,6 +66,8 @@ describe('detalle del parte UX V1', () => {
     expect(styles).toContain('.detail-tabs');
     expect(styles).toContain('overflow-x: auto');
     expect(styles).toContain('white-space: nowrap');
+    expect(app).toContain('role="tablist"');
+    expect(app).toContain('aria-current={tab === key ? \'page\' : undefined}');
   });
 
   it('mantiene acciones secundarias bajo Más sin cambiar permisos', () => {
@@ -70,6 +75,22 @@ describe('detalle del parte UX V1', () => {
     expect(app).toContain('Más');
     expect(app).toContain('canManageWorkOrderCosts(profile, data)');
     expect(app).toContain('workOrderPurgeCanShowButton(data, workspace)');
+    expect(app).toContain('work-more-label');
+    expect(app).toContain('Finalizar técnicamente');
     expect(app).not.toContain('disabled={warnings.length');
+  });
+
+  it('mantiene una presentación compacta para resumen, economía y móvil', () => {
+    expect(app).toContain('className={metrics.openDeficiencies === 0 ? \'is-zero\' : \'is-important\'}');
+    expect(app).toContain('work-economic-margin');
+    expect(styles).toContain('.work-economic-grid');
+    expect(styles).toContain('.work-operational-summary .is-zero');
+    expect(styles).toContain('.work-primary-actions::-webkit-scrollbar');
+  });
+
+  it('conserva los contratos de backend y los permisos económicos', () => {
+    expect(workOrdersService).toContain('dmp_finalize_work_order_technical');
+    expect(app).toContain('canViewWorkOrderCosts(profile)');
+    expect(app).toContain('economicService.workOrderSummary(data.id)');
   });
 });

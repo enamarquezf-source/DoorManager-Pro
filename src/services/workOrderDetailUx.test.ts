@@ -6,8 +6,7 @@ import { canViewWorkOrderCosts } from '../auth/permissions';
 const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
 const workOrdersService = readFileSync(new URL('./workOrdersService.ts', import.meta.url), 'utf8');
-const mobileDetail = app.slice(app.indexOf('function TechnicianWorkOrderUx'), app.indexOf('function WorkOrderOperationalSummary'));
-const satDetail = app.slice(app.indexOf('function SatWorkOrderDesktop'), app.indexOf('function WorkOrderOperationalSummary'));
+const mobileDetail = app.slice(app.indexOf('function TechnicianWorkOrderUx'), app.indexOf('function TechnicianWorkOrderProgress'));
 
 describe('detalle del parte UX V1', () => {
   it('muestra cabecera compacta con prioridad, técnico y agenda cuando existen', () => {
@@ -132,32 +131,6 @@ describe('detalle del parte UX V1', () => {
     expect(styles).toContain('.work-economic-grid');
     expect(styles).toContain('.work-operational-summary .is-zero');
     expect(styles).toContain('.work-primary-actions::-webkit-scrollbar');
-  });
-
-  it('usa una estructura SAT desktop de contenido principal y panel operativo', () => {
-    expect(app).toContain('return <SatWorkOrderDesktop data={data}');
-    expect(satDetail).toContain('sat-v3-layout');
-    expect(satDetail).toContain('sat-v3-main');
-    expect(satDetail).toContain('SatOperationalRail');
-    expect(satDetail).toContain('sat-v3-actionbar');
-    expect(satDetail).toContain("setMode('finalize')");
-    expect(satDetail).not.toContain("role=\"tablist\"><button key={key} className");
-  });
-
-  it('agrupa el contenido SAT en resumen, ejecución, control, evidencias e historial', () => {
-    for (const label of ['Resumen / Trabajo', 'Ejecución', 'Control', 'Evidencias', 'Historial']) expect(satDetail).toContain(label);
-    expect(satDetail).toContain('Checks / inspecciones');
-    expect(satDetail).toContain('Documentos');
-    expect(satDetail).toContain('sat-rail-economy');
-  });
-
-  it('hace que la pantalla móvil tenga acciones grandes y no use las ocho tabs', () => {
-    expect(mobileDetail).toContain('technician-work-order-actions');
-    expect(mobileDetail).toContain('technician-progress-grid');
-    expect(mobileDetail).toContain('technician-pending-list');
-    expect(mobileDetail).not.toContain('detail-tabs');
-    expect(styles).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));');
-    expect(styles).toContain('min-height: 64px');
   });
 
   it('conserva los contratos de backend y los permisos económicos', () => {

@@ -39,12 +39,6 @@ export function workOrderDetailWarnings(workOrder: any) {
   return warnings;
 }
 
-export function workOrderWarningTone(warning: string) {
-  if (warning.includes('deficiencia')) return 'important' as const;
-  if (warning.includes('check pendiente')) return 'attention' as const;
-  return 'neutral' as const;
-}
-
 export function workOrderCheckAction(workOrder: any, canCreate: boolean) {
   const checks = Array.isArray(workOrder?.checks) ? workOrder.checks : [];
   if (checks.length > 0) return 'Abrir check' as const;

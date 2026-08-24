@@ -42,7 +42,7 @@ import { quotePurgeBlocks, quotePurgeCanShowButton, quotePurgeExpectedConfirmati
 import { workOrderPurgeBlocks, workOrderPurgeCanShowButton, workOrderPurgeExpectedConfirmation, workOrderPurgePlanItems, workOrderPurgePlanMatchesScope, workOrderPurgeResultOk, workOrderPurgeScope, workOrderPurgeScopeKey, type WorkOrderPurgeScopeKey } from './services/workOrderPurgeFlow';
 import { entityPurgeBlockers, entityPurgeCanShowButton, entityPurgeExpectedConfirmation, entityPurgePlanMatchesScope, entityPurgeResultOk, entityPurgeScope, entityPurgeScopeKey, casesPurgeConfig, checksPurgeConfig, equipmentPurgeConfig, type EntityPurgeConfig, type EntityPurgeDecision, type PurgeScopeKey } from './services/entityPurgeFlow';
 import { filterEquipmentForContext, filterSitesForClient } from './shared/clientCenterEquipment';
-import { workOrderDetailWarnings, workOrderOperationalMetrics, workOrderCheckAction, workOrderWarningTone } from './shared/workOrderDetailUx';
+import { workOrderDetailWarnings, workOrderOperationalMetrics, workOrderCheckAction } from './shared/workOrderDetailUx';
 
 type AuthContextValue = { initialized: boolean; session: Session | null; profile: Profile | null; profileError: string | null; workspace: Workspace; setWorkspace: (workspace: Workspace) => void; refreshProfile: () => Promise<void>; signOut: () => Promise<void> };
 type LoadState<T> = { data: T; loading: boolean; error: string };
@@ -705,24 +705,23 @@ function WorkOrderDetailUx({ data, profile, workspace, reload }: { data: any; pr
     </header>
 
     <WorkOrderOperationalSummary metrics={metrics} />
-    {warnings.length > 0 && <Card title="Avisos operativos"><div className="work-alerts" role="status">{warnings.map((warning) => <span className={`work-alert ${workOrderWarningTone(warning)}`} key={warning}>{warning}</span>)}</div></Card>}
+    {warnings.length > 0 && <Card title="Avisos operativos"><div className="work-alerts" role="status">{warnings.map((warning) => <span className="work-alert" key={warning}>{warning}</span>)}</div></Card>}
     {showEconomics && <WorkOrderEconomicCard state={economicSummary} />}
 
     <div className="actions work-actions work-primary-actions">
       {canEditWorkOrder(profile, data) && <button onClick={() => setMode('edit')}>Editar</button>}
       {manageAllowed && <button className="primary" onClick={() => setMode('assign')}>Asignar</button>}
-      {canManageWorkOrderTime(profile, data) && <button onClick={() => setMode('time')}>Horas</button>}
-      {canManageWorkOrderMaterials(profile, data) && <button onClick={() => setMode('material')}>Material</button>}
+      {canManageWorkOrderTime(profile, data) && <button onClick={() => setMode('time')}>Añadir horas</button>}
+      {canManageWorkOrderMaterials(profile, data) && <button onClick={() => setMode('material')}>Añadir material</button>}
       {checkAction && <button onClick={() => checkAction === 'Abrir check' ? setTab('checks') : setMode('check')}>{checkAction}</button>}
       {canFinalize && <button className="primary" onClick={() => setMode('finalize')}>Finalizar técnicamente</button>}
       <div className="work-more">
         <button aria-expanded={moreOpen} onClick={() => setMoreOpen((current) => !current)}>Más</button>
         {moreOpen && <div className="work-more-menu" role="menu">
-          <span className="work-more-label">Operación</span>
-          {canManageWorkOrderCosts(profile, data) && <button role="menuitem" onClick={() => { closeMore(); setMode('cost'); }}>Recurso/coste</button>}
+          {canManageWorkOrderCosts(profile, data) && <button role="menuitem" onClick={() => { closeMore(); setMode('cost'); }}>Añadir recurso/coste</button>}
           <div role="menuitem"><SyncButton workOrderId={data.id} onSynced={reload} /></div>
-          {data.main_equipment_id && <><span className="work-more-label">Navegación</span><Link role="menuitem" to={`/app/equipos/${data.main_equipment_id}`} onClick={closeMore}>Abrir equipo</Link></>}
-          {workOrderPurgeCanShowButton(data, workspace) && <><span className="work-more-label work-more-danger-label">Administración</span><button role="menuitem" className="danger-action" onClick={() => { closeMore(); setPurgeOpen(true); }}>Eliminar definitivamente</button></>}
+          {data.main_equipment_id && <Link role="menuitem" to={`/app/equipos/${data.main_equipment_id}`} onClick={closeMore}>Abrir/corregir equipo</Link>}
+          {workOrderPurgeCanShowButton(data, workspace) && <button role="menuitem" className="danger-action" onClick={() => { closeMore(); setPurgeOpen(true); }}>Eliminar definitivamente</button>}
         </div>}
       </div>
     </div>
@@ -730,7 +729,7 @@ function WorkOrderDetailUx({ data, profile, workspace, reload }: { data: any; pr
     <WorkOrderStatusSelector workOrder={data} onChanged={() => onOperationalChanged('Estado actualizado y persistido.')} onError={setActionError} />
     {message && <p className="success-note">{message}</p>}
     {actionError && <p className="form-error">{actionError}</p>}
-    <div className="tabs detail-tabs" role="tablist">{tabs.map(([key, label]) => <button key={key} role="tab" aria-current={tab === key ? 'page' : undefined} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{label}</button>)}</div>
+    <div className="tabs detail-tabs">{tabs.map(([key, label]) => <button key={key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{label}</button>)}</div>
 
     {tab === 'resumen' && <><div className="grid half"><WorkOrderOperationalCard workOrder={data} onChanged={reload} /><AssignmentsCard workOrder={data} canManage={manageAllowed} onManage={() => setMode('assign')} onChanged={reload} /></div><WorkProgress history={data.status_history ?? []} current={data.status} /><Card title="Actividad reciente"><ActivityTimeline events={activity} formatDate={formatDate} /></Card></>}
     {tab === 'trabajo' && <WorkOrderOperationalCard workOrder={data} onChanged={reload} />}
@@ -752,12 +751,11 @@ function WorkOrderDetailUx({ data, profile, workspace, reload }: { data: any; pr
 }
 
 function WorkOrderOperationalSummary({ metrics }: { metrics: ReturnType<typeof workOrderOperationalMetrics> }) {
-  return <Card title="Resumen operativo"><div className="work-operational-summary"><div className={metrics.totalMinutes === 0 ? 'is-zero' : ''}><strong>{formatMinutes(metrics.totalMinutes)}</strong><span>Horas</span></div><div className={metrics.materials === 0 ? 'is-zero' : ''}><strong>{metrics.materials}</strong><span>Materiales</span></div><div className={metrics.costs === 0 ? 'is-zero' : ''}><strong>{metrics.costs}</strong><span>Recursos/costes</span></div><div className={metrics.checksTotal === 0 ? 'is-zero' : metrics.checksComplete < metrics.checksTotal ? 'is-attention' : ''}><strong>{metrics.checksComplete}/{metrics.checksTotal}</strong><span>Checks</span></div><div className={metrics.openDeficiencies === 0 ? 'is-zero' : 'is-important'}><strong>{metrics.openDeficiencies}</strong><span>Deficiencias abiertas</span></div><div className={metrics.photos === 0 ? 'is-zero' : ''}><strong>{metrics.photos}</strong><span>Fotos</span></div><div className={metrics.signatures === 0 ? 'is-zero' : ''}><strong>{metrics.signatures ? 'Sí' : 'No'}</strong><span>Firma</span></div><div className={metrics.documents === 0 ? 'is-zero' : ''}><strong>{metrics.documents}</strong><span>Documentos</span></div><div className={metrics.closure === 'Pendiente' ? 'is-attention' : ''}><strong>{metrics.closure}</strong><span>Cierre técnico</span></div></div></Card>;
+  return <Card title="Resumen operativo"><div className="work-operational-summary"><div><strong>{formatMinutes(metrics.totalMinutes)}</strong><span>Horas</span></div><div><strong>{metrics.materials}</strong><span>Materiales</span></div><div><strong>{metrics.costs}</strong><span>Recursos/costes</span></div><div><strong>{metrics.checksComplete}/{metrics.checksTotal}</strong><span>Checks</span></div><div><strong>{metrics.openDeficiencies}</strong><span>Deficiencias abiertas</span></div><div><strong>{metrics.photos}</strong><span>Fotos</span></div><div><strong>{metrics.signatures}</strong><span>Firmas</span></div><div><strong>{metrics.documents}</strong><span>Documentos</span></div><div><strong>{metrics.closure}</strong><span>Cierre técnico</span></div></div></Card>;
 }
 
 function WorkOrderEconomicCard({ state }: { state: { data: any; loading: boolean; error: string } }) {
-  const margin = Number(state.data?.margin_amount ?? 0);
-  return <Card title="Economía"><p className="large-note work-economic-source">Fuente económica canónica del parte.</p>{state.loading && <p className="large-note">Cargando economía...</p>}{state.error && <p className="state-warning">No se ha podido cargar la economía.</p>}{!state.loading && !state.error && state.data && <div className="work-economic-grid"><div><span>Venta presupuestada</span><strong>{money(state.data.quoted_sale_amount)}</strong></div><div><span>Venta adicional</span><strong>{money(state.data.additional_sale_amount)}</strong></div><div className="work-economic-total"><span>Venta total</span><strong>{money(state.data.sale_amount)}</strong></div><div><span>Coste real</span><strong>{money(state.data.real_cost_amount)}</strong></div><div className={`work-economic-margin ${margin < 0 ? 'negative' : 'positive'}`}><span>Margen</span><strong>{money(state.data.margin_amount)}</strong></div></div>}</Card>;
+  return <Card title="Economía"><p className="large-note">Fuente económica canónica del parte.</p>{state.loading && <p className="large-note">Cargando economía...</p>}{state.error && <p className="state-warning">No se ha podido cargar la economía.</p>}{!state.loading && !state.error && state.data && <InfoGrid items={[[ 'Venta presupuestada', money(state.data.quoted_sale_amount) ], [ 'Venta adicional', money(state.data.additional_sale_amount) ], [ 'Venta total', money(state.data.sale_amount) ], [ 'Coste real', money(state.data.real_cost_amount) ], [ 'Margen', money(state.data.margin_amount) ]]} />}</Card>;
 }
 
 function money(value: any) { return `${Number(value ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`; }

@@ -35,8 +35,7 @@ describe('046 planned materials and technical closeout UX', () => {
 
   it('exposes finalization to allowed roles through a summary modal and blocks double click', () => {
     expect(app).toContain('FINALIZAR PARTE TÉCNICO');
-    expect(app).toContain("['superadmin','SAT','Gerencia']");
-    expect(app).toContain("roles.includes('Tecnico')");
+    expect(app).toContain('canManageWorkOrderStatus(profile, workOrder)');
     expect(app).toContain("!['Finalizado tecnicamente','Enviado','Cerrado','Cancelado'].includes");
     expect(app).toContain('WorkOrderFinalizeModal');
     expect(app).toContain('if (saving) return');

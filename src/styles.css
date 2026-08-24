@@ -344,6 +344,40 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
 .work-economic-grid .work-economic-total strong, .work-economic-grid .work-economic-margin strong { font-size: 18px; }
 .work-economic-grid .work-economic-margin.positive { background: #ecfdf5; border-color: #a7e3c1; color: #08633f; }
 .work-economic-grid .work-economic-margin.negative { background: #fff1f2; border-color: #f2b8b5; color: #9f2f2f; }
+.sat-work-order-v3 { width: min(1500px, 100%); gap: 12px; }
+.sat-v3-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 16px; background: white; box-shadow: 0 8px 22px rgba(15,23,42,.045); }
+.sat-v3-header h2 { margin: 0 0 8px; font-size: clamp(24px, 2.2vw, 34px); line-height: 1.12; }
+.sat-v3-header h2 strong { color: var(--info); }
+.sat-v3-context, .sat-v3-assignment { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--text-soft); font-size: 12px; }
+.sat-v3-context b, .sat-v3-assignment b { color: var(--dark); }
+.sat-v3-assignment { margin-top: 8px; padding-top: 8px; border-top: 1px solid #edf1f6; }
+.sat-v3-status { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.sat-v3-actionbar { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; padding: 10px; border: 1px solid var(--line); border-radius: 14px; background: #f8fafc; }
+.sat-v3-actionbar > button, .sat-v3-actionbar .work-more > button { min-height: 42px; padding: 8px 11px; }
+.sat-v3-layout { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 14px; align-items: start; }
+.sat-v3-main { min-width: 0; display: grid; gap: 11px; }
+.sat-v3-tabs { display: flex; gap: 5px; flex-wrap: wrap; padding: 4px; border-bottom: 1px solid var(--line); }
+.sat-v3-tabs button { min-height: 38px; padding: 7px 11px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--text-soft); font-weight: 850; }
+.sat-v3-tabs button.active { border-color: #93c5fd; background: #eff6ff; color: #1d4ed8; }
+.sat-v3-group-label { color: var(--text-soft); font-size: 11px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+.sat-v3-execution-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: start; }
+.sat-v3-rail { position: sticky; top: 96px; display: grid; gap: 9px; min-width: 0; }
+.sat-v3-rail .card { padding: 12px; border-radius: 13px; box-shadow: 0 5px 16px rgba(15,23,42,.04); }
+.sat-v3-rail .card header { margin-bottom: 8px; }
+.sat-v3-rail .card h3 { font-size: 13px; }
+.sat-rail-state { display: flex; flex-wrap: wrap; gap: 6px; }
+.sat-rail-value { margin: 0 0 3px; font-weight: 850; }
+.sat-v3-rail small { color: var(--text-soft); }
+.sat-rail-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.sat-rail-metrics span, .sat-rail-economy span { display: flex; justify-content: space-between; gap: 8px; color: var(--text-soft); font-size: 12px; }
+.sat-rail-metrics b, .sat-rail-economy b { color: var(--dark); font-size: 14px; }
+.sat-rail-pending { display: grid; gap: 5px; }
+.sat-rail-pending span { padding: 5px 7px; border-left: 3px solid #f5d38a; background: #fffbeb; color: #805b12; font-size: 11px; font-weight: 800; }
+.sat-rail-economy { display: grid; gap: 6px; }
+.sat-rail-economy span.positive { color: #08633f; }
+.sat-rail-economy span.negative { color: #9f2f2f; }
+.sat-rail-economy span.positive b, .sat-rail-economy span.negative b { color: inherit; }
+.sat-rail-finalize { width: 100%; min-height: 46px; }
 .technician-work-order-v2 { width: min(760px, 100%); gap: 12px; margin-inline: auto; }
 .technician-work-order-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 16px; background: white; box-shadow: 0 6px 18px rgba(15,23,42,.04); }
 .technician-work-order-header h2 { margin: 0 0 4px; font-size: clamp(21px, 4vw, 28px); line-height: 1.15; }
@@ -458,6 +492,10 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
   .two-one, .half, .three, .filters { grid-template-columns: 1fr; }
   .work-operational-summary { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .work-economic-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .sat-v3-layout { grid-template-columns: 1fr; }
+  .sat-v3-rail { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .sat-rail-finalize { grid-column: 1 / -1; }
+  .sat-v3-execution-grid { grid-template-columns: 1fr; }
   .dashboard-grid { grid-template-columns: 1fr; }
   .topbar { flex-wrap: wrap; }
 }
@@ -563,10 +601,18 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
   .technician-progress-grid div { padding: 7px; }
   .technician-progress-grid strong { font-size: 15px; }
   .technician-progress-grid span { font-size: 10px; }
-  .technician-work-order-actions { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; }
-  .technician-work-order-actions > button, .technician-work-order-more > button { min-height: 46px; padding: 8px 4px; font-size: 12px; }
+  .technician-work-order-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .technician-work-order-actions > button, .technician-work-order-more > button { min-height: 64px; padding: 10px 8px; font-size: 14px; }
+  .technician-work-order-more { grid-column: 1 / -1; }
   .technician-work-order-menu { position: fixed; left: 12px; right: 12px; top: auto; bottom: 12px; min-width: 0; }
   .technician-work-order-summary-grid { grid-template-columns: 1fr; gap: 10px; }
+  .sat-v3-header { padding: 13px; gap: 9px; }
+  .sat-v3-header h2 { font-size: 21px; }
+  .sat-v3-context, .sat-v3-assignment { display: grid; gap: 3px; }
+  .sat-v3-actionbar { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+  .sat-v3-actionbar::-webkit-scrollbar { display: none; }
+  .sat-v3-actionbar > button, .sat-v3-actionbar .work-more { flex: 0 0 auto; }
+  .sat-v3-rail { grid-template-columns: 1fr; }
   .work-detail-list article, .check-summary-card { grid-template-columns: 1fr; align-items: start; }
   .media-grid { grid-template-columns: 1fr; }
   .journey-card .primary, .sync-box, .sync-box .primary { width: 100%; }

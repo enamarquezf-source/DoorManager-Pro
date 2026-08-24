@@ -693,6 +693,7 @@ function WorkOrderDetailUx({ data, profile, workspace, reload }: { data: any; pr
   const closeMore = () => setMoreOpen(false);
   const tabs = [['resumen', 'Resumen'], ['trabajo', 'Trabajo'], ['checks', `Checks (${checks.length})`], ['horas', `Horas (${data.time_entries?.length ?? 0})`], ['materiales', `Materiales (${data.materials?.length ?? 0})`], ['costes', `Recursos y costes (${data.cost_entries?.length ?? 0})`], ['media', `Fotos y firmas (${(data.photos?.length ?? 0) + (data.signatures?.length ?? 0)})`], ['historial', `Historial (${data.status_history?.length ?? 0})`]] as [any, string][];
 
+  return <SatWorkOrderDesktop data={data} profile={profile} workspace={workspace} reload={reload} mode={mode} setMode={setMode} tab={tab} setTab={setTab} moreOpen={moreOpen} setMoreOpen={setMoreOpen} message={message} actionError={actionError} setActionError={setActionError} purgeOpen={purgeOpen} setPurgeOpen={setPurgeOpen} showEconomics={showEconomics} economicSummary={economicSummary} metrics={metrics} warnings={warnings} checks={checks} checkAction={checkAction} canFinalize={canFinalize} manageAllowed={manageAllowed} activity={activity} onChanged={onChanged} onOperationalChanged={onOperationalChanged} closeMore={closeMore} />;
   return <section className="page work-detail">
     <BackButton />
     <header className="work-summary work-header">
@@ -751,6 +752,76 @@ function WorkOrderDetailUx({ data, profile, workspace, reload }: { data: any; pr
     {mode === 'finalize' && <WorkOrderFinalizeModal workOrder={data} onClose={() => setMode(null)} onDone={() => { setMode(null); onChanged(); }} onError={setActionError} />}
     {purgeOpen && <WorkOrderPurgeModal workOrder={data} onClose={() => setPurgeOpen(false)} onDeleted={() => { setPurgeOpen(false); navigate('/app/partes'); }} />}
   </section>;
+}
+
+function SatWorkOrderDesktop({ data, profile, workspace, reload, mode, setMode, tab, setTab, moreOpen, setMoreOpen, message, actionError, setActionError, purgeOpen, setPurgeOpen, showEconomics, economicSummary, metrics, warnings, checks, checkAction, canFinalize, manageAllowed, activity, onChanged, onOperationalChanged, closeMore }: any) {
+  const navigate = useNavigate();
+  const scrollToStatus = () => document.getElementById('sat-v3-status')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const operationalTab = () => setTab('trabajo');
+  const controlTab = () => setTab('checks');
+  const evidenceTab = () => setTab('media');
+  const tabs = [['resumen', 'Resumen'], ['trabajo', 'Ejecución'], ['checks', 'Control'], ['media', 'Evidencias'], ['historial', 'Historial']] as [any, string][];
+
+  return <section className="page work-detail sat-work-order-v3">
+    <BackButton />
+    <header className="sat-v3-header">
+      <div className="sat-v3-header-main">
+        <p className="eyebrow">Centro operativo · Parte</p>
+        <h2><strong>{data.code}</strong> · {data.title}</h2>
+        <div className="sat-v3-context"><span>Cliente <b>{data.clients?.legal_name ?? 'No informado'}</b></span><span>Centro <b>{data.sites?.name ?? 'No informado'}</b></span><span>Equipo <b>{data.primary_equipment?.code ?? 'Sin equipo'}</b></span><span>Tipo <b>{equipmentTypeName(data.primary_equipment) ?? 'No informado'}</b></span></div>
+        <div className="sat-v3-assignment"><span>Técnico principal <b>{fullName(data.primary_technician) || 'Sin asignar'}</b></span><span>Agenda <b>{data.scheduled_date ?? 'Sin fecha'} · {data.scheduled_time ?? 'Sin hora'}</b></span></div>
+      </div>
+      <div className="sat-v3-status"><Badge tone={severityForStatus(data.status)}>{displayStatus(data.status)}</Badge><Badge tone={severityForPriority(data.priority)}>{displayStatus(data.priority ?? 'Normal')}</Badge></div>
+    </header>
+
+    <div className="sat-v3-actionbar" aria-label="Operaciones del parte">
+      {canEditWorkOrder(profile, data) && <button onClick={() => setMode('edit')}>Editar</button>}
+      {manageAllowed && <button className="primary" onClick={() => setMode('assign')}>Asignar</button>}
+      <button onClick={scrollToStatus}>Estado</button>
+      {canManageWorkOrderTime(profile, data) && <button onClick={operationalTab}>Horas</button>}
+      {canManageWorkOrderMaterials(profile, data) && <button onClick={operationalTab}>Material</button>}
+      {canManageWorkOrderCosts(profile, data) && <button onClick={operationalTab}>Recursos</button>}
+      {checkAction && <button onClick={controlTab}>{checkAction === 'Abrir check' ? 'Checks' : checkAction}</button>}
+      <button onClick={evidenceTab}>Evidencias</button>
+      {canFinalize && <button className="primary" onClick={() => setMode('finalize')}>Finalizar</button>}
+      <div className="work-more"><button aria-expanded={moreOpen} onClick={() => setMoreOpen((current: boolean) => !current)}>Más</button>{moreOpen && <div className="work-more-menu" role="menu"><span className="work-more-label">Secundario</span><div role="menuitem"><SyncButton workOrderId={data.id} onSynced={reload} /></div>{data.main_equipment_id && <Link role="menuitem" to={`/app/equipos/${data.main_equipment_id}`} onClick={closeMore}>Abrir equipo</Link>}{workOrderPurgeCanShowButton(data, workspace) && <button role="menuitem" className="danger-action" onClick={() => { closeMore(); setPurgeOpen(true); }}>Eliminar definitivamente</button>}</div>}</div>
+    </div>
+
+    <div className="sat-v3-layout">
+      <main className="sat-v3-main">
+        <div className="sat-v3-tabs" role="tablist">{tabs.map(([key, label]) => <button key={key} role="tab" aria-current={tab === key ? 'page' : undefined} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{label}</button>)}</div>
+        {message && <p className="success-note">{message}</p>}
+        {actionError && <p className="form-error">{actionError}</p>}
+        {tab === 'resumen' && <><div className="sat-v3-group-label">Resumen / Trabajo</div><div className="grid half"><WorkOrderOperationalCard workOrder={data} onChanged={reload} /><AssignmentsCard workOrder={data} canManage={manageAllowed} onManage={() => setMode('assign')} onChanged={onChanged} /></div><WorkProgress history={data.status_history ?? []} current={data.status} /><Card title="Actividad reciente"><ActivityTimeline events={activity} formatDate={formatDate} /></Card></>}
+        {tab === 'trabajo' && <><div className="sat-v3-group-label">Ejecución</div><div className="sat-v3-execution-grid"><WorkOrderTimeCard workOrder={data} onChanged={reload} /><WorkOrderMaterialsCard workOrder={data} onChanged={reload} /><WorkOrderCostsCard workOrder={data} onChanged={reload} /></div></>}
+        {tab === 'checks' && <><div className="sat-v3-group-label">Control</div><Card title={`Checks / inspecciones (${checks.length})`}><div className="work-detail-list">{checks.map((check: any) => <CheckSummaryCard key={check.id} check={check} />)}{!checks.length && <p className="large-note">Sin checks asociados.</p>}</div></Card></>}
+        {tab === 'media' && <><div className="sat-v3-group-label">Evidencias</div><MediaGallery photos={data.photos ?? []} signatures={data.signatures ?? []} /><Card title={`Documentos (${data.documents?.length ?? 0})`}><p className="large-note">Documentos vinculados al parte: {data.documents?.length ?? 0}.</p></Card></>}
+        {tab === 'historial' && <><div className="sat-v3-group-label">Historial</div><Card title="Actividad e historial"><ActivityTimeline events={activity} formatDate={formatDate} /></Card></>}
+        <div id="sat-v3-status"><WorkOrderStatusSelector workOrder={data} onChanged={() => onOperationalChanged('Estado actualizado y persistido.')} onError={setActionError} /></div>
+        {mode === 'edit' && <WorkOrderForm initial={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}
+        {mode === 'assign' && <AssignmentForm workOrder={data} workOrderId={data.id} companyId={data.company_id} onClose={() => setMode(null)} onSaved={() => { setMode(null); onChanged(); }} />}
+        {mode === 'check' && <CheckForm initial={{ work_order_id: data.id, equipment_id: data.main_equipment_id, client_id: data.client_id, site_id: data.site_id }} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}
+        {mode === 'time' && <WorkOrderTimeForm workOrder={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}
+        {mode === 'material' && <WorkOrderMaterialForm workOrder={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}
+        {mode === 'cost' && <WorkOrderCostForm workOrder={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}
+        {mode === 'finalize' && <WorkOrderFinalizeModal workOrder={data} onClose={() => setMode(null)} onDone={() => { setMode(null); onChanged(); }} onError={setActionError} />}
+        {purgeOpen && <WorkOrderPurgeModal workOrder={data} onClose={() => setPurgeOpen(false)} onDeleted={() => { setPurgeOpen(false); navigate('/app/partes'); }} />}
+      </main>
+      <SatOperationalRail data={data} metrics={metrics} warnings={warnings} showEconomics={showEconomics} economicSummary={economicSummary} canFinalize={canFinalize} setMode={setMode} setTab={setTab} />
+    </div>
+  </section>;
+}
+
+function SatOperationalRail({ data, metrics, warnings, showEconomics, economicSummary, canFinalize, setMode, setTab }: any) {
+  return <aside className="sat-v3-rail" aria-label="Panel operativo del parte">
+    <Card title="Estado"><div className="sat-rail-state"><Badge tone={severityForStatus(data.status)}>{displayStatus(data.status)}</Badge><Badge tone={severityForPriority(data.priority)}>{displayStatus(data.priority ?? 'Normal')}</Badge></div></Card>
+    <Card title="Asignación"><p className="sat-rail-value">{fullName(data.primary_technician) || 'Sin técnico principal'}</p><small>{(data.assignments ?? []).length} asignación(es)</small></Card>
+    <Card title="Ejecución"><div className="sat-rail-metrics"><span><b>{formatMinutes(metrics.totalMinutes)}</b>Horas</span><span><b>{metrics.materials}</b>Materiales</span><span><b>{metrics.costs}</b>Recursos</span></div></Card>
+    <Card title="Control"><div className="sat-rail-metrics"><span><b>{metrics.checksComplete}/{metrics.checksTotal}</b>Checks</span><span><b>{metrics.openDeficiencies}</b>Incidencias</span><span><b>{metrics.photos}</b>Fotos</span><span><b>{metrics.signatures ? 'Sí' : 'No'}</b>Firma</span></div></Card>
+    {warnings.length > 0 && <Card title="Pendientes"><div className="sat-rail-pending">{warnings.map((warning: string) => <span key={warning}>{warning}</span>)}</div></Card>}
+    {showEconomics && <Card title="Economía"><div className="sat-rail-economy"><span>Venta total <b>{money(economicSummary.data?.sale_amount)}</b></span><span>Coste real <b>{money(economicSummary.data?.real_cost_amount)}</b></span><span className={Number(economicSummary.data?.margin_amount ?? 0) < 0 ? 'negative' : 'positive'}>Margen <b>{money(economicSummary.data?.margin_amount)}</b></span></div><button className="link-button" type="button" onClick={() => setTab('trabajo')}>Ver economía</button></Card>}
+    {canFinalize && <button className="primary sat-rail-finalize" onClick={() => setMode('finalize')}>Finalizar técnicamente</button>}
+  </aside>;
 }
 
 function TechnicianWorkOrderUx({ data, profile, reload }: { data: any; profile: any; reload: () => Promise<void> | void }) {

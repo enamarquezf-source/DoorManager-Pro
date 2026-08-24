@@ -42,7 +42,6 @@ import { quotePurgeBlocks, quotePurgeCanShowButton, quotePurgeExpectedConfirmati
 import { workOrderPurgeBlocks, workOrderPurgeCanShowButton, workOrderPurgeExpectedConfirmation, workOrderPurgePlanItems, workOrderPurgePlanMatchesScope, workOrderPurgeResultOk, workOrderPurgeScope, workOrderPurgeScopeKey, type WorkOrderPurgeScopeKey } from './services/workOrderPurgeFlow';
 import { entityPurgeBlockers, entityPurgeCanShowButton, entityPurgeExpectedConfirmation, entityPurgePlanMatchesScope, entityPurgeResultOk, entityPurgeScope, entityPurgeScopeKey, casesPurgeConfig, checksPurgeConfig, equipmentPurgeConfig, type EntityPurgeConfig, type EntityPurgeDecision, type PurgeScopeKey } from './services/entityPurgeFlow';
 import { filterEquipmentForContext, filterSitesForClient } from './shared/clientCenterEquipment';
-import { workOrderDetailWarnings, workOrderOperationalMetrics, workOrderCheckAction } from './shared/workOrderDetailUx';
 
 type AuthContextValue = { initialized: boolean; session: Session | null; profile: Profile | null; profileError: string | null; workspace: Workspace; setWorkspace: (workspace: Workspace) => void; refreshProfile: () => Promise<void>; signOut: () => Promise<void> };
 type LoadState<T> = { data: T; loading: boolean; error: string };
@@ -666,96 +665,7 @@ function WorkOrderDetailPageV2({ forcedId }: { forcedId?: string } = {}) {
   const changed = () => { setMessage('Asignaciones actualizadas.'); reload(); };
   const operationalChanged = (text: string) => { setMessage(text); reload(); };
   const tabs = [['resumen','Resumen'], ['trabajo','Trabajo'], ['checks','Checks (' + (data.checks ?? []).length + ')'], ['horas','Horas (' + (data.time_entries ?? []).length + ')'], ['materiales','Materiales (' + (data.materials ?? []).length + ')'], ['costes','Recursos y costes (' + (data.cost_entries ?? []).length + ')'], ['media','Fotos y firmas (' + ((data.photos ?? []).length + (data.signatures ?? []).length) + ')'], ['historial','Historial (' + (data.status_history ?? []).length + ')']] as [any, string][];
-  return <WorkOrderDetailUx data={data} profile={profile} workspace={workspace} reload={reload} />;
   return <section className="page work-detail"><BackButton /><div className="work-summary"><div><p className="eyebrow">Ficha completa del parte</p><h2>{data.code} · {data.title}</h2><p>{data.clients?.legal_name ?? 'Cliente no informado'} · {data.sites?.name ?? 'Centro no informado'} · {data.primary_equipment?.code ?? 'Sin equipo'} · {equipmentTypeName(data.primary_equipment) ?? 'Tipo de equipo no disponible'}</p></div><Badge tone={severityForStatus(data.status)}>{displayStatus(data.status)}</Badge></div><div className="actions work-actions"><button onClick={() => setMode('edit')} disabled={!canEditWorkOrder(profile, data)}>Editar datos</button>{manageAllowed && <button className="primary" onClick={() => setMode('assign')}>Gestionar asignaciones</button>}{canCreateCheck(profile) && <button onClick={() => setMode('check')}>Crear/abrir check</button>}<button onClick={() => setMode('time')} disabled={!canManageWorkOrderTime(profile, data)}>Añadir horas</button><button onClick={() => setMode('material')} disabled={!canManageWorkOrderMaterials(profile, data)}>Añadir material</button><button onClick={() => setMode('cost')} disabled={!canManageWorkOrderCosts(profile, data)}>Añadir recurso/coste</button><SyncButton workOrderId={data.id} onSynced={reload} />{data.main_equipment_id && <Link to={'/app/equipos/' + data.main_equipment_id}>Abrir/corregir equipo</Link>}{workOrderPurgeCanShowButton(data, workspace) && <button className="danger-action" onClick={() => setPurgeOpen(true)}>Eliminar definitivamente</button>}</div><WorkOrderStatusSelector workOrder={data} onChanged={() => operationalChanged('Estado actualizado y persistido.')} onError={setActionError} />{message && <p className="success-note">{message}</p>}{actionError && <p className="form-error">{actionError}</p>}<div className="tabs detail-tabs">{tabs.map(([key, label]) => <button key={key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{label}</button>)}</div>{tab === 'resumen' && <><div className="stats-grid"><Card title="Resumen operativo"><InfoGrid items={[[ 'Estado', displayStatus(data.status) ], [ 'Prioridad', displayStatus(data.priority) ], [ 'Técnico principal', fullName(data.primary_technician) ], [ 'Apoyos', (data.support_technicians ?? []).map(fullName).join(', ') || '-' ], [ 'Fecha/hora', (data.scheduled_date ?? '-') + ' ' + (data.scheduled_time ?? '') ], [ 'Tiempo total', formatMinutes(totalMinutes) ], [ 'Checks pendientes', String((data.checks ?? []).filter((check: any) => check.status !== 'Realizado').length) ], [ 'Materiales', String((data.materials ?? []).length) ]]}/></Card><Card title="Cliente y ubicación"><InfoGrid items={[[ 'Cliente', data.clients?.legal_name ?? '-' ], [ 'Centro', data.sites?.name ?? '-' ], [ 'Dirección', data.sites?.address ?? '-' ], [ 'Equipo', data.primary_equipment?.code ?? '-' ], [ 'Acceso', data.access_requirement?.description ?? '-' ], [ 'Material previsto', data.planned_material ?? '-' ], [ 'Presupuesto origen', data.quotes?.code ?? '-' ]]}/></Card></div><AssignmentsCard workOrder={data} canManage={manageAllowed} onManage={() => setMode('assign')} onChanged={changed} /></>}{tab === 'trabajo' && <div className="grid half"><WorkOrderOperationalCard workOrder={data} onChanged={() => operationalChanged('Trabajo del parte actualizado.')} /><Card title="Historial de notas"><CompactRows rows={(data.notes ?? []).map((note: any) => [formatDate(note.created_at), note.note ?? note.description ?? 'Nota sin texto', 'info'])} empty="Sin notas." /></Card></div>}{tab === 'checks' && <Card title="Checks vinculados"><div className="compact-list">{(data.checks ?? []).map((check: any) => <CheckSummaryCard key={check.id} check={check} />)}</div>{!(data.checks ?? []).length && <p className="large-note">Sin checks vinculados.</p>}</Card>}{tab === 'horas' && <WorkOrderTimeCard workOrder={data} onChanged={reload} />}{tab === 'materiales' && <WorkOrderMaterialsCard workOrder={data} onChanged={reload} />}{tab === 'costes' && <WorkOrderCostsCard workOrder={data} onChanged={() => operationalChanged('Recursos y costes actualizados.')} />}{tab === 'media' && <MediaGallery photos={data.photos ?? []} signatures={data.signatures ?? []} />}{tab === 'historial' && <><WorkProgress history={data.status_history ?? []} current={data.status} /><Card title="Historial · Timeline events"><ActivityTimeline events={activity} formatDate={formatDate} /></Card></>}{mode === 'edit' && <WorkOrderForm initial={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); operationalChanged('Parte actualizado.'); }} />}{mode === 'assign' && <AssignmentForm workOrder={data} workOrderId={data.id} companyId={data.company_id} onClose={() => setMode(null)} onSaved={() => { setMode(null); changed(); }} />}{mode === 'check' && <CheckForm initial={{ work_order_id: data.id, company_id: data.company_id, equipment_id: data.main_equipment_id }} onClose={() => setMode(null)} onSaved={() => { setMode(null); operationalChanged('Check creado.'); }} />}{mode === 'time' && <WorkOrderTimeForm workOrder={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); operationalChanged('Horas registradas.'); }} />}{mode === 'material' && <WorkOrderMaterialForm workOrder={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); operationalChanged('Material registrado.'); }} />}{mode === 'cost' && <WorkOrderCostForm workOrder={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); operationalChanged('Recurso o coste registrado.'); }} />}{purgeOpen && <WorkOrderPurgeModal workOrder={data} onClose={() => setPurgeOpen(false)} onDeleted={() => { setPurgeOpen(false); navigate('/app/partes'); }} />}</section>;
-}
-
-function WorkOrderDetailUx({ data, profile, workspace, reload }: { data: any; profile: any; workspace: Workspace; reload: () => Promise<void> | void }) {
-  const [mode, setMode] = useState<'edit' | 'assign' | 'check' | 'time' | 'material' | 'cost' | 'finalize' | null>(null);
-  const [tab, setTab] = useState<'resumen' | 'trabajo' | 'checks' | 'horas' | 'materiales' | 'costes' | 'media' | 'historial'>('resumen');
-  const [moreOpen, setMoreOpen] = useState(false);
-  const [message, setMessage] = useState('');
-  const [actionError, setActionError] = useState('');
-  const [purgeOpen, setPurgeOpen] = useState(false);
-  const navigate = useNavigate();
-  const showEconomics = canViewWorkOrderCosts(profile);
-  const economicSummary = useLoad(() => showEconomics ? economicService.workOrderSummary(data.id) : Promise.resolve(null), [data.id, showEconomics], null as any);
-  const metrics = workOrderOperationalMetrics(data);
-  const warnings = workOrderDetailWarnings(data);
-  const checks = data.checks ?? [];
-  const checkAction = workOrderCheckAction(data, canCreateCheck(profile));
-  const canFinalize = canFinalizeWorkOrderTechnical(profile, data);
-  const manageAllowed = canManageWorkOrderAssignments(profile);
-  const activity = activityTimeline(data);
-  const onChanged = () => { setMessage('Parte actualizado.'); reload(); };
-  const onOperationalChanged = (text: string) => { setMessage(text); reload(); };
-  const closeMore = () => setMoreOpen(false);
-  const tabs = [['resumen', 'Resumen'], ['trabajo', 'Trabajo'], ['checks', `Checks (${checks.length})`], ['horas', `Horas (${data.time_entries?.length ?? 0})`], ['materiales', `Materiales (${data.materials?.length ?? 0})`], ['costes', `Recursos y costes (${data.cost_entries?.length ?? 0})`], ['media', `Fotos y firmas (${(data.photos?.length ?? 0) + (data.signatures?.length ?? 0)})`], ['historial', `Historial (${data.status_history?.length ?? 0})`]] as [any, string][];
-
-  return <section className="page work-detail">
-    <BackButton />
-    <header className="work-summary work-header">
-      <div className="work-header-copy">
-        <p className="eyebrow">Parte de trabajo</p>
-        <h2><strong>{data.code}</strong> · {data.title}</h2>
-        <p>{data.clients?.legal_name ?? 'Cliente no informado'} · {data.sites?.name ?? 'Centro no informado'} · {data.primary_equipment?.code ?? 'Sin equipo'} · {equipmentTypeName(data.primary_equipment) ?? 'Tipo de equipo no disponible'}</p>
-        <div className="work-header-meta"><span>Prioridad: <strong>{displayStatus(data.priority ?? 'Normal')}</strong></span><span>Técnico: <strong>{fullName(data.primary_technician) || 'Sin asignar'}</strong></span><span>Agenda: <strong>{data.scheduled_date ?? 'Sin fecha'} · {data.scheduled_time ?? 'Sin hora'}</strong></span></div>
-      </div>
-      <Badge tone={severityForStatus(data.status)}>{displayStatus(data.status)}</Badge>
-    </header>
-
-    <WorkOrderOperationalSummary metrics={metrics} />
-    {warnings.length > 0 && <Card title="Avisos operativos"><div className="work-alerts" role="status">{warnings.map((warning) => <span className="work-alert" key={warning}>{warning}</span>)}</div></Card>}
-    {showEconomics && <WorkOrderEconomicCard state={economicSummary} />}
-
-    <div className="actions work-actions work-primary-actions">
-      {canEditWorkOrder(profile, data) && <button onClick={() => setMode('edit')}>Editar</button>}
-      {manageAllowed && <button className="primary" onClick={() => setMode('assign')}>Asignar</button>}
-      {canManageWorkOrderTime(profile, data) && <button onClick={() => setMode('time')}>Añadir horas</button>}
-      {canManageWorkOrderMaterials(profile, data) && <button onClick={() => setMode('material')}>Añadir material</button>}
-      {checkAction && <button onClick={() => checkAction === 'Abrir check' ? setTab('checks') : setMode('check')}>{checkAction}</button>}
-      {canFinalize && <button className="primary" onClick={() => setMode('finalize')}>Finalizar técnicamente</button>}
-      <div className="work-more">
-        <button aria-expanded={moreOpen} onClick={() => setMoreOpen((current) => !current)}>Más</button>
-        {moreOpen && <div className="work-more-menu" role="menu">
-          {canManageWorkOrderCosts(profile, data) && <button role="menuitem" onClick={() => { closeMore(); setMode('cost'); }}>Añadir recurso/coste</button>}
-          <div role="menuitem"><SyncButton workOrderId={data.id} onSynced={reload} /></div>
-          {data.main_equipment_id && <Link role="menuitem" to={`/app/equipos/${data.main_equipment_id}`} onClick={closeMore}>Abrir/corregir equipo</Link>}
-          {workOrderPurgeCanShowButton(data, workspace) && <button role="menuitem" className="danger-action" onClick={() => { closeMore(); setPurgeOpen(true); }}>Eliminar definitivamente</button>}
-        </div>}
-      </div>
-    </div>
-
-    <WorkOrderStatusSelector workOrder={data} onChanged={() => onOperationalChanged('Estado actualizado y persistido.')} onError={setActionError} />
-    {message && <p className="success-note">{message}</p>}
-    {actionError && <p className="form-error">{actionError}</p>}
-    <div className="tabs detail-tabs">{tabs.map(([key, label]) => <button key={key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{label}</button>)}</div>
-
-    {tab === 'resumen' && <><div className="grid half"><WorkOrderOperationalCard workOrder={data} onChanged={reload} /><AssignmentsCard workOrder={data} canManage={manageAllowed} onManage={() => setMode('assign')} onChanged={reload} /></div><WorkProgress history={data.status_history ?? []} current={data.status} /><Card title="Actividad reciente"><ActivityTimeline events={activity} formatDate={formatDate} /></Card></>}
-    {tab === 'trabajo' && <WorkOrderOperationalCard workOrder={data} onChanged={reload} />}
-    {tab === 'checks' && <Card title="Checks"><div className="work-detail-list">{checks.map((check: any) => <CheckSummaryCard key={check.id} check={check} />)}{!checks.length && <p className="large-note">Sin checks vinculados.</p>}</div></Card>}
-    {tab === 'horas' && <WorkOrderTimeCard workOrder={data} onChanged={reload} />}
-    {tab === 'materiales' && <WorkOrderMaterialsCard workOrder={data} onChanged={reload} />}
-    {tab === 'costes' && <WorkOrderCostsCard workOrder={data} onChanged={reload} />}
-    {tab === 'media' && <MediaGallery photos={data.photos ?? []} signatures={data.signatures ?? []} />}
-    {tab === 'historial' && <Card title="Historial"><ActivityTimeline events={activity} formatDate={formatDate} /></Card>}
-    {mode === 'edit' && <WorkOrderForm initial={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}
-    {mode === 'assign' && <AssignmentForm workOrder={data} workOrderId={data.id} companyId={data.company_id} onClose={() => setMode(null)} onSaved={() => { setMode(null); onChanged(); }} />}
-    {mode === 'check' && <CheckForm initial={{ work_order_id: data.id, equipment_id: data.main_equipment_id, client_id: data.client_id, site_id: data.site_id }} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}
-    {mode === 'time' && <WorkOrderTimeForm workOrder={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}
-    {mode === 'material' && <WorkOrderMaterialForm workOrder={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}
-    {mode === 'cost' && <WorkOrderCostForm workOrder={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}
-    {mode === 'finalize' && <WorkOrderFinalizeModal workOrder={data} onClose={() => setMode(null)} onDone={() => { setMode(null); onChanged(); }} onError={setActionError} />}
-    {purgeOpen && <WorkOrderPurgeModal workOrder={data} onClose={() => setPurgeOpen(false)} onDeleted={() => { setPurgeOpen(false); navigate('/app/partes'); }} />}
-  </section>;
-}
-
-function WorkOrderOperationalSummary({ metrics }: { metrics: ReturnType<typeof workOrderOperationalMetrics> }) {
-  return <Card title="Resumen operativo"><div className="work-operational-summary"><div><strong>{formatMinutes(metrics.totalMinutes)}</strong><span>Horas</span></div><div><strong>{metrics.materials}</strong><span>Materiales</span></div><div><strong>{metrics.costs}</strong><span>Recursos/costes</span></div><div><strong>{metrics.checksComplete}/{metrics.checksTotal}</strong><span>Checks</span></div><div><strong>{metrics.openDeficiencies}</strong><span>Deficiencias abiertas</span></div><div><strong>{metrics.photos}</strong><span>Fotos</span></div><div><strong>{metrics.signatures}</strong><span>Firmas</span></div><div><strong>{metrics.documents}</strong><span>Documentos</span></div><div><strong>{metrics.closure}</strong><span>Cierre técnico</span></div></div></Card>;
-}
-
-function WorkOrderEconomicCard({ state }: { state: { data: any; loading: boolean; error: string } }) {
-  return <Card title="Economía"><p className="large-note">Fuente económica canónica del parte.</p>{state.loading && <p className="large-note">Cargando economía...</p>}{state.error && <p className="state-warning">No se ha podido cargar la economía.</p>}{!state.loading && !state.error && state.data && <InfoGrid items={[[ 'Venta presupuestada', money(state.data.quoted_sale_amount) ], [ 'Venta adicional', money(state.data.additional_sale_amount) ], [ 'Venta total', money(state.data.sale_amount) ], [ 'Coste real', money(state.data.real_cost_amount) ], [ 'Margen', money(state.data.margin_amount) ]]} />}</Card>;
 }
 
 function money(value: any) { return `${Number(value ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`; }
@@ -767,7 +677,7 @@ function plannedQuoteLineDecision(workOrder: any, lineId: string) { return (work
 function operationalQuoteLines(workOrder: any) { return plannedQuoteLines(workOrder).filter((line: any) => !['fee','discount'].includes(line.line_type)); }
 function pendingOperationalQuoteLines(workOrder: any) { return operationalQuoteLines(workOrder).filter((line: any) => line.line_type === 'material' || line.material_id ? !plannedMaterialDecision(workOrder, line.id) : line.line_type === 'labor' ? false : !plannedQuoteLineDecision(workOrder, line.id)); }
 function pendingPlannedMaterials(workOrder: any) { return plannedMaterialRows(workOrder).filter((line: any) => !plannedMaterialDecision(workOrder, line.id)); }
-function canFinalizeWorkOrderTechnical(profile: any, workOrder: any) { return canManageWorkOrderStatus(profile, workOrder) && !['Finalizado tecnicamente','Enviado','Cerrado','Cancelado'].includes(workOrder?.status); }
+function canFinalizeWorkOrderTechnical(profile: any, workOrder: any) { const roles = profile ? normalizedRoleNames(profile.primary_area, profile.roles ?? []) : []; const allowedRole = roles.some((role) => ['superadmin','SAT','Gerencia'].includes(role)) || (roles.includes('Tecnico') && canManageWorkOrderStatus(profile, workOrder)); return allowedRole && !['Finalizado tecnicamente','Enviado','Cerrado','Cancelado'].includes(workOrder?.status); }
 function economicStatusLabel(workOrder: any) { return workOrder?.economic_status === 'garantia' ? 'GARANTÍA' : workOrder?.economic_status === 'no_facturable' ? 'NO FACTURABLE' : workOrder?.economic_status === 'pendiente_facturar' ? 'PENDIENTE DE FACTURACIÓN' : displayStatus(workOrder?.economic_status ?? 'pendiente'); }
 function quoteLineCategory(line: any) { const type = line.line_type ?? 'other'; if (type === 'material' || line.material_id) return 'MATERIALES PREVISTOS'; if (type === 'labor') return 'MANO DE OBRA PREVISTA'; if (['transport','travel'].includes(type)) return 'DESPLAZAMIENTOS'; if (type === 'mobile_workshop') return 'TALLER MÓVIL'; if (['lifting_platform','auxiliary_equipment'].includes(type)) return 'PLATAFORMA / MEDIOS AUXILIARES'; if (['external_cost','other'].includes(type)) return 'COSTES EXTERNOS / OTROS'; return 'CONCEPTOS COMERCIALES'; }
 function realHoursMinutes(workOrder: any) { return (workOrder.time_entries ?? []).reduce((sum: number, row: any) => sum + Number(row.duration_minutes ?? 0), 0); }

@@ -659,7 +659,6 @@ function WorkOrderDetailPageV2({ forcedId }: { forcedId?: string } = {}) {
   if (workspace === 'tecnico' && (error || (!loading && !data))) return <AccessDenied />;
   if (loading || error || !data) return <StateBlock loading={loading} error={error} retry={reload} empty={!data} />;
   if (!canViewWorkOrder(profile, data)) return workspace === 'tecnico' ? <AccessDenied /> : <StateBlock loading={false} error="No tienes permiso para acceder a este parte" retry={undefined} empty={false} />;
-  if (workspace === 'tecnico') return <TechnicianWorkOrderUx data={data} profile={profile} reload={reload} />;
   const summary = { ...interventionSummary(data), lastSync: interventionSummary(data).syncedAt };
   const activity = activityTimeline(data);
   const manageAllowed = canManageWorkOrderAssignments(profile);
@@ -714,14 +713,13 @@ function WorkOrderDetailUx({ data, profile, workspace, reload }: { data: any; pr
       {manageAllowed && <button className="primary" onClick={() => setMode('assign')}>Asignar</button>}
       {canManageWorkOrderTime(profile, data) && <button onClick={() => setMode('time')}>Horas</button>}
       {canManageWorkOrderMaterials(profile, data) && <button onClick={() => setMode('material')}>Material</button>}
-      {canManageWorkOrderCosts(profile, data) && <button onClick={() => setMode('cost')}>Recursos</button>}
       {checkAction && <button onClick={() => checkAction === 'Abrir check' ? setTab('checks') : setMode('check')}>{checkAction}</button>}
-      <button onClick={() => setTab('media')}>Evidencias</button>
       {canFinalize && <button className="primary" onClick={() => setMode('finalize')}>Finalizar técnicamente</button>}
       <div className="work-more">
         <button aria-expanded={moreOpen} onClick={() => setMoreOpen((current) => !current)}>Más</button>
         {moreOpen && <div className="work-more-menu" role="menu">
           <span className="work-more-label">Operación</span>
+          {canManageWorkOrderCosts(profile, data) && <button role="menuitem" onClick={() => { closeMore(); setMode('cost'); }}>Recurso/coste</button>}
           <div role="menuitem"><SyncButton workOrderId={data.id} onSynced={reload} /></div>
           {data.main_equipment_id && <><span className="work-more-label">Navegación</span><Link role="menuitem" to={`/app/equipos/${data.main_equipment_id}`} onClick={closeMore}>Abrir equipo</Link></>}
           {workOrderPurgeCanShowButton(data, workspace) && <><span className="work-more-label work-more-danger-label">Administración</span><button role="menuitem" className="danger-action" onClick={() => { closeMore(); setPurgeOpen(true); }}>Eliminar definitivamente</button></>}
@@ -751,76 +749,6 @@ function WorkOrderDetailUx({ data, profile, workspace, reload }: { data: any; pr
     {mode === 'finalize' && <WorkOrderFinalizeModal workOrder={data} onClose={() => setMode(null)} onDone={() => { setMode(null); onChanged(); }} onError={setActionError} />}
     {purgeOpen && <WorkOrderPurgeModal workOrder={data} onClose={() => setPurgeOpen(false)} onDeleted={() => { setPurgeOpen(false); navigate('/app/partes'); }} />}
   </section>;
-}
-
-function TechnicianWorkOrderUx({ data, profile, reload }: { data: any; profile: any; reload: () => Promise<void> | void }) {
-  const [mode, setMode] = useState<'time' | 'material' | 'photo' | 'signature' | 'deficiency' | 'finalize' | null>(null);
-  const [moreOpen, setMoreOpen] = useState(false);
-  const [actionError, setActionError] = useState('');
-  const checks = data.checks ?? [];
-  const metrics = workOrderOperationalMetrics(data);
-  const warnings = workOrderDetailWarnings(data);
-  const summary = interventionSummary(data);
-  const profileIds = new Set([profile?.id, profile?.auth_user_id].filter(Boolean));
-  const ownTime = (data.time_entries ?? []).filter((row: any) => profileIds.has(row.profile_id) || profileIds.has(row.profiles?.id));
-  const ownMinutes = ownTime.reduce((sum: number, row: any) => sum + Number(row.duration_minutes ?? 0), 0);
-  const travelMinutes = ownTime.filter((row: any) => row.hour_type === 'desplazamiento').reduce((sum: number, row: any) => sum + Number(row.duration_minutes ?? 0), 0);
-  const checkLabel = checks.length > 1 ? `Checks (${checks.length})` : workOrderCheckAction(data, canCreateCheck(profile));
-  const canFinalize = canFinalizeWorkOrderTechnical(profile, data);
-  const closeMore = () => setMoreOpen(false);
-  const reloadAfterChange = () => { setMode(null); reload(); };
-  const scrollToChecks = () => document.getElementById('technician-work-order-checks')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-  return <section className="page technician-work-order-v2">
-    <BackButton />
-    <header className="technician-work-order-header">
-      <div>
-        <p className="eyebrow">Ejecución técnica</p>
-        <h2><strong>{data.code}</strong> · {data.title}</h2>
-        <p>{data.clients?.legal_name ?? 'Cliente no informado'} · {data.sites?.name ?? 'Centro no informado'}</p>
-        <div className="technician-work-order-context"><span>Equipo: <strong>{data.primary_equipment?.code ?? 'Sin equipo'}</strong></span><span>Tipo: <strong>{equipmentTypeName(data.primary_equipment) ?? 'Tipo no informado'}</strong></span><span>Agenda: <strong>{data.scheduled_date ?? 'Sin fecha'} · {data.scheduled_time ?? 'Sin hora'}</strong></span></div>
-      </div>
-      <Badge tone={severityForStatus(data.status)}>{displayStatus(data.status)}</Badge>
-    </header>
-
-    <TechnicianWorkOrderProgress metrics={metrics} />
-    <div className="technician-work-order-actions">
-      {canManageWorkOrderTime(profile, data) && <button onClick={() => setMode('time')}>Horas</button>}
-      {canManageWorkOrderMaterials(profile, data) && <button onClick={() => setMode('material')}>Material</button>}
-      <button onClick={() => setMode('photo')}>Foto</button>
-      {checkLabel && <button onClick={scrollToChecks}>{checkLabel}</button>}
-      <div className="technician-work-order-more">
-        <button aria-expanded={moreOpen} onClick={() => setMoreOpen((current) => !current)}>Más</button>
-        {moreOpen && <div className="technician-work-order-menu" role="menu">
-          {canFinalize && <button role="menuitem" className="primary" onClick={() => { closeMore(); setMode('finalize'); }}>Finalizar técnicamente</button>}
-          <button role="menuitem" onClick={() => { closeMore(); setMode('signature'); }}>Firma</button>
-          <button role="menuitem" onClick={() => { closeMore(); setMode('deficiency'); }}>Incidencia</button>
-          <SyncButton workOrderId={data.id} onSynced={reload} />
-        </div>}
-      </div>
-    </div>
-
-    {actionError && <p className="form-error">{actionError}</p>}
-    <div className="technician-work-order-summary-grid">
-      <Card title="Horas"><div className="technician-hours-summary"><strong>{formatMinutes(ownMinutes)}</strong><span>Tiempo propio</span><small>{formatMinutes(travelMinutes)} de desplazamiento</small></div></Card>
-      <Card title="Equipo"><InfoGrid items={[[ 'Equipo', data.primary_equipment?.code ?? 'Sin equipo' ], [ 'Tipo', equipmentTypeName(data.primary_equipment) ?? 'Tipo no informado' ], [ 'Ubicación', data.sites?.name ?? data.sites?.address ?? 'Sin ubicación' ], [ 'Estado', displayStatus(data.status) ]]}/></Card>
-    </div>
-    <Card title="Trabajo"><InfoGrid items={[[ 'Problema', data.description || 'Sin información' ], [ 'Diagnóstico', summary.diagnosis || 'Sin información' ], [ 'Trabajo realizado', summary.work || 'Sin información' ], [ 'Resultado', summary.result || 'Sin información' ], [ 'Observaciones', summary.observations || 'Sin información' ]]}/></Card>
-    <div id="technician-work-order-checks"><Card title={checks.length > 1 ? `Checks (${checks.length})` : 'Check'}><div className="work-detail-list">{checks.map((check: any) => <CheckSummaryCard key={check.id} check={check} />)}{!checks.length && <p className="large-note">Sin checks asociados.</p>}</div></Card></div>
-    {warnings.length > 0 && <Card title="Pendientes"><div className="technician-pending-list" role="status">{warnings.map((warning) => <span key={warning}>{warning}</span>)}</div></Card>}
-    <div className="technician-status-card"><WorkOrderStatusSelector workOrder={data} onChanged={reload} onError={setActionError} /></div>
-
-    {mode === 'time' && <WorkOrderTimeForm workOrder={data} onClose={() => setMode(null)} onSaved={reloadAfterChange} />}
-    {mode === 'material' && <WorkOrderMaterialForm workOrder={data} onClose={() => setMode(null)} onSaved={reloadAfterChange} />}
-    {mode === 'photo' && <WorkOrderPhotoForm workOrderId={data.id} />}
-    {mode === 'signature' && <WorkOrderSignatureForm workOrderId={data.id} />}
-    {mode === 'deficiency' && <WorkOrderDeficiencyForm workOrderId={data.id} checks={checks} />}
-    {mode === 'finalize' && <WorkOrderFinalizeModal workOrder={data} onClose={() => setMode(null)} onDone={reloadAfterChange} onError={setActionError} />}
-  </section>;
-}
-
-function TechnicianWorkOrderProgress({ metrics }: { metrics: ReturnType<typeof workOrderOperationalMetrics> }) {
-  return <Card title="Progreso"><div className="technician-progress-grid"><div><strong>{formatMinutes(metrics.totalMinutes)}</strong><span>Horas</span></div><div><strong>{metrics.materials}</strong><span>Materiales</span></div><div><strong>{metrics.checksComplete}/{metrics.checksTotal}</strong><span>Checks</span></div><div><strong>{metrics.photos}</strong><span>Fotos</span></div><div><strong>{metrics.openDeficiencies}</strong><span>Incidencias</span></div><div><strong>{metrics.signatures ? 'Sí' : 'No'}</strong><span>Firma</span></div></div></Card>;
 }
 
 function WorkOrderOperationalSummary({ metrics }: { metrics: ReturnType<typeof workOrderOperationalMetrics> }) {

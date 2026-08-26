@@ -50,11 +50,11 @@ function numericField(value: any, fallback: number, field: string) {
   return next;
 }
 
-export function normalizeQuoteLinePayload(payload: Record<string, any>) {
+export function normalizeQuoteLinePayload(payload: Record<string, any>): Record<string, any> {
   const expanded = { ...payload };
   const unitPriceValue = firstPayloadValue(payload, ['unit_price', 'unitPrice', 'price', 'salePrice', 'sale_price', 'unitSale', 'sellingPrice']);
   if (unitPriceValue !== undefined) expanded.unit_price = unitPriceValue;
-  const line = cleanPayload(expanded, lineColumns);
+  const line: Record<string, any> = cleanPayload(expanded, lineColumns);
   const quantity = numericField(line.quantity, 1, 'la cantidad');
   const unitCost = numericField(line.unit_cost, 0, 'el coste unitario');
   const unitPrice = numericField(line.unit_price, unitCost, 'la venta unitaria');
@@ -137,7 +137,10 @@ export const quotesService = {
   },
   async addLine(quoteId: string, payload: Record<string, any>) {
     const quote = await this.get(quoteId);
-    const normalizedPayload = { ...normalizeQuoteLinePayload(payload), quote_id: quoteId, company_id: quote.company_id };
+    const normalized = normalizeQuoteLinePayload(payload);
+    const normalizedPayload: Record<string, any> = payload.concept_id
+      ? { quote_id: quoteId, company_id: quote.company_id, line_type: normalized.line_type, concept_id: payload.concept_id, rate_version_id: payload.rate_version_id, description: normalized.description, quantity: normalized.quantity, tax_rate: normalized.tax_rate, discount_percent: normalized.discount_percent }
+      : { ...normalized, quote_id: quoteId, company_id: quote.company_id };
     try {
       return await expectData<any>(supabase.from('quote_lines').insert(normalizedPayload).select().maybeSingle(), { service: 'quotesService', operation: 'add quote line', resource: quoteId });
     } catch (error: any) {
@@ -146,7 +149,10 @@ export const quotesService = {
     }
   },
   async updateLine(lineId: string, payload: Record<string, any>) {
-    const normalizedPayload = normalizeQuoteLinePayload(payload);
+    const normalized = normalizeQuoteLinePayload(payload);
+    const normalizedPayload: Record<string, any> = payload.concept_id
+      ? { line_type: normalized.line_type, concept_id: payload.concept_id, rate_version_id: payload.rate_version_id, description: normalized.description, quantity: normalized.quantity, tax_rate: normalized.tax_rate, discount_percent: normalized.discount_percent }
+      : normalized;
     try {
       return await expectData<any>(supabase.from('quote_lines').update(normalizedPayload).eq('id', lineId).select().maybeSingle(), { service: 'quotesService', operation: 'update quote line', resource: lineId });
     } catch (error: any) {

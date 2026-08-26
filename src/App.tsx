@@ -2385,6 +2385,61 @@ function QuoteForm({ initial, onClose, onSaved }: { initial?: any; onClose: () =
 }
 
 function QuoteLineForm({ quoteId, quoteCompanyId, initial, onClose, onSaved }: { quoteId: string; quoteCompanyId?: string | null; initial?: any; onClose: () => void; onSaved: () => void }) {
+  const { profile } = useAuth();
+  const [materialSearch, setMaterialSearch] = useState('');
+  const [rateSearch, setRateSearch] = useState('');
+  const materials = useLoad(() => quotesService.materialOptions(materialSearch, quoteCompanyId), [materialSearch, quoteCompanyId], [] as any[]);
+  const rates = useLoad(() => hourRatesService.quoteRateOptions(quoteId), [quoteId], [] as any[]);
+  const legacyRates = useLoad(() => initial?.quote_rate_id ? hourRatesService.list('', quoteCompanyId) : Promise.resolve([]), [initial?.quote_rate_id, quoteCompanyId], [] as any[]);
+  const initialEntryType = initial?.concept_id ? 'service' : initial?.material_id ? 'material' : initial?.quote_rate_id ? 'legacy-labor' : 'manual';
+  const [entryType, setEntryType] = useState(initialEntryType);
+  const [values, setValues] = useState<Record<string, any>>({ line_type: initial?.line_type ?? 'other', description: '', quantity: 1, unit: 'ud', unit_cost: '', unit_price: '', tax_rate: 21, discount_percent: 0, concept_id: null, ...initial });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const set = (key: string, value: any) => setValues((current) => ({ ...current, [key]: value }));
+  const selectedMaterial = materials.data.find((item: any) => item.id === values.material_id);
+  const selectedRate = rates.data.find((item: any) => item.concept_id === values.concept_id);
+  const selectedLegacyRate = legacyRates.data.find((item: any) => item.id === values.quote_rate_id);
+  const showCosts = canViewInternalEconomics(profile);
+  const changeEntryType = (next: string) => {
+    setEntryType(next);
+    setValues((current) => ({ ...current, line_type: next === 'service' ? 'other' : next === 'material' ? 'material' : next === 'legacy-labor' ? 'labor' : 'other', concept_id: next === 'service' ? current.concept_id : null, material_id: next === 'material' ? current.material_id : null, quote_rate_id: next === 'legacy-labor' ? current.quote_rate_id : null }));
+  };
+  const selectMaterial = (id: string) => {
+    const material = materials.data.find((item: any) => item.id === id);
+    setValues((current) => ({ ...current, material_id: id || null, description: material?.description ?? current.description, unit: material?.unit ?? current.unit, unit_cost: material?.cost ?? current.unit_cost, unit_price: material?.price ?? current.unit_price }));
+  };
+  const selectRate = (conceptId: string) => {
+    const rate = rates.data.find((item: any) => item.concept_id === conceptId);
+    setValues((current) => ({ ...current, concept_id: conceptId || null, rate_version_id: rate?.rate_version_id ?? null, line_type: rate?.classification === 'labor' ? 'labor' : 'other', description: rate?.name ?? current.description, unit: rate?.unit ?? current.unit, billing_mode: rate?.billing_mode ?? current.billing_mode, period_days: rate?.period_days ?? null, unit_cost: rate?.cost_amount ?? current.unit_cost, unit_price: rate?.sale_amount ?? current.unit_price }));
+  };
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (entryType === 'service' && !values.concept_id) { setError('Selecciona un concepto de tarifa.'); return; }
+    setSaving(true); setError('');
+    try {
+      await (initial?.id ? quotesService.updateLine(initial.id, values) : quotesService.addLine(quoteId, values));
+      onSaved();
+    } catch (err) {
+      setError(formErrorMessage(err, initial?.id ? 'No se ha podido modificar la línea.' : 'No se ha podido añadir la línea.'));
+    } finally { setSaving(false); }
+  };
+  const selectedPrice = entryType === 'service' ? Number(selectedRate?.sale_amount ?? values.unit_price ?? 0) : Number(values.unit_price ?? 0);
+  const total = Number(values.quantity ?? 0) * selectedPrice;
+  return <ModalForm title={initial?.id ? 'Editar línea' : 'Añadir línea'} onClose={onClose} onSubmit={submit} saving={saving} error={error}>
+    <FormSelect label="Tipo" value={entryType} onChange={changeEntryType} options={[{ value: 'material', label: 'Material' }, { value: 'service', label: 'Servicio / Tarifa' }, { value: 'manual', label: 'Manual' }, ...(initial?.quote_rate_id ? [{ value: 'legacy-labor', label: 'Mano de obra histórica' }] : [])]} />
+    {entryType === 'material' && <><label>Buscar material existente<input value={materialSearch} onChange={(event) => setMaterialSearch(event.target.value)} placeholder="Código, descripción, fabricante o referencia" /></label><FormSelect label="Material de catálogo opcional" value={values.material_id ?? ''} onChange={selectMaterial} options={[{ value: '', label: 'Material manual / sin catálogo' }, ...materials.data.map((item: any) => ({ value: item.id, label: `${item.code} · ${item.description} · ${Number(item.price ?? 0).toLocaleString('es-ES')} €` }))]} loading={materials.loading} />{selectedMaterial && <p className="large-note">Unidad: {selectedMaterial.unit ?? 'ud'} · Precio: {money(selectedMaterial.price)}</p>}</>}
+    {entryType === 'service' && <><label>Buscar concepto<input value={rateSearch} onChange={(event) => setRateSearch(event.target.value)} placeholder="Código o nombre" /></label><FormSelect label="Concepto del catálogo" value={values.concept_id ?? ''} onChange={selectRate} options={[{ value: '', label: 'Selecciona un concepto' }, ...rates.data.filter((rate: any) => !rateSearch || `${rate.code} ${rate.name}`.toLowerCase().includes(rateSearch.toLowerCase())).map((rate: any) => ({ value: rate.concept_id, label: `${rate.name} · ${rate.unit} · ${money(rate.sale_amount)}` }))]} loading={rates.loading} />{selectedRate && <p className="large-note">{selectedRate.code} · Unidad: {selectedRate.unit} · Cobro: {selectedRate.billing_mode}{showCosts ? ` · Coste: ${money(selectedRate.cost_amount)}` : ''}</p>}</>}
+    {entryType === 'legacy-labor' && <FormSelect label="Tarifa histórica" value={values.quote_rate_id ?? ''} onChange={(value) => set('quote_rate_id', value)} options={legacyRates.data.map((rate: any) => ({ value: rate.id, label: `${rate.category ?? 'Tarifa'} · ${money(rate.hourly_price)}/h` }))} loading={legacyRates.loading} />}
+    {entryType !== 'material' && entryType !== 'service' && entryType !== 'legacy-labor' && <label>Descripción *<input value={values.description ?? ''} onChange={(event) => set('description', event.target.value)} required /></label>}
+    <div className="form-grid"><label>Cantidad<input type="number" min="0.01" step="0.01" value={values.quantity ?? 1} onChange={(event) => set('quantity', event.target.value)} required /></label><label>Unidad<input value={entryType === 'service' ? selectedRate?.unit ?? values.unit ?? 'ud' : values.unit ?? 'ud'} onChange={(event) => set('unit', event.target.value)} readOnly={entryType === 'service'} /></label></div>
+    {entryType !== 'service' && <div className="form-grid"><label>Coste unitario<input type="number" min="0" step="0.01" value={values.unit_cost ?? ''} onChange={(event) => set('unit_cost', event.target.value)} /></label><label>Precio unitario<input type="number" min="0" step="0.01" value={values.unit_price ?? ''} onChange={(event) => set('unit_price', event.target.value)} /></label></div>}
+    {entryType === 'service' && selectedRate && <p className="large-note">Precio venta vigente: {money(selectedPrice)} · Total estimado: {money(total)}</p>}
+    <label>IVA<input type="number" min="0" step="0.01" value={values.tax_rate ?? 21} onChange={(event) => set('tax_rate', event.target.value)} /></label>
+  </ModalForm>;
+}
+
+function LegacyQuoteLineForm({ quoteId, quoteCompanyId, initial, onClose, onSaved }: { quoteId: string; quoteCompanyId?: string | null; initial?: any; onClose: () => void; onSaved: () => void }) {
   const [materialSearch, setMaterialSearch] = useState('');
   const materials = useLoad(() => quotesService.materialOptions(materialSearch, quoteCompanyId), [materialSearch, quoteCompanyId], [] as any[]);
   const rates = useLoad(() => hourRatesService.list('', quoteCompanyId), [quoteCompanyId], [] as any[]);

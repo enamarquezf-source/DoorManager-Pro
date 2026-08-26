@@ -33,6 +33,9 @@ export const hourRatesService = {
     if (includeArchived) return rows;
     return rows.filter((row) => hasUsableRateVersion(row) || row.id === includeId);
   },
+  async quoteRateOptions(quoteId: string) {
+    return expectData<any[]>(supabase.rpc('dmp_quote_rate_options', { p_quote_id: quoteId }), { service: 'hourRatesService', operation: 'list quote rate options', resource: quoteId });
+  },
   async createCatalog(payload: Record<string, any>) {
     const body = Object.fromEntries(catalogColumns.filter((key) => key !== 'company_id' && key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
     body.classification = body.classification ?? body.kind ?? 'cost';

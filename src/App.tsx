@@ -1021,19 +1021,19 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
     : zones.some((zone) => sectionStatus(zone) === "Problema leve")
       ? "Problema leve"
       : "Todo favorable";
-  const canFinishCheck = allReviewed && pending.length === 0;
+  const canFinishCheck = pending.length === 0;
   const blockHref = (zoneId: CheckBlockId) =>
     workspace === "superadmin"
       ? `/app/superadmin/checks/${id}/bloque/${zoneId}`
       : `/app/checks/${id}/bloque/${zoneId}`;
   const manageAllowed = canManageCheck(profile);
-  const executeAllowed = canExecuteCheck(profile) && allReviewed;
+  const executeAllowed = canExecuteCheck(profile);
   const finish = async () => {
     try {
       setActionError("");
       if (!canFinishCheck)
         throw new Error(
-          "Sincroniza primero los cambios locales pendientes y revisa todos los bloques antes de finalizar el check.",
+          "Sincroniza primero los cambios locales pendientes antes de finalizar el check.",
         );
       await checksService.finish(id, globalResult);
       setMode(null);
@@ -1150,7 +1150,7 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
       {executeAllowed && (
         <button
           className="primary wide big"
-          disabled={!allReviewed}
+          disabled={pending.length > 0}
           onClick={() => setMode("finish")}
         >
           Finalizar check
@@ -1158,8 +1158,8 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
       )}
       {!allReviewed && (
         <p className="large-note">
-          Para finalizar, todos los bloques, incluido Funcionamiento general,
-          deben estar revisados o marcados como No aplicable.
+          Hay bloques sin revisar. Puedes finalizar y quedarán pendientes de
+          completar.
         </p>
       )}
       {allReviewed && pending.length > 0 && (
@@ -1207,7 +1207,7 @@ function CheckBlockPage({
   forcedId,
   forcedBlockId,
 }: { forcedId?: string; forcedBlockId?: string } = {}) {
-  const { id: routeId = "", blockId: routeBlockId = "hoja" } = useParams();
+  const { id: routeId = "", blockId: routeBlockId = "" } = useParams();
   const id = forcedId ?? routeId;
   const blockId = forcedBlockId ?? routeBlockId;
   const navigate = useNavigate();
@@ -1233,7 +1233,7 @@ function CheckBlockPage({
   const [saving, setSaving] = useState(false);
   const [localLoaded, setLocalLoaded] = useState(false);
   const zones = data ? buildFunctionalCheckBlocks(data) : [];
-  const zone = zones.find((item) => item.id === blockId || item.sectionId === blockId);
+  const zone = zones.find((item) => item.sectionId === blockId);
   const section = zone
     ? { id: zone.sectionId, title: zone.name, check_template_items: zone.items }
     : null;
@@ -1663,7 +1663,7 @@ function CheckBlockPageV2({
   const [saving, setSaving] = useState(false);
   const [localLoaded, setLocalLoaded] = useState(false);
   const zones = data ? buildFunctionalCheckBlocks(data) : [];
-  const zone = zones.find((item) => item.id === blockId || item.sectionId === blockId);
+  const zone = zones.find((item) => item.sectionId === blockId);
   const section = zone
     ? { id: zone.sectionId, title: zone.name, check_template_items: zone.items }
     : null;

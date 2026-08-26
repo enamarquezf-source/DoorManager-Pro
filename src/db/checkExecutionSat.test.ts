@@ -21,7 +21,8 @@ const change = (id: string, checkId: string, status: 'pending' | 'failed' | 'blo
 
 describe('SAT check execution flow', () => {
   it('keeps SAT and superadmin on the executable check/block workflow', () => {
-    expect(detail).toContain('canExecuteCheck(profile) && allReviewed');
+    expect(detail).toContain('canExecuteCheck(profile)');
+    expect(detail).toContain('disabled={pending.length > 0}');
     expect(blockV1).toContain('if (!canExecuteCheck(profile)) return <AccessDenied />');
     expect(blockV2).toContain('if (!canExecuteCheck(profile)) return <AccessDenied />');
     expect(blockV2).toContain('{canExecuteCheck(profile) && (');

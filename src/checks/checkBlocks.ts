@@ -30,7 +30,8 @@ export function buildFunctionalCheckBlocks(check: any): FunctionalCheckBlock[] {
     const sectionSlug = slug(section.slug ?? section.key ?? section.title);
     const zone = visual.find((item) => visualZoneMatchesSection(item, section));
     return {
-      id: sectionSlug || section.id,
+      // The route and offline identity must be the section persisted by the check.
+      id: section.id,
       sectionId: section.id,
       slug: sectionSlug,
       name: section.title,

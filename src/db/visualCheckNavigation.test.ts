@@ -22,4 +22,9 @@ describe('visual check navigation safety', () => {
     expect(detail).not.toContain('physicalZones.map');
     expect(detail).not.toContain('className={`hotspot');
   });
+
+  it.each([['CheckBlockPage', v1], ['CheckBlockPageV2', v2]])('%s resolves only the requested persisted section id', (_name, source) => {
+    expect(source).toContain('zones.find((item) => item.sectionId === blockId)');
+    expect(source).not.toContain('item.id === blockId ||');
+  });
 });

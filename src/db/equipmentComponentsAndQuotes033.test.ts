@@ -61,7 +61,7 @@ describe('equipment components and quotes 033', () => {
     expect(app).toContain('function QuotesModule');
     expect(app).toContain('QuoteLineForm');
     expect(app).toContain('quoteTypes.map');
-    expect(app).toContain('quoteLineTypes.map');
+    expect(app).toContain('Servicio / Tarifa');
     expect(permissions).toContain("path.startsWith('/app/modulos/presupuestos')");
     expect(permissions).toContain("['superadmin', 'SAT', 'Gerencia', 'Comercial']");
   });

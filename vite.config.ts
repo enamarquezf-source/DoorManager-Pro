@@ -20,6 +20,17 @@ function buildInfoPlugin() {
 
 export default defineConfig({
   plugins: [react(), buildInfoPlugin()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router-dom')) return 'react';
+          if (id.includes('node_modules/@supabase')) return 'supabase';
+          if (id.includes('node_modules/lucide-react')) return 'icons';
+        },
+      },
+    },
+  },
   define: {
     __DMP_BUILD_VERSION__: JSON.stringify(buildVersion),
     __DMP_BUILD_COMMIT__: JSON.stringify(buildCommit),

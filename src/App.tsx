@@ -15,7 +15,7 @@ import { deficienciesService } from './services/deficienciesService';
 import { alertsService } from './services/alertsService';
 import { documentsService } from './services/documentsService';
 import { managementService } from './services/managementService';
-import { quoteLineTypes, quoteStatusFilters, quoteStatuses, quoteTypes, quotesService } from './services/quotesService';
+import { isQuoteEditable, quoteLineTypes, quoteStatusFilters, quoteTypes, quotesService, validQuoteTransitions } from './services/quotesService';
 import { materialsService } from './services/materialsService';
 import { hourRatesService } from './services/hourRatesService';
 import { economicService } from './services/economicService';
@@ -25,7 +25,7 @@ import { searchService } from './services/searchService';
 import { checkProblemStatuses, checkStatuses, sectionalZones, type CheckBlockId } from './checks/sectionalZones';
 import { buildFunctionalCheckBlocks, equipmentTypeName, isUuid, remoteBlockState, templateTypeMismatch, visualTemplateForEquipment } from './checks/checkBlocks';
 import { technicianOfflineService } from './services/technicianOfflineService';
-import { canAccessModule, canAccessRoute, canArchiveEntity, canAssignTechnician, canCorrectWorkOrderOperationalFields, canCreateAlert, canCreateCheck, canCreateWorkOrder, canEditWorkOrder, canExecuteCheck, canExecuteWorkOrder, canManageCheck, canManageHourRates, canManageQuotes, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canPermanentlyDeleteEntity, canRestoreEntity, canRole, canViewCheck, canViewInternalEconomics, canViewWorkOrder, canViewWorkOrderCosts, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './auth/permissions';
+import { canAccessModule, canAccessRoute, canArchiveEntity, canAssignTechnician, canCorrectWorkOrderOperationalFields, canCreateAlert, canCreateCheck, canCreateWorkOrder, canEditWorkOrder, canExecuteCheck, canExecuteWorkOrder, canManageCheck, canManageHourRates, canManageQuotes, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canMarkAdditionalSale, canPermanentlyDeleteEntity, canRestoreEntity, canReviewWorkOrderOffice, canRole, canViewCheck, canViewInternalEconomics, canViewWorkOrder, canViewWorkOrderCosts, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './auth/permissions';
 import { loadInitialAuthSnapshot, loginAuthState, protectedAuthState } from './auth/sessionBootstrap';
 import { displayStatus, formatDate, fullName, initials, nextWorkOrderStatus, previousWorkOrderStatus, severityForPriority, severityForStatus, visibleLabel, workOrderStatuses, workspaceTitles, workspaceToRole } from './shared/labels';
 import { deficiencyFiltersFromParams, isOpenDeficiencyStatus, normalizeParam, workOrderFilterFromParams } from './shared/filters';
@@ -42,6 +42,7 @@ import { quotePurgeBlocks, quotePurgeCanShowButton, quotePurgeExpectedConfirmati
 import { workOrderPurgeBlocks, workOrderPurgeCanShowButton, workOrderPurgeExpectedConfirmation, workOrderPurgePlanItems, workOrderPurgePlanMatchesScope, workOrderPurgeResultOk, workOrderPurgeScope, workOrderPurgeScopeKey, type WorkOrderPurgeScopeKey } from './services/workOrderPurgeFlow';
 import { entityPurgeBlockers, entityPurgeCanShowButton, entityPurgeExpectedConfirmation, entityPurgePlanMatchesScope, entityPurgeResultOk, entityPurgeScope, entityPurgeScopeKey, casesPurgeConfig, checksPurgeConfig, equipmentPurgeConfig, type EntityPurgeConfig, type EntityPurgeDecision, type PurgeScopeKey } from './services/entityPurgeFlow';
 import { filterEquipmentForContext, filterSitesForClient } from './shared/clientCenterEquipment';
+import { BillingModule } from './modules/BillingModule';
 
 type AuthContextValue = { initialized: boolean; session: Session | null; profile: Profile | null; profileError: string | null; workspace: Workspace; setWorkspace: (workspace: Workspace) => void; refreshProfile: () => Promise<void>; signOut: () => Promise<void> };
 type LoadState<T> = { data: T; loading: boolean; error: string };
@@ -50,7 +51,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 const sidebarKey = 'dmp-sidebar-collapsed';
 const workspaceKey = 'dmp-workspace';
 const iconProps = { size: 18, strokeWidth: 2 };
-const superadminSharedRoutes = ['/app/modulos/presupuestos', '/app/modulos/materiales', '/app/modulos/cobros', '/app/modulos/rentabilidad', '/app/modulos/tarifas-horas'];
+const superadminSharedRoutes = ['/app/modulos/presupuestos', '/app/modulos/materiales', '/app/modulos/administracion', '/app/modulos/facturacion', '/app/modulos/cobros', '/app/modulos/rentabilidad', '/app/modulos/tarifas-horas'];
 
 function App() {
   return <AppErrorBoundary scope="Aplicación"><BrowserRouter><AuthProvider><Routes><Route path="/" element={<LoginPage />} /><Route element={<ProtectedLayout />}><Route path="/app/inicio" element={<HomePage />} /><Route path="/app/superadmin" element={<SuperadminGuard><SuperadminHome /></SuperadminGuard>} /><Route path="/app/superadmin/usuarios" element={<SuperadminGuard><SuperadminUsers /></SuperadminGuard>} /><Route path="/app/superadmin/roles" element={<SuperadminGuard><SuperadminRoles /></SuperadminGuard>} /><Route path="/app/superadmin/plantillas" element={<SuperadminGuard><SuperadminTemplates /></SuperadminGuard>} /><Route path="/app/superadmin/sincronizacion" element={<SuperadminGuard><SuperadminSync /></SuperadminGuard>} /><Route path="/app/superadmin/auditoria" element={<SuperadminGuard><SuperadminAudit /></SuperadminGuard>} /><Route path="/app/clientes" element={<ClientsPage />} /><Route path="/app/clientes/:id" element={<ErrorBoundaryScreen scope="Ficha de cliente"><ClientDetailPage /></ErrorBoundaryScreen>} /><Route path="/app/centros" element={<SitesPage />} /><Route path="/app/centros/:id" element={<ErrorBoundaryScreen scope="Ficha de centro"><SiteDetailPage /></ErrorBoundaryScreen>} /><Route path="/app/equipos" element={<EquipmentPage />} /><Route path="/app/equipos/:id" element={<ErrorBoundaryScreen scope="Ficha de equipo"><EquipmentDetailPage /></ErrorBoundaryScreen>} /><Route path="/app/expedientes" element={<CasesPage />} /><Route path="/app/expedientes/:id" element={<ErrorBoundaryScreen scope="Ficha de expediente"><CaseDetailPage /></ErrorBoundaryScreen>} /><Route path="/app/partes" element={<WorkOrdersPage />} /><Route path="/app/trabajos" element={<Navigate to="/app/partes" replace />} /><Route path="/app/trabajos/:id" element={<ErrorBoundaryScreen scope="Detalle de parte"><WorkOrderDetailPageV2 /></ErrorBoundaryScreen>} /><Route path="/app/partes/:id" element={<ErrorBoundaryScreen scope="Detalle de parte"><WorkOrderDetailPageV2 /></ErrorBoundaryScreen>} /><Route path="/app/tecnico" element={<TechnicianDayPage />} /><Route path="/app/tecnico/trabajo/:id" element={<TechnicianWorkPage />} /><Route path="/app/pendientes" element={<PendingSyncPage />} /><Route path="/app/checks" element={<ChecksPage />} /><Route path="/app/checks/:id" element={<ErrorBoundaryScreen scope="Detalle de check"><CheckDetailPage /></ErrorBoundaryScreen>} /><Route path="/app/checks/:id/bloque/:blockId" element={<ErrorBoundaryScreen scope="Bloque de check"><CheckBlockPageV2 /></ErrorBoundaryScreen>} /><Route path="/app/deficiencias" element={<DeficienciesPage />} /><Route path="/app/deficiencias/:id" element={<DeficiencyDetailPage />} /><Route path="/app/avisos" element={<AlertsPage />} /><Route path="/app/documentos" element={<DocumentsPage />} /><Route path="/app/documentos/:id" element={<DocumentDetailPage />} /><Route path="/app/gerencia" element={<ManagementPage />} /><Route path="/app/modulos/tecnicos/:profileId" element={<ErrorBoundaryScreen scope="Ficha operativa"><OperationalProfileRoute role="Tecnico" /></ErrorBoundaryScreen>} /><Route path="/app/modulos/comerciales/:profileId" element={<ErrorBoundaryScreen scope="Ficha operativa"><OperationalProfileRoute role="Comercial" /></ErrorBoundaryScreen>} /><Route path="/app/modulos/presupuestos/:id" element={<ErrorBoundaryScreen scope="Ficha de presupuesto"><QuoteDetailPage /></ErrorBoundaryScreen>} /><Route path="/app/modulos/:moduleId" element={<ModulePage />} /><Route path="/app/*" element={<NotFound />} /></Route><Route path="*" element={<NotFound />} /></Routes></AuthProvider></BrowserRouter></AppErrorBoundary>;
@@ -678,7 +679,7 @@ function operationalQuoteLines(workOrder: any) { return plannedQuoteLines(workOr
 function pendingOperationalQuoteLines(workOrder: any) { return operationalQuoteLines(workOrder).filter((line: any) => line.line_type === 'material' || line.material_id ? !plannedMaterialDecision(workOrder, line.id) : line.line_type === 'labor' ? false : !plannedQuoteLineDecision(workOrder, line.id)); }
 function pendingPlannedMaterials(workOrder: any) { return plannedMaterialRows(workOrder).filter((line: any) => !plannedMaterialDecision(workOrder, line.id)); }
 function canFinalizeWorkOrderTechnical(profile: any, workOrder: any) { const roles = profile ? normalizedRoleNames(profile.primary_area, profile.roles ?? []) : []; const allowedRole = roles.some((role) => ['superadmin','SAT','Gerencia'].includes(role)) || (roles.includes('Tecnico') && canManageWorkOrderStatus(profile, workOrder)); return allowedRole && !['Finalizado tecnicamente','Enviado','Cerrado','Cancelado'].includes(workOrder?.status); }
-function economicStatusLabel(workOrder: any) { return workOrder?.economic_status === 'garantia' ? 'GARANTÍA' : workOrder?.economic_status === 'no_facturable' ? 'NO FACTURABLE' : workOrder?.economic_status === 'pendiente_facturar' ? 'PENDIENTE DE FACTURACIÓN' : displayStatus(workOrder?.economic_status ?? 'pendiente'); }
+function economicStatusLabel(workOrder: any) { return workOrder?.economic_status === 'garantia' ? 'GARANTÍA' : workOrder?.economic_status === 'no_facturable' ? 'NO FACTURABLE' : workOrder?.economic_status === 'pendiente_validacion' ? 'PENDIENTE DE VALIDACIÓN DE OFICINA' : workOrder?.economic_status === 'pendiente_facturar' ? 'PENDIENTE DE FACTURACIÓN' : displayStatus(workOrder?.economic_status ?? 'pendiente'); }
 function quoteLineCategory(line: any) { const type = line.line_type ?? 'other'; if (type === 'material' || line.material_id) return 'MATERIALES PREVISTOS'; if (type === 'labor') return 'MANO DE OBRA PREVISTA'; if (['transport','travel'].includes(type)) return 'DESPLAZAMIENTOS'; if (type === 'mobile_workshop') return 'TALLER MÓVIL'; if (['lifting_platform','auxiliary_equipment'].includes(type)) return 'PLATAFORMA / MEDIOS AUXILIARES'; if (['external_cost','other'].includes(type)) return 'COSTES EXTERNOS / OTROS'; return 'CONCEPTOS COMERCIALES'; }
 function realHoursMinutes(workOrder: any) { return (workOrder.time_entries ?? []).reduce((sum: number, row: any) => sum + Number(row.duration_minutes ?? 0), 0); }
 function costEntryForQuoteLine(workOrder: any, lineId: string) { return (workOrder.cost_entries ?? workOrder.work_order_cost_entries ?? []).find((row: any) => row.quote_line_id === lineId && !row.deleted_at); }
@@ -696,7 +697,7 @@ function WorkOrderStatusSelector({ workOrder, onChanged, onError }: { workOrder:
   const canFinalize = canFinalizeWorkOrderTechnical(profile, workOrder);
   const prepare = (next: string) => {
     if (next === workOrder.status || saving || finalizing) return;
-    if (next === 'Finalizado tecnicamente') { setValue(workOrder.status); setFinalizing(true); return; }
+    if (next === 'Finalizado tecnicamente') { setValue(workOrder.status); if (canFinalize) setFinalizing(true); else onError('No tienes permiso para finalizar técnicamente este parte.'); return; }
     const currentIndex = workOrderStatuses.indexOf(workOrder.status);
     const nextIndex = workOrderStatuses.indexOf(next);
     const needsReason = next === 'Cancelado' || next === 'Cerrado' || nextIndex < currentIndex || ['Pendiente','Devuelto por SAT'].includes(next);
@@ -711,7 +712,38 @@ function WorkOrderStatusSelector({ workOrder, onChanged, onError }: { workOrder:
     catch (err) { setValue(workOrder.status); onError(err instanceof Error ? err.message : 'No se ha podido cambiar el estado.'); }
     finally { setSaving(false); }
   };
-  return <Card title="Estado del parte" action={canFinalize ? <button className="primary" onClick={() => setFinalizing(true)}>FINALIZAR PARTE TÉCNICO</button> : null}><label className="status-selector">Estado:<select value={value} disabled={saving} onChange={(event) => prepare(event.target.value)}>{workOrderStatuses.map((status) => <option key={status} value={status}>{displayStatus(status)}</option>)}</select></label><p className="large-note">SAT, Gerencia y superadmin pueden seleccionar cualquier estado. Técnicos asignados pueden avanzar su parte. El cierre técnico abre resumen antes de confirmar.</p>{['Finalizado tecnicamente','Enviado','Cerrado'].includes(workOrder.status) && <p className="success-note"><strong>FINALIZADO TÉCNICAMENTE</strong> · {economicStatusLabel(workOrder)}</p>}{confirm && <div className="mini-modal" role="dialog" aria-modal="true"><div><h3>Cambiar estado</h3><p>{confirm.warning} Confirmar cambio a {displayStatus(confirm.next)}.</p><label>Motivo {confirm.needsReason ? '*' : 'opcional'}<textarea value={confirm.reason} onChange={(event) => setConfirm({ ...confirm, reason: event.target.value })} /></label><div className="modal-footer"><button onClick={() => { if (!saving) { setValue(workOrder.status); setConfirm(null); } }} disabled={saving}>Cancelar</button><button className="primary" onClick={change} disabled={saving}>{saving ? 'Guardando...' : 'Confirmar estado'}</button></div></div></div>}{finalizing && <WorkOrderFinalizeModal workOrder={workOrder} onClose={() => setFinalizing(false)} onDone={() => { setFinalizing(false); onChanged(); }} onError={onError} />}</Card>;
+  return <>
+    <Card title="Estado del parte" action={canFinalize ? <button className="primary" onClick={() => setFinalizing(true)}>FINALIZAR PARTE TÉCNICO</button> : null}>
+      <label className="status-selector">Estado:<select value={value} disabled={saving} onChange={(event) => prepare(event.target.value)}>{workOrderStatuses.map((status) => <option key={status} value={status}>{displayStatus(status)}</option>)}</select></label>
+      <p className="large-note">El cierre técnico genera una revisión separada de oficina antes de facturación.</p>
+      {['Finalizado tecnicamente','Enviado','Cerrado'].includes(workOrder.status) && <p className="success-note"><strong>FINALIZADO TÉCNICAMENTE</strong> · {economicStatusLabel(workOrder)}</p>}
+      {confirm && <div className="mini-modal" role="dialog" aria-modal="true"><div><h3>Cambiar estado</h3><p>{confirm.warning} Confirmar cambio a {displayStatus(confirm.next)}.</p><label>Motivo {confirm.needsReason ? '*' : 'opcional'}<textarea value={confirm.reason} onChange={(event) => setConfirm({ ...confirm, reason: event.target.value })} /></label><div className="modal-footer"><button onClick={() => { if (!saving) { setValue(workOrder.status); setConfirm(null); } }} disabled={saving}>Cancelar</button><button className="primary" onClick={change} disabled={saving}>{saving ? 'Guardando...' : 'Confirmar estado'}</button></div></div></div>}
+      {finalizing && <WorkOrderFinalizeModal workOrder={workOrder} onClose={() => setFinalizing(false)} onDone={() => { setFinalizing(false); onChanged(); }} onError={onError} />}
+    </Card>
+    <WorkOrderOfficeValidationCard workOrder={workOrder} onChanged={onChanged} onError={onError} />
+  </>;
+}
+
+function WorkOrderOfficeValidationCard({ workOrder, onChanged, onError }: { workOrder: any; onChanged: () => void; onError: (message: string) => void }) {
+  const { profile } = useAuth();
+  const [decision, setDecision] = useState<'validated' | 'rejected' | null>(null);
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const status = workOrder.office_validation_status ?? 'not_started';
+  if (status === 'not_started' && workOrder.economic_status !== 'pendiente_validacion') return null;
+  const submit = async () => {
+    if (!decision || saving) return;
+    if (!reason.trim()) { onError('La validación de oficina necesita un comentario o motivo.'); return; }
+    setSaving(true); onError('');
+    try { await workOrdersService.reviewOffice(workOrder.id, decision, reason.trim()); setDecision(null); setReason(''); onChanged(); }
+    catch (err) { onError(formErrorMessage(err, 'No se ha podido registrar la validación de oficina.')); }
+    finally { setSaving(false); }
+  };
+  return <Card title="Validación de oficina" action={<Badge tone={status === 'validated' ? 'ok' : status === 'rejected' ? 'danger' : 'warn'}>{displayStatus(status)}</Badge>}>
+    <InfoGrid items={[[ 'Estado', status === 'pending' ? 'Pendiente de revisión' : status === 'validated' ? 'Validado' : status === 'rejected' ? 'Devuelto al técnico' : displayStatus(status) ], [ 'Comentario', workOrder.office_validation_reason ?? '-' ], [ 'Fecha', workOrder.office_validated_at ? formatDate(workOrder.office_validated_at) : '-' ]]} />
+    {status === 'pending' && canReviewWorkOrderOffice(profile) && <div className="actions"><button className="primary" onClick={() => setDecision('validated')}>Validar para facturación</button><button className="danger" onClick={() => setDecision('rejected')}>Devolver al técnico</button></div>}
+    {decision && <div className="mini-modal" role="dialog" aria-modal="true"><div><h3>{decision === 'validated' ? 'Validar parte' : 'Devolver parte'}</h3><label>Comentario obligatorio<textarea value={reason} onChange={(event) => setReason(event.target.value)} /></label><div className="modal-footer"><button onClick={() => setDecision(null)} disabled={saving}>Cancelar</button><button className={decision === 'validated' ? 'primary' : 'danger'} onClick={submit} disabled={saving}>{saving ? 'Guardando...' : 'Confirmar'}</button></div></div></div>}
+  </Card>;
 }
 
 function timeWorkerLabel(profile: any, currentProfileId?: string, assignmentRole?: string | null) {
@@ -725,24 +757,33 @@ function WorkOrderFinalizeModal({ workOrder, onClose, onDone, onError }: { workO
   const showCosts = canViewWorkOrderCosts(profile);
   const summary = interventionSummary(workOrder);
   const pending = pendingOperationalQuoteLines(workOrder);
+  const pendingChecks = (workOrder.checks ?? []).filter((check: any) => check.status !== 'Realizado' && !check.deleted_at);
+  const blocked = pending.length > 0 || pendingChecks.length > 0;
   const canonicalEconomics = useLoad(() => economicService.workOrderSummary(workOrder.id), [workOrder.id], null as any);
-  const economics = {
-    quoteSale: canonicalEconomics.data?.quoted_sale_amount,
-    quoteCost: 0,
-    materialCost: canonicalEconomics.data?.material_cost,
-    timeCost: canonicalEconomics.data?.time_cost,
-    auxCost: canonicalEconomics.data?.auxiliary_cost,
-    realCost: canonicalEconomics.data?.real_cost_amount,
-    realMargin: canonicalEconomics.data?.margin_amount,
-  };
   const timeRows = workOrder.time_entries ?? [];
   const materialRows = workOrder.materials ?? [];
   const costRows = workOrder.cost_entries ?? workOrder.work_order_cost_entries ?? [];
   const totalMinutes = timeRows.reduce((sum: number, row: any) => sum + Number(row.duration_minutes ?? 0), 0);
-  const costByType = costRows.reduce((acc: Record<string, number>, row: any) => { const key = row.cost_type ?? 'otro'; acc[key] = (acc[key] ?? 0) + Number(row.quantity ?? 0) * Number(row.unit_cost ?? 0); return acc; }, {});
-  const confirm = async () => { if (saving) return; setSaving(true); onError(''); try { await workOrdersService.finalizeTechnical(workOrder.id, { reason: 'Cierre tecnico confirmado por usuario', currentStatus: workOrder.status }); onDone(); } catch (err) { onError(formErrorMessage(err, 'No se ha podido finalizar tecnicamente el parte.')); } finally { setSaving(false); } };
-  if (showCosts) return <div className="mini-modal finalize-modal" role="dialog" aria-modal="true"><div><h3>FINALIZAR PARTE TÉCNICO</h3><p className="large-note">Revisa el trabajo antes de cerrar técnicamente. El cierre server-side persiste el snapshot económico.</p>{pending.length > 0 && <p className="state-warning">Hay {pending.length} concepto(s) operativo(s) previsto(s) sin confirmar o marcar como no realizados.</p>}<div className="finalize-grid"><Card title="TRABAJO"><InfoGrid items={[[ 'Diagnóstico', summary.diagnosis ?? '-' ], [ 'Trabajo realizado', summary.work ?? '-' ], [ 'Resultado', summary.result ?? '-' ], [ 'Observaciones', summary.observations ?? '-' ]]} /></Card><Card title="ECONOMÍA CANÓNICA"><InfoGrid items={canonicalEconomics.loading ? [[ 'Economía', 'Cargando...' ]] : [[ 'Venta presupuestada', money(canonicalEconomics.data?.quoted_sale_amount) ], [ 'Venta adicional', money(canonicalEconomics.data?.additional_sale_amount) ], [ 'Venta total', money(canonicalEconomics.data?.sale_amount) ], [ 'Coste real', money(canonicalEconomics.data?.real_cost_amount) ], [ 'Margen', money(canonicalEconomics.data?.margin_amount) ]]} /></Card></div><div className="modal-footer"><button type="button" onClick={onClose} disabled={saving}>Cancelar</button><button className="primary" onClick={confirm} disabled={saving}>{saving ? 'Guardando...' : 'Confirmar cierre técnico'}</button></div></div></div>;
-  return <div className="mini-modal finalize-modal" role="dialog" aria-modal="true"><div><h3>FINALIZAR PARTE TÉCNICO</h3><p className="large-note">Revisa el trabajo antes de cerrar técnicamente. Finalizar prepara el parte para facturación, pero no vuelve a descontar stock.</p>{pending.length > 0 && <p className="state-warning">Hay {pending.length} concepto(s) operativo(s) previsto(s) sin confirmar o marcar como no realizados.</p>}<div className="finalize-grid"><Card title="TRABAJO"><InfoGrid items={[[ 'Diagnóstico', summary.diagnosis ?? '-' ], [ 'Trabajo realizado', summary.work ?? '-' ], [ 'Resultado', summary.result ?? '-' ], [ 'Observaciones', summary.observations ?? '-' ]]} /></Card><Card title="PREVISTO vs REAL"><InfoGrid items={showCosts ? [[ 'Venta aceptada', money(economics.quoteSale) ], [ 'Coste previsto', money(economics.quoteCost) ], [ 'Margen previsto', money(economics.quoteSale - economics.quoteCost) ], [ 'Coste materiales real', money(economics.materialCost) ], [ 'Coste horas real', money(economics.timeCost) ], [ 'Costes auxiliares real', money(economics.auxCost) ], [ 'Coste total real', money(economics.realCost) ], [ 'Margen real', money(economics.realMargin) ]] : [[ 'Horas reales', formatMinutes(totalMinutes) ], [ 'Materiales utilizados', String(materialRows.length) ], [ 'Costes auxiliares confirmados', String(costRows.length) ]]} /></Card><Card title="HORAS"><p className="large-note">Total: {formatMinutes(totalMinutes)}</p><div className="compact-list work-time-list">{timeRows.map((row: any) => <article key={row.id}><Badge tone="info">{formatMinutes(Number(row.duration_minutes ?? 0))}</Badge><p className="time-meta"><strong>{fullName(row.profiles)}</strong><span>{formatDate(row.work_date)}{row.started_at || row.ended_at ? ` · ${row.started_at ?? 'Sin inicio'} - ${row.ended_at ?? 'Sin fin'}` : ''}</span><span>{displayStatus(row.hour_type)}</span></p>{showCosts && <p className="time-money">{money(row.total_cost)} coste · {money(row.total_price)} venta</p>}</article>)}</div>{!timeRows.length && <p className="large-note">Sin horas registradas.</p>}</Card><Card title="MATERIALES PREVISTOS"><PlannedMaterialList workOrder={workOrder} onChanged={() => undefined} readOnly /></Card><Card title="MATERIALES UTILIZADOS"><div className="compact-list">{materialRows.map((row: any) => <article key={row.id}><Badge tone={row.material_id ? 'info' : 'muted'}>{row.used_quantity ?? row.quantity} {row.unit ?? 'ud'}</Badge><p><strong>{row.materials?.description ?? row.description ?? 'Material no catalogado'}</strong><br />Stock descontado: {Number(row.stock_deducted_quantity ?? 0).toLocaleString('es-ES')} {row.unit ?? 'ud'}</p>{showCosts && <p>{money(Number(row.used_quantity ?? 0) * Number(row.unit_price ?? 0))}</p>}</article>)}</div>{!materialRows.length && <p className="large-note">Sin materiales utilizados.</p>}</Card><Card title="OTROS COSTES"><InfoGrid items={[[ 'Desplazamiento', showCosts ? money(costByType.desplazamiento) : String(costRows.filter((row: any) => row.cost_type === 'desplazamiento').length) ], [ 'Taller móvil', showCosts ? money(costByType.taller_movil) : String(costRows.filter((row: any) => row.cost_type === 'taller_movil').length) ], [ 'Plataformas', showCosts ? money(costByType.plataforma_elevadora) : String(costRows.filter((row: any) => row.cost_type === 'plataforma_elevadora').length) ], [ 'Otros', showCosts ? money(Object.entries(costByType).filter(([key]) => !['desplazamiento','taller_movil','plataforma_elevadora'].includes(key)).reduce((sum, [, value]) => sum + Number(value), 0)) : String(costRows.filter((row: any) => !['desplazamiento','taller_movil','plataforma_elevadora'].includes(row.cost_type)).length) ]]} /></Card></div><div className="modal-footer"><button onClick={onClose} disabled={saving}>Revisar antes</button><button className="primary" onClick={confirm} disabled={saving}>{saving ? 'Finalizando...' : 'Confirmar cierre técnico'}</button></div></div></div>;
+  const confirm = async () => {
+    if (saving || blocked) return;
+    setSaving(true); onError('');
+    try { await workOrdersService.finalizeTechnical(workOrder.id, { reason: 'Cierre técnico confirmado por usuario', currentStatus: workOrder.status }); onDone(); }
+    catch (err) { onError(formErrorMessage(err, 'No se ha podido finalizar técnicamente el parte.')); }
+    finally { setSaving(false); }
+  };
+  return <div className="mini-modal finalize-modal" role="dialog" aria-modal="true"><div>
+    <h3>FINALIZAR PARTE TÉCNICO</h3>
+    <p className="large-note">El cierre técnico bloquea la intervención y la envía a validación de oficina. Todavía no pasa a facturación.</p>
+    {pending.length > 0 && <p className="form-error">Resuelve {pending.length} concepto(s) previsto(s) antes de finalizar.</p>}
+    {pendingChecks.length > 0 && <p className="form-error">Finaliza {pendingChecks.length} check(s) vinculado(s) antes de cerrar el parte.</p>}
+    <div className="finalize-grid">
+      <Card title="TRABAJO"><InfoGrid items={[[ 'Diagnóstico', summary.diagnosis ?? '-' ], [ 'Trabajo realizado', summary.work ?? '-' ], [ 'Resultado', summary.result ?? '-' ], [ 'Observaciones', summary.observations ?? '-' ]]} /></Card>
+      <Card title="DETALLE DE LA INTERVENCIÓN"><div className="compact-list">{timeRows.map((row: any) => <article key={`time-${row.id}`}><strong>{formatMinutes(Number(row.duration_minutes ?? 0))} · {fullName(row.profiles) || 'Trabajador no informado'}</strong><p>{formatDate(row.work_date)} · {row.description || 'Sin descripción'}</p><p>{row.source === 'additional' ? 'Venta adicional fuera del presupuesto' : 'Horas del parte'}</p></article>)}{materialRows.map((row: any) => <article key={`material-${row.id}`}><strong>{row.materials?.description ?? row.description ?? 'Material no catalogado'} · {row.used_quantity ?? row.quantity ?? 0} {row.unit ?? 'ud'}</strong><p>{formatDate(row.used_at ?? row.created_at)} · {row.source === 'additional' ? 'Venta adicional fuera del presupuesto' : 'Material del parte'}</p></article>)}{costRows.filter((row: any) => !timeRows.some((time: any) => time.id === row.time_entry_id) && !materialRows.some((material: any) => material.id === row.work_order_material_id)).map((row: any) => <article key={`cost-${row.id}`}><strong>{row.description ?? 'Coste auxiliar'} · {row.quantity ?? 0} {row.unit ?? 'ud'}</strong><p>{row.source === 'additional' ? 'Venta adicional fuera del presupuesto' : 'Coste del parte'}</p></article>)}</div>{!timeRows.length && !materialRows.length && !costRows.length && <p className="large-note">No hay horas, materiales ni otros costes registrados.</p>}</Card>
+      <Card title={showCosts ? 'ECONOMÍA CANÓNICA' : 'RESUMEN REAL'}><InfoGrid items={showCosts ? (canonicalEconomics.loading ? [[ 'Economía', 'Cargando...' ]] : [[ 'Venta presupuestada', money(canonicalEconomics.data?.quoted_sale_amount) ], [ 'Venta adicional', money(canonicalEconomics.data?.additional_sale_amount) ], [ 'Venta total', money(canonicalEconomics.data?.sale_amount) ], [ 'Coste real', money(canonicalEconomics.data?.real_cost_amount) ], [ 'Margen', money(canonicalEconomics.data?.margin_amount) ]]) : [[ 'Horas reales', formatMinutes(totalMinutes) ], [ 'Materiales utilizados', String(materialRows.length) ], [ 'Costes auxiliares', String(costRows.length) ]] } /></Card>
+      <Card title="COMPROBACIONES"><InfoGrid items={[[ 'Conceptos pendientes', String(pending.length) ], [ 'Checks pendientes', String(pendingChecks.length) ], [ 'Siguiente paso', 'Validación de oficina' ]]} /></Card>
+    </div>
+    <div className="modal-footer"><button onClick={onClose} disabled={saving}>Revisar antes</button><button className="primary" onClick={confirm} disabled={saving || blocked}>{saving ? 'Finalizando...' : 'Enviar a validación de oficina'}</button></div>
+  </div></div>;
 }
 
 function WorkOrderTimeCard({ workOrder, onChanged }: { workOrder: any; onChanged: () => void }) { const { profile } = useAuth(); const [editing, setEditing] = useState<any | null>(null); const [removing, setRemoving] = useState<any | null>(null); const rows = workOrder.time_entries ?? []; const totals = rows.reduce((acc: Record<string, number>, row: any) => { const name = fullName(row.profiles); acc[name] = (acc[name] ?? 0) + Number(row.duration_minutes ?? 0); return acc; }, {}); const total = rows.reduce((sum: number, row: any) => sum + Number(row.duration_minutes ?? 0), 0); return <Card title="Horas trabajadas"><div className="actions"><span className="large-note">Total general: {formatMinutes(total)}</span>{Object.entries(totals).map(([name, minutes]) => <span key={name} className="large-note">{name}: {formatMinutes(Number(minutes))}</span>)}</div><div className="compact-list">{rows.map((row: any) => <article key={row.id}><Badge tone="info">{formatMinutes(Number(row.duration_minutes ?? 0))}</Badge><p><strong>Horas de {fullName(row.profiles)}</strong><br />Registrado por {fullName(row.created_by_profile) || fullName(row.updated_by_profile) || 'Usuario no informado'}{row.updated_by_profile && row.updated_by !== row.created_by ? ' · Actualizado por ' + fullName(row.updated_by_profile) : ''}</p><p>{formatDate(row.work_date)} · {row.started_at ? row.started_at + ' - ' + row.ended_at : 'Duración manual'} · Pausa {row.break_minutes ?? 0} min · {displayStatus(row.hour_type)}</p><p>{row.description}</p>{canManageWorkOrderTime(profile, workOrder, row) && <div className="row-actions"><button onClick={() => setEditing(row)}>Editar</button><button onClick={() => setRemoving(row)}>Eliminar</button></div>}</article>)}</div>{!rows.length && <p className="large-note">Sin horas registradas.</p>}{editing && <WorkOrderTimeForm workOrder={workOrder} initial={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); onChanged(); }} />}{removing && <ReasonConfirmModal title="Eliminar horas" text={'Eliminar el registro de ' + fullName(removing.profiles) + ' del ' + formatDate(removing.work_date) + '.'} requiredLabel="Motivo de eliminación" onCancel={() => setRemoving(null)} onConfirm={async (reason) => { await workOrdersService.deleteTimeEntry(removing.id, reason); setRemoving(null); onChanged(); }} />}</Card>; }
@@ -790,9 +831,92 @@ function PlannedQuoteCostForm({ workOrder, line, initial, onClose, onSaved }: { 
 
 function WorkOrderMaterialsCard({ workOrder, onChanged }: { workOrder: any; onChanged: () => void }) { const { profile } = useAuth(); const [editing, setEditing] = useState<any | null>(null); const [removing, setRemoving] = useState<any | null>(null); const rows = workOrder.materials ?? []; const showCosts = canViewWorkOrderCosts(profile); const units = rows.reduce((sum: number, row: any) => sum + Number(row.used_quantity ?? row.quantity ?? 0), 0); const materialCost = rows.reduce((sum: number, row: any) => sum + Number(row.total_cost ?? (row.used_quantity ?? 0) * (row.unit_cost ?? 0)), 0); const materialSale = rows.reduce((sum: number, row: any) => sum + Number(row.total_price ?? (row.used_quantity ?? 0) * (row.unit_price ?? 0)), 0); return <><PlannedQuoteConceptsCard workOrder={workOrder} onChanged={onChanged} /><Card title="Materiales utilizados" action={canManageWorkOrderMaterials(profile, workOrder) ? <button className="primary" onClick={() => setEditing({})}>Añadir material</button> : null}><div className="actions"><span className="large-note">Unidades: {units}</span>{showCosts && <span className="large-note">Coste real materiales: {money(materialCost)}</span>}{showCosts && materialSale > 0 && <span className="large-note">Venta registrada: {money(materialSale)}</span>}</div><div className="compact-list">{rows.map((row: any) => <article key={row.id}><Badge tone={row.material_id ? 'info' : 'muted'}>{row.material_id ? 'Catálogo' : 'Manual'} · {row.used_quantity ?? row.quantity} {row.unit ?? 'ud'}</Badge><p><strong>{row.materials?.description ?? row.description ?? 'Material no catalogado'}</strong><br />{formatDate(row.used_at ?? row.created_at)} · {fullName(row.profiles)}</p>{showCosts && <p className="material-money">{Number(row.unit_cost ?? 0) > 0 ? <>Coste usado: {money(row.unit_cost)}/{row.unit ?? 'ud'} · Coste total: {money(row.total_cost ?? (row.used_quantity ?? 0) * (row.unit_cost ?? 0))}</> : (row.material_id ? <>Coste registrado: {money(0)}</> : (Number(row.unit_price ?? 0) === 0 ? <>Sin coste/venta registrada</> : <>Coste registrado: {money(0)}</>))}{row.material_id === null && Number(row.unit_cost ?? 0) === 0 && Number(row.unit_price ?? 0) === 0 ? null : (Number(row.unit_price ?? 0) > 0 ? <> · Precio de venta usado: {money(row.unit_price)}/{row.unit ?? 'ud'} · Venta registrada: {money(row.total_price ?? (row.used_quantity ?? 0) * (row.unit_price ?? 0))}</> : <> · Precio de venta histórico: no registrado</>)}</p>}<p>Stock descontado: {Number(row.stock_deducted_quantity ?? 0).toLocaleString('es-ES')} {row.unit ?? 'ud'}</p><p>{row.notes ?? 'Sin observaciones.'}</p>{canManageWorkOrderMaterials(profile, workOrder, row) && <div className="row-actions"><button onClick={() => setEditing(row)}>Editar</button><button onClick={() => setRemoving(row)}>Eliminar</button></div>}</article>)}</div>{!rows.length && <p className="large-note">Sin materiales registrados.</p>}{editing && <WorkOrderMaterialForm workOrder={workOrder} initial={editing.id ? editing : undefined} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); onChanged(); }} />}{removing && <ReasonConfirmModal title="Eliminar material" text={`Eliminar ${removing.materials?.description ?? removing.description ?? 'material no catalogado'}. Si descontó stock, se devolverá automáticamente.`} requiredLabel="Motivo de eliminación" onCancel={() => setRemoving(null)} onConfirm={async (reason) => { await workOrdersService.deleteMaterial(removing.id, reason); setRemoving(null); onChanged(); }} />}</Card></>; }
 
-function WorkOrderTimeForm({ workOrder, initial, onClose, onSaved }: { workOrder: any; initial?: any; onClose: () => void; onSaved: () => void }) { const { profile } = useAuth(); const options = useLoad(() => workOrdersService.timeWorkerOptions(workOrder.id), [workOrder.id], [] as any[]); const [workerSearch, setWorkerSearch] = useState(''); const [values, setValues] = useState<Record<string, string>>({ id: initial?.id ?? '', work_order_id: workOrder.id, profile_id: initial?.profile_id ?? '', work_date: initial?.work_date ?? new Date().toISOString().slice(0, 10), started_at: initial?.started_at ?? '', ended_at: initial?.ended_at ?? '', hour_type: initial?.hour_type ?? 'normal', break_minutes: String(initial?.break_minutes ?? 0), duration_minutes: initial?.duration_minutes ? String(initial.duration_minutes) : '', description: initial?.description ?? '' }); const [error, setError] = useState(''); const [saving, setSaving] = useState(false); const set = (key: string, value: string) => setValues((current) => ({ ...current, [key]: value })); useEffect(() => { if (options.loading || values.profile_id || !options.data.length) return; const current = options.data.find((item: any) => item.is_current_user) ?? (options.data.length === 1 ? options.data[0] : null); if (current) set('profile_id', current.profile_id); }, [options.loading, options.data.length, values.profile_id]); const selectedAllowed = !values.profile_id || options.data.some((item: any) => item.profile_id === values.profile_id); const filteredOptions = options.data.filter((item: any) => String((item.full_name ?? '') + ' ' + (item.primary_area ?? '') + ' ' + (item.assignment_role ?? '')).toLowerCase().includes(workerSearch.toLowerCase())); const hasRange = values.started_at || values.ended_at; const calculated = hasRange && values.started_at && values.ended_at && values.ended_at > values.started_at ? Math.max(0, Math.floor((new Date('2000-01-01T' + values.ended_at).getTime() - new Date('2000-01-01T' + values.started_at).getTime()) / 60000) - Number(values.break_minutes || 0)) : Number(values.duration_minutes || 0); const submit = async (event: FormEvent) => { event.preventDefault(); if (!values.profile_id) { setError('validacion del formulario: selecciona el trabajador al que corresponden las horas.'); return; } if (!selectedAllowed) { setError('permiso: el trabajador seleccionado ya no es válido para este parte. Recarga el parte.'); return; } if (hasRange && (!values.started_at || !values.ended_at)) { setError('validacion del formulario: indica inicio y fin, o usa duración manual.'); return; } if (!hasRange && !values.duration_minutes) { setError('validacion del formulario: indica duración manual o tramo horario.'); return; } setSaving(true); setError(''); try { await workOrdersService.upsertTimeEntry(Object.fromEntries(Object.entries(values).filter(([, value]) => value !== ''))); onSaved(); } catch (err) { setError(err instanceof Error ? err.message : 'respuesta de Supabase: no se han podido registrar las horas.'); } finally { setSaving(false); } }; return <div className="mini-modal" role="dialog" aria-modal="true"><form onSubmit={submit}><h3>{initial ? 'Editar horas' : 'Añadir horas'}</h3><p className="large-note">Las horas se guardan directamente en el parte. Si no hay conexión, vuelve a intentarlo cuando el servicio esté disponible.</p>{options.error && <p className="form-error">{options.error}</p>}<label>Trabajador al que corresponden las horas *<input value={workerSearch} onChange={(event) => setWorkerSearch(event.target.value)} placeholder="Buscar por nombre, área o rol" /><select value={values.profile_id} onChange={(event) => set('profile_id', event.target.value)} required disabled={options.loading}><option value="">{options.loading ? 'Cargando trabajadores...' : 'Seleccionar trabajador'}</option>{filteredOptions.map((item: any) => <option key={item.profile_id} value={item.profile_id}>{timeWorkerLabel({ id: item.profile_id, first_name: item.full_name, last_name: '', primary_area: item.primary_area }, profile?.id, item.assignment_role)}</option>)}</select></label>{values.profile_id && !selectedAllowed && <p className="form-error">El trabajador seleccionado ya no está permitido para este parte.</p>}<p className="large-note">Duración calculada: {formatMinutes(calculated)}</p><div className="form-grid"><label>Fecha<input type="date" value={values.work_date} onChange={(event) => set('work_date', event.target.value)} required /></label><label>Inicio<input type="time" value={values.started_at ?? ''} onChange={(event) => set('started_at', event.target.value)} /></label><label>Fin<input type="time" value={values.ended_at ?? ''} onChange={(event) => set('ended_at', event.target.value)} /></label><label>Pausa minutos<input type="number" min="0" value={values.break_minutes} onChange={(event) => set('break_minutes', event.target.value)} /></label><label>Duración manual minutos<input type="number" min="1" value={values.duration_minutes ?? ''} onChange={(event) => set('duration_minutes', event.target.value)} placeholder="Solo si no hay inicio/fin" /></label><FormSelect label="Tipo de hora" value={values.hour_type} onChange={(value) => set('hour_type', value)} options={['normal','nocturna','festiva','desplazamiento','otra'].map((value) => ({ value, label: displayStatus(value) }))} /></div><label>Descripción del trabajo<textarea value={values.description ?? ''} onChange={(event) => set('description', event.target.value)} /></label>{error && <p className="form-error">{error}</p>}<div className="modal-footer"><button type="button" onClick={onClose} disabled={saving}>Cancelar</button><button className="primary" disabled={saving || options.loading || !options.data.length}>{initial ? 'Guardar cambios' : 'Guardar horas'}</button></div></form></div>; }
+function WorkOrderTimeForm({ workOrder, initial, onClose, onSaved }: { workOrder: any; initial?: any; onClose: () => void; onSaved: () => void }) {
+  const { profile } = useAuth();
+  const options = useLoad(() => workOrdersService.timeWorkerOptions(workOrder.id), [workOrder.id], [] as any[]);
+  const [workerSearch, setWorkerSearch] = useState('');
+  const [additional, setAdditional] = useState(initial?.source === 'additional');
+  const [values, setValues] = useState<Record<string, string>>({ id: initial?.id ?? '', work_order_id: workOrder.id, profile_id: initial?.profile_id ?? '', work_date: initial?.work_date ?? new Date().toISOString().slice(0, 10), started_at: initial?.started_at ?? '', ended_at: initial?.ended_at ?? '', hour_type: initial?.hour_type ?? 'normal', break_minutes: String(initial?.break_minutes ?? 0), duration_minutes: initial?.duration_minutes ? String(initial.duration_minutes) : '', description: initial?.description ?? '' });
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const set = (key: string, value: string) => setValues((current) => ({ ...current, [key]: value }));
+  useEffect(() => { if (options.loading || values.profile_id || !options.data.length) return; const current = options.data.find((item: any) => item.is_current_user) ?? (options.data.length === 1 ? options.data[0] : null); if (current) set('profile_id', current.profile_id); }, [options.loading, options.data.length, values.profile_id]);
+  const selectedAllowed = !values.profile_id || options.data.some((item: any) => item.profile_id === values.profile_id);
+  const filteredOptions = options.data.filter((item: any) => String((item.full_name ?? '') + ' ' + (item.primary_area ?? '') + ' ' + (item.assignment_role ?? '')).toLowerCase().includes(workerSearch.toLowerCase()));
+  const hasRange = values.started_at || values.ended_at;
+  const calculated = hasRange && values.started_at && values.ended_at && values.ended_at > values.started_at ? Math.max(0, Math.floor((new Date('2000-01-01T' + values.ended_at).getTime() - new Date('2000-01-01T' + values.started_at).getTime()) / 60000) - Number(values.break_minutes || 0)) : Number(values.duration_minutes || 0);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!values.profile_id) { setError('validacion del formulario: selecciona el trabajador al que corresponden las horas.'); return; }
+    if (!selectedAllowed) { setError('permiso: el trabajador seleccionado ya no es válido para este parte. Recarga el parte.'); return; }
+    if (hasRange && (!values.started_at || !values.ended_at)) { setError('validacion del formulario: indica inicio y fin, o usa duración manual.'); return; }
+    if (!hasRange && !values.duration_minutes) { setError('validacion del formulario: indica duración manual o tramo horario.'); return; }
+    setSaving(true); setError('');
+    try {
+      const id = await workOrdersService.upsertTimeEntry(Object.fromEntries(Object.entries(values).filter(([, value]) => value !== '')));
+      if (workOrder.quote_id && canMarkAdditionalSale(profile) && (additional || initial?.source === 'additional')) await workOrdersService.setEntryBilling('time', id, additional);
+      onSaved();
+    } catch (err) { setError(err instanceof Error ? err.message : 'respuesta de Supabase: no se han podido registrar las horas.'); }
+    finally { setSaving(false); }
+  };
+  return <div className="mini-modal" role="dialog" aria-modal="true"><form onSubmit={submit}>
+    <h3>{initial ? 'Editar horas' : 'Añadir horas'}</h3>
+    <p className="large-note">Las horas se valoran con la tarifa canónica del trabajador y la fecha.</p>
+    {options.error && <p className="form-error">{options.error}</p>}
+     <label>Trabajador al que corresponden las horas *<input value={workerSearch} onChange={(event) => setWorkerSearch(event.target.value)} placeholder="Buscar por nombre, área o rol" /><select value={values.profile_id} onChange={(event) => set('profile_id', event.target.value)} required disabled={options.loading}><option value="">{options.loading ? 'Cargando trabajadores...' : 'Seleccionar trabajador'}</option>{filteredOptions.map((item: any) => <option key={item.profile_id} value={item.profile_id}>{timeWorkerLabel({ id: item.profile_id, first_name: item.full_name, last_name: '', primary_area: item.primary_area }, profile?.id, item.assignment_role)}</option>)}</select></label>
+    {values.profile_id && !selectedAllowed && <p className="form-error">El trabajador seleccionado ya no está permitido para este parte.</p>}
+    <p className="large-note">Duración calculada: {formatMinutes(calculated)}</p>
+    <div className="form-grid"><label>Fecha<input type="date" value={values.work_date} onChange={(event) => set('work_date', event.target.value)} required /></label><label>Inicio<input type="time" value={values.started_at ?? ''} onChange={(event) => set('started_at', event.target.value)} /></label><label>Fin<input type="time" value={values.ended_at ?? ''} onChange={(event) => set('ended_at', event.target.value)} /></label><label>Pausa minutos<input type="number" min="0" value={values.break_minutes} onChange={(event) => set('break_minutes', event.target.value)} /></label><label>Duración manual minutos<input type="number" min="1" value={values.duration_minutes ?? ''} onChange={(event) => set('duration_minutes', event.target.value)} placeholder="Solo si no hay inicio/fin" /></label><FormSelect label="Tipo de hora" value={values.hour_type} onChange={(value) => set('hour_type', value)} options={['normal','nocturna','festiva','desplazamiento','otra'].map((value) => ({ value, label: displayStatus(value) }))} /></div>
+    <label>Descripción del trabajo<textarea value={values.description ?? ''} onChange={(event) => set('description', event.target.value)} /></label>
+    {workOrder.quote_id && canMarkAdditionalSale(profile) && <label className="check-consent"><input type="checkbox" checked={additional} onChange={(event) => setAdditional(event.target.checked)} /> Horas adicionales facturables fuera del presupuesto aceptado</label>}
+    {error && <p className="form-error">{error}</p>}
+    <div className="modal-footer"><button type="button" onClick={onClose} disabled={saving}>Cancelar</button><button className="primary" disabled={saving || options.loading || !options.data.length}>{initial ? 'Guardar cambios' : 'Guardar horas'}</button></div>
+  </form></div>;
+}
 
-function WorkOrderMaterialForm({ workOrder, initial, onClose, onSaved }: { workOrder: any; initial?: any; onClose: () => void; onSaved: () => void }) { const { profile } = useAuth(); const showCosts = canViewWorkOrderCosts(profile); const [search, setSearch] = useState(''); const catalog = useLoad(() => workOrdersService.materialsCatalog(search), [search], [] as any[]); const [values, setValues] = useState<Record<string, string>>({ id: initial?.id ?? '', work_order_id: workOrder.id, material_id: initial?.material_id ?? '', description: initial?.description ?? '', quantity: String(initial?.used_quantity ?? initial?.quantity ?? 1), unit: initial?.unit ?? 'ud', used_at: (initial?.used_at ?? new Date().toISOString()).slice(0, 10), unit_price: initial?.unit_price ? String(initial.unit_price) : '', notes: initial?.notes ?? '' }); const [error, setError] = useState(''); const [saving, setSaving] = useState(false); const set = (key: string, value: string) => setValues((current) => ({ ...current, [key]: value })); const selectedMaterial = catalog.data.find((item: any) => item.id === values.material_id); const selectedStock = Number(selectedMaterial?.stock_quantity ?? 0); const requested = Number(values.quantity || 0); const stockBlocked = Boolean(selectedMaterial?.stock_controlled !== false && !selectedMaterial?.allow_negative_stock && requested > selectedStock); const selectMaterial = (value: string) => { const material = catalog.data.find((item: any) => item.id === value); setValues((current) => ({ ...current, material_id: value, description: material?.description ?? current.description, unit: material?.unit ?? current.unit, unit_price: material?.price != null ? String(material.price) : current.unit_price })); }; const submit = async (event: FormEvent) => { event.preventDefault(); if (!values.material_id && !values.description?.trim()) { setError('validacion del formulario: elige catálogo o describe el material.'); return; } if (Number(values.quantity) <= 0) { setError('validacion del formulario: la cantidad debe ser mayor que cero.'); return; } if (!values.unit?.trim()) { setError('validacion del formulario: indica la unidad, por ejemplo ud, m o kg.'); return; } if (stockBlocked) { setError('stock: stock insuficiente para este material.'); return; } setSaving(true); setError(''); try { await workOrdersService.upsertMaterial(Object.fromEntries(Object.entries(values).filter(([, value]) => value !== ''))); onSaved(); } catch (err) { setError(err instanceof Error ? err.message : 'respuesta de Supabase: no se ha podido registrar el material.'); } finally { setSaving(false); } }; return <div className="mini-modal" role="dialog" aria-modal="true"><form onSubmit={submit}><h3>{initial ? 'Editar material' : 'Añadir material'}</h3><p className="large-note">Puedes elegir un material de catálogo o escribir uno no catalogado, por ejemplo: Tornillería M8. El material manual no afecta stock.</p><label>Buscar catálogo<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Código, descripción, fabricante o referencia" /></label><FormSelect label="Material de catálogo" value={values.material_id ?? ''} onChange={selectMaterial} options={[{ value: '', label: 'Material no catalogado' }, ...catalog.data.map((item: any) => ({ value: item.id, label: `${item.code ?? '-'} · ${item.description} · Stock ${Number(item.stock_quantity ?? 0).toLocaleString('es-ES')} ${item.unit ?? 'ud'} · ${Number(item.price ?? 0).toLocaleString('es-ES')} €` }))]} loading={catalog.loading} />{selectedMaterial && <p className={stockBlocked ? 'form-error' : materialStockStatus(selectedMaterial) === 'Bajo stock' ? 'state-warning' : 'large-note'}>Stock disponible: {selectedStock.toLocaleString('es-ES')} {selectedMaterial.unit ?? 'ud'} · Mínimo: {Number(selectedMaterial.minimum_stock ?? 0).toLocaleString('es-ES')} · {materialStockStatus(selectedMaterial)}</p>}<label>Descripción alternativa<input value={values.description ?? ''} onChange={(event) => set('description', event.target.value)} placeholder="Obligatoria si no eliges catálogo" /></label><div className="form-grid"><label>Cantidad<input type="number" step="0.01" min="0.01" value={values.quantity} onChange={(event) => set('quantity', event.target.value)} required /></label><label>Unidad<input value={values.unit} onChange={(event) => set('unit', event.target.value)} /></label><label>Fecha<input type="date" value={values.used_at} onChange={(event) => set('used_at', event.target.value)} /></label>{showCosts && <label>Precio unitario<input type="number" step="0.01" min="0" value={values.unit_price ?? ''} onChange={(event) => set('unit_price', event.target.value)} /></label>}</div><label>Observaciones<textarea value={values.notes ?? ''} onChange={(event) => set('notes', event.target.value)} /></label>{error && <p className="form-error">{error}</p>}<div className="modal-footer"><button type="button" onClick={onClose} disabled={saving}>Cancelar</button><button className="primary" disabled={saving || stockBlocked}>{initial ? 'Guardar cambios' : 'Guardar material'}</button></div></form></div>; }
+function WorkOrderMaterialForm({ workOrder, initial, onClose, onSaved }: { workOrder: any; initial?: any; onClose: () => void; onSaved: () => void }) {
+  const { profile } = useAuth();
+  const showCosts = canViewWorkOrderCosts(profile);
+  const [search, setSearch] = useState('');
+  const [additional, setAdditional] = useState(initial?.source === 'additional');
+  const catalog = useLoad(() => workOrdersService.materialsCatalog(search), [search], [] as any[]);
+  const [values, setValues] = useState<Record<string, string>>({ id: initial?.id ?? '', work_order_id: workOrder.id, material_id: initial?.material_id ?? '', description: initial?.description ?? '', quantity: String(initial?.used_quantity ?? initial?.quantity ?? 1), unit: initial?.unit ?? 'ud', used_at: (initial?.used_at ?? new Date().toISOString()).slice(0, 10), unit_price: initial?.unit_price ? String(initial.unit_price) : '', notes: initial?.notes ?? '' });
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const set = (key: string, value: string) => setValues((current) => ({ ...current, [key]: value }));
+  const selectedMaterial = catalog.data.find((item: any) => item.id === values.material_id);
+  const selectedStock = Number(selectedMaterial?.stock_quantity ?? 0);
+  const requested = Number(values.quantity || 0);
+  const stockBlocked = Boolean(selectedMaterial?.stock_controlled !== false && !selectedMaterial?.allow_negative_stock && requested > selectedStock);
+  const selectMaterial = (value: string) => { const material = catalog.data.find((item: any) => item.id === value); setValues((current) => ({ ...current, material_id: value, description: material?.description ?? current.description, unit: material?.unit ?? current.unit, unit_price: material?.price != null ? String(material.price) : current.unit_price })); };
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!values.material_id && !values.description?.trim()) { setError('validacion del formulario: elige catálogo o describe el material.'); return; }
+    if (Number(values.quantity) <= 0) { setError('validacion del formulario: la cantidad debe ser mayor que cero.'); return; }
+    if (!values.unit?.trim()) { setError('validacion del formulario: indica la unidad, por ejemplo ud, m o kg.'); return; }
+    if (stockBlocked) { setError('stock: stock insuficiente para este material.'); return; }
+    setSaving(true); setError('');
+    try {
+      const id = await workOrdersService.upsertMaterial(Object.fromEntries(Object.entries(values).filter(([, value]) => value !== '')));
+      if (workOrder.quote_id && canMarkAdditionalSale(profile) && (additional || initial?.source === 'additional')) await workOrdersService.setEntryBilling('material', id, additional);
+      onSaved();
+    } catch (err) { setError(err instanceof Error ? err.message : 'respuesta de Supabase: no se ha podido registrar el material.'); }
+    finally { setSaving(false); }
+  };
+  return <div className="mini-modal" role="dialog" aria-modal="true"><form onSubmit={submit}>
+    <h3>{initial ? 'Editar material' : 'Añadir material'}</h3>
+    <p className="large-note">El material de catálogo descuenta stock y conserva coste/venta resueltos por el servidor. El material manual no afecta stock.</p>
+    <label>Buscar catálogo<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Código, descripción, fabricante o referencia" /></label>
+    <FormSelect label="Material de catálogo" value={values.material_id ?? ''} onChange={selectMaterial} options={[{ value: '', label: 'Material no catalogado' }, ...catalog.data.map((item: any) => ({ value: item.id, label: `${item.code ?? '-'} · ${item.description} · Stock ${Number(item.stock_quantity ?? 0).toLocaleString('es-ES')} ${item.unit ?? 'ud'} · ${Number(item.price ?? 0).toLocaleString('es-ES')} €` }))]} loading={catalog.loading} />
+    {selectedMaterial && <p className={stockBlocked ? 'form-error' : materialStockStatus(selectedMaterial) === 'Bajo stock' ? 'state-warning' : 'large-note'}>Stock disponible: {selectedStock.toLocaleString('es-ES')} {selectedMaterial.unit ?? 'ud'} · Mínimo: {Number(selectedMaterial.minimum_stock ?? 0).toLocaleString('es-ES')} · {materialStockStatus(selectedMaterial)}</p>}
+    <label>Descripción alternativa<input value={values.description ?? ''} onChange={(event) => set('description', event.target.value)} placeholder="Obligatoria si no eliges catálogo" /></label>
+    <div className="form-grid"><label>Cantidad<input type="number" step="0.01" min="0.01" value={values.quantity} onChange={(event) => set('quantity', event.target.value)} required /></label><label>Unidad<input value={values.unit} onChange={(event) => set('unit', event.target.value)} /></label><label>Fecha<input type="date" value={values.used_at} onChange={(event) => set('used_at', event.target.value)} /></label>{showCosts && <label>Precio unitario<input type="number" step="0.01" min="0" value={values.unit_price ?? ''} onChange={(event) => set('unit_price', event.target.value)} /></label>}</div>
+    <label>Observaciones<textarea value={values.notes ?? ''} onChange={(event) => set('notes', event.target.value)} /></label>
+    {workOrder.quote_id && canMarkAdditionalSale(profile) && <label className="check-consent"><input type="checkbox" checked={additional} onChange={(event) => setAdditional(event.target.checked)} /> Material adicional facturable fuera del presupuesto aceptado</label>}
+    {error && <p className="form-error">{error}</p>}
+    <div className="modal-footer"><button type="button" onClick={onClose} disabled={saving}>Cancelar</button><button className="primary" disabled={saving || stockBlocked}>{initial ? 'Guardar cambios' : 'Guardar material'}</button></div>
+  </form></div>;
+}
 
 function WorkOrderCostsCard({ workOrder, onChanged }: { workOrder: any; onChanged: () => void }) { const { profile } = useAuth(); const [editing, setEditing] = useState<any | null>(null); const [removing, setRemoving] = useState<any | null>(null); const rows = workOrder.cost_entries ?? workOrder.work_order_cost_entries ?? []; const showCosts = canViewWorkOrderCosts(profile); const amount = rows.reduce((sum: number, row: any) => sum + Number(row.quantity ?? 0) * Number(row.unit_cost ?? 0), 0); return <Card title="Recursos y costes"><div className="actions"><span className="large-note">Registros: {rows.length}</span>{showCosts && <span className="large-note">Total auxiliar: {amount.toFixed(2)} €</span>}{canManageWorkOrderCosts(profile, workOrder) && <button className="primary" onClick={() => setEditing({})}>Añadir recurso/coste</button>}</div><div className="compact-list">{rows.map((row: any) => <article key={row.id}><Badge tone="info">{displayStatus(row.cost_type)}</Badge><p><strong>{row.description}</strong><br />{formatDate(row.incurred_at ?? row.created_at)} · {fullName(row.profiles)}</p><p>{row.quantity ?? 1} {row.unit ?? 'ud'}{showCosts ? ` · ${(Number(row.quantity ?? 0) * Number(row.unit_cost ?? 0)).toFixed(2)} €` : ''}</p>{canManageWorkOrderCosts(profile, workOrder, row) && <div className="row-actions"><button onClick={() => setEditing(row)}>Editar</button><button onClick={() => setRemoving(row)}>Eliminar</button></div>}</article>)}</div>{!rows.length && <p className="large-note">Sin recursos ni costes auxiliares registrados.</p>}{editing && <WorkOrderCostForm workOrder={workOrder} initial={editing.id ? editing : undefined} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); onChanged(); }} />}{removing && <ReasonConfirmModal title="Eliminar recurso/coste" text={`Eliminar ${removing.description ?? 'recurso o coste'}.`} requiredLabel="Motivo de eliminación" onCancel={() => setRemoving(null)} onConfirm={async (reason) => { await workOrdersService.deleteCostEntry(removing.id, reason); setRemoving(null); onChanged(); }} />}</Card>; }
 
@@ -1198,436 +1322,6 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
             )
           }
         />
-      )}
-    </section>
-  );
-}
-
-function CheckBlockPage({
-  forcedId,
-  forcedBlockId,
-}: { forcedId?: string; forcedBlockId?: string } = {}) {
-  const { id: routeId = "", blockId: routeBlockId = "" } = useParams();
-  const id = forcedId ?? routeId;
-  const blockId = forcedBlockId ?? routeBlockId;
-  const navigate = useNavigate();
-  const { profile, workspace } = useAuth();
-  const { data, loading, error } = useLoad(
-    () =>
-      workspace === "tecnico"
-        ? checksService.getTechnicianAssigned(id)
-        : checksService.get(id),
-    [id, workspace],
-    null as any,
-  );
-  const [status, setStatus] = useState("Sin revisar");
-  const [confirmedStatus, setConfirmedStatus] = useState("Sin revisar");
-  const [observations, setObservations] = useState("");
-  const [intervention, setIntervention] = useState("");
-  const [severity, setSeverity] = useState("Leve");
-  const [components, setComponents] = useState<string[]>([]);
-  const [photos, setPhotos] = useState<Record<string, any>[]>([]);
-  const [saveState, setSaveState] = useState<
-    "idle" | "saving" | "saved" | "error"
-  >("idle");
-  const [saving, setSaving] = useState(false);
-  const [localLoaded, setLocalLoaded] = useState(false);
-  const zones = data ? buildFunctionalCheckBlocks(data) : [];
-  const zone = zones.find((item) => item.sectionId === blockId);
-  const section = zone
-    ? { id: zone.sectionId, title: zone.name, check_template_items: zone.items }
-    : null;
-  const existing = data?.check_section_results?.find(
-    (item: any) => item.section_id === section?.id,
-  );
-  const itemResults = (data?.check_item_results ?? []).filter((item: any) =>
-    (section?.check_template_items ?? []).some(
-      (templateItem: any) => templateItem.id === item.item_id,
-    ),
-  );
-  const remotePhotos = (data?.check_photos ?? []).filter(
-    (photo: any) =>
-      !photo.files?.metadata?.section_id ||
-      photo.files?.metadata?.section_id === section?.id ||
-      photo.description === section?.title,
-  );
-  const relatedDeficiencies = (data?.deficiencies ?? []).filter(
-    (item: any) => item.section_id === section?.id,
-  );
-  useEffect(() => {
-    setLocalLoaded(false);
-    technicianOfflineService.sectionState(id, blockId, remoteLocalChangeIds(data)).then((local) => {
-      if (local) {
-        const normalized = normalizeCheckStatus(local.status);
-        setStatus(normalized);
-        setConfirmedStatus(normalized);
-        setObservations(local.observations ?? "");
-        setIntervention(local.intervention ?? "");
-        setSeverity(local.severity ?? "Leve");
-        setComponents(local.components ?? []);
-        setPhotos(local.photos ?? []);
-      } else if (existing) {
-        const normalized = normalizeCheckStatus(existing.result);
-        const remote = remoteBlockState(existing);
-        setStatus(normalized);
-        setConfirmedStatus(normalized);
-        setObservations(remote.observations);
-        setIntervention(remote.intervention);
-        setSeverity(remote.severity);
-        setComponents(remote.components);
-        setPhotos([]);
-      } else {
-        setStatus("Sin revisar");
-        setConfirmedStatus("Sin revisar");
-        setObservations("");
-        setIntervention("");
-        setSeverity("Leve");
-        setComponents([]);
-        setPhotos([]);
-      }
-      setLocalLoaded(true);
-    });
-  }, [
-    id,
-    blockId,
-    existing?.id,
-    existing?.result,
-    existing?.observations,
-    existing?.intervention,
-    existing?.severity,
-    JSON.stringify(existing?.components ?? []),
-    JSON.stringify(remoteLocalChangeIds(data)),
-  ]);
-  if (!canExecuteCheck(profile)) return <AccessDenied />;
-  if (workspace === "tecnico" && (error || (!loading && !data)))
-    return <AccessDenied />;
-  if (loading || error || !data)
-    return (
-      <StateBlock
-        loading={loading}
-        error={error}
-        retry={undefined}
-        empty={!data}
-      />
-    );
-  if (!equipmentTypeName(data.equipment))
-    return (
-      <section className="page">
-        <BackButton />
-        <Card title="Tipo de equipo no disponible">
-          <p className="form-error">
-            No se puede ejecutar este bloque porque el equipo no tiene tipo.
-            Corrige el equipo desde SAT antes de sincronizar resultados.
-          </p>
-          {data.equipment_id && (
-            <Link className="primary" to={`/app/equipos/${data.equipment_id}`}>
-              Abrir/corregir equipo
-            </Link>
-          )}
-        </Card>
-      </section>
-    );
-  if (!zone || !section || !isUuid(section.id))
-    return (
-      <section className="page">
-        <div className="actions">
-          <Link className="link-button" to={workspace === "superadmin" ? `/app/superadmin/checks/${id}` : `/app/checks/${id}`}>Volver</Link>
-          {data.work_order_id && <Link className="primary" to={`/app/partes/${data.work_order_id}`}>Volver al parte</Link>}
-        </div>
-        <Card title="Bloque no encontrado">
-          <p className="form-error">
-            El bloque solicitado no corresponde a una sección real de la
-            plantilla asociada al check. No se guardará sobre otra sección.
-          </p>
-        </Card>
-      </section>
-    );
-  const needsDetail = checkProblemStatuses.includes(status);
-  const hasChanges =
-    localLoaded &&
-    status !== "Sin revisar" &&
-    (status !== confirmedStatus ||
-      observations.trim() ||
-      intervention.trim() ||
-      components.length ||
-      photos.length);
-  const toggleComponent = (component: string) =>
-    setComponents((current) =>
-      current.includes(component)
-        ? current.filter((item) => item !== component)
-        : [...current, component],
-    );
-  const selectStatus = (nextStatus: string) => {
-    setStatus(nextStatus);
-    setSaveState("idle");
-    if (!checkProblemStatuses.includes(nextStatus)) {
-      setObservations("");
-      setIntervention("");
-      setComponents([]);
-      setPhotos([]);
-    }
-  };
-  const addPhotos = async (files: FileList | null) => {
-    if (!files?.length) return;
-    try {
-      const nextPhotos = await Promise.all(
-        Array.from(files).map(fileToLocalPhoto),
-      );
-      setPhotos((current) => [...current, ...nextPhotos]);
-      setSaveState("idle");
-    } catch {
-      setSaveState("error");
-    }
-  };
-  const save = async () => {
-    if (
-      !zone ||
-      !section ||
-      !isUuid(section.id) ||
-      !hasChanges ||
-      status === "Sin revisar"
-    )
-      return;
-    setSaving(true);
-    setSaveState("saving");
-    const persisted = status.replace(
-      "Favorable tras intervención",
-      "Favorable tras intervencion",
-    );
-    try {
-      await technicianOfflineService.upsert({
-        type: "check-block",
-        workOrderId: data.work_order_id,
-        checkId: id,
-        blockId: zone.id,
-        sectionId: section.id,
-        payload: {
-          blockId: zone.id,
-          sectionId: section.id,
-          sectionTitle: zone.name,
-          status,
-          persistedStatus: persisted,
-          items: section.check_template_items ?? [],
-          components:
-            status === "Todo favorable"
-              ? (zone.items ?? []).map(
-                  (item: any) => item.component ?? item.title,
-                )
-              : components,
-          observations: needsDetail ? observations : "",
-          intervention: needsDetail ? intervention : "",
-          incidence: needsDetail,
-          severity,
-          date: new Date().toISOString(),
-          user: data.technician_id,
-        },
-      });
-      if (needsDetail)
-        await technicianOfflineService.upsert({
-          type: "deficiency",
-          workOrderId: data.work_order_id,
-          checkId: id,
-          blockId: zone.id,
-          sectionId: section.id,
-          payload: {
-            id: `${zone.id}-deficiency`,
-            sectionId: section.id,
-            severity,
-            description: observations,
-            recommendedAction: intervention,
-          },
-        });
-      if (needsDetail)
-        await Promise.all(
-          photos.map((photo) =>
-            technicianOfflineService.upsert({
-              type: "photo",
-              workOrderId: data.work_order_id,
-              checkId: id,
-              blockId: zone.id,
-              sectionId: section.id,
-              payload: {
-                ...photo,
-                sectionId: section.id,
-                sectionTitle: zone.name,
-                description: observations,
-              },
-            }),
-          ),
-        );
-      setConfirmedStatus(status);
-      setSaveState("saved");
-      setTimeout(
-        () =>
-          navigate(
-            workspace === "superadmin"
-              ? `/app/superadmin/checks/${id}`
-              : `/app/checks/${id}`,
-          ),
-        450,
-      );
-    } catch {
-      setSaveState("error");
-    } finally {
-      setSaving(false);
-    }
-  };
-  return (
-    <section className="check-mobile block-page">
-      <header>
-        <p className="eyebrow">Detalle del bloque</p>
-        <h2>{zone.name}</h2>
-        <Badge tone={severityForStatus(status)}>{displayStatus(status)}</Badge>
-        <div className="actions">
-          <Link
-            className="link-button"
-            to={
-              workspace === "superadmin"
-                ? `/app/superadmin/checks/${id}`
-                : `/app/checks/${id}`
-            }
-          >
-            <ChevronLeft size={16} /> Volver
-          </Link>
-          {data.work_order_id && (
-            <Link className="primary" to={`/app/partes/${data.work_order_id}`}>
-              Volver al parte
-            </Link>
-          )}
-        </div>
-      </header>
-      <div className="status-grid">
-        {checkStatuses.map((item) => (
-          <button
-            type="button"
-            key={item}
-            className={status === item ? "active" : ""}
-            onClick={() => selectStatus(item)}
-          >
-            {item}
-          </button>
-        ))}
-      </div>
-      {status === "Sin revisar" && (
-        <p className="large-note">
-          Selecciona un estado. No se guardará hasta pulsar Confirmar selección.
-        </p>
-      )}
-      {needsDetail && (
-        <Card title="Observación e intervención">
-          <label>
-            Observación
-            <textarea
-              value={observations}
-              onChange={(event) => {
-                setObservations(event.target.value);
-                setSaveState("idle");
-              }}
-            />
-          </label>
-          <label>
-            Intervención
-            <textarea
-              value={intervention}
-              onChange={(event) => {
-                setIntervention(event.target.value);
-                setSaveState("idle");
-              }}
-              placeholder="Intervención realizada si aplica"
-            />
-          </label>
-        </Card>
-      )}
-      {needsDetail && (
-        <Card title="Incidencia del bloque">
-          <div className="component-select">
-            {(zone.items ?? []).map((item: any) => {
-              const component = item.component ?? item.title;
-              return (
-                <label key={component}>
-                  <input
-                    type="checkbox"
-                    checked={components.includes(component)}
-                    onChange={() => {
-                      toggleComponent(component);
-                      setSaveState("idle");
-                    }}
-                  />{" "}
-                  {component}
-                </label>
-              );
-            })}
-          </div>
-          <FormSelect
-            label="Gravedad"
-            value={severity}
-            onChange={(value) => {
-              setSeverity(value);
-              setSaveState("idle");
-            }}
-            options={["Leve", "Media", "Alta", "Critica"].map((value) => ({
-              value,
-              label: displayStatus(value),
-            }))}
-          />
-          <div className="photo-strip">
-            <label className="component-photo">
-              Añadir foto real
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                multiple
-                onChange={(event) => addPhotos(event.target.files)}
-              />
-            </label>
-          </div>
-          {photos.length > 0 && (
-            <div className="photo-list">
-              {photos.map((photo) => (
-                <span key={photo.id ?? photo.name}>
-                  {photo.name ?? "Foto"} · Foto pendiente de sincronizar
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPhotos((current) =>
-                        current.filter((item) => item !== photo),
-                      );
-                      setSaveState("idle");
-                    }}
-                  >
-                    Quitar
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-          <p className="large-note">
-            Las fotos quedan guardadas en este dispositivo. Foto guardada
-            localmente y pendiente de sincronización.
-          </p>
-        </Card>
-      )}
-      <button
-        className="primary wide sticky-save"
-        disabled={!hasChanges || saving}
-        onClick={save}
-      >
-        {saving
-          ? "Guardando..."
-          : saveState === "saved"
-            ? "Guardado localmente"
-            : "Confirmar selección"}
-      </button>
-      {saveState === "saved" && (
-        <p className="success-note">
-          Bloque guardado localmente y pendiente de sincronización segura.
-        </p>
-      )}
-      {saveState === "error" && (
-        <p className="form-error">
-          No se ha podido guardar el bloque localmente.
-        </p>
       )}
     </section>
   );
@@ -2186,7 +1880,12 @@ function MaterialForm({ initial, onClose, onSaved }: { initial?: any; onClose: (
   const [error, setError] = useState('');
   const set = (key: string, value: any) => setValues((current) => ({ ...current, [key]: value }));
   const submit = async (event: FormEvent) => { event.preventDefault(); if (!values.description?.trim()) { setError('validacion del formulario: indica la descripción del material.'); return; } setSaving(true); setError(''); try { await (initial?.id ? materialsService.update(initial.id, values) : materialsService.create(values)); onSaved(); } catch (err) { setError(formErrorMessage(err, initial?.id ? 'No se ha podido editar el material.' : 'No se ha podido crear el material.')); } finally { setSaving(false); } };
-  return <ModalForm title={initial?.id ? 'Editar material' : 'Crear material'} onClose={onClose} onSubmit={submit} saving={saving} error={error}><p className="large-note">{initial?.id ? 'Edita el catálogo compartido. Los ajustes operativos de stock quedan registrados desde Ajustar stock.' : 'El código MAT se generará automáticamente si lo dejas vacío. El stock inicial queda guardado en el material.'}</p><div className="form-grid"><label>Código<input value={values.code ?? ''} onChange={(event) => set('code', event.target.value)} placeholder="Automático" /></label><label>Descripción *<input value={values.description ?? ''} onChange={(event) => set('description', event.target.value)} required /></label><label>Fabricante<input value={values.manufacturer ?? ''} onChange={(event) => set('manufacturer', event.target.value)} /></label><label>Referencia<input value={values.reference ?? ''} onChange={(event) => set('reference', event.target.value)} /></label><label>Unidad<input value={values.unit ?? ''} onChange={(event) => set('unit', event.target.value)} /></label><label>Coste<input type="number" min="0" step="0.01" value={values.cost ?? 0} onChange={(event) => set('cost', event.target.value)} /></label><label>Precio venta<input type="number" min="0" step="0.01" value={values.price ?? 0} onChange={(event) => set('price', event.target.value)} /></label><label>Stock inicial / actual<input type="number" min={values.allow_negative_stock ? undefined : '0'} step="0.01" value={values.stock_quantity ?? 0} onChange={(event) => set('stock_quantity', event.target.value)} /></label><label>Stock mínimo<input type="number" min="0" step="0.01" value={values.minimum_stock ?? 0} onChange={(event) => set('minimum_stock', event.target.value)} /></label></div><label className="check-consent"><input type="checkbox" checked={values.stock_controlled !== false} onChange={(event) => set('stock_controlled', event.target.checked)} /> Controlar stock</label><label className="check-consent"><input type="checkbox" checked={values.allow_negative_stock === true} onChange={(event) => set('allow_negative_stock', event.target.checked)} /> Permitir stock negativo</label><label className="check-consent"><input type="checkbox" checked={values.is_specific === true} onChange={(event) => set('is_specific', event.target.checked)} /> Material específico / a medida</label>{values.is_specific === true && <p className="large-note">Cuando su consumo deja el stock a cero queda como Consumido (sin borrar historial); se reactiva automáticamente si vuelve a haber stock.</p>}<label className="check-consent"><input type="checkbox" checked={values.active !== false} onChange={(event) => set('active', event.target.checked)} /> Material activo</label></ModalForm>;
+  return <ModalForm title={initial?.id ? 'Editar material' : 'Crear material'} onClose={onClose} onSubmit={submit} saving={saving} error={error}>
+    <p className="large-note">{initial?.id ? 'Edita el catálogo compartido. El stock solo cambia desde Ajustar stock y siempre genera un movimiento.' : 'El código MAT se generará automáticamente. El stock inicial generará su movimiento de entrada.'}</p>
+    <div className="form-grid"><label>Código<input value={values.code ?? ''} onChange={(event) => set('code', event.target.value)} placeholder="Automático" readOnly={Boolean(initial?.id)} /></label><label>Descripción *<input value={values.description ?? ''} onChange={(event) => set('description', event.target.value)} required /></label><label>Fabricante<input value={values.manufacturer ?? ''} onChange={(event) => set('manufacturer', event.target.value)} /></label><label>Referencia<input value={values.reference ?? ''} onChange={(event) => set('reference', event.target.value)} /></label><label>Unidad<input value={values.unit ?? ''} onChange={(event) => set('unit', event.target.value)} /></label><label>Coste<input type="number" min="0" step="0.01" value={values.cost ?? 0} onChange={(event) => set('cost', event.target.value)} /></label><label>Precio venta<input type="number" min="0" step="0.01" value={values.price ?? 0} onChange={(event) => set('price', event.target.value)} /></label>{!initial?.id && <label>Stock inicial<input type="number" min={values.allow_negative_stock ? undefined : '0'} step="0.01" value={values.stock_quantity ?? 0} onChange={(event) => set('stock_quantity', event.target.value)} /></label>}<label>Stock mínimo<input type="number" min="0" step="0.01" value={values.minimum_stock ?? 0} onChange={(event) => set('minimum_stock', event.target.value)} /></label></div>
+    {initial?.id && <p className="large-note">Stock actual: {Number(initial.stock_quantity ?? 0).toLocaleString('es-ES')} {initial.unit ?? 'ud'}. Utiliza “Ajustar stock” para cambiarlo.</p>}
+    <label className="check-consent"><input type="checkbox" checked={values.stock_controlled !== false} onChange={(event) => set('stock_controlled', event.target.checked)} /> Controlar stock</label><label className="check-consent"><input type="checkbox" checked={values.allow_negative_stock === true} onChange={(event) => set('allow_negative_stock', event.target.checked)} /> Permitir stock negativo</label><label className="check-consent"><input type="checkbox" checked={values.is_specific === true} onChange={(event) => set('is_specific', event.target.checked)} /> Material específico / a medida</label>{values.is_specific === true && <p className="large-note">Cuando su consumo deja el stock a cero queda como Consumido (sin borrar historial); se reactiva automáticamente si vuelve a haber stock.</p>}<label className="check-consent"><input type="checkbox" checked={values.active !== false} onChange={(event) => set('active', event.target.checked)} /> Material activo</label>
+  </ModalForm>;
 }
 
 function StockAdjustModal({ material, onClose, onSaved }: { material: any; onClose: () => void; onSaved: () => void }) {
@@ -2230,11 +1929,52 @@ function QuoteDetailModal({ quoteId, onClose, onChanged }: { quoteId: string; on
   const changed = () => { setMode(null); setEditingLine(null); setRemovingLine(null); reload(); onChanged(); };
   const printQuote = (nextMode: 'client' | 'internal') => { setPrintMode(nextMode); setTimeout(() => window.print(), 50); };
   const canManageQuote = canManageQuotes(profile);
+  const quoteEditable = isQuoteEditable(data?.status);
   const showPurgeButton = quotePurgeCanShowButton(data, workspace);
   const lines = (data?.quote_lines ?? []).filter((line: any) => !line.deleted_at);
   const generatedWorks = data?.generated_work_orders ?? [];
   const marginPercent = Number(data?.taxable_base ?? 0) > 0 ? Number(data?.estimated_margin ?? 0) / Number(data?.taxable_base ?? 0) * 100 : 0;
-  return <section className="page quote-detail-page"><BackButton /><StateBlock loading={loading} error={error} retry={reload} empty={!data}>{data && <><div className="screen-only"><div className="page-head quote-head"><div><p className="eyebrow">Presupuesto</p><h2>{data.code} · {data.title}</h2><p>{data.clients?.legal_name ?? 'Cliente no informado'} · {displayStatus(data.status)}</p></div><div className="actions"><button onClick={() => setMode('edit')} disabled={!canManageQuote || data.deleted_at}>Editar datos</button><button onClick={() => setMode('line')} disabled={!canManageQuote || data.deleted_at}>Añadir línea</button><button onClick={() => printQuote('client')}>Imprimir informe cliente</button><button onClick={() => printQuote('internal')}>Imprimir informe interno DMP</button><button className="primary" onClick={() => setMode('send')} disabled={!canManageQuote || data.deleted_at}>Enviar al cliente</button><button onClick={() => setMode('work')} disabled={!canManageQuote || data.deleted_at || data.status !== 'Aceptado' || generatedWorks.length > 0}>Generar parte</button>{showPurgeButton && <button className="danger-action" onClick={() => setPurgeOpen(true)}>Eliminar definitivamente</button>}<button onClick={onClose}>Volver al listado</button></div></div><QuoteStatusSelector quote={data} onChanged={() => { setMessage('Estado del presupuesto actualizado.'); reload(); onChanged(); }} />{message && <p className="success-note">{message}</p>}<section className="quote-print"><InfoGrid items={[[ 'Tipo', displayStatus(data.quote_type) ], [ 'Estado', displayStatus(data.status) ], [ 'Cliente', data.clients?.legal_name ?? '-' ], [ 'Email cliente', data.clients?.email ?? '-' ], [ 'Centro', data.sites?.name ?? '-' ], [ 'Equipo', data.equipment?.code ?? '-' ], [ 'Parte origen', data.work_orders?.code ?? '-' ], [ 'Fecha', data.issue_date ?? '-' ], [ 'Validez', data.valid_until ?? '-' ], [ 'Enviado a', data.sent_to_email ?? '-' ], [ 'Fecha envío', data.sent_at ? formatDate(data.sent_at) : '-' ], [ 'Condiciones', data.conditions ?? '-' ]]} /><Card title="Descripción"><p>{data.description ?? 'Sin descripción.'}</p></Card><Card title="Partes generados"><CompactRows rows={generatedWorks.map((work: any) => [work.code, `${work.title} · ${displayStatus(work.status)} · ${work.scheduled_date ?? 'Sin fecha'}`, severityForStatus(work.status), `/app/partes/${work.id}`])} empty={data.status === 'Aceptado' ? 'Todavía no se ha generado un parte desde este presupuesto.' : 'Disponible cuando el presupuesto esté aceptado.'} /></Card><Card title="Totales"><InfoGrid items={[[ 'Subtotal coste interno', `${Number(data.subtotal_cost ?? 0).toLocaleString('es-ES')} €` ], [ 'Subtotal venta sin IVA', `${Number(data.subtotal_sale ?? data.subtotal ?? 0).toLocaleString('es-ES')} €` ], [ 'Descuento', `${Number(data.discount_value ?? data.discount_amount ?? 0).toLocaleString('es-ES')} ${data.discount_type === 'amount' ? '€' : '%'}` ], [ 'Descuento aplicado', `${Number(data.discount_amount ?? 0).toLocaleString('es-ES')} €` ], [ 'Base imponible', `${Number(data.taxable_base ?? Math.max(Number(data.subtotal_sale ?? data.subtotal ?? 0) - Number(data.discount_amount ?? 0), 0)).toLocaleString('es-ES')} €` ], [ 'IVA', `${Number(data.tax_amount ?? 0).toLocaleString('es-ES')} €` ], [ 'Total cliente con IVA', `${Number(data.total_amount ?? data.total ?? 0).toLocaleString('es-ES')} €` ], [ 'Beneficio estimado sin IVA', `${Number(data.estimated_margin ?? 0).toLocaleString('es-ES')} €` ], [ 'Margen %', `${marginPercent.toLocaleString('es-ES', { maximumFractionDigits: 2 })}%` ]]} /></Card><Card title="Líneas"><div className="table-card quote-lines-table"><table><thead><tr><th>Tipo</th><th>Descripción</th><th>Cantidad</th><th>Coste ud.</th><th>Venta ud.</th><th>IVA</th><th>Total coste</th><th>Total venta</th><th></th></tr></thead><tbody>{lines.map((line: any) => <tr key={line.id}><td>{displayStatus(line.line_type ?? 'material')}</td><td>{line.description}</td><td>{Number(line.quantity ?? 0).toLocaleString('es-ES')} {line.unit ?? ''}</td><td>{Number(line.unit_cost ?? 0).toLocaleString('es-ES')} €</td><td>{Number(line.unit_price ?? 0).toLocaleString('es-ES')} €</td><td>{Number(line.tax_rate ?? 0).toLocaleString('es-ES')}%</td><td>{Number(line.total_cost ?? 0).toLocaleString('es-ES')} €</td><td>{Number(line.total_price ?? line.total ?? 0).toLocaleString('es-ES')} €</td><td><div className="row-actions"><button onClick={() => setEditingLine(line)}>Editar</button><button className="danger" onClick={() => setRemovingLine(line)}>Borrar</button></div></td></tr>)}</tbody></table></div>{!lines.length && <p className="large-note">Sin líneas.</p>}</Card></section></div><QuotePrintableReport quote={data} lines={lines} variant={printMode} />{mode === 'edit' && <QuoteForm initial={data} onClose={() => setMode(null)} onSaved={changed} />}{mode === 'line' && <QuoteLineForm quoteId={data.id} quoteCompanyId={data.company_id} onClose={() => setMode(null)} onSaved={changed} />}{editingLine && <QuoteLineForm quoteId={data.id} quoteCompanyId={data.company_id} initial={editingLine} onClose={() => setEditingLine(null)} onSaved={changed} />}{removingLine && <ConfirmModal title="Borrar línea" text={`Borrar la línea ${removingLine.description}. Se marcará como eliminada y se recalcularán los totales.`} onCancel={() => setRemovingLine(null)} onConfirm={async () => { await quotesService.deleteLine(removingLine.id, 'Línea eliminada'); changed(); }} />}{mode === 'send' && <QuoteSendModal quote={data} onClose={() => setMode(null)} onSaved={() => { setMessage('Preparado para enviar / marcado como enviado.'); changed(); }} />}{mode === 'work' && <WorkOrderForm initial={quoteWorkOrderInitial(data, lines)} sourceQuote={data} onClose={() => setMode(null)} onSaved={() => { setMessage('Parte generado desde presupuesto. Los materiales quedan como previstos, sin descontar stock.'); changed(); }} />}{purgeOpen && <QuotePurgeModal quote={data} onClose={() => setPurgeOpen(false)} onDeleted={() => { setPurgeOpen(false); onClose(); }} />}</>}</StateBlock></section>;
+  return <section className="page quote-detail-page">
+    <BackButton />
+    <StateBlock loading={loading} error={error} retry={reload} empty={!data}>{data && <>
+      <div className="screen-only">
+        <div className="page-head quote-head">
+          <div><p className="eyebrow">Presupuesto</p><h2>{data.code} · {data.title}</h2><p>{data.clients?.legal_name ?? 'Cliente no informado'} · {displayStatus(data.status)}</p></div>
+          <div className="actions">
+            <button onClick={() => setMode('edit')} disabled={!canManageQuote || data.deleted_at || !quoteEditable}>Editar datos</button>
+            <button onClick={() => setMode('line')} disabled={!canManageQuote || data.deleted_at || !quoteEditable}>Añadir línea</button>
+            <button onClick={() => printQuote('client')}>Imprimir informe cliente</button>
+            <button onClick={() => printQuote('internal')}>Imprimir informe interno DMP</button>
+            <button className="primary" onClick={() => setMode('send')} disabled={!canManageQuote || data.deleted_at || !quoteEditable}>Marcar como enviado</button>
+            <button onClick={() => setMode('work')} disabled={!canManageQuote || data.deleted_at || data.status !== 'Aceptado' || generatedWorks.length > 0}>Generar parte</button>
+            {showPurgeButton && <button className="danger-action" onClick={() => setPurgeOpen(true)}>Eliminar definitivamente</button>}
+            <button onClick={onClose}>Volver al listado</button>
+          </div>
+        </div>
+        {!quoteEditable && <p className="success-note">Presupuesto histórico bloqueado: sus datos y líneas ya no se pueden modificar.</p>}
+        <QuoteStatusSelector quote={data} onChanged={() => { setMessage('Estado del presupuesto actualizado.'); reload(); onChanged(); }} />
+        {message && <p className="success-note">{message}</p>}
+        <section className="quote-print">
+          <InfoGrid items={[[ 'Tipo', displayStatus(data.quote_type) ], [ 'Estado', displayStatus(data.status) ], [ 'Cliente', data.clients?.legal_name ?? '-' ], [ 'Email cliente', data.clients?.email ?? '-' ], [ 'Centro', data.sites?.name ?? '-' ], [ 'Equipo', data.equipment?.code ?? '-' ], [ 'Parte origen', data.work_orders?.code ?? '-' ], [ 'Fecha', data.issue_date ?? '-' ], [ 'Validez', data.valid_until ?? '-' ], [ 'Enviado a', data.sent_to_email ?? '-' ], [ 'Fecha envío', data.sent_at ? formatDate(data.sent_at) : '-' ], [ 'Condiciones', data.conditions ?? '-' ]]} />
+          <Card title="Descripción"><p>{data.description ?? 'Sin descripción.'}</p></Card>
+          <Card title="Partes generados"><CompactRows rows={generatedWorks.map((work: any) => [work.code, `${work.title} · ${displayStatus(work.status)} · ${work.scheduled_date ?? 'Sin fecha'}`, severityForStatus(work.status), `/app/partes/${work.id}`])} empty={data.status === 'Aceptado' ? 'Todavía no se ha generado un parte desde este presupuesto.' : 'Disponible cuando el presupuesto esté aceptado.'} /></Card>
+          <Card title="Totales"><InfoGrid items={[[ 'Subtotal coste interno', `${Number(data.subtotal_cost ?? 0).toLocaleString('es-ES')} €` ], [ 'Subtotal venta sin IVA', `${Number(data.subtotal_sale ?? data.subtotal ?? 0).toLocaleString('es-ES')} €` ], [ 'Descuento', `${Number(data.discount_value ?? data.discount_amount ?? 0).toLocaleString('es-ES')} ${data.discount_type === 'amount' ? '€' : '%'}` ], [ 'Descuento aplicado', `${Number(data.discount_amount ?? 0).toLocaleString('es-ES')} €` ], [ 'Base imponible', `${Number(data.taxable_base ?? Math.max(Number(data.subtotal_sale ?? data.subtotal ?? 0) - Number(data.discount_amount ?? 0), 0)).toLocaleString('es-ES')} €` ], [ 'IVA', `${Number(data.tax_amount ?? 0).toLocaleString('es-ES')} €` ], [ 'Total cliente con IVA', `${Number(data.total_amount ?? data.total ?? 0).toLocaleString('es-ES')} €` ], [ 'Beneficio estimado sin IVA', `${Number(data.estimated_margin ?? 0).toLocaleString('es-ES')} €` ], [ 'Margen %', `${marginPercent.toLocaleString('es-ES', { maximumFractionDigits: 2 })}%` ]]} /></Card>
+          <Card title="Líneas">
+            <div className="table-card quote-lines-table"><table><thead><tr><th>Tipo</th><th>Descripción</th><th>Cantidad</th><th>Coste ud.</th><th>Venta ud.</th><th>IVA</th><th>Total coste</th><th>Total venta</th><th></th></tr></thead><tbody>{lines.map((line: any) => <tr key={line.id}><td>{displayStatus(line.line_type ?? 'material')}</td><td>{line.description}</td><td>{Number(line.quantity ?? 0).toLocaleString('es-ES')} {line.unit ?? ''}</td><td>{Number(line.unit_cost ?? 0).toLocaleString('es-ES')} €</td><td>{Number(line.unit_price ?? 0).toLocaleString('es-ES')} €</td><td>{Number(line.tax_rate ?? 0).toLocaleString('es-ES')}%</td><td>{Number(line.total_cost ?? 0).toLocaleString('es-ES')} €</td><td>{Number(line.total_price ?? line.total ?? 0).toLocaleString('es-ES')} €</td><td>{quoteEditable && <div className="row-actions"><button onClick={() => setEditingLine(line)}>Editar</button><button className="danger" onClick={() => setRemovingLine(line)}>Borrar</button></div>}</td></tr>)}</tbody></table></div>
+            {!lines.length && <p className="large-note">Sin líneas.</p>}
+          </Card>
+        </section>
+      </div>
+      <QuotePrintableReport quote={data} lines={lines} variant={printMode} />
+      {quoteEditable && mode === 'edit' && <QuoteForm initial={data} onClose={() => setMode(null)} onSaved={changed} />}
+      {quoteEditable && mode === 'line' && <QuoteLineForm quoteId={data.id} quoteCompanyId={data.company_id} onClose={() => setMode(null)} onSaved={changed} />}
+      {quoteEditable && editingLine && <QuoteLineForm quoteId={data.id} quoteCompanyId={data.company_id} initial={editingLine} onClose={() => setEditingLine(null)} onSaved={changed} />}
+      {quoteEditable && removingLine && <ConfirmModal title="Borrar línea" text={`Borrar la línea ${removingLine.description}. Se marcará como eliminada y se recalcularán los totales.`} onCancel={() => setRemovingLine(null)} onConfirm={async () => { await quotesService.deleteLine(removingLine.id, 'Línea eliminada'); changed(); }} />}
+      {quoteEditable && mode === 'send' && <QuoteSendModal quote={data} onClose={() => setMode(null)} onSaved={() => { setMessage('Presupuesto marcado como enviado.'); changed(); }} />}
+      {mode === 'work' && <WorkOrderForm initial={quoteWorkOrderInitial(data, lines)} sourceQuote={data} onClose={() => setMode(null)} onSaved={() => { setMessage('Parte generado desde presupuesto. Los materiales quedan como previstos, sin descontar stock.'); changed(); }} />}
+      {purgeOpen && <QuotePurgeModal quote={data} onClose={() => setPurgeOpen(false)} onDeleted={() => { setPurgeOpen(false); onClose(); }} />}
+    </>}</StateBlock>
+  </section>;
 }
 
 function QuotePurgeModal({ quote, onClose, onDeleted }: { quote: any; onClose: () => void; onDeleted: () => void }) {
@@ -2363,7 +2103,40 @@ function GenericEntityPurgeModal({ config, record, onClose, onDeleted }: { confi
   return <div className="mini-modal lifecycle-modal" role="dialog" aria-modal="true" aria-labelledby="entity-purge-title"><div><h3 id="entity-purge-title">{config.modalTitle}</h3><p className="large-note">{record.code ?? record.id} · {record.title ?? record.name ?? config.label}</p>{loadError ? <p className="form-error">{loadError}</p> : !plan ? <p className="large-note">Analizando dependencias…</p> : <>{blocks.hard.length > 0 && <p className="form-error">El {config.label} no puede purgarse porque tiene dependencias que no pueden resolverse en cascada: {blocks.hard.map((item) => `${displayStatus(item.key)} (${item.count})`).join(', ')}.</p>}<Card title="Se eliminará en cascada"><DependencyRows dependencies={plan.cascade_dependencies ?? {}} /></Card>{blocks.informational.map((item) => <p key={item.key} className="large-note">{displayStatus(item.key)} ({item.count}): se desvincularán, no se eliminarán en cascada.</p>)}{blocks.decisions.map((item) => <label key={item.config.blockerKey}><input type="checkbox" checked={enabledScopeKeys.includes(item.config.scopeKey)} onChange={(event) => toggleDecision(item.config, event.target.checked)} disabled={saving} /> {item.config.label(item.count)}</label>)}{blocks.decisions.length > 0 && !blocks.decisions.every((item) => enabledScopeKeys.includes(item.config.scopeKey)) && <p className="form-error">Debes decidir explícitamente qué hacer con las dependencias indicadas para poder purgar este {config.label}.</p>}{!blocks.hard.length && blocks.decisions.length > 0 && blocks.decisions.every((item) => enabledScopeKeys.includes(item.config.scopeKey)) && planScopeKey === entityPurgeScopeKey(enabledScopeKeys) && <p className="success-note">Plan recalculado con las decisiones indicadas.</p>}{error && <p className="form-error">{error}</p>}<div className="modal-footer"><button type="button" onClick={onClose} disabled={saving}>Cancelar</button>{blocks.hard.length === 0 && <button type="button" className="danger-action" onClick={submit} disabled={saving || !canExecute}>{saving ? 'Eliminando…' : 'Eliminar definitivamente'}</button>}</div></>}</div></div>;
 }
 
-function QuoteStatusSelector({ quote, onChanged }: { quote: any; onChanged: () => void }) { const { profile } = useAuth(); const [value, setValue] = useState(quote.status); const [confirm, setConfirm] = useState<{ next: string; reason: string; important: boolean } | null>(null); const [saving, setSaving] = useState(false); const [error, setError] = useState(''); if (!canManageQuotes(profile) || quote.deleted_at) return null; const prepare = (next: string) => { if (next === quote.status || saving) return; setValue(next); setConfirm({ next, reason: '', important: ['Aceptado','Ejecutado en cliente','Rechazado','Cancelado'].includes(next) }); }; const submit = async () => { if (!confirm || saving) return; if (confirm.important && !confirm.reason.trim()) { setError('Indica un motivo para este cambio de estado.'); return; } let sentToEmail: string | undefined; if (confirm.next === 'Enviado') { sentToEmail = quote.clients?.email ?? quote.sent_to_email ?? ''; if (!sentToEmail || !sentToEmail.trim()) { setError('Indica el email del cliente para marcar como enviado (usa "Enviar al cliente").'); setValue(quote.status); return; } } setSaving(true); setError(''); try { await quotesService.changeStatus(quote.id, confirm.next, confirm.reason || 'Cambio rapido de estado', sentToEmail); setConfirm(null); onChanged(); } catch (err) { setValue(quote.status); setError(formErrorMessage(err, 'No se ha podido cambiar el estado del presupuesto.')); } finally { setSaving(false); } }; return <Card title="Cambiar estado"><label className="status-selector">Estado:<select value={value} disabled={saving} onChange={(event) => prepare(event.target.value)}>{quoteStatuses.map((status) => <option key={status} value={status}>{status === 'Enviado' ? 'Enviado/Mandado' : displayStatus(status)}</option>)}</select></label><p className="large-note">Acción rápida fuera de Editar presupuesto. Aceptado, ejecutado, rechazado y cancelado piden confirmación.</p>{error && <p className="form-error">{error}</p>}{confirm && <div className="mini-modal" role="dialog" aria-modal="true"><form onSubmit={(event) => { event.preventDefault(); submit(); }}><h3>Confirmar cambio de estado</h3><p>Pasar de {displayStatus(quote.status)} a {displayStatus(confirm.next)}.</p><label>Motivo{confirm.important ? ' *' : ''}<textarea value={confirm.reason} onChange={(event) => setConfirm({ ...confirm, reason: event.target.value })} required={confirm.important} /></label><div className="modal-footer"><button type="button" disabled={saving} onClick={() => { setValue(quote.status); setConfirm(null); }}>Cancelar</button><button className="primary" disabled={saving}>{saving ? 'Guardando...' : 'Cambiar estado'}</button></div></form></div>}</Card>; }
+function QuoteStatusSelector({ quote, onChanged }: { quote: any; onChanged: () => void }) {
+  const { profile } = useAuth();
+  const [value, setValue] = useState(quote.status);
+  const [confirm, setConfirm] = useState<{ next: string; reason: string; important: boolean } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const allowed = validQuoteTransitions(quote.status);
+  if (!canManageQuotes(profile) || quote.deleted_at) return null;
+  const prepare = (next: string) => {
+    if (next === quote.status || saving || !allowed.includes(next)) return;
+    setValue(next);
+    setConfirm({ next, reason: '', important: ['Aceptado','Ejecutado en cliente','Rechazado','Cancelado'].includes(next) });
+  };
+  const submit = async () => {
+    if (!confirm || saving) return;
+    if (confirm.important && !confirm.reason.trim()) { setError('Indica un motivo para este cambio de estado.'); return; }
+    let sentToEmail: string | undefined;
+    if (confirm.next === 'Enviado') {
+      sentToEmail = quote.clients?.email ?? quote.sent_to_email ?? '';
+      if (!sentToEmail?.trim()) { setError('Indica el email del cliente antes de marcar como enviado.'); setValue(quote.status); return; }
+    }
+    setSaving(true); setError('');
+    try { await quotesService.changeStatus(quote.id, confirm.next, confirm.reason || 'Cambio rapido de estado', sentToEmail); setConfirm(null); onChanged(); }
+    catch (err) { setValue(quote.status); setError(formErrorMessage(err, 'No se ha podido cambiar el estado del presupuesto.')); }
+    finally { setSaving(false); }
+  };
+  if (!allowed.length) return <Card title="Estado del presupuesto"><p className="large-note">{displayStatus(quote.status)} · No admite más transiciones.</p></Card>;
+  return <Card title="Cambiar estado">
+    <label className="status-selector">Estado:<select value={value} disabled={saving} onChange={(event) => prepare(event.target.value)}><option value={quote.status}>{displayStatus(quote.status)}</option>{allowed.map((status) => <option key={status} value={status}>{status === 'Enviado' ? 'Enviado/Mandado' : displayStatus(status)}</option>)}</select></label>
+    <p className="large-note">Solo se muestran transiciones permitidas por el ciclo comercial.</p>
+    {error && <p className="form-error">{error}</p>}
+    {confirm && <div className="mini-modal" role="dialog" aria-modal="true"><form onSubmit={(event) => { event.preventDefault(); submit(); }}><h3>Confirmar cambio de estado</h3><p>Pasar de {displayStatus(quote.status)} a {displayStatus(confirm.next)}.</p><label>Motivo{confirm.important ? ' *' : ''}<textarea value={confirm.reason} onChange={(event) => setConfirm({ ...confirm, reason: event.target.value })} required={confirm.important} /></label><div className="modal-footer"><button type="button" disabled={saving} onClick={() => { setValue(quote.status); setConfirm(null); }}>Cancelar</button><button className="primary" disabled={saving}>{saving ? 'Guardando...' : 'Cambiar estado'}</button></div></form></div>}
+  </Card>;
+}
 
 function QuotePrintableReport({ quote, lines, variant }: { quote: any; lines: any[]; variant: 'client' | 'internal' }) {
   const internal = variant === 'internal';
@@ -2378,10 +2151,10 @@ function QuoteForm({ initial, onClose, onSaved }: { initial?: any; onClose: () =
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const set = (key: string, value: any) => setValues((current) => ({ ...current, [key]: value }));
-  const submit = async (event: FormEvent) => { event.preventDefault(); setSaving(true); setError(''); try { if (initial?.id) { await quotesService.update(initial.id, values); if (values.status && values.status !== initial.status) { await quotesService.changeStatus(initial.id, values.status, 'Cambio de estado al editar el presupuesto', values.status === 'Enviado' ? initial.clients?.email ?? values.sent_to_email ?? undefined : undefined); } onSaved(initial.id); } else { const row = await quotesService.create(values); onSaved(row.id); } } catch (err) { setError(formErrorMessage(err, initial?.id ? 'No se ha podido modificar el presupuesto.' : 'No se ha podido crear el presupuesto.')); } finally { setSaving(false); } };
+  const submit = async (event: FormEvent) => { event.preventDefault(); setSaving(true); setError(''); try { if (initial?.id) { await quotesService.update(initial.id, values); onSaved(initial.id); } else { const row = await quotesService.create(values); onSaved(row.id); } } catch (err) { setError(formErrorMessage(err, initial?.id ? 'No se ha podido modificar el presupuesto.' : 'No se ha podido crear el presupuesto.')); } finally { setSaving(false); } };
   const clientOptions = clients.data.map((client: any) => ({ value: client.id, label: `${client.code} · ${client.legal_name}` }));
   if (values.client_id && !clientOptions.some((option: any) => option.value === values.client_id)) clientOptions.unshift({ value: values.client_id, label: `${initial?.clients?.code ?? 'Cliente'} · ${initial?.clients?.legal_name ?? 'Cliente asociado actualmente'}` });
-  return <ModalForm title={initial?.id ? 'Editar presupuesto' : 'Crear presupuesto'} onClose={onClose} onSubmit={submit} saving={saving} error={error}><FormSelect label="Cliente" value={values.client_id} onChange={(value) => set('client_id', value)} required loading={clients.loading} options={clientOptions} /><div className="form-grid"><FormSelect label="Tipo" value={values.quote_type} onChange={(value) => set('quote_type', value)} options={quoteTypes.map((value) => ({ value, label: displayStatus(value) }))} /><FormSelect label="Estado" value={values.status} onChange={(value) => set('status', value)} options={quoteStatuses.map((value) => ({ value, label: displayStatus(value) }))} /></div><label>Título *<input value={values.title ?? ''} onChange={(event) => set('title', event.target.value)} required /></label><label>Descripción<textarea value={values.description ?? ''} onChange={(event) => set('description', event.target.value)} /></label><div className="form-grid"><label>Válido hasta<input type="date" value={values.valid_until ?? ''} onChange={(event) => set('valid_until', event.target.value)} /></label><FormSelect label="Tipo de descuento" value={values.discount_type ?? 'percentage'} onChange={(value) => set('discount_type', value)} options={[{ value: 'percentage', label: '%' }, { value: 'amount', label: '€' }]} /><label>{values.discount_type === 'amount' ? 'Descuento €' : 'Descuento %'}<input type="number" min="0" max={values.discount_type === 'percentage' ? 100 : undefined} step="0.01" value={values.discount_value ?? values.discount_amount ?? 0} onChange={(event) => set('discount_value', event.target.value)} /></label></div><label>Observaciones / condiciones<textarea value={values.conditions ?? ''} onChange={(event) => set('conditions', event.target.value)} /></label></ModalForm>;
+  return <ModalForm title={initial?.id ? 'Editar presupuesto' : 'Crear presupuesto'} onClose={onClose} onSubmit={submit} saving={saving} error={error}><FormSelect label="Cliente" value={values.client_id} onChange={(value) => set('client_id', value)} required loading={clients.loading} options={clientOptions} /><div className="form-grid"><FormSelect label="Tipo" value={values.quote_type} onChange={(value) => set('quote_type', value)} options={quoteTypes.map((value) => ({ value, label: displayStatus(value) }))} /><label>Estado<input value={displayStatus(initial?.status ?? 'Borrador')} readOnly /></label></div><p className="large-note">El estado se cambia únicamente desde el flujo comercial del presupuesto.</p><label>Título *<input value={values.title ?? ''} onChange={(event) => set('title', event.target.value)} required /></label><label>Descripción<textarea value={values.description ?? ''} onChange={(event) => set('description', event.target.value)} /></label><div className="form-grid"><label>Válido hasta<input type="date" value={values.valid_until ?? ''} onChange={(event) => set('valid_until', event.target.value)} /></label><FormSelect label="Tipo de descuento" value={values.discount_type ?? 'percentage'} onChange={(value) => set('discount_type', value)} options={[{ value: 'percentage', label: '%' }, { value: 'amount', label: '€' }]} /><label>{values.discount_type === 'amount' ? 'Descuento €' : 'Descuento %'}<input type="number" min="0" max={values.discount_type === 'percentage' ? 100 : undefined} step="0.01" value={values.discount_value ?? values.discount_amount ?? 0} onChange={(event) => set('discount_value', event.target.value)} /></label></div><label>Observaciones / condiciones<textarea value={values.conditions ?? ''} onChange={(event) => set('conditions', event.target.value)} /></label></ModalForm>;
 }
 
 function QuoteLineForm({ quoteId, quoteCompanyId, initial, onClose, onSaved }: { quoteId: string; quoteCompanyId?: string | null; initial?: any; onClose: () => void; onSaved: () => void }) {
@@ -2390,8 +2163,7 @@ function QuoteLineForm({ quoteId, quoteCompanyId, initial, onClose, onSaved }: {
   const [rateSearch, setRateSearch] = useState('');
   const materials = useLoad(() => quotesService.materialOptions(materialSearch, quoteCompanyId), [materialSearch, quoteCompanyId], [] as any[]);
   const rates = useLoad(() => hourRatesService.quoteRateOptions(quoteId), [quoteId], [] as any[]);
-  const legacyRates = useLoad(() => initial?.quote_rate_id ? hourRatesService.list('', quoteCompanyId) : Promise.resolve([]), [initial?.quote_rate_id, quoteCompanyId], [] as any[]);
-  const initialEntryType = initial?.concept_id ? 'service' : initial?.material_id ? 'material' : initial?.quote_rate_id ? 'legacy-labor' : 'manual';
+  const initialEntryType = initial?.concept_id ? 'service' : initial?.material_id ? 'material' : 'manual';
   const [entryType, setEntryType] = useState(initialEntryType);
   const [values, setValues] = useState<Record<string, any>>({ line_type: initial?.line_type ?? 'other', description: '', quantity: 1, unit: 'ud', unit_cost: '', unit_price: '', tax_rate: 21, discount_percent: 0, concept_id: null, ...initial });
   const [saving, setSaving] = useState(false);
@@ -2399,11 +2171,20 @@ function QuoteLineForm({ quoteId, quoteCompanyId, initial, onClose, onSaved }: {
   const set = (key: string, value: any) => setValues((current) => ({ ...current, [key]: value }));
   const selectedMaterial = materials.data.find((item: any) => item.id === values.material_id);
   const selectedRate = rates.data.find((item: any) => item.concept_id === values.concept_id);
-  const selectedLegacyRate = legacyRates.data.find((item: any) => item.id === values.quote_rate_id);
   const showCosts = canViewInternalEconomics(profile);
   const changeEntryType = (next: string) => {
     setEntryType(next);
-    setValues((current) => ({ ...current, line_type: next === 'service' ? 'other' : next === 'material' ? 'material' : next === 'legacy-labor' ? 'labor' : 'other', concept_id: next === 'service' ? current.concept_id : null, material_id: next === 'material' ? current.material_id : null, quote_rate_id: next === 'legacy-labor' ? current.quote_rate_id : null }));
+    setValues((current) => ({
+      ...current,
+      line_type: next === 'service' ? 'other' : next === 'material' ? 'material' : 'other',
+      concept_id: next === 'service' ? current.concept_id : null,
+      rate_version_id: next === 'service' ? current.rate_version_id : null,
+      material_id: next === 'material' ? current.material_id : null,
+      quote_rate_id: null,
+      billing_mode: next === 'service' ? current.billing_mode : null,
+      period_days: next === 'service' ? current.period_days : null,
+      contributes_to_sale: next === 'service' ? current.contributes_to_sale : true,
+    }));
   };
   const selectMaterial = (id: string) => {
     const material = materials.data.find((item: any) => item.id === id);
@@ -2427,36 +2208,16 @@ function QuoteLineForm({ quoteId, quoteCompanyId, initial, onClose, onSaved }: {
   const selectedPrice = entryType === 'service' ? Number(selectedRate?.sale_amount ?? values.unit_price ?? 0) : Number(values.unit_price ?? 0);
   const total = Number(values.quantity ?? 0) * selectedPrice;
   return <ModalForm title={initial?.id ? 'Editar línea' : 'Añadir línea'} onClose={onClose} onSubmit={submit} saving={saving} error={error}>
-    <FormSelect label="Tipo" value={entryType} onChange={changeEntryType} options={[{ value: 'material', label: 'Material' }, { value: 'service', label: 'Servicio / Tarifa' }, { value: 'manual', label: 'Manual' }, ...(initial?.quote_rate_id ? [{ value: 'legacy-labor', label: 'Mano de obra histórica' }] : [])]} />
+    <FormSelect label="Tipo" value={entryType} onChange={changeEntryType} options={[{ value: 'material', label: 'Material' }, { value: 'service', label: 'Servicio / Tarifa' }, { value: 'manual', label: 'Manual' }]} />
     {entryType === 'material' && <><label>Buscar material existente<input value={materialSearch} onChange={(event) => setMaterialSearch(event.target.value)} placeholder="Código, descripción, fabricante o referencia" /></label><FormSelect label="Material de catálogo opcional" value={values.material_id ?? ''} onChange={selectMaterial} options={[{ value: '', label: 'Material manual / sin catálogo' }, ...materials.data.map((item: any) => ({ value: item.id, label: `${item.code} · ${item.description} · ${Number(item.price ?? 0).toLocaleString('es-ES')} €` }))]} loading={materials.loading} />{selectedMaterial && <p className="large-note">Unidad: {selectedMaterial.unit ?? 'ud'} · Precio: {money(selectedMaterial.price)}</p>}</>}
     {entryType === 'service' && <><label>Buscar concepto<input value={rateSearch} onChange={(event) => setRateSearch(event.target.value)} placeholder="Código o nombre" /></label><FormSelect label="Concepto del catálogo" value={values.concept_id ?? ''} onChange={selectRate} options={[{ value: '', label: 'Selecciona un concepto' }, ...rates.data.filter((rate: any) => !rateSearch || `${rate.code} ${rate.name}`.toLowerCase().includes(rateSearch.toLowerCase())).map((rate: any) => ({ value: rate.concept_id, label: `${rate.name} · ${rate.unit} · ${money(rate.sale_amount)}` }))]} loading={rates.loading} />{selectedRate && <p className="large-note">{selectedRate.code} · Unidad: {selectedRate.unit} · Cobro: {selectedRate.billing_mode}{showCosts ? ` · Coste: ${money(selectedRate.cost_amount)}` : ''}</p>}</>}
-    {entryType === 'legacy-labor' && <FormSelect label="Tarifa histórica" value={values.quote_rate_id ?? ''} onChange={(value) => set('quote_rate_id', value)} options={legacyRates.data.map((rate: any) => ({ value: rate.id, label: `${rate.category ?? 'Tarifa'} · ${money(rate.hourly_price)}/h` }))} loading={legacyRates.loading} />}
-    {entryType !== 'material' && entryType !== 'service' && entryType !== 'legacy-labor' && <label>Descripción *<input value={values.description ?? ''} onChange={(event) => set('description', event.target.value)} required /></label>}
+    {entryType !== 'material' && entryType !== 'service' && <label>Descripción *<input value={values.description ?? ''} onChange={(event) => set('description', event.target.value)} required /></label>}
     <div className="form-grid"><label>Cantidad<input type="number" min="0.01" step="0.01" value={values.quantity ?? 1} onChange={(event) => set('quantity', event.target.value)} required /></label><label>Unidad<input value={entryType === 'service' ? selectedRate?.unit ?? values.unit ?? 'ud' : values.unit ?? 'ud'} onChange={(event) => set('unit', event.target.value)} readOnly={entryType === 'service'} /></label></div>
-    {entryType !== 'service' && <div className="form-grid"><label>Coste unitario<input type="number" min="0" step="0.01" value={values.unit_cost ?? ''} onChange={(event) => set('unit_cost', event.target.value)} /></label><label>Precio unitario<input type="number" min="0" step="0.01" value={values.unit_price ?? ''} onChange={(event) => set('unit_price', event.target.value)} /></label></div>}
+    {entryType !== 'service' && <div className="form-grid"><label>Coste unitario<input type="number" min="0" step="0.01" value={values.unit_cost ?? ''} onChange={(event) => set('unit_cost', event.target.value)} readOnly={Boolean(selectedMaterial)} /></label><label>Precio unitario<input type="number" min="0" step="0.01" value={values.unit_price ?? ''} onChange={(event) => set('unit_price', event.target.value)} readOnly={Boolean(selectedMaterial)} /></label></div>}
+    {selectedMaterial && <p className="large-note">El servidor conservará el coste y precio vigentes del catálogo. Para negociar el importe utiliza el descuento.</p>}
     {entryType === 'service' && selectedRate && <p className="large-note">Precio venta vigente: {money(selectedPrice)} · Total estimado: {money(total)}</p>}
     <label>IVA<input type="number" min="0" step="0.01" value={values.tax_rate ?? 21} onChange={(event) => set('tax_rate', event.target.value)} /></label>
   </ModalForm>;
-}
-
-function LegacyQuoteLineForm({ quoteId, quoteCompanyId, initial, onClose, onSaved }: { quoteId: string; quoteCompanyId?: string | null; initial?: any; onClose: () => void; onSaved: () => void }) {
-  const [materialSearch, setMaterialSearch] = useState('');
-  const materials = useLoad(() => quotesService.materialOptions(materialSearch, quoteCompanyId), [materialSearch, quoteCompanyId], [] as any[]);
-  const rates = useLoad(() => hourRatesService.list('', quoteCompanyId), [quoteCompanyId], [] as any[]);
-  const [values, setValues] = useState<Record<string, any>>({ line_type: 'material', description: '', quantity: 1, unit: 'ud', unit_cost: '', unit_price: '', tax_rate: 21, discount_percent: 0, quote_rate_id: null, ...initial });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const set = (key: string, value: any) => setValues((current) => ({ ...current, [key]: value }));
-  const selectedMaterial = materials.data.find((item: any) => item.id === values.material_id);
-  const selectMaterial = (id: string) => { const material = materials.data.find((item: any) => item.id === id); setValues((current) => ({ ...current, material_id: id || null, description: material?.description ?? current.description, unit: material?.unit ?? current.unit, unit_cost: material?.cost ?? current.unit_cost, unit_price: material?.price ?? current.unit_price })); };
-  const handleUnitCostChange = (value: string) => setValues((current) => ({ ...current, unit_cost: value, unit_price: current.unit_price === '' || current.unit_price == null ? value : current.unit_price }));
-  const laborRates = rates.data.filter((rate: any) => rate.active && !rate.deleted_at && (!rate.valid_to || rate.valid_to >= new Date().toISOString().slice(0, 10)));
-  const selectLaborRate = (rateId: string) => { const rate = rates.data.find((item: any) => item.id === rateId); if (!rate) { setValues((current) => ({ ...current, quote_rate_id: null })); return; } setValues((current) => ({ ...current, quote_rate_id: rate.id, unit: 'h', unit_cost: rate.hourly_cost, unit_price: rate.hourly_price })); };
-  const selectedLaborRate = values.quote_rate_id ? rates.data.find((item: any) => item.id === values.quote_rate_id) : null;
-  const initialRate = initial?.quote_rate_id ? rates.data.find((item: any) => item.id === initial.quote_rate_id) : null;
-  const changeLineType = (value: string) => { set('line_type', value); if (!initial?.id) { setValues((current) => ({ ...current, line_type: value, quote_rate_id: value === 'labor' ? current.quote_rate_id : null })); } };
-  const submit = async (event: FormEvent) => { event.preventDefault(); const payload = { ...values, unit_price: values.unit_price === '' || values.unit_price == null ? values.unit_cost : values.unit_price }; setSaving(true); setError(''); try { initial?.id ? await quotesService.updateLine(initial.id, payload) : await quotesService.addLine(quoteId, payload); onSaved(); } catch (err) { setError(formErrorMessage(err, initial?.id ? 'No se ha podido modificar la línea.' : 'No se ha podido añadir la línea.')); } finally { setSaving(false); } };
-  return <ModalForm title={initial?.id ? 'Editar línea' : 'Añadir línea'} onClose={onClose} onSubmit={submit} saving={saving} error={error}><FormSelect label="Tipo" value={values.line_type} onChange={changeLineType} options={quoteLineTypes.map((value) => ({ value, label: displayStatus(value) }))} />{values.line_type === 'material' && <><label>Buscar material existente<input value={materialSearch} onChange={(event) => setMaterialSearch(event.target.value)} placeholder="Código, descripción, fabricante o referencia" /></label><FormSelect label="Material de catálogo opcional" value={values.material_id ?? ''} onChange={selectMaterial} options={[{ value: '', label: 'Material manual / sin catálogo' }, ...materials.data.map((item: any) => ({ value: item.id, label: `${item.code} · ${item.description} · Stock ${Number(item.stock_quantity ?? 0).toLocaleString('es-ES')} ${item.unit ?? 'ud'} · ${Number(item.price ?? 0).toLocaleString('es-ES')} €` }))]} loading={materials.loading} />{selectedMaterial && <p className="large-note">Stock informativo: {Number(selectedMaterial.stock_quantity ?? 0).toLocaleString('es-ES')} {selectedMaterial.unit ?? 'ud'}. Presupuestos no reservan stock todavía; el descuento real se hace al consumir en parte.</p>}</>}{values.line_type === 'labor' && <><FormSelect label="Tarifa de mano de obra" value={values.quote_rate_id ?? ''} onChange={selectLaborRate} options={[{ value: '', label: 'Manual / sin tarifa vigente' }, ...laborRates.map((rate: any) => ({ value: rate.id, label: `${rate.technician_profile_id ? fullName(rate.profiles) : rate.category || 'Tarifa'} · Coste ${money(rate.hourly_cost)} · Precio ${money(rate.hourly_price)}` }))]} loading={rates.loading} />{initial?.id && initial?.quote_rate_id && values.quote_rate_id === initial.quote_rate_id && <p className="large-note">Tarifa utilizada al crear la línea{initialRate ? `: ${initialRate.technician_profile_id ? fullName(initialRate.profiles) : initialRate.category || 'Tarifa'}` : ' (ya no disponible)'}. Se conservan los valores guardados aunque la tarifa cambie o se archive.</p>}{selectedLaborRate && <p className="large-note">Tarifa seleccionada: {selectedLaborRate.technician_profile_id ? fullName(selectedLaborRate.profiles) : selectedLaborRate.category || 'Tarifa'} · coste hora {money(selectedLaborRate.hourly_cost)} y venta hora {money(selectedLaborRate.hourly_price)}. Puedes ajustar coste y precio; el presupuesto guarda los valores.</p>}{!initial?.id && !selectedLaborRate && <p className="large-note">Elige la tarifa de mano de obra vigente para precargar coste y precio hora; puedes ajustarlos después. El presupuesto guarda los valores al guardar la línea.</p>}</>}<label>Descripción *<input value={values.description ?? ''} onChange={(event) => set('description', event.target.value)} required /></label><div className="form-grid"><label>Cantidad<input type="number" min="0.01" step="0.01" value={values.quantity} onChange={(event) => set('quantity', event.target.value)} required /></label><label>Unidad<input value={values.unit ?? ''} onChange={(event) => set('unit', event.target.value)} /></label><label>Coste unitario<input type="number" min="0" step="0.01" value={values.unit_cost} onChange={(event) => handleUnitCostChange(event.target.value)} /></label><label>Venta unitaria<input type="number" min="0" step="0.01" value={values.unit_price} onChange={(event) => set('unit_price', event.target.value)} placeholder="Por defecto, igual al coste" /></label><label>IVA %<input type="number" min="0" step="0.01" value={values.tax_rate} onChange={(event) => set('tax_rate', event.target.value)} /></label><label>Descuento %<input type="number" min="0" max="100" step="0.01" value={values.discount_percent ?? 0} onChange={(event) => set('discount_percent', event.target.value)} /></label></div></ModalForm>;
 }
 
 function QuoteSendModal({ quote, onClose, onSaved }: { quote: any; onClose: () => void; onSaved: () => void }) {
@@ -2464,7 +2225,7 @@ function QuoteSendModal({ quote, onClose, onSaved }: { quote: any; onClose: () =
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const submit = async (event: FormEvent) => { event.preventDefault(); if (!email.trim()) { setError('Indica un email para marcar el presupuesto como enviado.'); return; } setSaving(true); setError(''); try { await quotesService.sendToClient(quote.id, email.trim()); onSaved(); } catch (err) { setError(formErrorMessage(err, 'No se ha podido marcar como enviado.')); } finally { setSaving(false); } };
-  return <ModalForm title="Enviar al cliente" onClose={onClose} onSubmit={submit} saving={saving} error={error} submitLabel="Marcar como enviado"><p className="large-note">Registra el correo de envío y marca el presupuesto como enviado.</p><label>Email destino *<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required placeholder="cliente@empresa.com" /></label></ModalForm>;
+  return <ModalForm title="Marcar como enviado" onClose={onClose} onSubmit={submit} saving={saving} error={error} submitLabel="Marcar como enviado"><p className="large-note">Registra el correo utilizado y cambia el estado. Esta acción no envía un email automáticamente.</p><label>Email destino *<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required placeholder="cliente@empresa.com" /></label></ModalForm>;
 }
 
 function SalesModule({ mode }: { mode: 'ventas' | 'oportunidades' | 'presupuestos' }) {
@@ -2495,7 +2256,7 @@ function RateCatalogModuleV2() { const { profile } = useAuth(); const canManage 
 
 function ManagementPage060() { return <CanonicalManagementPage />; }
 
-function ModulePage() { const { moduleId = '' } = useParams(); if (moduleId === 'planificacion') return <PlanningModule />; if (moduleId === 'tecnicos') return <TechniciansModule />; if (moduleId === 'comerciales') return <CommercialProfilesModule />; if (moduleId === 'ventas') return <SalesModule mode="ventas" />; if (moduleId === 'oportunidades') return <SalesModule mode="oportunidades" />; if (moduleId === 'presupuestos') return <QuotesModule />; if (moduleId === 'materiales') return <MaterialsModule />; if (moduleId === 'tarifas-horas') return <RateCatalogModuleV2 />; if (moduleId === 'operaciones') return <OperationsModule />; if (moduleId === 'informes') return <ManagementPage060 />; if (moduleId === 'personal') return <TechniciansModule />; if (moduleId === 'rentabilidad') return <ProfitabilityModule />; if (moduleId === 'administracion') return <CompanySettingsModule />; return <OperationalModule moduleId={moduleId} />; }
+function ModulePage() { const { moduleId = '' } = useParams(); if (moduleId === 'planificacion') return <PlanningModule />; if (moduleId === 'tecnicos') return <TechniciansModule />; if (moduleId === 'comerciales') return <CommercialProfilesModule />; if (moduleId === 'ventas') return <SalesModule mode="ventas" />; if (moduleId === 'oportunidades') return <SalesModule mode="oportunidades" />; if (moduleId === 'presupuestos') return <QuotesModule />; if (moduleId === 'materiales') return <MaterialsModule />; if (moduleId === 'tarifas-horas') return <RateCatalogModuleV2 />; if (moduleId === 'operaciones') return <OperationsModule />; if (moduleId === 'informes') return <ManagementPage060 />; if (moduleId === 'personal') return <TechniciansModule />; if (moduleId === 'rentabilidad') return <ProfitabilityModule />; if (moduleId === 'administracion') return <CompanySettingsModule />; if (moduleId === 'facturacion') return <BillingModule mode="invoices" />; if (moduleId === 'cobros') return <BillingModule mode="collections" />; return <OperationalModule moduleId={moduleId} />; }
 
 function CompanySettingsModule() {
   const { profile } = useAuth();

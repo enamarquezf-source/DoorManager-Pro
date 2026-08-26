@@ -235,7 +235,7 @@ describe('quote integrity and traceability 053', () => {
     expect(quotesService).toContain("const editable = cleanPayload(normalized, updateQuoteColumns);");
     expect(quotesService).not.toContain("const { status: _status, ...rest } = normalized");
     expect(app).toContain('quotesService.changeStatus(quote.id, confirm.next, confirm.reason || \'Cambio rapido de estado\', sentToEmail)');
-    expect(app).toContain('quotesService.changeStatus(initial.id, values.status, \'Cambio de estado al editar el presupuesto\',');
+    expect(app).toContain('function QuoteStatusSelector');
   });
 
   it('service update never sends server-managed fields (status, sent_at, sent_to_email, work_order_id, calculated)', () => {

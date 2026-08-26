@@ -4,6 +4,7 @@ import type { OfflineChange } from './technicianOfflineService';
 import { codesService } from './codesService';
 import { filesBucket, withSignedFileUrl } from '../shared/signedFiles';
 import { applyArchiveFilter, type ArchiveFilter } from './entityLifecycleService';
+import { isUuid, slug } from '../checks/checkBlocks';
 
 const checkColumns = ['work_order_id', 'equipment_id', 'template_id', 'technician_id', 'status', 'global_result', 'observations'];
 function checkPayload(payload: Record<string, any>) {
@@ -12,6 +13,17 @@ function checkPayload(payload: Record<string, any>) {
 
 function normalize(value?: string | null) {
   return (value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+export function resolveOfflineSectionId(sections: any[], payload: Record<string, any>, fallback?: string | null) {
+  const requested = String(payload.sectionTitle ?? payload.sectionSlug ?? payload.sectionId ?? fallback ?? '').trim();
+  if (!requested) return null;
+  const requestedSlug = slug(requested);
+  const matches = sections.filter((section: any) => normalize(section.title) === normalize(requested)
+    || slug(section.slug ?? section.key ?? section.title) === requestedSlug
+    || normalize(section.title).includes(normalize(requested))
+    || normalize(requested).includes(normalize(section.title)));
+  return matches.length === 1 ? matches[0].id ?? null : null;
 }
 
 export function hasPendingLocalPhotos(payload: Record<string, any>) {
@@ -129,12 +141,12 @@ export const checksService = {
 
     let sectionId = payload.sectionId as string | undefined;
     let items = payload.items ?? [];
-    if (!sectionId || String(sectionId).startsWith('local-')) {
+    if (!sectionId || !isUuid(String(sectionId))) {
       const check = await this.get(change.checkId);
       const sections = check.check_templates?.check_template_sections ?? [];
-      const section = sections.find((item: any) => normalize(item.title) === normalize(payload.sectionTitle)) ?? sections.find((item: any) => normalize(item.title).includes(normalize(payload.sectionTitle)) || normalize(payload.sectionTitle).includes(normalize(item.title)));
-      if (!section?.id) throw new Error(`No se ha encontrado la sección remota de ${payload.sectionTitle ?? change.blockId}. El cambio queda guardado localmente.`);
-      sectionId = section.id;
+      sectionId = resolveOfflineSectionId(sections, payload, change.blockId) ?? undefined;
+      if (!sectionId) throw new Error(`No se ha encontrado una sección remota inequívoca para ${payload.sectionTitle ?? change.blockId}. El cambio queda guardado localmente.`);
+      const section = sections.find((item: any) => item.id === sectionId);
       items = section.check_template_items ?? items;
     }
     if (!sectionId) throw new Error('Falta la sección remota del bloque. El cambio queda guardado localmente.');

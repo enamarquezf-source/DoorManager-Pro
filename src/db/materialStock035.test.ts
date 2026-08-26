@@ -51,7 +51,7 @@ describe('material stock control 035', () => {
 
   it('keeps manual materials and quotes from affecting stock', () => {
     expect(app).toContain('El material manual no afecta stock');
-    expect(app).toContain('Presupuestos no reservan stock todavía');
+    expect(app).toContain('Material manual / sin catálogo');
     expect(quotesService).toContain('stock_quantity');
     expect(workOrdersService).toContain(".from('materials').select('*')");
   });

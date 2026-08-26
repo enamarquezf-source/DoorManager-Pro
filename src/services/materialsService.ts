@@ -1,16 +1,16 @@
 import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, expectData } from './query';
-import { codesService } from './codesService';
 import { applyArchiveFilter, type ArchiveFilter } from './entityLifecycleService';
 
 const materialColumns = ['company_id', 'code', 'description', 'manufacturer', 'reference', 'unit', 'cost', 'price', 'stock_quantity', 'minimum_stock', 'stock_controlled', 'allow_negative_stock', 'is_specific', 'active'];
+const materialUpdateColumns = ['description', 'manufacturer', 'reference', 'unit', 'cost', 'price', 'minimum_stock', 'stock_controlled', 'allow_negative_stock', 'is_specific', 'active'];
 
-function cleanPayload(payload: Record<string, any>) {
-  return Object.fromEntries(materialColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
+function cleanPayload(payload: Record<string, any>, columns = materialColumns) {
+  return Object.fromEntries(columns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
 }
 
-function normalizeMaterial(payload: Record<string, any>) {
-  const next = cleanPayload(payload);
+function normalizeMaterial(payload: Record<string, any>, columns = materialColumns) {
+  const next = cleanPayload(payload, columns);
   for (const key of ['cost', 'price', 'stock_quantity', 'minimum_stock']) if (key in next) next[key] = Number(next[key] ?? 0);
   if ('active' in next) next.active = next.active === true || next.active === 'true' || next.active === 'Activo';
   if ('stock_controlled' in next) next.stock_controlled = next.stock_controlled === true || next.stock_controlled === 'true';
@@ -29,12 +29,10 @@ export const materialsService = {
   },
   async create(payload: Record<string, any>) {
     const company_id = payload.company_id || await currentCompanyId();
-    const code = payload.code || await codesService.next('materials', 'MAT', false, 6, company_id);
-    const row = { ...normalizeMaterial(payload), company_id, code };
-    return expectData<any>(supabase.from('materials').insert(row).select().maybeSingle(), { service: 'materialsService', operation: 'create material' });
+    return expectData<any>(supabase.rpc('dmp_create_material_with_stock', { p_payload: { ...normalizeMaterial(payload), company_id } }), { service: 'materialsService', operation: 'create material' });
   },
   update(id: string, payload: Record<string, any>) {
-    return expectData<any>(supabase.from('materials').update(normalizeMaterial(payload)).eq('id', id).select().maybeSingle(), { service: 'materialsService', operation: 'update material', resource: id });
+    return expectData<any>(supabase.from('materials').update(normalizeMaterial(payload, materialUpdateColumns)).eq('id', id).select().maybeSingle(), { service: 'materialsService', operation: 'update material', resource: id });
   },
   deactivate(id: string) {
     return expectData<any>(supabase.from('materials').update({ active: false, deleted_at: new Date().toISOString() }).eq('id', id).select().maybeSingle(), { service: 'materialsService', operation: 'deactivate material', resource: id });

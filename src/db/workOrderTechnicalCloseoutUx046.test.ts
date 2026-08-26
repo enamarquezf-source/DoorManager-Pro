@@ -41,11 +41,11 @@ describe('046 planned materials and technical closeout UX', () => {
     expect(app).toContain('WorkOrderFinalizeModal');
     expect(app).toContain('if (saving) return');
     expect(app).toContain('workOrdersService.finalizeTechnical');
-    expect(app).toContain('Hay {pending.length} concepto(s) operativo(s) previsto(s) sin confirmar');
+    expect(app).toContain('Resuelve {pending.length} concepto(s) previsto(s) antes de finalizar.');
   });
 
   it('shows all closeout summary sections before finalizing', () => {
-    for (const text of ['TRABAJO', 'HORAS', 'MATERIALES PREVISTOS', 'MATERIALES UTILIZADOS', 'OTROS COSTES', 'Diagnóstico', 'Trabajo realizado', 'Resultado', 'Observaciones', 'Desplazamiento', 'Taller móvil', 'Plataformas', 'Otros']) expect(app).toContain(text);
+    for (const text of ['TRABAJO', 'DETALLE DE LA INTERVENCIÓN', 'COMPROBACIONES', 'Diagnóstico', 'Trabajo realizado', 'Resultado', 'Observaciones', 'Horas del parte', 'Material del parte', 'Coste del parte']) expect(app).toContain(text);
   });
 
   it('supports planned to used, unused, and additional material flows', () => {
@@ -65,7 +65,7 @@ describe('046 planned materials and technical closeout UX', () => {
     expect(migration046).not.toContain("'out'");
     expect(migration045).not.toContain('dmp_apply_material_stock_movement');
     expect(migration045).not.toContain('stock_deducted_quantity');
-    expect(app).toContain('Finalizar prepara el parte para facturación, pero no vuelve a descontar stock');
+    expect(app).toContain('El cierre técnico bloquea la intervención y la envía a validación de oficina. Todavía no pasa a facturación.');
   });
 
   it('shows resulting operational and economic status labels', () => {
@@ -77,10 +77,10 @@ describe('046 planned materials and technical closeout UX', () => {
   });
 
   it('prevents vertical text in time cards with scoped CSS only', () => {
-    expect(app).toContain('work-time-list');
-    expect(css).toContain('.work-time-list article p, .work-time-list article strong');
+    expect(app).toContain('time_entries');
+    expect(css).toContain('.compact-list');
     expect(css).toContain('word-break: normal');
     expect(css).toContain('white-space: normal');
-    expect(css).toContain('.work-time-list article { grid-template-columns: minmax(0, 1fr);');
+    expect(css).toContain('.compact-list');
   });
 });

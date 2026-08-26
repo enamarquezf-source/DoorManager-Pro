@@ -155,12 +155,13 @@ describe('quotes management 034', () => {
     expect(app).toContain('Editar presupuesto');
     expect(app).toContain('Imprimir informe cliente');
     expect(app).toContain('Imprimir informe interno DMP');
-    expect(app).toContain('Enviar al cliente');
+    expect(app).toContain('Marcar como enviado');
+    expect(app).toContain('Esta acción no envía un email automáticamente.');
     expect(app).toContain('QuoteSendModal');
     expect(app).toContain('Material manual / sin catálogo');
     expect(app).toContain("unit_price: material?.price");
-    expect(app).toContain('handleUnitCostChange');
-    expect(app).toContain("unit_price: values.unit_price === '' || values.unit_price == null ? values.unit_cost : values.unit_price");
+    expect(app).toContain('Servicio / Tarifa');
+    expect(app).toContain('rate_version_id');
     expect(app).toContain('quotesService.deleteLine');
     expect(app).toContain('window.print()');
     expect(app).not.toContain('window.open');

@@ -104,4 +104,16 @@ describe('technicianOfflineService scope helpers', () => {
     ];
     expect(deleteFailedQueueItemsForTest(changes).map((item) => item.id)).toEqual(['pending', 'blocked', 'synced']);
   });
+
+  it('recupera una sincronizacion interrumpida por un reinicio de la app', async () => {
+    const { recoverInterruptedChangesForTest } = await import('./technicianOfflineService');
+    const changes: any[] = [
+      { id: 'orphan', type: 'material', payload: {}, status: 'syncing', syncSessionId: 'old-session', createdAt: '', updatedAt: '' },
+      { id: 'active', type: 'photo', payload: {}, status: 'syncing', syncSessionId: 'current-session', createdAt: '', updatedAt: '' },
+    ];
+    const recovered = recoverInterruptedChangesForTest(changes, 'current-session');
+    expect(recovered[0].status).toBe('failed');
+    expect(recovered[0].error).toContain('listo para reintentar');
+    expect(recovered[1].status).toBe('syncing');
+  });
 });

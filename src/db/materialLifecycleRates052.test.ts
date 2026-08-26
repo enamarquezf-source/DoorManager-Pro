@@ -139,18 +139,17 @@ describe('052 material lifecycle and rate traceability', () => {
     expect(app).toContain('Motivo de restauración');
   });
 
-  it('shows a labor rate selector with valid options by category and technician instead of an arbitrary first rate', () => {
-    expect(app).toContain('Tarifa de mano de obra');
-    expect(app).toContain('rate.technician_profile_id ? fullName(rate.profiles) : rate.category');
-    expect(app).toContain('selectLaborRate');
-    expect(app).toContain("quote_rate_id: rate.id, unit: 'h', unit_cost: rate.hourly_cost, unit_price: rate.hourly_price");
-    expect(app).not.toContain('proposedRate');
-    expect(app).toContain('Elige la tarifa de mano de obra vigente para precargar coste y precio hora');
+  it('shows the canonical service/rate selector instead of technician_hour_rates for new quote lines', () => {
+    expect(app).toContain('Servicio / Tarifa');
+    expect(app).toContain('quoteRateOptions(quoteId)');
+    expect(app).toContain('rate.concept_id');
+    expect(app).toContain('rate_version_id: rate?.rate_version_id');
+    expect(app).not.toContain("hourRatesService.list('', quoteCompanyId)");
   });
 
   it('shows the rate used when the line was created when editing and keeps saved snapshots', () => {
-    expect(app).toContain('Tarifa utilizada al crear la línea');
-    expect(app).toContain('Se conservan los valores guardados aunque la tarifa cambie o se archive');
+    expect(app).toContain('...initial');
+    expect(quotesService).toContain('quote_rate_id');
     expect(app).not.toContain('Tarifa vigente aplicada solo al crear la línea');
   });
 

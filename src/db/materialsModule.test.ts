@@ -7,15 +7,16 @@ const materialsService = readFileSync(new URL('../services/materialsService.ts',
 const quotesService = readFileSync(new URL('../services/quotesService.ts', import.meta.url), 'utf8');
 const workOrdersService = readFileSync(new URL('../services/workOrdersService.ts', import.meta.url), 'utf8');
 const initialSchema = readFileSync(new URL('../../supabase/migrations/001_initial_dmp_schema.sql', import.meta.url), 'utf8');
-const autoCodes = readFileSync(new URL('../../supabase/migrations/004_auto_codes_core_entities.sql', import.meta.url), 'utf8');
+const stockBoundary = readFileSync(new URL('../../supabase/migrations/075_material_stock_write_boundary.sql', import.meta.url), 'utf8');
 
 describe('materials module', () => {
-  it('reuses the real materials table and MAT automatic code', () => {
+  it('reuses the real materials table and server-side stock creation', () => {
     expect(initialSchema).toContain('create table public.materials');
     for (const column of ['company_id', 'code', 'description', 'manufacturer', 'reference', 'unit', 'cost', 'price', 'minimum_stock', 'active', 'deleted_at']) expect(initialSchema).toContain(column);
     for (const column of ['stock_quantity', 'stock_controlled', 'allow_negative_stock']) expect(materialsService).toContain(column);
-    expect(autoCodes).toContain("new.code := public.next_dmp_code(new.company_id, TG_TABLE_NAME, 'MAT', false, 6)");
-    expect(materialsService).toContain("codesService.next('materials', 'MAT', false, 6, company_id)");
+    expect(materialsService).toContain("supabase.rpc('dmp_create_material_with_stock'");
+    expect(materialsService).not.toContain("codesService.next('materials'");
+    expect(stockBoundary).toContain('Stock inicial al crear material');
   });
 
   it('exposes materials to requested roles without granting technician module access', () => {

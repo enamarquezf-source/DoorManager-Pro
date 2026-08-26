@@ -60,7 +60,7 @@ describe('multi worker time entries 025', () => {
   it('updates frontend to select and submit profile_id with grouped totals and audit labels', () => {
     const formBlock = app.slice(app.indexOf('function WorkOrderTimeForm'), app.indexOf('function WorkOrderMaterialForm'));
     const cardBlock = app.slice(app.indexOf('function WorkOrderTimeCard'), app.indexOf('function WorkOrderMaterialsCard'));
-    expect(formBlock).toContain('Trabajador al que corresponden las horas');
+    expect(formBlock).toContain('trabajador al que corresponden las horas');
     expect(formBlock).toContain('profile_id');
     expect(formBlock).toContain('timeWorkerOptions');
     expect(formBlock).toContain('Duración calculada');

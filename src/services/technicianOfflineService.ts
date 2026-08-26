@@ -20,6 +20,7 @@ export type OfflineChange = {
   status: 'pending' | 'syncing' | 'synced' | 'failed' | 'blocked';
   error?: string;
   attempts?: number;
+  syncSessionId?: string;
 };
 
 export type OfflineSyncScope = { workOrderId?: string; checkId?: string; changeId?: string; remoteLocalChangeIds?: string[] };
@@ -28,6 +29,7 @@ export type OfflineQueueSummary = ReturnType<typeof summarizeChanges>;
 const dbName = 'doormanager-pro-tecnico';
 const storeName = 'offline_changes';
 const dbVersion = 2;
+const currentSyncSessionId = crypto.randomUUID();
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -97,6 +99,21 @@ export function changeMatchesScope(item: Pick<OfflineChange, 'id' | 'workOrderId
 
 function isQueueOpen(item: OfflineChange) {
   return item.status === 'pending' || item.status === 'failed' || item.status === 'blocked';
+}
+
+export function recoverInterruptedChangesForTest(changes: OfflineChange[], sessionId: string) {
+  return changes.map((item) => item.status === 'syncing' && item.syncSessionId !== sessionId
+    ? { ...item, status: 'failed' as const, syncSessionId: undefined, error: 'La sincronización anterior se interrumpió. El cambio está listo para reintentar.' }
+    : item);
+}
+
+async function recoverInterruptedChanges() {
+  const changes = await allChanges();
+  const recovered = recoverInterruptedChangesForTest(changes, currentSyncSessionId);
+  const changed = recovered.filter((item, index) => item !== changes[index]);
+  for (const item of changed) await withStore('readwrite', (store) => { store.put({ ...item, updatedAt: new Date().toISOString() }); });
+  if (changed.length) dispatchQueueChanged();
+  return recovered;
 }
 
 export function checkPendingChangesForTest(changes: OfflineChange[], checkId: string, remoteLocalChangeIds: string[] = []) {
@@ -181,10 +198,10 @@ export const technicianOfflineService = {
   },
   list: allChanges,
   async pending() {
-    return (await allChanges()).filter(isQueueOpen).sort((a, b) => syncPriority(a) - syncPriority(b));
+    return (await recoverInterruptedChanges()).filter(isQueueOpen).sort((a, b) => syncPriority(a) - syncPriority(b));
   },
   async queueItems() {
-    return (await allChanges()).filter(isQueueOpen).sort((a, b) => syncPriority(a) - syncPriority(b) || b.updatedAt.localeCompare(a.updatedAt));
+    return (await recoverInterruptedChanges()).filter(isQueueOpen).sort((a, b) => syncPriority(a) - syncPriority(b) || b.updatedAt.localeCompare(a.updatedAt));
   },
   async history() {
     return allChanges();
@@ -257,14 +274,14 @@ export const technicianOfflineService = {
     for (const item of pending) {
       try {
         onProgress?.(`Sincronizando ${item.type} ${item.blockId ?? item.workOrderId ?? ''}`.trim());
-        await withStore('readwrite', (store) => { store.put({ ...item, status: 'syncing', error: undefined }); });
+        await withStore('readwrite', (store) => { store.put({ ...item, status: 'syncing', syncSessionId: currentSyncSessionId, error: undefined, updatedAt: new Date().toISOString() }); });
         await syncChange(item);
-        await withStore('readwrite', (store) => { store.delete(item.id); });
+        await withStore('readwrite', (store) => { store.put({ ...item, status: 'synced', syncSessionId: undefined, error: undefined, updatedAt: new Date().toISOString() }); });
         result.synced += 1;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'No se ha podido sincronizar el cambio.';
         const status = /sincronizar primero|seccion|sección|dependencia/i.test(message) ? 'blocked' : 'failed';
-        await withStore('readwrite', (store) => { store.put({ ...item, status, error: message, attempts: (item.attempts ?? 0) + 1 }); });
+        await withStore('readwrite', (store) => { store.put({ ...item, status, syncSessionId: undefined, error: message, attempts: (item.attempts ?? 0) + 1, updatedAt: new Date().toISOString() }); });
         result.failed += 1;
         result.errors.push(message);
       }

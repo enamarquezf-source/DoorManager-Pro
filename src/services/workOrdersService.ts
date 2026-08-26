@@ -245,6 +245,12 @@ export const workOrdersService = {
     }
     return expectData<any>(Promise.resolve({ data, error }), { service: 'workOrdersService', operation: 'Finalizar parte tecnico', resource: 'dmp_finalize_work_order_technical' });
   },
+  reviewOffice(workOrderId: string, decision: 'validated' | 'rejected', reason: string) {
+    return expectData<any>(supabase.rpc('dmp_review_work_order_office', { p_work_order_id: workOrderId, p_decision: decision, p_reason: reason }), { service: 'workOrdersService', operation: 'Validar parte en oficina', resource: workOrderId });
+  },
+  setEntryBilling(kind: 'material' | 'time', entryId: string, additional: boolean) {
+    return expectData<void>(supabase.rpc('dmp_set_work_order_entry_billing', { p_kind: kind, p_entry_id: entryId, p_additional: additional }), { service: 'workOrdersService', operation: 'Clasificar venta adicional', resource: entryId });
+  },
   async requestReturn(workOrderId: string, reason: string) {
     return expectData<void>(supabase.rpc('request_work_order_return', { p_work_order_id: workOrderId, p_changed_by: null, p_reason: reason }));
   },

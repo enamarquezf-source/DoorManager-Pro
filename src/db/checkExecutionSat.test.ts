@@ -3,8 +3,7 @@ import { readFileSync } from 'node:fs';
 import { checkPendingChangesForTest } from '../services/technicianOfflineService';
 
 const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
-const detail = app.slice(app.indexOf('function CheckDetailPage('), app.indexOf('function CheckBlockPage('));
-const blockV1 = app.slice(app.indexOf('function CheckBlockPage('), app.indexOf('function CheckBlockPageV2('));
+const detail = app.slice(app.indexOf('function CheckDetailPage('), app.indexOf('function CheckBlockPageV2('));
 const blockV2 = app.slice(app.indexOf('function CheckBlockPageV2('), app.indexOf('function DeficienciesPage('));
 
 const change = (id: string, checkId: string, status: 'pending' | 'failed' | 'blocked' | 'synced' = 'pending') => ({
@@ -23,7 +22,6 @@ describe('SAT check execution flow', () => {
   it('keeps SAT and superadmin on the executable check/block workflow', () => {
     expect(detail).toContain('canExecuteCheck(profile)');
     expect(detail).toContain('disabled={pending.length > 0}');
-    expect(blockV1).toContain('if (!canExecuteCheck(profile)) return <AccessDenied />');
     expect(blockV2).toContain('if (!canExecuteCheck(profile)) return <AccessDenied />');
     expect(blockV2).toContain('{canExecuteCheck(profile) && (');
     expect(blockV2).toContain('technicianOfflineService.upsert');

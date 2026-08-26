@@ -22,9 +22,9 @@ describe('UI sanitization, responsive layout and permissions', () => {
     expect(css).toContain('.work-time-list article { grid-template-columns: minmax(96px, max-content) minmax(220px, 1fr) minmax(180px, auto);');
     expect(css).toContain('.work-time-list .time-meta');
     expect(css).toContain('.work-time-list .time-money');
-    expect(app).toContain('className="time-meta"');
-    expect(app).toContain('className="time-money"');
-    expect(app).toContain('showCosts && <p className="time-money"');
+    expect(app).toContain('time_entries');
+    expect(app).toContain('formatMinutes(Number(row.duration_minutes ?? 0))');
+    expect(app).toContain('canViewWorkOrderCosts(profile)');
   });
 
   it('uses responsive stock movement cards instead of narrow columns', () => {
@@ -49,7 +49,7 @@ describe('UI sanitization, responsive layout and permissions', () => {
       expect(app).not.toContain(text);
     }
     expect(app).toContain('Pendiente facturar');
-    expect(app).toContain('Finalizar prepara el parte para facturación, pero no vuelve a descontar stock.');
+    expect(app).toContain('El cierre técnico bloquea la intervención y la envía a validación de oficina. Todavía no pasa a facturación.');
     expect(app).toContain('No hay plantilla compatible activa.');
   });
 

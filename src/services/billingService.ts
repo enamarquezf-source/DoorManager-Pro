@@ -1,6 +1,22 @@
 import { supabase } from '../lib/supabase/client';
 import { currentCompanyId, expectData } from './query';
 
+function billingError(error: any, operation: string, resource?: string) {
+  const raw = error?.originalError ?? error;
+  console.error('DMP billing operation failed', { code: raw?.code, message: raw?.message ?? error?.message, details: raw?.details, hint: raw?.hint, operation, resource });
+  const message = String(raw?.message ?? error?.message ?? '').toLowerCase();
+  if (message.includes('borrador o factura activa') || message.includes('ya tiene un borrador')) return new Error('Este parte ya tiene un borrador de factura. Se abrirá el borrador existente.');
+  if (message.includes('debe estar validado') || message.includes('validado por oficina')) return new Error('El parte debe estar validado por Oficina antes de preparar la factura.');
+  if (message.includes('ya esta asociado') || message.includes('ya pertenece a una factura')) return new Error('Este parte ya está asociado a una factura.');
+  if (message.includes('garantias') || message.includes('no facturables')) return new Error('Las garantías y partes no facturables no pueden prepararse para facturación.');
+  return new Error(error instanceof Error ? error.message : 'No se ha podido preparar la factura. Revisa el parte e inténtalo de nuevo.');
+}
+
+async function billingRpc<T>(request: PromiseLike<{ data: T | null; error: any }>, operation: string, resource?: string) {
+  try { return await expectData<T>(request, { service: 'billingService', operation, resource }); }
+  catch (error) { throw billingError(error, operation, resource); }
+}
+
 function isMissingSchemaObject(error: any) {
   return ['42P01', '42703', 'PGRST204', 'PGRST205'].includes(error?.code);
 }
@@ -40,13 +56,13 @@ export const billingService = {
     return expectData<any>(supabase.from('invoices').select('*, clients(id,code,legal_name), invoice_work_orders(*), invoice_payments(*)').eq('id', invoiceId).single(), { service: 'billingService', operation: 'Ver factura', resource: invoiceId });
   },
   prepareInvoice(workOrderId: string, payload: { tax_rate: number; due_date?: string; notes?: string }) {
-    return expectData<string>(supabase.rpc('dmp_prepare_invoice_from_work_order', { p_work_order_id: workOrderId, p_tax_rate: payload.tax_rate, p_due_date: payload.due_date || null, p_notes: payload.notes || null }), { service: 'billingService', operation: 'Preparar factura', resource: workOrderId });
+    return billingRpc<string>(supabase.rpc('dmp_prepare_invoice_from_work_order', { p_work_order_id: workOrderId, p_tax_rate: payload.tax_rate, p_due_date: payload.due_date || null, p_notes: payload.notes || null }), 'Preparar factura', workOrderId);
   },
   updateDraft(invoiceId: string, payload: { lines: any[]; tax_rate?: number; due_date?: string; notes?: string }) {
-    return expectData<void>(supabase.rpc('dmp_update_invoice_draft', { p_invoice_id: invoiceId, p_lines: payload.lines, p_tax_rate: payload.tax_rate ?? null, p_due_date: payload.due_date || null, p_notes: payload.notes || null }), { service: 'billingService', operation: 'Actualizar borrador', resource: invoiceId });
+    return billingRpc<void>(supabase.rpc('dmp_update_invoice_draft', { p_invoice_id: invoiceId, p_lines: payload.lines, p_tax_rate: payload.tax_rate ?? null, p_due_date: payload.due_date || null, p_notes: payload.notes || null }), 'Actualizar borrador', invoiceId);
   },
   issueInvoice(invoiceId: string) {
-    return expectData<string>(supabase.rpc('dmp_issue_invoice', { p_invoice_id: invoiceId }), { service: 'billingService', operation: 'Emitir factura', resource: invoiceId });
+    return billingRpc<string>(supabase.rpc('dmp_issue_invoice', { p_invoice_id: invoiceId }), 'Emitir factura', invoiceId);
   },
   recordPayment(invoiceId: string, payload: { amount: number; paid_at: string; method: string; reference?: string; notes?: string }) {
     return expectData<string>(supabase.rpc('dmp_record_invoice_payment', { p_invoice_id: invoiceId, p_amount: payload.amount, p_paid_at: payload.paid_at, p_method: payload.method, p_reference: payload.reference || null, p_notes: payload.notes || null }), { service: 'billingService', operation: 'Registrar cobro', resource: invoiceId });

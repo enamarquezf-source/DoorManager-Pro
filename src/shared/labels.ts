@@ -70,6 +70,12 @@ export function nextWorkOrderStatus(status: string) {
 
 export const workOrderStatuses = ['Pendiente', 'Trabajo descargado', 'En desplazamiento', 'En intervencion', 'Pausado', 'Pendiente de material', 'Finalizado tecnicamente', 'Pendiente de envio', 'Enviado', 'Devolucion solicitada', 'Devuelto por SAT', 'Cerrado', 'Cancelado'];
 
+export const officeValidationStatuses = ['not_started', 'pending', 'validated', 'rejected'] as const;
+
+export function displayOfficeValidationStatus(status?: string | null) {
+  return ({ not_started: 'Sin iniciar', pending: 'Pendiente de validación', validated: 'Validado', rejected: 'Devuelto' } as Record<string, string>)[status ?? ''] ?? 'Sin iniciar';
+}
+
 export function previousWorkOrderStatus(status: string) {
   const order = ['Pendiente', 'Trabajo descargado', 'En desplazamiento', 'En intervencion', 'Finalizado tecnicamente', 'Pendiente de envio', 'Enviado'];
   const index = order.indexOf(status);

@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase/client';
-import { contains, currentCompanyId, currentProfileId, expectData, expectStep } from './query';
+import { contains, currentCompanyId, currentProfileId, expectData, expectStep, toSpanishSupabaseError } from './query';
+import { isOfficeValidationUnavailable } from '../shared/officeValidation';
 import { filesBucket, withSignedFileUrl } from '../shared/signedFiles';
 import { applyArchiveFilter, type ArchiveFilter } from './entityLifecycleService';
 
@@ -65,12 +66,16 @@ export type WorkOrderFullDetail = {
   photos: any[];
 };
 
+export type OfficeReviewDecision = 'validated' | 'rejected';
+
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export const workOrdersService = {
   async hasOfficeValidation() {
     const { data, error } = await supabase.from('work_orders').select('office_validation_status').limit(0);
     if (error) {
-      if (['42P01', '42703', 'PGRST204', 'PGRST205'].includes(error.code)) return false;
-      throw error;
+      if (isOfficeValidationUnavailable(error)) return false;
+      throw new Error(toSpanishSupabaseError(error));
     }
     return data !== null;
   },
@@ -79,7 +84,13 @@ export const workOrdersService = {
     let query = applyArchiveFilter(supabase.from('v_work_order_full_detail').select('*'), archiveFilter).order('scheduled_date', { ascending: false });
     if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'title', 'description', 'client_name', 'site_name', 'equipment_code', 'status'], search));
-    return expectData<any[]>(query);
+    const workOrders = await expectData<any[]>(query);
+    if (!workOrders.length || !(await this.hasOfficeValidation())) return workOrders;
+    const ids = workOrders.map((item) => item.id).filter(Boolean);
+    if (!ids.length) return workOrders;
+    const validationRows = await expectData<any[]>(supabase.from('work_orders').select('id,office_validation_status').in('id', ids));
+    const validationById = new Map(validationRows.map((row) => [row.id, row.office_validation_status]));
+    return workOrders.map((work) => ({ ...work, office_validation_status: validationById.get(work.id) ?? 'not_started' }));
   },
   async listWithAssignments(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active') {
     const workOrders = await this.list(search, companyScope, archiveFilter);
@@ -253,8 +264,11 @@ export const workOrdersService = {
     }
     return expectData<any>(Promise.resolve({ data, error }), { service: 'workOrdersService', operation: 'Finalizar parte tecnico', resource: 'dmp_finalize_work_order_technical' });
   },
-  reviewOffice(workOrderId: string, decision: 'validated' | 'rejected', reason: string) {
-    return expectData<any>(supabase.rpc('dmp_review_work_order_office', { p_work_order_id: workOrderId, p_decision: decision, p_reason: reason }), { service: 'workOrdersService', operation: 'Validar parte en oficina', resource: workOrderId });
+  reviewWorkOrderOffice(workOrderId: string, decision: OfficeReviewDecision, reason: string) {
+    if (!uuidPattern.test(String(workOrderId ?? '').trim())) throw new Error('validacion del formulario: falta un parte valido');
+    if (!['validated', 'rejected'].includes(decision)) throw new Error('validacion del formulario: decision de oficina no valida');
+    if (!String(reason ?? '').trim()) throw new Error('validacion del formulario: el motivo o comentario es obligatorio');
+    return expectData<any>(supabase.rpc('dmp_review_work_order_office', { p_work_order_id: workOrderId, p_decision: decision, p_reason: reason.trim() }), { service: 'workOrdersService', operation: 'Validar parte en oficina', resource: workOrderId });
   },
   setEntryBilling(kind: 'material' | 'time', entryId: string, additional: boolean) {
     return expectData<void>(supabase.rpc('dmp_set_work_order_entry_billing', { p_kind: kind, p_entry_id: entryId, p_additional: additional }), { service: 'workOrdersService', operation: 'Clasificar venta adicional', resource: entryId });

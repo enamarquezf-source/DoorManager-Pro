@@ -7,7 +7,7 @@ export function workOrderFilterFromParams(params: URLSearchParams) {
   const status = normalizeParam(params.get('estado'));
   const priority = normalizeParam(params.get('prioridad'));
   const date = normalizeParam(params.get('fecha'));
-  if (['sin-asignar', 'checks-pendientes'].includes(filter)) return filter;
+  if (['sin-asignar', 'checks-pendientes', 'pendientes-validacion'].includes(filter)) return filter;
   if (status === 'realizado') return 'finalizados';
   if (status === 'pendiente') return 'pendientes';
   if (status === 'en-curso') return 'en-curso';

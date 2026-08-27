@@ -25,7 +25,8 @@ with candidates as (
 )
 insert into public.audit_log(company_id,table_name,record_id,operation,changed_by,old_data,new_data)
 select c.company_id,'work_orders',c.id,'UPDATE',public.current_profile_id(),c.old_data,
-       jsonb_build_object('compatibility_077',true,'office_validation_status',c.next_office_status,'economic_status',c.next_economic_status);
+       jsonb_build_object('compatibility_077',true,'office_validation_status',c.next_office_status,'economic_status',c.next_economic_status)
+from candidates c;
 
 with candidates as (
   select w.id,

@@ -13,6 +13,13 @@ describe('077 historical work order compatibility', () => {
     for (const sql of [migration, preflight, postflight]) expect(parser.parse(sql).parse_tree.stmts.length).toBeGreaterThan(0);
   });
 
+  it('requires the audit insert to consume the candidates CTE explicitly', () => {
+    const auditInsert = migration.match(/insert into public\.audit_log[\s\S]*?from candidates c;/i)?.[0] ?? '';
+    expect(auditInsert).toContain('select c.company_id');
+    expect(auditInsert).toMatch(/from\s+candidates\s+c\s*;/i);
+    expect((migration.match(/from\s+candidates\s+c/gi) ?? []).length).toBe(2);
+  });
+
   it('normalizes only terminal, unbilled historical parts and keeps the flow canonical', () => {
     expect(migration).toContain("w.status in ('Finalizado tecnicamente','Enviado','Cerrado')");
     expect(migration).toContain("w.office_validation_status='not_started'");

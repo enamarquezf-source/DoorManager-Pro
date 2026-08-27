@@ -88,6 +88,21 @@ main { padding: 24px; }
 .invoice-context-grid h4 { margin: 0 0 8px; color: #0f4c81; font-size: .78rem; letter-spacing: .06em; }
 .invoice-context-grid p { margin: 5px 0; }
 .invoice-totals { display: flex; justify-content: flex-end; gap: 18px; border-top: 1px solid var(--line); padding-top: 12px; }
+.invoice-print-document { display: none; }
+.invoice-print-document header { display: flex; justify-content: space-between; gap: 24px; border-bottom: 2px solid #152033; padding-bottom: 18px; }
+.invoice-print-document h1, .invoice-print-document h2, .invoice-print-document p { margin: 0; }
+.invoice-print-document h1 { font-size: 30px; }
+.invoice-print-document h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+.invoice-print-emitter, .invoice-print-parties div { display: grid; gap: 3px; }
+.invoice-print-emitter { text-align: right; }
+.invoice-print-parties { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 24px 0; }
+.invoice-print-document table { width: 100%; border-collapse: collapse; }
+.invoice-print-document th, .invoice-print-document td { border-bottom: 1px solid #d9e1ec; padding: 9px 6px; text-align: left; vertical-align: top; }
+.invoice-print-document th { background: #f1f5f9; font-size: 11px; text-transform: uppercase; }
+.invoice-print-totals { display: flex; justify-content: flex-end; gap: 24px; padding-top: 18px; }
+.invoice-print-totals span { display: grid; gap: 4px; text-align: right; color: #627188; }
+.invoice-print-totals strong { color: #172033; font-size: 16px; }
+.invoice-print-notes { border-top: 1px solid #d9e1ec; margin-top: 24px !important; padding-top: 12px; }
 .mini-modal h3 { margin: 0; }
 .mini-modal label { display: grid; gap: 7px; font-weight: 850; }
 .mini-modal input, .mini-modal textarea, .mini-modal select { min-height: 42px; border: 1px solid var(--line); border-radius: 12px; padding: 0 10px; background: white; color: var(--dark); min-width: 0; }
@@ -485,6 +500,7 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
 }
 
 @media print {
+  @page { size: A4; margin: 0; }
   body { background: white; }
   .sidebar, .topbar, .connectivity-banner, .runtime-error, .screen-only, .link-button, .modal-footer { display: none !important; }
   main, .page, .quote-detail-page { padding: 0 !important; max-width: none !important; display: block !important; }
@@ -495,4 +511,7 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
   .quote-report-table table { min-width: 0; }
   .quote-lines-table { overflow: visible; }
   .quote-lines-table table { min-width: 0; }
+  .invoice-view-modal { display: none !important; }
+  .invoice-print-document { display: block !important; position: absolute; inset: 0; padding: 12mm; background: white; color: #172033; }
+  .invoice-print-document header, .invoice-print-document table, .invoice-print-document .invoice-print-parties, .invoice-print-document .invoice-print-totals { break-inside: avoid; }
 }

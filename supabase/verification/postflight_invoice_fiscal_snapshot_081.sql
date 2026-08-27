@@ -1,0 +1,8 @@
+with checks(check_group,check_name,status,affected_rows,details) as (
+  select 'STRUCTURE','fiscal_snapshot_column',case when count(*)=1 then 'OK' else 'BLOCKER' end,count(*)::bigint,'Columna fiscal_snapshot disponible' from information_schema.columns where table_schema='public' and table_name='invoices' and column_name='fiscal_snapshot'
+  union all select 'DEPENDENCIES','issue_rpc_snapshot_logic',case when position('fiscal_snapshot' in lower(pg_get_functiondef(p.oid)))>0 then 'OK' else 'BLOCKER' end,1,'La emisión genera snapshot fiscal' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='dmp_issue_invoice'
+  union all select 'DATA','issued_without_snapshot',case when count(*)=0 then 'OK' else 'REVIEW' end,count(*)::bigint,'Facturas emitidas anteriores a 081 sin snapshot' from public.invoices where status in ('emitida','parcialmente_cobrada','cobrada','cancelada') and fiscal_snapshot is null
+  union all select 'DATA','snapshot_shape',case when count(*)=0 then 'OK' else 'BLOCKER' end,count(*)::bigint,'Snapshots con emisor, cliente, lineas y totales' from public.invoices where fiscal_snapshot is not null and (fiscal_snapshot->'emitter' is null or fiscal_snapshot->'client' is null or fiscal_snapshot->'lines' is null or fiscal_snapshot->'totals' is null)
+  union all select 'SECURITY','invoice_rls',case when c.relrowsecurity then 'OK' else 'BLOCKER' end,1,'RLS de invoices permanece activo' from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='invoices'
+)
+select check_group,check_name,status,affected_rows,details from checks order by check_group,check_name;

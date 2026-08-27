@@ -1,6 +1,8 @@
 import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, expectData } from './query';
-import { applyArchiveFilter, type ArchiveFilter } from './entityLifecycleService';
+import type { ArchiveFilter } from './entityLifecycleService';
+
+export type MaterialFilter = ArchiveFilter | 'inactive' | 'consumed';
 
 const materialColumns = ['company_id', 'code', 'description', 'manufacturer', 'reference', 'unit', 'cost', 'price', 'stock_quantity', 'minimum_stock', 'stock_controlled', 'allow_negative_stock', 'is_specific', 'active'];
 const materialUpdateColumns = ['description', 'manufacturer', 'reference', 'unit', 'cost', 'price', 'minimum_stock', 'stock_controlled', 'allow_negative_stock', 'is_specific', 'active'];
@@ -20,9 +22,14 @@ function normalizeMaterial(payload: Record<string, any>, columns = materialColum
 }
 
 export const materialsService = {
-  async list(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active') {
+  async list(search = '', companyScope?: string | null, archiveFilter: MaterialFilter = 'active') {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
-    let query = applyArchiveFilter(supabase.from('materials').select('*'), archiveFilter).order('description');
+    let query = supabase.from('materials').select('*');
+    if (archiveFilter === 'active') query = query.is('deleted_at', null).eq('active', true);
+    if (archiveFilter === 'inactive') query = query.is('deleted_at', null).eq('active', false).eq('is_specific', false);
+    if (archiveFilter === 'consumed') query = query.is('deleted_at', null).eq('active', false).eq('is_specific', true);
+    if (archiveFilter === 'archived') query = query.or('active.eq.false,deleted_at.not.is.null');
+    query = query.order('description');
     if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'description', 'manufacturer', 'reference', 'unit'], search));
     return expectData<any[]>(query, { service: 'materialsService', operation: 'list materials' });

@@ -24,6 +24,87 @@ alter table public.work_order_time_entries add column if not exists contributes_
 alter table public.work_order_time_entries drop constraint if exists work_order_time_entries_source_check;
 alter table public.work_order_time_entries add constraint work_order_time_entries_source_check check (source in ('quote','manual','additional'));
 
+-- 072 protects sent_at and sent_to_email on terminal quotes. Keep those
+-- columns out of every transition except the explicit send operation.
+create or replace function public.dmp_quote_transition_apply(
+  p_quote_id uuid,
+  p_new_status text,
+  p_reason text default null,
+  p_sent_to_email text default null,
+  p_actor uuid default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_quote public.quotes;
+  v_previous text;
+  v_actor uuid := coalesce(p_actor, public.current_profile_id());
+  v_reason text := trim(coalesce(p_reason, ''));
+  v_forced_reason boolean := false;
+begin
+  if p_quote_id is null then raise exception 'estado: presupuesto no indicado'; end if;
+  select * into v_quote from public.quotes where id = p_quote_id for update;
+  if v_quote.id is null then raise exception 'presupuesto: presupuesto no encontrado'; end if;
+  if v_quote.deleted_at is not null then raise exception 'presupuesto: el presupuesto esta archivado'; end if;
+
+  p_new_status := case when p_new_status = 'Mandado' then 'Enviado' else p_new_status end;
+  if p_new_status is not distinct from v_quote.status then
+    raise exception 'estado: el presupuesto ya se encuentra en el estado %', v_quote.status;
+  end if;
+  if not public.dmp_quote_status_transition_valid(v_quote.status, p_new_status, public.dmp_quote_has_generated_work_order(v_quote.id)) then
+    raise exception 'estado: transicion de estado de presupuesto no permitida de % a %', v_quote.status, p_new_status;
+  end if;
+  if p_new_status in ('Aceptado','Ejecutado en cliente','Rechazado','Caducado','Cancelado') and v_reason = '' then
+    raise exception 'estado: el motivo es obligatorio para este cambio de estado';
+  end if;
+  if p_new_status = 'Enviado' then
+    if nullif(trim(coalesce(p_sent_to_email, '')), '') is null then
+      raise exception 'envio: indica el email del cliente para marcar el presupuesto como enviado';
+    end if;
+    if position('@' in trim(p_sent_to_email)) = 0 or position('.' in trim(p_sent_to_email)) = 0 then
+      raise exception 'envio: el email del cliente no es valido';
+    end if;
+  end if;
+  if v_reason = '' then
+    v_reason := 'Cambio de estado a ' || p_new_status;
+    v_forced_reason := true;
+  end if;
+
+  v_previous := v_quote.status;
+  begin
+    perform set_config('dmp.quote_status_change', 'true', true);
+    if p_new_status = 'Enviado' then
+      update public.quotes
+      set status = p_new_status,
+          sent_at = coalesce(sent_at, now()),
+          sent_to_email = trim(p_sent_to_email),
+          updated_by = v_actor,
+          updated_at = now()
+      where id = v_quote.id
+      returning * into v_quote;
+    else
+      update public.quotes
+      set status = p_new_status,
+          updated_by = v_actor,
+          updated_at = now()
+      where id = v_quote.id
+      returning * into v_quote;
+    end if;
+    perform set_config('dmp.quote_status_change', '', true);
+  exception when others then
+    perform set_config('dmp.quote_status_change', '', true);
+    raise;
+  end;
+
+  insert into public.quote_status_history(company_id, quote_id, previous_status, new_status, changed_by, reason, manual_correction)
+  values (v_quote.company_id, v_quote.id, v_previous, v_quote.status, v_actor, v_reason, v_forced_reason);
+  return jsonb_build_object('id', v_quote.id, 'status', v_quote.status, 'sent_at', v_quote.sent_at, 'sent_to_email', v_quote.sent_to_email);
+end;
+$$;
+
 -- Existing entries on quoted work are conservatively treated as included in the quote.
 update public.work_order_materials e set source='quote', contributes_to_sale=false
 from public.work_orders w where w.id=e.work_order_id and w.quote_id is not null and e.source='manual';
@@ -160,7 +241,6 @@ begin
     update public.work_orders set economic_status=v_economic,office_validation_status='validated',office_validation_reason=trim(p_reason),office_validated_at=now(),office_validated_by=v_actor.id,updated_by=v_actor.id,updated_at=now() where id=v_work.id returning * into v_work;
     if v_work.quote_id is not null and exists(select 1 from public.quotes where id=v_work.quote_id and deleted_at is null and status='Aceptado') then
       perform public.dmp_quote_transition_apply(v_work.quote_id,'Ejecutado en cliente','Validado por oficina: '||trim(p_reason),null,v_actor.id);
-      update public.quotes set work_order_id=coalesce(work_order_id,v_work.id) where id=v_work.quote_id;
     end if;
   end if;
   insert into public.audit_log(company_id,table_name,record_id,operation,changed_by,old_data,new_data) values(v_work.company_id,'work_orders',v_work.id,case when p_decision='validated' then 'OFFICE_VALIDATE' else 'OFFICE_REJECT' end,v_actor.id,v_old,to_jsonb(v_work));

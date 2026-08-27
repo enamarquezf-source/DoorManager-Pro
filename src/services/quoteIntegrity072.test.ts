@@ -5,6 +5,7 @@ import { isQuoteEditable, validQuoteTransitions } from './quotesService';
 
 const migration = readFileSync(resolve(process.cwd(), 'supabase/migrations/072_quote_immutable_canonical_integrity.sql'), 'utf8');
 const migration073 = readFileSync(resolve(process.cwd(), 'supabase/migrations/073_office_validation_and_additional_sales.sql'), 'utf8');
+const postcheck073 = readFileSync(resolve(process.cwd(), 'supabase/verification/postcheck_073_office_validation.sql'), 'utf8');
 const app = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
 
 describe('072 quote historical and canonical integrity', () => {
@@ -53,5 +54,17 @@ describe('072 quote historical and canonical integrity', () => {
     expect(officeFunction).not.toContain('update public.work_order_materials');
     expect(officeFunction).not.toContain('update public.work_order_time_entries');
     expect(officeFunction).not.toContain('material_stock_movements');
+  });
+
+  it('keeps the 073 postcheck read-only and aligned with the schema', () => {
+    expect(postcheck073).not.toMatch(/\bupdate_pos\b/);
+    expect(postcheck073).not.toContain('e.quantity');
+    expect(postcheck073).toContain('e.used_quantity');
+    expect(postcheck073).toContain('non_send_update_position');
+    expect(postcheck073).toContain('non_send_returning_position');
+    const executableSql = postcheck073
+      .replace(/--.*$/gm, '')
+      .replace(/'(?:''|[^'])*'/g, "''");
+    expect(executableSql).not.toMatch(/\b(insert|update|delete|alter|create|drop|truncate)\s+/i);
   });
 });

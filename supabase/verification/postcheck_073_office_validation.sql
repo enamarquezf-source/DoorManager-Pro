@@ -73,64 +73,62 @@ with checks(check_group, check_name, status, affected_rows, details) as (
 
   union all
   select '073', 'quote_transition_compatibility_with_072',
-    case when positions.send_pos > 0
-      and positions.else_pos > positions.send_pos
-      and positions.update_pos > positions.else_pos
-      and positions.returning_pos > positions.update_pos
-      and strpos(substring(definition from positions.send_pos for positions.else_pos - positions.send_pos), 'sent_at =') > 0
-      and strpos(substring(definition from positions.send_pos for positions.else_pos - positions.send_pos), 'sent_to_email =') > 0
-      and strpos(substring(definition from positions.update_pos for positions.returning_pos - positions.update_pos), 'sent_at =') = 0
-      and strpos(substring(definition from positions.update_pos for positions.returning_pos - positions.update_pos), 'sent_to_email =') = 0
-      then 'OK' else 'BLOCKER' end,
-    case when positions.send_pos > 0
-      and positions.else_pos > positions.send_pos
-      and positions.update_pos > positions.else_pos
-      and positions.returning_pos > positions.update_pos
-      and strpos(substring(definition from positions.send_pos for positions.else_pos - positions.send_pos), 'sent_at =') > 0
-      and strpos(substring(definition from positions.send_pos for positions.else_pos - positions.send_pos), 'sent_to_email =') > 0
-      and strpos(substring(definition from positions.update_pos for positions.returning_pos - positions.update_pos), 'sent_at =') = 0
-      and strpos(substring(definition from positions.update_pos for positions.returning_pos - positions.update_pos), 'sent_to_email =') = 0
-      then 0 else 1 end,
-    case when positions.send_pos > 0
-      and positions.else_pos > positions.send_pos
-      and positions.update_pos > positions.else_pos
-      and positions.returning_pos > positions.update_pos
-      and strpos(substring(definition from positions.send_pos for positions.else_pos - positions.send_pos), 'sent_at =') > 0
-      and strpos(substring(definition from positions.send_pos for positions.else_pos - positions.send_pos), 'sent_to_email =') > 0
-      and strpos(substring(definition from positions.update_pos for positions.returning_pos - positions.update_pos), 'sent_at =') = 0
-      and strpos(substring(definition from positions.update_pos for positions.returning_pos - positions.update_pos), 'sent_to_email =') = 0
-      then 'La ruta Enviado conserva la escritura de envío y las demás transiciones excluyen sent_at/sent_to_email'
-      else 'La función no separa correctamente la ruta Enviado de las demás transiciones' end
-  from (
-    select definition,
-      strpos(definition, 'if p_new_status = ''enviado'' then') as send_pos,
-      case when strpos(definition, 'if p_new_status = ''enviado'' then') > 0
-        then strpos(substring(definition from strpos(definition, 'if p_new_status = ''enviado'' then')), 'else') + strpos(definition, 'if p_new_status = ''enviado'' then') - 1
-        else 0 end as else_pos,
-      0::integer as update_pos,
-      0::integer as returning_pos
-    from (
-      select lower(coalesce((select pg_get_functiondef(p.oid)
+     case when positions.send_position > 0
+       and positions.else_position > positions.send_position
+       and positions.non_send_update_position > positions.else_position
+       and positions.non_send_returning_position > positions.non_send_update_position
+       and strpos(substring(definition from positions.send_position for positions.else_position - positions.send_position), 'sent_at =') > 0
+       and strpos(substring(definition from positions.send_position for positions.else_position - positions.send_position), 'sent_to_email =') > 0
+       and strpos(substring(definition from positions.non_send_update_position for positions.non_send_returning_position - positions.non_send_update_position), 'sent_at =') = 0
+       and strpos(substring(definition from positions.non_send_update_position for positions.non_send_returning_position - positions.non_send_update_position), 'sent_to_email =') = 0
+       then 'OK' else 'BLOCKER' end,
+     case when positions.send_position > 0
+       and positions.else_position > positions.send_position
+       and positions.non_send_update_position > positions.else_position
+       and positions.non_send_returning_position > positions.non_send_update_position
+       and strpos(substring(definition from positions.send_position for positions.else_position - positions.send_position), 'sent_at =') > 0
+       and strpos(substring(definition from positions.send_position for positions.else_position - positions.send_position), 'sent_to_email =') > 0
+       and strpos(substring(definition from positions.non_send_update_position for positions.non_send_returning_position - positions.non_send_update_position), 'sent_at =') = 0
+       and strpos(substring(definition from positions.non_send_update_position for positions.non_send_returning_position - positions.non_send_update_position), 'sent_to_email =') = 0
+       then 0 else 1 end,
+     case when positions.send_position > 0
+       and positions.else_position > positions.send_position
+       and positions.non_send_update_position > positions.else_position
+       and positions.non_send_returning_position > positions.non_send_update_position
+       and strpos(substring(definition from positions.send_position for positions.else_position - positions.send_position), 'sent_at =') > 0
+       and strpos(substring(definition from positions.send_position for positions.else_position - positions.send_position), 'sent_to_email =') > 0
+       and strpos(substring(definition from positions.non_send_update_position for positions.non_send_returning_position - positions.non_send_update_position), 'sent_at =') = 0
+       and strpos(substring(definition from positions.non_send_update_position for positions.non_send_returning_position - positions.non_send_update_position), 'sent_to_email =') = 0
+       then 'La ruta Enviado conserva la escritura de envío y las demás transiciones excluyen sent_at/sent_to_email'
+       else 'La función no separa correctamente la ruta Enviado de las demás transiciones' end
+   from (
+     select definition,
+       strpos(definition, 'if p_new_status = ''enviado'' then') as send_position,
+       case when strpos(definition, 'if p_new_status = ''enviado'' then') > 0
+         then strpos(substring(definition from strpos(definition, 'if p_new_status = ''enviado'' then')), 'else') + strpos(definition, 'if p_new_status = ''enviado'' then') - 1
+         else 0 end as else_position
+     from (
+       select lower(coalesce((select pg_get_functiondef(p.oid)
         from pg_proc p
         join pg_namespace n on n.oid = p.pronamespace
         where n.nspname = 'public'
           and p.proname = 'dmp_quote_transition_apply'
           and pg_get_function_identity_arguments(p.oid) = 'p_quote_id uuid, p_new_status text, p_reason text, p_sent_to_email text, p_actor uuid'
         limit 1), '')) as definition
-    ) source_definition
-  ) initial_positions
-  cross join lateral (
-    select initial_positions.*,
-      case when initial_positions.else_pos > 0
-        then strpos(substring(initial_positions.definition from initial_positions.else_pos), 'update public.quotes') + initial_positions.else_pos - 1
-        else 0 end as update_pos
-  ) update_positions
-  cross join lateral (
-    select update_positions.*,
-      case when update_positions.update_pos > 0
-        then strpos(substring(update_positions.definition from update_positions.update_pos), 'returning * into') + update_positions.update_pos - 1
-        else 0 end as returning_pos
-  ) positions
+       ) source_definition
+   ) initial_positions
+   cross join lateral (
+     select initial_positions.definition, initial_positions.send_position, initial_positions.else_position,
+        case when initial_positions.else_position > 0
+         then strpos(substring(initial_positions.definition from initial_positions.else_position), 'update public.quotes') + initial_positions.else_position - 1
+         else 0 end as non_send_update_position
+   ) update_positions
+   cross join lateral (
+     select update_positions.definition, update_positions.send_position, update_positions.else_position, update_positions.non_send_update_position,
+       case when update_positions.non_send_update_position > 0
+         then strpos(substring(update_positions.definition from update_positions.non_send_update_position), 'returning * into') + update_positions.non_send_update_position - 1
+         else 0 end as non_send_returning_position
+   ) positions
 
   union all
   select '073', 'tenant_mismatch',
@@ -255,7 +253,7 @@ with checks(check_group, check_name, status, affected_rows, details) as (
     from public.work_order_materials e
     join public.work_orders w on w.id = e.work_order_id
     where w.quote_id is not null
-      and (e.quantity is null or e.unit_cost is null or e.unit_price is null or e.total_cost is null or e.total_price is null)
+       and (e.used_quantity is null or e.unit_cost is null or e.unit_price is null or e.total_cost is null or e.total_price is null)
     union all
     select e.id
     from public.work_order_time_entries e

@@ -7,6 +7,7 @@ const migration073 = readFileSync(new URL('073_office_validation_and_additional_
 const migration074 = readFileSync(new URL('074_invoicing_and_collections.sql', migrationRoot), 'utf8');
 const migration075 = readFileSync(new URL('075_material_stock_write_boundary.sql', migrationRoot), 'utf8');
 const migration076 = readFileSync(new URL('../../supabase/migrations/076_fix_audit_log_operations_office_validation.sql', import.meta.url), 'utf8');
+const migration078 = readFileSync(new URL('../../supabase/migrations/078_invoice_draft_review_and_issue.sql', import.meta.url), 'utf8');
 const preflight = readFileSync(new URL('../../supabase/verification/preflight_audit_log_operations_076.sql', import.meta.url), 'utf8');
 const postflight = readFileSync(new URL('../../supabase/verification/postflight_audit_log_operations_076.sql', import.meta.url), 'utf8');
 
@@ -90,9 +91,9 @@ describe('audit_log operations 076', () => {
       result.operations.forEach((operation) => operations.add(operation));
       dynamic.push(...result.dynamic.map((expression) => `${name}: ${expression}`));
     }
-    const admitted = finalConstraintOperations(migration076);
+    const admitted = finalConstraintOperations(migration078);
     expect([...operations].filter((operation) => !admitted.has(operation))).toEqual([]);
-    expect([...admitted].sort()).toEqual([...new Set([...legacyOperations, ...officeOperations, ...futureOperations])].sort());
+    expect([...admitted].sort()).toEqual([...new Set([...legacyOperations, ...officeOperations, ...futureOperations, 'INVOICE_DRAFT_CREATE', 'INVOICE_DRAFT_UPDATE'])].sort());
     expect(dynamic).toEqual(['022_security_lifecycle_controls.sql: p_operation']);
   });
 

@@ -79,6 +79,6 @@ where schemaname = 'public'
 select 'required_function_grants' as check_name, count(*) as installed
 from information_schema.routine_privileges
 where specific_schema = 'public'
-  and routine_name in ('dmp_quote_rate_options', 'dmp_create_invoice', 'dmp_create_material_with_stock')
+  and routine_name in ('dmp_quote_rate_options', 'dmp_create_invoice_from_work_order', 'dmp_create_material_with_stock')
   and grantee = 'authenticated'
   and privilege_type = 'EXECUTE';

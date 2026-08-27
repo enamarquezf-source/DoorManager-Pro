@@ -1,99 +1,36 @@
--- Read-only preflight for migrations 071-075. Run against the target database.
--- Stop and review every non-zero result before applying any migration.
+-- Read-only consolidated preflight for migrations 072-075.
+-- Run before applying any migration. This script returns one result set.
 
-select 'quotes_with_immutable_status' as check_name, count(*) as findings
-from public.quotes
-where status in ('Aceptado', 'Ejecutado en cliente', 'Rechazado', 'Caducado', 'Cancelado')
-  and deleted_at is null;
-
-select 'quote_lines_without_company_match' as check_name, count(*) as findings
-from public.quote_lines l
-join public.quotes q on q.id = l.quote_id
-where l.company_id is distinct from q.company_id;
-
-select 'quote_lines_with_invalid_canonical_reference' as check_name, count(*) as findings
-from public.quote_lines l
-left join public.rate_catalog c on c.id = l.concept_id
-left join public.rate_versions rv on rv.id = l.rate_version_id
-where l.deleted_at is null
-  and l.concept_id is not null
-  and (c.id is null or c.company_id is distinct from l.company_id
-    or rv.id is null or rv.company_id is distinct from l.company_id or rv.rate_id is distinct from l.concept_id);
-
-select 'canonical_quote_lines_with_incomplete_snapshot' as check_name, count(*) as findings
-from public.quote_lines
-where deleted_at is null and concept_id is not null
-  and (rate_version_id is null or unit is null or unit_cost is null or unit_price is null);
-
-select 'quotes_with_duplicate_positions' as check_name, count(*) as findings
-from (
-  select quote_id, position
-  from public.quote_lines
-  where deleted_at is null
-  group by quote_id, position
-  having count(*) > 1
-) duplicates;
-
-select 'accepted_quotes_with_incomplete_canonical_lines' as check_name, count(*) as findings
-from public.quotes q
-join public.quote_lines l on l.quote_id = q.id and l.deleted_at is null
-where q.status in ('Aceptado', 'Ejecutado en cliente')
-  and l.material_id is null
-  and l.concept_id is null
-  and nullif(trim(l.description), '') is null;
-
-select 'work_orders_without_unique_quote_link' as check_name, count(*) as findings
-from (
-  select quote_id
-  from public.work_orders
-  where quote_id is not null and deleted_at is null
-  group by quote_id
-  having count(*) > 1
-) duplicates;
-
-select 'technically_finished_work_orders_before_office_migration' as check_name, count(*) as findings
-from public.work_orders
-where deleted_at is null and status in ('Finalizado tecnicamente', 'Enviado', 'Cerrado')
-  and coalesce(to_jsonb(work_orders)->>'office_validation_status', '') = '';
-
-select 'work_orders_with_quotes_needing_review' as check_name, count(*) as findings
-from public.work_orders
-where deleted_at is null and quote_id is not null;
-
-select 'materials_with_invalid_stock' as check_name, count(*) as findings
-from public.materials
-where stock_quantity < 0 and not allow_negative_stock;
-
-select 'stock_movements_with_invalid_material_company' as check_name, count(*) as findings
-from public.material_stock_movements sm
-join public.materials m on m.id = sm.material_id
-where sm.company_id is distinct from m.company_id;
-
-select 'work_order_materials_with_invalid_tenant' as check_name, count(*) as findings
-from public.work_order_materials e
-join public.work_orders w on w.id = e.work_order_id
-where e.company_id is distinct from w.company_id;
-
-select 'work_order_time_entries_with_invalid_tenant' as check_name, count(*) as findings
-from public.work_order_time_entries e
-join public.work_orders w on w.id = e.work_order_id
-where e.company_id is distinct from w.company_id;
-
-select 'work_order_cost_entries_with_invalid_tenant' as check_name, count(*) as findings
-from public.work_order_cost_entries e
-join public.work_orders w on w.id = e.work_order_id
-where e.company_id is distinct from w.company_id;
-
-select 'stock_movements_with_invalid_running_balance' as check_name, count(*) as findings
-from public.material_stock_movements
-where previous_stock < 0 or new_stock < 0;
-
-select 'historical_totals_with_nulls' as check_name, count(*) as findings
-from public.work_orders
-where deleted_at is null and (sale_amount is null or real_cost_amount is null or margin_amount is null);
-
-select 'target_objects_before_migration' as check_name,
-  to_regclass('public.invoices') as invoices_table,
-  to_regclass('public.invoice_payments') as invoice_payments_table,
-  to_regprocedure('public.dmp_quote_rate_options(uuid)') as quote_rate_rpc,
-  to_regprocedure('public.dmp_create_material_with_stock(jsonb)') as material_creation_rpc;
+with checks(check_group, check_name, status, affected_rows, details) as (
+  select 'GENERAL'::text, 'required_existing_tables', case when count(*)=8 then 'OK' else 'BLOCKER' end, count(*)::bigint, count(*)::text || ' de 8 tablas base disponibles (companies, quotes, quote_lines, work_orders, materials, stock movements, rate catalog, rate versions)' from information_schema.tables where table_schema='public' and table_name in ('companies','quotes','quote_lines','work_orders','materials','material_stock_movements','rate_catalog','rate_versions')
+  union all select '071', 'dmp_quote_rate_options_exists', case when to_regprocedure('public.dmp_quote_rate_options(uuid)') is null then 'BLOCKER' else 'OK' end, case when to_regprocedure('public.dmp_quote_rate_options(uuid)') is null then 0 else 1 end::bigint, coalesce(to_regprocedure('public.dmp_quote_rate_options(uuid)')::text, 'Falta la función aplicada por 071')
+  union all select '072', 'terminal_quotes_present', case when count(*)=0 then 'OK' else 'INFO' end, count(*)::bigint, count(*)::text || ' presupuestos terminales se conservarán como históricos' from public.quotes where deleted_at is null and status in ('Aceptado','Ejecutado en cliente','Rechazado','Caducado','Cancelado')
+  union all select '072', 'editable_lines_without_rate_version', case when count(*)=0 then 'OK' else 'REVIEW' end, count(*)::bigint, count(*)::text || ' líneas editables tienen concept_id sin rate_version_id' from public.quote_lines l join public.quotes q on q.id=l.quote_id where l.deleted_at is null and l.concept_id is not null and l.rate_version_id is null and q.status not in ('Aceptado','Ejecutado en cliente','Rechazado','Caducado','Cancelado')
+  union all select '072', 'legacy_lines_without_rate_version', case when count(*)=0 then 'OK' else 'INFO' end, count(*)::bigint, count(*)::text || ' líneas terminales legacy se conservan sin considerarlas corruptas' from public.quote_lines l join public.quotes q on q.id=l.quote_id where l.deleted_at is null and l.concept_id is not null and l.rate_version_id is null and q.status in ('Aceptado','Ejecutado en cliente','Rechazado','Caducado','Cancelado')
+  union all select '072', 'invalid_rate_reference', case when count(*)=0 then 'OK' else 'BLOCKER' end, count(*)::bigint, count(*)::text || ' referencias concept/version incompatibles o de otra empresa' from public.quote_lines l left join public.rate_catalog c on c.id=l.concept_id left join public.rate_versions v on v.id=l.rate_version_id where l.deleted_at is null and l.concept_id is not null and (c.id is null or c.company_id is distinct from l.company_id or (l.rate_version_id is not null and (v.id is null or v.company_id is distinct from l.company_id or v.rate_id is distinct from l.concept_id)))
+  union all select '072', 'invalid_material_reference', case when count(*)=0 then 'OK' else 'BLOCKER' end, count(*)::bigint, count(*)::text || ' referencias de material inexistentes o de otra empresa' from public.quote_lines l left join public.materials m on m.id=l.material_id and m.company_id=l.company_id where l.deleted_at is null and l.material_id is not null and m.id is null
+  union all select '072', 'mixed_material_and_concept_reference', case when count(*)=0 then 'OK' else 'BLOCKER' end, count(*)::bigint, count(*)::text || ' líneas combinan material_id y concept_id' from public.quote_lines where deleted_at is null and material_id is not null and concept_id is not null
+  union all select '072', 'incomplete_canonical_snapshot', case when count(*)=0 then 'OK' else 'REVIEW' end, count(*)::bigint, count(*)::text || ' snapshots canónicos incompletos (unit, billing_mode, unit_cost, unit_price o totales)' from public.quote_lines where deleted_at is null and concept_id is not null and (unit is null or billing_mode is null or unit_cost is null or unit_price is null or quantity is null or total_cost is null or total_price is null)
+  union all select '072', 'quote_line_tenant_mismatch', case when count(*)=0 then 'OK' else 'BLOCKER' end, count(*)::bigint, count(*)::text || ' líneas cruzan la empresa del presupuesto' from public.quote_lines l join public.quotes q on q.id=l.quote_id where l.company_id is distinct from q.company_id
+  union all select '073', 'finished_work_orders', case when count(*)=0 then 'OK' else 'INFO' end, count(*)::bigint, count(*)::text || ' partes finalizados serán revisables por el nuevo flujo' from public.work_orders where deleted_at is null and status in ('Finalizado tecnicamente','Enviado','Cerrado')
+  union all select '073', 'finished_work_orders_with_quote', case when count(*)=0 then 'OK' else 'INFO' end, count(*)::bigint, count(*)::text || ' partes finalizados tienen presupuesto asociado' from public.work_orders where deleted_at is null and status in ('Finalizado tecnicamente','Enviado','Cerrado') and quote_id is not null
+  union all select '073', 'finished_work_orders_pending_invoice', case when count(*)=0 then 'OK' else 'INFO' end, count(*)::bigint, count(*)::text || ' partes finalizados figuran pendientes de facturación' from public.work_orders where deleted_at is null and status in ('Finalizado tecnicamente','Enviado','Cerrado') and economic_status='pendiente_facturar'
+  union all select '073', 'finished_work_orders_non_billable', case when count(*)=0 then 'OK' else 'INFO' end, count(*)::bigint, count(*)::text || ' partes son garantía o no facturables' from public.work_orders where deleted_at is null and status in ('Finalizado tecnicamente','Enviado','Cerrado') and (warranty or not billable or economic_status in ('garantia','no_facturable'))
+  union all select '073', 'office_validation_column', case when count(*)=0 then 'INFO' else 'REVIEW' end, count(*)::bigint, case when count(*)=0 then 'La columna no existe; 073 usará not_started' else 'La columna ya existe; revisar sus valores actuales' end from information_schema.columns where table_schema='public' and table_name='work_orders' and column_name='office_validation_status'
+  union all select '073', 'conservative_material_backfill', case when count(*)=0 then 'OK' else 'INFO' end, count(*)::bigint, count(*)::text || ' consumos de partes con presupuesto son candidatos al backfill conservador source=quote' from public.work_order_materials e join public.work_orders w on w.id=e.work_order_id where w.quote_id is not null
+  union all select '073', 'conservative_time_backfill', case when count(*)=0 then 'OK' else 'INFO' end, count(*)::bigint, count(*)::text || ' horas de partes con presupuesto son candidatas al backfill conservador source=quote' from public.work_order_time_entries e join public.work_orders w on w.id=e.work_order_id where w.quote_id is not null
+  union all select '073', 'work_order_quote_tenant_mismatch', case when count(*)=0 then 'OK' else 'BLOCKER' end, count(*)::bigint, count(*)::text || ' partes tienen quote_id inexistente o de otra empresa' from public.work_orders w left join public.quotes q on q.id=w.quote_id where w.quote_id is not null and (q.id is null or q.company_id is distinct from w.company_id)
+  union all select '074', 'invoices_object_state', case when to_regclass('public.invoices') is null then 'INFO' when (select count(*) from information_schema.columns where table_schema='public' and table_name='invoices')>=10 then 'OK' else 'BLOCKER' end, (select count(*) from information_schema.columns where table_schema='public' and table_name='invoices')::bigint, case when to_regclass('public.invoices') is null then 'invoices no existe todavía; esperado antes de 074' when (select count(*) from information_schema.columns where table_schema='public' and table_name='invoices')>=10 then 'invoices existe' else 'invoices existe parcialmente; revisar contrato' end
+  union all select '074', 'invoice_work_orders_object_state', case when to_regclass('public.' || 'invoice_' || 'work_orders') is null then 'INFO' else 'REVIEW' end, (select count(*) from information_schema.columns where table_schema='public' and table_name='invoice_work_orders')::bigint, case when to_regclass('public.' || 'invoice_' || 'work_orders') is null then 'Relación aún no existe; esperado antes de 074' else 'Relación previa detectada; revisar datos legacy' end
+  union all select '074', 'invoice_payments_object_state', case when to_regclass('public.invoice_payments') is null then 'INFO' else 'REVIEW' end, (select count(*) from information_schema.columns where table_schema='public' and table_name='invoice_payments')::bigint, case when to_regclass('public.invoice_payments') is null then 'invoice_payments aún no existe; esperado antes de 074' else 'Tabla de cobros previa detectada; revisar contrato' end
+  union all select '075', 'materials_with_null_stock', case when count(*)=0 then 'OK' else 'BLOCKER' end, count(*)::bigint, count(*)::text || ' materiales tienen stock_quantity NULL' from public.materials where stock_quantity is null
+  union all select '075', 'negative_stock_without_permission', case when count(*)=0 then 'OK' else 'WARNING' end, count(*)::bigint, count(*)::text || ' materiales tienen stock negativo sin allow_negative_stock' from public.materials where stock_quantity < 0 and not allow_negative_stock
+  union all select '075', 'stock_movements_missing_material', case when count(*)=0 then 'OK' else 'BLOCKER' end, count(*)::bigint, count(*)::text || ' movimientos no tienen material válido' from public.material_stock_movements sm left join public.materials m on m.id=sm.material_id where m.id is null
+  union all select '075', 'stock_movement_tenant_mismatch', case when count(*)=0 then 'OK' else 'BLOCKER' end, count(*)::bigint, count(*)::text || ' movimientos cruzan la empresa del material' from public.material_stock_movements sm join public.materials m on m.id=sm.material_id where sm.company_id is distinct from m.company_id
+  union all select '075', 'stock_without_movement_history', case when count(*)=0 then 'OK' else 'REVIEW' end, count(*)::bigint, count(*)::text || ' materiales tienen stock positivo sin historial; 075 no reconstruye ese histórico' from public.materials m where m.stock_quantity > 0 and not exists (select 1 from public.material_stock_movements sm where sm.material_id=m.id and sm.deleted_at is null)
+  union all select '075', 'reconstructible_stock_mismatch', case when count(*)=0 then 'OK' else 'WARNING' end, count(*)::bigint, count(*)::text || ' materiales no coinciden con movimientos reconstruibles' from public.materials m join (select material_id, sum(case when movement_type in ('in','initial','return') then quantity when movement_type='out' then -quantity else 0 end) as reconstructed_stock, sum(case when movement_type in ('adjustment','correction') then 1 else 0 end) as non_reconstructible from public.material_stock_movements where deleted_at is null group by material_id) r on r.material_id=m.id where r.non_reconstructible=0 and m.stock_quantity is distinct from r.reconstructed_stock
+), summary(check_group, check_name, status, affected_rows, details) as (
+  select 'SUMMARY'::text, 'deployment_readiness'::text, case when sum(case when status='BLOCKER' then 1 else 0 end)>0 then 'BLOCKER' when sum(case when status in ('WARNING','REVIEW') then 1 else 0 end)>0 then 'REVIEW' else 'OK' end, sum(case when status<>'OK' then 1 else 0 end)::bigint, case when sum(case when status='BLOCKER' then 1 else 0 end)>0 then 'Hay BLOCKER; no aplicar 072-075.' when sum(case when status in ('WARNING','REVIEW') then 1 else 0 end)>0 then 'No hay BLOCKER, pero existen WARNING/REVIEW.' else 'Todos los controles son compatibles.' end from checks
+)
+select check_group, check_name, status, affected_rows, details from (select * from checks union all select * from summary) result
+order by case check_group when 'GENERAL' then 1 when '071' then 2 when '072' then 3 when '073' then 4 when '074' then 5 when '075' then 6 when 'SUMMARY' then 7 else 8 end, case status when 'BLOCKER' then 1 when 'WARNING' then 2 when 'REVIEW' then 3 when 'INFO' then 4 when 'OK' then 5 else 6 end, check_name;

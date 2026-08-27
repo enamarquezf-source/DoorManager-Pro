@@ -726,11 +726,12 @@ function WorkOrderStatusSelector({ workOrder, onChanged, onError }: { workOrder:
 
 function WorkOrderOfficeValidationCard({ workOrder, onChanged, onError }: { workOrder: any; onChanged: () => void; onError: (message: string) => void }) {
   const { profile } = useAuth();
+  const capability = useLoad(() => workOrdersService.hasOfficeValidation(), [], false);
   const [decision, setDecision] = useState<'validated' | 'rejected' | null>(null);
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
   const status = workOrder.office_validation_status ?? 'not_started';
-  if (status === 'not_started' && workOrder.economic_status !== 'pendiente_validacion') return null;
+  if (!capability.data || (status === 'not_started' && workOrder.economic_status !== 'pendiente_validacion')) return null;
   const submit = async () => {
     if (!decision || saving) return;
     if (!reason.trim()) { onError('La validación de oficina necesita un comentario o motivo.'); return; }

@@ -66,6 +66,14 @@ export type WorkOrderFullDetail = {
 };
 
 export const workOrdersService = {
+  async hasOfficeValidation() {
+    const { data, error } = await supabase.from('work_orders').select('office_validation_status').limit(0);
+    if (error) {
+      if (['42P01', '42703', 'PGRST204', 'PGRST205'].includes(error.code)) return false;
+      throw error;
+    }
+    return data !== null;
+  },
   async list(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active') {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
     let query = applyArchiveFilter(supabase.from('v_work_order_full_detail').select('*'), archiveFilter).order('scheduled_date', { ascending: false });

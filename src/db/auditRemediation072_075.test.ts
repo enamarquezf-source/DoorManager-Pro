@@ -16,10 +16,14 @@ const postflight = readFileSync(new URL('../../supabase/verification/postflight_
 
 describe('audit remediation migrations 072-075', () => {
   it('are parseable PostgreSQL migrations', async () => {
-    const parser = await pgQuery();
-    for (const migration of migrations) expect(parser.parse(migration).parse_tree.stmts.length).toBeGreaterThan(0);
-    expect(parser.parse(preflight).parse_tree.stmts.length).toBeGreaterThan(0);
-    expect(parser.parse(postflight).parse_tree.stmts.length).toBeGreaterThan(0);
+    for (const migration of migrations) {
+      const parser = await pgQuery();
+      expect(parser.parse(migration).parse_tree.stmts.length).toBeGreaterThan(0);
+    }
+    const preflightParser = await pgQuery();
+    expect(preflightParser.parse(preflight).parse_tree.stmts.length).toBeGreaterThan(0);
+    const postflightParser = await pgQuery();
+    expect(postflightParser.parse(postflight).parse_tree.stmts.length).toBeGreaterThan(0);
   });
 
   it('keeps preflight read-only and runnable before billing tables exist', () => {
@@ -28,6 +32,35 @@ describe('audit remediation migrations 072-075', () => {
     expect(preflight.toLowerCase()).not.toContain('delete from');
     expect(preflight).toContain("to_regclass('public.invoices')");
     expect(preflight).not.toContain('public.invoice_work_orders');
+  });
+
+  it('does not read columns that 073 creates during its own backfill', () => {
+    expect(preflight).not.toContain("e.source='manual'");
+    expect(preflight).not.toContain('e.contributes_to_sale');
+    expect(preflight).toContain('candidatos al backfill conservador');
+    expect(preflight).toContain('w.quote_id is not null');
+  });
+
+  it('declares the consolidated CTE contracts and preserves five homogeneous columns', () => {
+    expect(preflight).toContain('with checks(check_group, check_name, status, affected_rows, details) as (');
+    expect(preflight).toContain('summary(check_group, check_name, status, affected_rows, details) as (');
+    expect(preflight).toContain('select check_group, check_name, status, affected_rows, details');
+    expect(preflight).toContain('count(*)::bigint');
+    expect(preflight).not.toMatch(/from\s+public\.work_order_materials[^\n]*\.(source|contributes_to_sale)/i);
+    expect(preflight).not.toContain('public.invoice_work_orders');
+    expect(preflight).not.toMatch(/(^|\n)\s*(insert|update|delete|merge|truncate|create|alter|drop|grant|revoke)\b/i);
+  });
+
+  it('does not classify a terminal legacy line without a version as an invalid reference', () => {
+    const invalidRateCheck = preflight.match(/'invalid_rate_reference'[\s\S]*?\n\s+union all select '072'/)?.[0] ?? '';
+    const snapshotCheck = preflight.match(/'incomplete_canonical_snapshot'[\s\S]*?\n\s+union all select '072'/)?.[0] ?? '';
+    expect(invalidRateCheck).toContain('l.rate_version_id is not null and');
+    expect(snapshotCheck).not.toContain('rate_version_id is null or');
+    expect(snapshotCheck).toContain('quantity is null');
+    expect(snapshotCheck).toContain('total_price is null');
+    expect(preflight).toContain("'legacy_lines_without_rate_version'");
+    expect(preflight).toContain("q.status in ('Aceptado','Ejecutado en cliente','Rechazado','Caducado','Cancelado')");
+    expect(preflight).toContain("q.status not in ('Aceptado','Ejecutado en cliente','Rechazado','Caducado','Cancelado')");
   });
 
   it('blocks incomplete technical close and requires office validation', () => {

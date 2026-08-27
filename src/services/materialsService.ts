@@ -29,7 +29,12 @@ export const materialsService = {
   },
   async create(payload: Record<string, any>) {
     const company_id = payload.company_id || await currentCompanyId();
-    return expectData<any>(supabase.rpc('dmp_create_material_with_stock', { p_payload: { ...normalizeMaterial(payload), company_id } }), { service: 'materialsService', operation: 'create material' });
+    try {
+      return await expectData<any>(supabase.rpc('dmp_create_material_with_stock', { p_payload: { ...normalizeMaterial(payload), company_id } }), { service: 'materialsService', operation: 'create material' });
+    } catch (error: any) {
+      if (['42883', 'PGRST202'].includes(error?.code)) throw new Error('Creación de materiales pendiente de activación del backend de stock.');
+      throw error;
+    }
   },
   update(id: string, payload: Record<string, any>) {
     return expectData<any>(supabase.from('materials').update(normalizeMaterial(payload, materialUpdateColumns)).eq('id', id).select().maybeSingle(), { service: 'materialsService', operation: 'update material', resource: id });

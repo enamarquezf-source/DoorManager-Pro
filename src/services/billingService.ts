@@ -1,7 +1,23 @@
 import { supabase } from '../lib/supabase/client';
 import { currentCompanyId, expectData } from './query';
 
+function isMissingSchemaObject(error: any) {
+  return ['42P01', '42703', 'PGRST204', 'PGRST205'].includes(error?.code);
+}
+
 export const billingService = {
+  async isAvailable() {
+    try {
+      await Promise.all([
+        expectData<any[]>(supabase.from('invoices').select('id').limit(0), { service: 'billingService', operation: 'Detectar facturación' }),
+        expectData<any[]>(supabase.from('work_orders').select('office_validation_status').limit(0), { service: 'billingService', operation: 'Detectar validación de oficina' }),
+      ]);
+      return true;
+    } catch (error) {
+      if (isMissingSchemaObject(error)) return false;
+      throw error;
+    }
+  },
   async invoiceableWorkOrders() {
     const companyId = await currentCompanyId();
     let query = supabase.from('work_orders').select('id,company_id,code,title,client_id,sale_amount,economic_status,office_validation_status,clients!work_orders_client_id_fkey(id,code,legal_name)').eq('economic_status', 'pendiente_facturar').eq('office_validation_status', 'validated').is('deleted_at', null).gt('sale_amount', 0).order('finished_at', { ascending: true });

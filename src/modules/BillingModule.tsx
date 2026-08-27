@@ -12,11 +12,17 @@ export function BillingModule({ mode }: { mode: Mode }) {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [invoiceable, setInvoiceable] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [available, setAvailable] = useState<boolean | null>(null);
   const [error, setError] = useState('');
   const [action, setAction] = useState<Action>(null);
   const reload = useCallback(async () => {
     setLoading(true); setError('');
-    try { const [nextInvoices, nextInvoiceable] = await Promise.all([billingService.invoices(), billingService.invoiceableWorkOrders()]); setInvoices(nextInvoices); setInvoiceable(nextInvoiceable); }
+    try {
+      const nextAvailable = await billingService.isAvailable();
+      setAvailable(nextAvailable);
+      if (!nextAvailable) { setInvoices([]); setInvoiceable([]); return; }
+      const [nextInvoices, nextInvoiceable] = await Promise.all([billingService.invoices(), billingService.invoiceableWorkOrders()]); setInvoices(nextInvoices); setInvoiceable(nextInvoiceable);
+    }
     catch (err) { setError(errorText(err)); }
     finally { setLoading(false); }
   }, []);
@@ -24,6 +30,7 @@ export function BillingModule({ mode }: { mode: Mode }) {
   const visible = mode === 'collections' ? invoices.filter((row) => row.status !== 'cancelada' && Number(row.paid_amount) < Number(row.total_amount)) : invoices;
   const issued = invoices.filter((row) => row.status !== 'cancelada').reduce((sum, row) => sum + Number(row.total_amount ?? 0), 0);
   const collected = invoices.filter((row) => row.status !== 'cancelada').reduce((sum, row) => sum + Number(row.paid_amount ?? 0), 0);
+  if (available === false) return <section className="page billing-page"><div className="page-head"><div><p className="eyebrow">Oficina</p><h2>{mode === 'invoices' ? 'Facturación' : 'Cobros'}</h2></div><button onClick={reload} disabled={loading}>Actualizar</button></div><div className="card"><h3>Facturación pendiente de activación</h3><p className="large-note">Este módulo estará disponible cuando se active el backend de facturación y validación de oficina.</p></div></section>;
   return <section className="page billing-page">
     <div className="page-head"><div><p className="eyebrow">Oficina</p><h2>{mode === 'invoices' ? 'Facturación' : 'Cobros'}</h2><p>{mode === 'invoices' ? 'Emisión trazable desde partes validados.' : 'Registro y conciliación de cobros de cliente.'}</p></div><button onClick={reload} disabled={loading}>Actualizar</button></div>
     <div className="stats-grid"><div className="metric info"><span>Emitido con IVA</span><strong>{money(issued)}</strong></div><div className="metric ok"><span>Cobrado</span><strong>{money(collected)}</strong></div><div className="metric warn"><span>Pendiente</span><strong>{money(issued - collected)}</strong></div><div className="metric commercial"><span>Partes listos</span><strong>{invoiceable.length}</strong></div></div>

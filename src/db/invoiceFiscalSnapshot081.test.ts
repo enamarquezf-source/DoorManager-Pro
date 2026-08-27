@@ -24,6 +24,14 @@ describe('081 fiscal invoice snapshot', () => {
     expect(migration).not.toContain('insert into public.invoice_payments');
   });
 
+  it('keeps the preflight executable before the column exists', () => {
+    expect(preflight).toContain('information_schema.columns');
+    expect(preflight).toContain("to_jsonb(i)->'fiscal_snapshot'");
+    expect(preflight).not.toMatch(/and\s+fiscal_snapshot\s+is\s+null/i);
+    expect(preflight).toContain('Antes de 081 no es evaluable');
+    expect(preflight.toLowerCase()).not.toMatch(/(^|\n)\s*(insert|update|delete|merge|truncate|create|alter|drop|grant|revoke)\b/);
+  });
+
   it('prints the snapshot when available and excludes internal economics', () => {
     expect(billing).toContain('Imprimir factura');
     expect(billing).toContain('invoice-print-document');

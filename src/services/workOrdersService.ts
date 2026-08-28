@@ -317,7 +317,12 @@ export const workOrdersService = {
     return expectData<string>(supabase.rpc('dmp_set_work_order_planned_material_decision', { p_payload: payload }), { service: 'workOrdersService', operation: 'Registrar decision de material previsto', resource: 'dmp_set_work_order_planned_material_decision' });
   },
   setPlannedQuoteLineDecision(payload: Record<string, any>) {
-    return expectData<string>(supabase.rpc('dmp_set_work_order_quote_line_decision', { p_payload: payload }), { service: 'workOrdersService', operation: 'Registrar decision de concepto previsto', resource: 'dmp_set_work_order_quote_line_decision' });
+    const technical = payload.unit_cost === '' || payload.technical === true;
+    const nextPayload = technical ? { work_order_id: payload.work_order_id, quote_line_id: payload.quote_line_id, decision: payload.decision, actual_quantity: payload.quantity, technical_notes: payload.notes } : payload;
+    return expectData<string>(supabase.rpc(technical ? 'dmp_resolve_planned_concept_technical' : 'dmp_set_work_order_quote_line_decision', { p_payload: nextPayload }), { service: 'workOrdersService', operation: technical ? 'Resolver concepto previsto tecnicamente' : 'Registrar decision de concepto previsto', resource: technical ? 'dmp_resolve_planned_concept_technical' : 'dmp_set_work_order_quote_line_decision' });
+  },
+  setTechnicalPlannedQuoteLineDecision(payload: Record<string, any>) {
+    return expectData<string>(supabase.rpc('dmp_resolve_planned_concept_technical', { p_payload: payload }), { service: 'workOrdersService', operation: 'Resolver concepto previsto tecnicamente', resource: 'dmp_resolve_planned_concept_technical' });
   },
   deleteMaterial(id: string, reason: string) {
     return expectData<void>(supabase.rpc('dmp_delete_work_order_material', { p_material_usage_id: id, p_reason: reason }));

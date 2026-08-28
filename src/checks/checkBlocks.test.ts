@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync } from 'node:fs';
-import { buildFunctionalCheckBlocks, equipmentTypeName, isUuid, remoteBlockState, templateTypeMismatch, visualTemplateForEquipment } from './checkBlocks';
+import { buildFunctionalCheckBlocks, equipmentTypeName, isUuid, remoteBlockState, templateTypeMismatch, visualTemplateForCheck, visualTemplateForEquipment } from './checkBlocks';
 import { equipmentCheckTemplates } from './config/sectionalDoorHotspots';
 
 const sectionId = '11111111-1111-4111-8111-111111111111';
@@ -21,6 +21,9 @@ function check(equipmentTypeNameValue: string | null) {
 }
 
 describe('functional check blocks', () => {
+  it('resolves the configured image from the check template when equipment type data is incomplete', () => {
+    expect(visualTemplateForCheck({ equipment: {}, check_templates: { name: 'Puerta rápida instalación' } })?.image).toBe('/checks/puerta-rapida.png');
+  });
   it('resuelve muelle y abrigo sin caer en seccional', () => {
     expect(visualTemplateForEquipment(check('Muelle de carga').equipment)?.key).toBe('muelle-de-carga');
     expect(visualTemplateForEquipment(check('Abrigo de muelle').equipment)?.key).toBe('abrigo-de-muelle');

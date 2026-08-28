@@ -22,6 +22,11 @@ export function visualTemplateForEquipment(equipment?: any) {
   return templateForEquipment(equipment);
 }
 
+export function visualTemplateForCheck(check?: any) {
+  return visualTemplateForEquipment(check?.equipment)
+    ?? templateForEquipment({ type_name: check?.check_templates?.name });
+}
+
 export function buildFunctionalCheckBlocks(check: any): FunctionalCheckBlock[] {
   const sections = [...(check?.check_templates?.check_template_sections ?? [])].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
   const visual = visibleTemplateZones(check?.equipment);

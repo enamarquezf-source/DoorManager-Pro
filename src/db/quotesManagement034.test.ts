@@ -217,14 +217,14 @@ describe('quotes management 034', () => {
     expect(quoteWorkOrderFixMigration).toContain("lower(coalesce(v_quote.status, '')) not in ('aceptado','ejecutado en cliente')");
     expect(workOrdersService).toContain("'quote_id'");
     expect(workOrdersService).toContain('quotes!work_orders_quote_id_fkey');
-    expect(workOrdersService).toContain("supabase.rpc('create_work_order_full', { p_payload:");
-    expect(workOrdersService).not.toContain("supabase.rpc('create_work_order_full', payload)");
+    expect(workOrdersService).toContain("supabase.rpc('dmp_create_work_order_full', { p_payload:");
+    expect(workOrdersService).not.toContain("supabase.rpc('create_work_order_full'");
     expect(workOrdersService).toContain("code: error?.code, message: error?.message, details: error?.details, hint: error?.hint");
     const mixedSelection = [{ existing_equipment_id: 'existing' }, { new: { equipment_type_id: 'type-a' } }, { new: { equipment_type_id: 'type-b' } }];
     expect(mixedSelection).toHaveLength(3);
     expect(mixedSelection[0]).toEqual({ existing_equipment_id: 'existing' });
     expect(mixedSelection.slice(1).every((item) => 'new' in item)).toBe(true);
-    expect(workOrdersService).toContain("resource: 'create_work_order_full'");
+    expect(workOrdersService).toContain("resource: 'dmp_create_work_order_full'");
     expect(quotesService).toContain("supabase.from('work_orders').select('id,code,title,status,scheduled_date,quote_id').eq('quote_id', id)");
     expect(app).toContain('Generar parte');
     expect(app).toContain('generated_work_orders');
@@ -254,7 +254,7 @@ describe('quotes management 034', () => {
     expect(app).toContain('quoteSiteId');
     expect(app).toContain('quoteEquipmentId');
     expect(app).toContain('quoteCaseId');
-    expect(app).toContain("rpcName: 'create_work_order_full'");
+    expect(app).toContain("rpcName: 'dmp_create_work_order_full'");
     expect(app).toContain('Codigo: ${err.code}');
     expect(app).toContain('No se pudo generar el parte desde el presupuesto');
     expect(quoteWorkOrderFixMigration).not.toContain('stock_deducted_quantity');

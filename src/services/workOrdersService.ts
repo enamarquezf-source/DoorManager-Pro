@@ -215,7 +215,7 @@ export const workOrdersService = {
     const profileId = await currentProfileId();
     const rpcPayload = { ...payload, company_id: companyId, created_by: profileId, created_role: role };
     try {
-      return await expectData<string>(supabase.rpc('create_work_order_full', { p_payload: rpcPayload }), { service: 'workOrdersService', operation: 'create work order', resource: 'create_work_order_full' });
+      return await expectData<string>(supabase.rpc('dmp_create_work_order_full', { p_payload: rpcPayload }), { service: 'workOrdersService', operation: 'create work order', resource: 'dmp_create_work_order_full' });
     } catch (error: any) {
       if (import.meta.env.DEV || error?.code === 'PGRST202') console.error('create_work_order_full failed', { code: error?.code, message: error?.message, details: error?.details, hint: error?.hint });
       throw error;

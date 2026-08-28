@@ -8,6 +8,7 @@ const postflight = readFileSync(new URL('../../supabase/verification/postflight_
 const service = readFileSync(new URL('../services/workOrdersService.ts', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+const picker = app.slice(app.indexOf('function MultiEquipmentPicker'), app.indexOf('function LegacyMultiEquipmentPicker'));
 
 describe('multi-equipment work orders 082', () => {
   it('parses migration and both verification scripts', async () => {
@@ -46,14 +47,24 @@ describe('multi-equipment work orders 082', () => {
     expect(app).toContain("selectedEquipment.map((item: any) => item.kind === 'existing'");
     expect(app).not.toContain('values.equipment_selection?.length ? values.equipment_selection :');
     expect(app).toContain("equipment_selection: [], main_equipment_id: ''");
-    expect(app).toContain('if (!draft.equipment_type_id) return');
-    expect(app).toContain('setDraft({ ...draft, quantity: 1, internal_location: \'\', serial_number: \'\' })');
+    expect(app).toContain('!draft.equipment_type_id || !Number.isInteger(quantity) || quantity < 1');
+    expect(app).toContain('setDraft({ equipment_type_id: \'\', quantity: 1');
   });
 
   it('keeps equipment cards readable on desktop and mobile', () => {
-    expect(styles).toContain('.card:has(.nested-form) .compact-list article { grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;');
-    expect(styles).toContain('.card:has(.nested-form) .compact-list article { grid-template-columns: 1fr; align-items: stretch; }');
+    expect(styles).toContain('.multi-equipment-list article { grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;');
+    expect(styles).toContain('.multi-equipment-list article { grid-template-columns: 1fr; align-items: stretch; }');
     expect(styles).toContain('word-break: normal');
+  });
+
+  it('does not make the new-equipment draft part of the work-order submit validation', () => {
+    expect(picker).toContain('label="Tipo de equipo"');
+    expect(picker).not.toContain('label="Tipo de equipo" value={draft.equipment_type_id} onChange={(value) => setDraft({ ...draft, equipment_type_id: value })} required');
+    expect(picker).toContain('<label>Cantidad<input');
+    expect(picker).not.toContain('value={draft.quantity} onChange={(event) => setDraft({ ...draft, quantity: event.target.value })} required');
+    expect(picker).toContain('Number.isInteger(quantity) || quantity < 1');
+    expect(picker).toContain('equipment_selection: next');
+    expect(picker).toContain('setDraft({ equipment_type_id: \'\', quantity: 1');
   });
 
   it('keeps verification scripts read-only', () => {

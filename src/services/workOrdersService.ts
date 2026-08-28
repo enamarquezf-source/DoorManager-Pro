@@ -95,6 +95,9 @@ export const workOrdersService = {
     const validationById = new Map(validationRows.map((row) => [row.id, row.office_validation_status]));
     return workOrders.map((work) => ({ ...work, office_validation_status: validationById.get(work.id) ?? 'not_started' }));
   },
+  async routingQueue(queue: 'sat' | 'commercial' | 'billing') {
+    return expectData<any[]>(supabase.rpc('dmp_department_routing_queue', { p_queue: queue }), { service: 'workOrdersService', operation: `Cola departamental ${queue}`, resource: 'dmp_department_routing_queue' });
+  },
   async listWithAssignments(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active') {
     const workOrders = await this.list(search, companyScope, archiveFilter);
     const ids = workOrders.map((item) => item.id).filter(Boolean);
@@ -282,17 +285,24 @@ export const workOrdersService = {
     if (!String(reason ?? '').trim()) throw new Error('validacion del formulario: el motivo o comentario es obligatorio');
     return expectData<any>(supabase.rpc('dmp_review_work_order_office', { p_work_order_id: workOrderId, p_decision: decision, p_reason: reason.trim() }), { service: 'workOrdersService', operation: 'Validar parte en oficina', resource: workOrderId });
   },
-  reviewWorkOrderSat(workOrderId: string, decision: SatReviewDecision, destination: SatReviewDestination | null, flags: Record<string, boolean>, reason: string) {
+  reviewWorkOrderSat(workOrderId: string, decision: SatReviewDecision, destination: SatReviewDestination | null, commercialProfileId: string | null, flags: Record<string, boolean>, reason: string) {
     if (!uuidPattern.test(String(workOrderId ?? '').trim())) throw new Error('validacion del formulario: falta un parte valido');
     if (!['approved', 'returned'].includes(decision)) throw new Error('revision SAT: decision no valida');
     if (decision === 'approved' && !destination) throw new Error('revision SAT: indica un destino');
-    if (!String(reason ?? '').trim()) throw new Error('revision SAT: el comentario o motivo es obligatorio');
-    return expectData<any>(supabase.rpc('dmp_review_work_order_sat', { p_work_order_id: workOrderId, p_decision: decision, p_destination: destination, p_flags: flags ?? {}, p_reason: reason.trim() }), { service: 'workOrdersService', operation: 'Revisar parte en SAT', resource: workOrderId });
+    const normalizedReason = String(reason ?? '').trim() || 'Sin observaciones internas';
+    const normalizedFlags = Object.fromEntries(['materials_entered', 'work_completed', 'non_billable_materials_or_hours'].map((key) => [key, flags?.[key] === true]));
+    if (destination === 'comercial' && !commercialProfileId) throw new Error('revision SAT: selecciona un comercial responsable');
+    if (destination === 'facturacion' && commercialProfileId) throw new Error('revision SAT: Facturacion no admite comercial responsable');
+    return expectData<any>(supabase.rpc('dmp_review_work_order_sat', { p_work_order_id: workOrderId, p_decision: decision, p_destination: destination, p_commercial_profile_id: commercialProfileId, p_flags: normalizedFlags, p_reason: normalizedReason }), { service: 'workOrdersService', operation: 'Revisar parte en SAT', resource: workOrderId });
   },
   reviewWorkOrderCommercial(workOrderId: string, reason: string) {
     if (!uuidPattern.test(String(workOrderId ?? '').trim())) throw new Error('validacion del formulario: falta un parte valido');
     if (!String(reason ?? '').trim()) throw new Error('revision Comercial: el comentario o motivo es obligatorio');
     return expectData<any>(supabase.rpc('dmp_review_work_order_commercial', { p_work_order_id: workOrderId, p_reason: reason.trim() }), { service: 'workOrdersService', operation: 'Aprobar parte en Comercial', resource: workOrderId });
+  },
+  reassignWorkOrderCommercial(workOrderId: string, commercialProfileId: string) {
+    if (!uuidPattern.test(String(workOrderId ?? '').trim()) || !uuidPattern.test(String(commercialProfileId ?? '').trim())) throw new Error('validacion del formulario: faltan identificadores validos');
+    return expectData<any>(supabase.rpc('dmp_reassign_work_order_commercial', { p_work_order_id: workOrderId, p_commercial_profile_id: commercialProfileId }), { service: 'workOrdersService', operation: 'Reasignar comercial del parte', resource: workOrderId });
   },
   async generatePendingInstallationCheck(workOrderId: string, equipmentId: string) {
     return expectData<string>(supabase.rpc('generate_pending_installation_check', { p_work_order_id: workOrderId, p_equipment_id: equipmentId }), { service: 'workOrdersService', operation: 'Generar check de instalacion pendiente', resource: workOrderId });

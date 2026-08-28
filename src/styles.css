@@ -88,6 +88,11 @@ main { padding: 24px; }
 .invoice-context-grid section { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: #f8fbff; }
 .invoice-context-grid h4 { margin: 0 0 8px; color: #0f4c81; font-size: .78rem; letter-spacing: .06em; }
 .invoice-context-grid p { margin: 5px 0; }
+.sat-review-summary { grid-column: 1 / -1; border: 1px solid #f1c27d; border-radius: 14px; padding: 12px; background: #fffaf0; }
+.sat-review-summary h4 { margin: 0 0 8px; color: #9a5b00; font-size: .78rem; letter-spacing: .06em; }
+.sat-review-flags { display: grid; gap: 8px; margin: 0; padding: 12px; border: 1px solid var(--line); border-radius: 14px; }
+.sat-review-flag { display: grid !important; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px !important; border: 1px solid var(--line); border-radius: 12px; padding: 11px; background: #f8fbff; cursor: pointer; }
+.sat-review-flag input { width: 18px; min-height: 18px; margin: 0; }
 .invoice-totals { display: flex; justify-content: flex-end; gap: 18px; border-top: 1px solid var(--line); padding-top: 12px; }
 .invoice-print-document { display: none; }
 .invoice-print-document header { display: flex; justify-content: space-between; gap: 24px; border-bottom: 2px solid #152033; padding-bottom: 18px; }

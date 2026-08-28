@@ -163,6 +163,8 @@ export function canViewInternalEconomics(profile: Profile | null | undefined) { 
 export function canViewWorkOrderCosts(profile: Profile | null | undefined) { return canViewInternalEconomics(profile); }
 export function canViewSalesEconomics(profile: Profile | null | undefined) { return hasAny(profile, quoteManagerRoles); }
 export function canReviewWorkOrderOffice(profile: Profile | null | undefined) { return isActiveProfile(profile) && hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina']); }
+export function canReviewWorkOrderSat(profile: Profile | null | undefined) { return isActiveProfile(profile) && hasAny(profile, ['superadmin', 'SAT', 'Gerencia']); }
+export function canReviewWorkOrderCommercial(profile: Profile | null | undefined) { return isActiveProfile(profile) && hasAny(profile, ['superadmin', 'Comercial', 'Gerencia']); }
 export function canMarkAdditionalSale(profile: Profile | null | undefined) { return isActiveProfile(profile) && hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina', 'Comercial']); }
 export function canManageQuotes(profile: Profile | null | undefined) { return isActiveProfile(profile) && hasAny(profile, quoteManagerRoles); }
 export function canManageHourRates(profile: Profile | null | undefined) { return isActiveProfile(profile) && hasAny(profile, ['superadmin', 'Gerencia', 'Oficina']); }

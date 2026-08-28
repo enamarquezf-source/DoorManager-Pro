@@ -68,6 +68,8 @@ export type WorkOrderFullDetail = {
 };
 
 export type OfficeReviewDecision = 'validated' | 'rejected';
+export type SatReviewDecision = 'approved' | 'returned';
+export type SatReviewDestination = 'comercial' | 'facturacion';
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -279,6 +281,18 @@ export const workOrdersService = {
     if (!['validated', 'rejected'].includes(decision)) throw new Error('validacion del formulario: decision de oficina no valida');
     if (!String(reason ?? '').trim()) throw new Error('validacion del formulario: el motivo o comentario es obligatorio');
     return expectData<any>(supabase.rpc('dmp_review_work_order_office', { p_work_order_id: workOrderId, p_decision: decision, p_reason: reason.trim() }), { service: 'workOrdersService', operation: 'Validar parte en oficina', resource: workOrderId });
+  },
+  reviewWorkOrderSat(workOrderId: string, decision: SatReviewDecision, destination: SatReviewDestination | null, flags: Record<string, boolean>, reason: string) {
+    if (!uuidPattern.test(String(workOrderId ?? '').trim())) throw new Error('validacion del formulario: falta un parte valido');
+    if (!['approved', 'returned'].includes(decision)) throw new Error('revision SAT: decision no valida');
+    if (decision === 'approved' && !destination) throw new Error('revision SAT: indica un destino');
+    if (!String(reason ?? '').trim()) throw new Error('revision SAT: el comentario o motivo es obligatorio');
+    return expectData<any>(supabase.rpc('dmp_review_work_order_sat', { p_work_order_id: workOrderId, p_decision: decision, p_destination: destination, p_flags: flags ?? {}, p_reason: reason.trim() }), { service: 'workOrdersService', operation: 'Revisar parte en SAT', resource: workOrderId });
+  },
+  reviewWorkOrderCommercial(workOrderId: string, reason: string) {
+    if (!uuidPattern.test(String(workOrderId ?? '').trim())) throw new Error('validacion del formulario: falta un parte valido');
+    if (!String(reason ?? '').trim()) throw new Error('revision Comercial: el comentario o motivo es obligatorio');
+    return expectData<any>(supabase.rpc('dmp_review_work_order_commercial', { p_work_order_id: workOrderId, p_reason: reason.trim() }), { service: 'workOrdersService', operation: 'Aprobar parte en Comercial', resource: workOrderId });
   },
   async generatePendingInstallationCheck(workOrderId: string, equipmentId: string) {
     return expectData<string>(supabase.rpc('generate_pending_installation_check', { p_work_order_id: workOrderId, p_equipment_id: equipmentId }), { service: 'workOrdersService', operation: 'Generar check de instalacion pendiente', resource: workOrderId });

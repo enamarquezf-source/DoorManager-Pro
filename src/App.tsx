@@ -25,7 +25,7 @@ import { searchService } from './services/searchService';
 import { checkProblemStatuses, checkStatuses, sectionalZones, type CheckBlockId } from './checks/sectionalZones';
 import { buildFunctionalCheckBlocks, equipmentTypeName, isUuid, remoteBlockState, templateTypeMismatch, visualTemplateForCheck } from './checks/checkBlocks';
 import { technicianOfflineService } from './services/technicianOfflineService';
-import { canAccessModule, canAccessRoute, canArchiveEntity, canAssignTechnician, canCorrectWorkOrderOperationalFields, canCreateAlert, canCreateCheck, canCreateWorkOrder, canEditWorkOrder, canExecuteCheck, canExecuteWorkOrder, canManageCheck, canManageHourRates, canManageQuotes, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canMarkAdditionalSale, canPermanentlyDeleteEntity, canRestoreEntity, canReviewWorkOrderOffice, canRole, canViewCheck, canViewInternalEconomics, canViewWorkOrder, canViewWorkOrderCosts, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './auth/permissions';
+import { canAccessModule, canAccessRoute, canArchiveEntity, canAssignTechnician, canCorrectWorkOrderOperationalFields, canCreateAlert, canCreateCheck, canCreateWorkOrder, canEditWorkOrder, canExecuteCheck, canExecuteWorkOrder, canManageCheck, canManageHourRates, canManageQuotes, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canMarkAdditionalSale, canPermanentlyDeleteEntity, canRestoreEntity, canReviewWorkOrderCommercial, canReviewWorkOrderOffice, canReviewWorkOrderSat, canRole, canViewCheck, canViewInternalEconomics, canViewWorkOrder, canViewWorkOrderCosts, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './auth/permissions';
 import { loadInitialAuthSnapshot, loginAuthState, protectedAuthState } from './auth/sessionBootstrap';
 import { displayOfficeValidationStatus, displayStatus, formatDate, fullName, initials, nextWorkOrderStatus, previousWorkOrderStatus, severityForPriority, severityForStatus, visibleLabel, workOrderStatuses, workspaceTitles, workspaceToRole } from './shared/labels';
 import { deficiencyFiltersFromParams, isOpenDeficiencyStatus, normalizeParam, workOrderFilterFromParams } from './shared/filters';
@@ -732,8 +732,42 @@ function WorkOrderStatusSelector({ workOrder, onChanged, onError }: { workOrder:
       {finalizing && <WorkOrderFinalizeModal workOrder={workOrder} onClose={() => setFinalizing(false)} onDone={() => { setFinalizing(false); onChanged(); }} onError={onError} />}
     </Card>
      <AssociatedEquipmentCard workOrder={workOrder} onChanged={onChanged} />
-     <WorkOrderOfficeValidationCard workOrder={workOrder} onChanged={onChanged} onError={onError} />
+      <WorkOrderOfficeValidationCard workOrder={workOrder} onChanged={onChanged} onError={onError} />
+      <WorkOrderSatReviewCard workOrder={workOrder} onChanged={onChanged} onError={onError} />
+      <WorkOrderCommercialReviewCard workOrder={workOrder} onChanged={onChanged} onError={onError} />
   </>;
+}
+
+function WorkOrderSatReviewCard({ workOrder, onChanged, onError }: { workOrder: any; onChanged: () => void; onError: (message: string) => void }) {
+  const { profile } = useAuth();
+  const [decision, setDecision] = useState<'approved' | 'returned' | null>(null);
+  const [destination, setDestination] = useState<'comercial' | 'facturacion'>('facturacion');
+  const [reason, setReason] = useState('');
+  const [flags, setFlags] = useState<Record<string, boolean>>(workOrder.sat_review_flags ?? {});
+  const [saving, setSaving] = useState(false);
+  const status = workOrder.sat_review_status ?? 'not_started';
+  if (!['pending', 'returned', 'approved'].includes(status)) return null;
+  const submit = async () => {
+    if (!decision || saving || !reason.trim()) return;
+    setSaving(true); onError('');
+    try { await workOrdersService.reviewWorkOrderSat(workOrder.id, decision, decision === 'approved' ? destination : null, flags, reason); setDecision(null); setReason(''); onChanged(); }
+    catch (err) { onError(formErrorMessage(err, 'No se ha podido registrar la revisión SAT.')); }
+    finally { setSaving(false); }
+  };
+  return <Card title="Revisión SAT" action={<Badge tone={status === 'approved' ? 'ok' : status === 'returned' ? 'danger' : 'warn'}>{status === 'approved' ? 'Revisado' : status === 'returned' ? 'Devuelto a SAT' : 'Pendiente'}</Badge>}>
+    <InfoGrid items={[[ 'Destino', workOrder.sat_review_destination === 'comercial' ? 'Comercial' : workOrder.sat_review_destination === 'facturacion' ? 'Facturación' : '-' ], [ 'Comentario / motivo', workOrder.sat_review_reason ?? '-' ], [ 'Flags', Object.entries(workOrder.sat_review_flags ?? {}).filter(([, value]) => value).map(([key]) => key).join(', ') || 'Ninguno' ]]} />
+    {['pending', 'returned'].includes(status) && canReviewWorkOrderSat(profile) && <div className="actions"><button className="primary" onClick={() => { setDecision('approved'); setReason(''); }}>Enviar a destino</button><button className="danger" onClick={() => { setDecision('returned'); setReason(''); }}>Devolver a SAT</button></div>}
+    {decision && <div className="mini-modal" role="dialog" aria-modal="true"><div><h3>{decision === 'approved' ? 'Enviar parte desde SAT' : 'Mantener parte en SAT'}</h3>{decision === 'approved' && <label>Destino<select value={destination} onChange={(event) => setDestination(event.target.value as 'comercial' | 'facturacion')}><option value="facturacion">Facturación</option><option value="comercial">Comercial</option></select></label>}<fieldset><legend>Indicadores de revisión</legend>{[['requires_budget_review','Revisar presupuesto'],['additional_sale','Hay venta adicional'],['warranty','Garantía'],['non_billable','No facturable']].map(([key, label]) => <label key={key}><input type="checkbox" checked={Boolean(flags[key])} onChange={(event) => setFlags((current) => ({ ...current, [key]: event.target.checked }))} /> {label}</label>)}</fieldset><label>Comentario / motivo *<textarea value={reason} onChange={(event) => setReason(event.target.value)} required /></label><div className="modal-footer"><button onClick={() => setDecision(null)} disabled={saving}>Cancelar</button><button className={decision === 'approved' ? 'primary' : 'danger'} onClick={submit} disabled={saving || !reason.trim()}>{saving ? 'Guardando...' : decision === 'approved' ? 'Confirmar destino' : 'Devolver a SAT'}</button></div></div></div>}
+  </Card>;
+}
+
+function WorkOrderCommercialReviewCard({ workOrder, onChanged, onError }: { workOrder: any; onChanged: () => void; onError: (message: string) => void }) {
+  const { profile } = useAuth();
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  if (workOrder.sat_review_destination !== 'comercial' || workOrder.commercial_review_status !== 'pending') return null;
+  const approve = async () => { if (!reason.trim() || saving) return; setSaving(true); onError(''); try { await workOrdersService.reviewWorkOrderCommercial(workOrder.id, reason); setReason(''); onChanged(); } catch (err) { onError(formErrorMessage(err, 'No se ha podido aprobar el importe del parte.')); } finally { setSaving(false); } };
+  return <Card title="Revisión Comercial" action={<Badge tone="warn">Pendiente de aprobación</Badge>}><p className="large-note">Confirma el presupuesto y el importe calculado antes de enviar el parte a Facturación.</p><InfoGrid items={[[ 'Venta calculada', canViewWorkOrderCosts(profile) ? money(workOrder.sale_amount) : 'No disponible' ], [ 'Presupuesto', workOrder.quotes?.code ?? workOrder.quote_id ?? 'Sin presupuesto' ], [ 'Venta adicional', canViewWorkOrderCosts(profile) ? money(workOrder.additional_sale_amount) : 'No disponible' ]]}/><label>Comentario de aprobación *<textarea value={reason} onChange={(event) => setReason(event.target.value)} /></label><button className="primary" onClick={approve} disabled={!canReviewWorkOrderCommercial(profile) || saving || !reason.trim()}>{saving ? 'Aprobando...' : 'Aprobar importe y enviar a Facturación'}</button></Card>;
 }
 
 function WorkOrderOfficeValidationCard({ workOrder, onChanged, onError }: { workOrder: any; onChanged: () => void; onError: (message: string) => void }) {
@@ -743,7 +777,10 @@ function WorkOrderOfficeValidationCard({ workOrder, onChanged, onError }: { work
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
   const status = workOrder.office_validation_status ?? 'not_started';
-  if (status === 'not_started' && workOrder.economic_status !== 'pendiente_validacion') return null;
+  const satApproved = workOrder.sat_review_status === 'approved';
+  const commercialApproved = workOrder.sat_review_destination !== 'comercial' || workOrder.commercial_review_status === 'approved';
+  const readyForOffice = satApproved && commercialApproved;
+  if (!readyForOffice || (status === 'not_started' && workOrder.economic_status !== 'pendiente_validacion')) return null;
   if (capability.loading) return null;
   if (!capability.loading && capability.error) return <Card title="Validación de oficina"><p className="form-error">{publicErrorMessage(capability.error)}</p></Card>;
   if (!capability.loading && !capability.data) return <Card title="Validación de oficina"><p className="large-note">Validación de oficina pendiente de activación.</p></Card>;

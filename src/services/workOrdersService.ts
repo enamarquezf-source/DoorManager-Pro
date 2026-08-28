@@ -46,6 +46,7 @@ export type WorkOrderFullDetail = {
   case: any;
   primary_equipment: any;
   additional_equipment: any[];
+  associated_equipment: any[];
   assignments: any[];
   primary_technician: any;
   support_technicians: any[];
@@ -144,7 +145,7 @@ export const workOrdersService = {
       `).eq('id', workOrderId).maybeSingle());
       if (!workOrder) throw new Error('No se ha encontrado el parte solicitado.');
 
-      const additional = await expectStep('Detalle parte / equipos adicionales', () => expectData<any[]>(supabase.from('work_order_equipment').select('*, equipment!work_order_equipment_equipment_id_fkey(*, equipment_types!equipment_equipment_type_id_fkey(*))').eq('work_order_id', workOrderId).eq('is_primary', false)));
+      const associated = await expectStep('Detalle parte / equipos asociados', () => expectData<any[]>(supabase.from('work_order_equipment').select('*, equipment!work_order_equipment_equipment_id_fkey(*, equipment_types!equipment_equipment_type_id_fkey(*))').eq('work_order_id', workOrderId).order('is_primary', { ascending: false }).order('created_at')));
       const assignments = await expectStep('Detalle parte / asignaciones', () => expectData<any[]>(supabase.from('work_order_assignments').select('*, profiles!work_order_assignments_technician_id_fkey(*)').eq('work_order_id', workOrderId).is('deleted_at', null).order('planned_start_time')));
       const history = await expectStep('Detalle parte / historial estados', () => expectData<any[]>(supabase.from('work_order_status_history').select('*, profiles!work_order_status_history_changed_by_fkey(first_name,last_name)').eq('work_order_id', workOrderId).order('changed_at', { ascending: true })));
       const timeEntries = await expectStep('Detalle parte / horas', () => expectData<any[]>(supabase.from('work_order_time_entries').select('*, profiles!work_order_time_entries_profile_id_fkey(first_name,last_name,primary_area), created_by_profile:profiles!work_order_time_entries_created_by_fkey(first_name,last_name,primary_area), updated_by_profile:profiles!work_order_time_entries_updated_by_fkey(first_name,last_name,primary_area)').eq('work_order_id', workOrderId).order('work_date', { ascending: true })));
@@ -170,7 +171,8 @@ export const workOrdersService = {
         site: workOrder.sites,
         case: workOrder.cases,
         primary_equipment: workOrder.primary_equipment,
-        additional_equipment: additional.map((item) => item.equipment).filter(Boolean),
+        additional_equipment: associated.filter((item) => !item.is_primary).map((item) => item.equipment).filter(Boolean),
+        associated_equipment: associated,
         assignments,
         primary_technician: workOrder.primary_technician ?? primaryAssignment?.profiles ?? null,
         responsible: workOrder.responsible ?? null,
@@ -269,6 +271,9 @@ export const workOrdersService = {
     if (!['validated', 'rejected'].includes(decision)) throw new Error('validacion del formulario: decision de oficina no valida');
     if (!String(reason ?? '').trim()) throw new Error('validacion del formulario: el motivo o comentario es obligatorio');
     return expectData<any>(supabase.rpc('dmp_review_work_order_office', { p_work_order_id: workOrderId, p_decision: decision, p_reason: reason.trim() }), { service: 'workOrdersService', operation: 'Validar parte en oficina', resource: workOrderId });
+  },
+  async generatePendingInstallationCheck(workOrderId: string, equipmentId: string) {
+    return expectData<string>(supabase.rpc('generate_pending_installation_check', { p_work_order_id: workOrderId, p_equipment_id: equipmentId }), { service: 'workOrdersService', operation: 'Generar check de instalacion pendiente', resource: workOrderId });
   },
   setEntryBilling(kind: 'material' | 'time', entryId: string, additional: boolean) {
     return expectData<void>(supabase.rpc('dmp_set_work_order_entry_billing', { p_kind: kind, p_entry_id: entryId, p_additional: additional }), { service: 'workOrdersService', operation: 'Clasificar venta adicional', resource: entryId });

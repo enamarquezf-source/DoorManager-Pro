@@ -2630,12 +2630,12 @@ function LegacyWorkOrderForm({ initial, sourceQuote, onClose, onSaved }: any) {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (saving) return;
-    if (values.type === 'Instalacion' && !values.main_equipment_id && !values.installation_equipment?.equipment_type_id) {
+    if (values.type === 'Instalacion' && !(values.equipment_selection ?? []).length) {
       setError('validacion del formulario: falta tipo de equipo para el parte de instalacion');
       return;
     }
     setSaving(true); setError('');
-    const selectedEquipment = values.equipment_selection?.length ? values.equipment_selection : (values.main_equipment_id ? [{ kind: 'existing', equipment_id: values.main_equipment_id }] : values.installation_equipment?.equipment_type_id ? [{ kind: 'new', ...values.installation_equipment }] : []);
+    const selectedEquipment = values.equipment_selection ?? [];
     const payload = { ...values, estimated_duration_minutes: values.estimated_duration_minutes ? Number(values.estimated_duration_minutes) : null, equipment_selection: selectedEquipment.map((item: any) => item.kind === 'existing' ? { existing_equipment_id: item.equipment_id } : { new: item }), installation_equipment: undefined };
     try {
       const result = initial?.id ? await workOrdersService.update(initial.id, payload) : await workOrdersService.create(payload, creatorRole);

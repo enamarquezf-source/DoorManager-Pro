@@ -36,6 +36,17 @@ describe('multi-equipment work orders 082', () => {
     expect(app).toContain('<MultiEquipmentPicker values={values}');
     expect(app).toContain('Array.from({ length: quantity }');
     expect(app).toContain('EQUIPOS ASOCIADOS');
+    expect(app).toContain("if (values.type === 'Instalacion' && !selectedEquipment.length)");
+    expect(app).not.toContain("if (values.type === 'Instalacion' && !values.main_equipment_id && !values.installation_equipment?.equipment_type_id)");
+  });
+
+  it('uses only the selected collection for existing, new and mixed submissions', () => {
+    expect(app).toContain("const selectedEquipment = values.equipment_selection ?? []");
+    expect(app).toContain("selectedEquipment.map((item: any) => item.kind === 'existing'");
+    expect(app).not.toContain('values.equipment_selection?.length ? values.equipment_selection :');
+    expect(app).toContain("equipment_selection: [], main_equipment_id: ''");
+    expect(app).toContain('if (!draft.equipment_type_id) return');
+    expect(app).toContain('setDraft({ ...draft, quantity: 1, internal_location: \'\', serial_number: \'\' })');
   });
 
   it('keeps verification scripts read-only', () => {

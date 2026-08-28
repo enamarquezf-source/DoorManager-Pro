@@ -16,6 +16,10 @@ describe('query error mapping', () => {
     expect(error).toMatchObject({ name: 'SupabaseOperationError', code: '23514', details: 'Constraint audit_log_operation_check', hint: 'Permite OPERATIONAL_UPDATE' });
   });
 
+  it('mapea PGRST202 de create_work_order_full a un diagnóstico de firma', () => {
+    expect(toSpanishSupabaseError({ code: 'PGRST202', message: 'Could not find the function public.create_work_order_full(p_payload) in the schema cache', details: 'details', hint: 'hint' })).toBe('La API no encuentra la firma esperada de create_work_order_full.');
+  });
+
   it('conserva el diagnóstico funcional de tarifas sin exponer detalles internos', () => {
     expect(toSpanishSupabaseError({ message: 'tarifa: no existe una tarifa horaria vigente aplicable al tecnico para la fecha indicada' })).toBe('tarifa: no existe una tarifa horaria vigente aplicable al tecnico para la fecha indicada');
   });

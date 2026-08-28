@@ -213,7 +213,13 @@ export const workOrdersService = {
   async create(payload: Record<string, any>, role: string) {
     const companyId = payload.company_id || await currentCompanyId();
     const profileId = await currentProfileId();
-    return expectData<string>(supabase.rpc('create_work_order_full', { p_payload: { ...payload, company_id: companyId, created_by: profileId, created_role: role } }), { service: 'workOrdersService', operation: 'create work order', resource: 'create_work_order_full' });
+    const rpcPayload = { ...payload, company_id: companyId, created_by: profileId, created_role: role };
+    try {
+      return await expectData<string>(supabase.rpc('create_work_order_full', { p_payload: rpcPayload }), { service: 'workOrdersService', operation: 'create work order', resource: 'create_work_order_full' });
+    } catch (error: any) {
+      if (import.meta.env.DEV || error?.code === 'PGRST202') console.error('create_work_order_full failed', { code: error?.code, message: error?.message, details: error?.details, hint: error?.hint });
+      throw error;
+    }
   },
   update(id: string, payload: Record<string, any>) {
     return expectData<any>(supabase.from('work_orders').update(workOrderPayload(payload)).eq('id', id).select().maybeSingle());

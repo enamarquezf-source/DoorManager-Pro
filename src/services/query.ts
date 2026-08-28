@@ -52,7 +52,7 @@ export function toSpanishSupabaseError(error: any) {
   if (message.includes('JWT') || message.includes('auth')) return 'Tu sesión no permite realizar esta operación. Vuelve a iniciar sesión si el problema continúa.';
   if (message.includes('Failed to fetch') || message.includes('NetworkError') || message.includes('fetch failed')) return 'No hay conexión. Revisa la red e inténtalo de nuevo.';
   if (error?.code === 'PGRST202' || message.includes('Could not find the function') || message.includes('function') && message.includes('does not exist')) {
-    if (message.includes('create_work_order_full')) return 'La creación de partes no está disponible en el esquema activo. Administración debe recargar el esquema de Supabase tras aplicar la migración.';
+    if (message.includes('create_work_order_full')) return 'La API no encuentra la firma esperada de create_work_order_full.';
     return 'Esta operación no está disponible ahora mismo. Reinténtalo o avisa a administración.';
   }
   if (message.includes('schema cache')) return 'Los datos no están disponibles todavía. Reinténtalo en unos segundos.';

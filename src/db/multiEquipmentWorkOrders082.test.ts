@@ -7,6 +7,7 @@ const preflight = readFileSync(new URL('../../supabase/verification/preflight_mu
 const postflight = readFileSync(new URL('../../supabase/verification/postflight_multi_equipment_work_orders_082.sql', import.meta.url), 'utf8');
 const service = readFileSync(new URL('../services/workOrdersService.ts', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
+const styles = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
 
 describe('multi-equipment work orders 082', () => {
   it('parses migration and both verification scripts', async () => {
@@ -47,6 +48,12 @@ describe('multi-equipment work orders 082', () => {
     expect(app).toContain("equipment_selection: [], main_equipment_id: ''");
     expect(app).toContain('if (!draft.equipment_type_id) return');
     expect(app).toContain('setDraft({ ...draft, quantity: 1, internal_location: \'\', serial_number: \'\' })');
+  });
+
+  it('keeps equipment cards readable on desktop and mobile', () => {
+    expect(styles).toContain('.card:has(.nested-form) .compact-list article { grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;');
+    expect(styles).toContain('.card:has(.nested-form) .compact-list article { grid-template-columns: 1fr; align-items: stretch; }');
+    expect(styles).toContain('word-break: normal');
   });
 
   it('keeps verification scripts read-only', () => {

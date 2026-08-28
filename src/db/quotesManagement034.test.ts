@@ -218,6 +218,12 @@ describe('quotes management 034', () => {
     expect(workOrdersService).toContain("'quote_id'");
     expect(workOrdersService).toContain('quotes!work_orders_quote_id_fkey');
     expect(workOrdersService).toContain("supabase.rpc('create_work_order_full', { p_payload:");
+    expect(workOrdersService).not.toContain("supabase.rpc('create_work_order_full', payload)");
+    expect(workOrdersService).toContain("code: error?.code, message: error?.message, details: error?.details, hint: error?.hint");
+    const mixedSelection = [{ existing_equipment_id: 'existing' }, { new: { equipment_type_id: 'type-a' } }, { new: { equipment_type_id: 'type-b' } }];
+    expect(mixedSelection).toHaveLength(3);
+    expect(mixedSelection[0]).toEqual({ existing_equipment_id: 'existing' });
+    expect(mixedSelection.slice(1).every((item) => 'new' in item)).toBe(true);
     expect(workOrdersService).toContain("resource: 'create_work_order_full'");
     expect(quotesService).toContain("supabase.from('work_orders').select('id,code,title,status,scheduled_date,quote_id').eq('quote_id', id)");
     expect(app).toContain('Generar parte');

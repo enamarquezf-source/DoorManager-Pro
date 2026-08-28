@@ -158,6 +158,10 @@ main { padding: 24px; }
 .tech-card > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .badge { width: fit-content; max-width: 100%; display: inline-flex !important; align-items: center; gap: 5px; padding: 5px 8px; border-radius: 999px; font-size: 12px; font-weight: 900; line-height: 1.15; white-space: normal; overflow-wrap: break-word; word-break: normal; }
 .badge.ok { color: #065f46; background: #dff8eb; } .badge.info { color: #1d4ed8; background: #dbeafe; } .badge.warn { color: #92400e; background: #fef3c7; } .badge.danger { color: #991b1b; background: #fee2e2; } .badge.commercial { color: #6d28d9; background: #ede9fe; } .badge.maintenance { color: #0e7490; background: #cffafe; } .badge.muted { color: #475569; background: #e2e8f0; }
+.card:has(.nested-form) .compact-list article { grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto; align-items: center; overflow: visible; }
+.card:has(.nested-form) .compact-list article > * { min-width: 0; }
+.card:has(.nested-form) .compact-list article label { display: grid; gap: 5px; min-width: 0; }
+.card:has(.nested-form) .compact-list article input { width: 100%; min-width: 0; }
 .compact-list article { display: grid; grid-template-columns: minmax(130px, 190px) minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px; border: 1px solid #e7edf5; border-radius: 14px; background: #fafcff; min-width: 0; overflow: hidden; }
 .compact-list p { margin: 0; color: #334155; }
 .compact-list p, .compact-list small { overflow-wrap: break-word; word-break: normal; }
@@ -439,6 +443,7 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
   .work-row { grid-template-columns: 1fr; }
   .work-row > div:last-child { justify-content: flex-start; }
   .compact-list article, .alerts-panel.compact-list article, .info-grid, .form-grid { grid-template-columns: 1fr; }
+  .card:has(.nested-form) .compact-list article { grid-template-columns: 1fr; align-items: stretch; }
   .finalize-grid { grid-template-columns: 1fr; }
   .work-time-list article { grid-template-columns: minmax(0, 1fr); align-items: start; }
   .sat-filters { grid-template-columns: 1fr; }

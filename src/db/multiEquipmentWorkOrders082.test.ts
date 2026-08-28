@@ -52,8 +52,11 @@ describe('multi-equipment work orders 082', () => {
   });
 
   it('keeps equipment cards readable on desktop and mobile', () => {
-    expect(styles).toContain('.multi-equipment-list article { grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;');
-    expect(styles).toContain('.multi-equipment-list article { grid-template-columns: 1fr; align-items: stretch; }');
+    expect(styles).toContain('.compact-list.multi-equipment-list article { grid-template-columns: minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(90px, auto);');
+    expect(styles).toContain('.compact-list.multi-equipment-list article { grid-template-columns: 1fr; align-items: stretch; }');
+    expect(styles).toContain('.mini-modal:has(.multi-equipment-list) > form { width: min(900px, calc(100vw - 32px)); }');
+    expect(styles).toContain('.multi-equipment-list article strong, .multi-equipment-list article p');
+    expect(styles).not.toContain('.multi-equipment-list article { grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;');
     expect(styles).toContain('word-break: normal');
   });
 

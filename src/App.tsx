@@ -38,6 +38,7 @@ import { checkForNewVersion, currentBuild, type VersionCheckResult } from './sha
 import { buildTechnicalReference, publicErrorMessage } from './shared/errorDiagnostics';
 import { canCloseOfficeValidationModal, canShowOfficeValidationActions, submitOfficeValidationReview } from './shared/officeValidation';
 import { technicianConceptLines, technicianProgress } from './shared/technicianWorkstation';
+import { isModernBillingRouting } from './shared/guidedBillingEligibility';
 import type { Profile, RoleName, Severity, Workspace } from './shared/types';
 import { entityLabels, entityLifecycleService, isArchivedRecord, type ArchiveFilter, type LifecycleEntity, type LifecycleSummary } from './services/entityLifecycleService';
 import { quotePurgeBlocks, quotePurgeCanShowButton, quotePurgeExpectedConfirmation, quotePurgePlanMatchesScope, quotePurgeResultOk, quotePurgeScope, quotePurgeScopeKey, type QuotePurgeScopeKey } from './services/quotePurgeFlow';
@@ -798,6 +799,7 @@ function WorkOrderOfficeValidationCard({ workOrder, onChanged, onError }: { work
   const satApproved = workOrder.sat_review_status === 'approved';
   const commercialApproved = workOrder.sat_review_destination !== 'comercial' || workOrder.commercial_review_status === 'approved';
   const readyForOffice = satApproved && commercialApproved;
+  if (isModernBillingRouting(workOrder)) return null;
   if (!readyForOffice || (status === 'not_started' && workOrder.economic_status !== 'pendiente_validacion')) return null;
   if (capability.loading) return null;
   if (!capability.loading && capability.error) return <Card title="Validación de oficina"><p className="form-error">{publicErrorMessage(capability.error)}</p></Card>;

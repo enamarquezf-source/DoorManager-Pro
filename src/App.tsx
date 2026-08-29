@@ -37,6 +37,7 @@ import { technicianDayCounts, technicianDayEmptyMessage, technicianDayRows, tech
 import { checkForNewVersion, currentBuild, type VersionCheckResult } from './shared/versioning';
 import { buildTechnicalReference, publicErrorMessage } from './shared/errorDiagnostics';
 import { canCloseOfficeValidationModal, canShowOfficeValidationActions, submitOfficeValidationReview } from './shared/officeValidation';
+import { technicianConceptLines, technicianProgress } from './shared/technicianWorkstation';
 import type { Profile, RoleName, Severity, Workspace } from './shared/types';
 import { entityLabels, entityLifecycleService, isArchivedRecord, type ArchiveFilter, type LifecycleEntity, type LifecycleSummary } from './services/entityLifecycleService';
 import { quotePurgeBlocks, quotePurgeCanShowButton, quotePurgeExpectedConfirmation, quotePurgePlanMatchesScope, quotePurgeResultOk, quotePurgeScope, quotePurgeScopeKey, type QuotePurgeScopeKey } from './services/quotePurgeFlow';
@@ -1081,6 +1082,66 @@ function TechnicianDayPage() {
   return <section className="page technician-page"><div className="page-head"><div><p className="eyebrow">Trabajo técnico</p><h2>Mi jornada</h2><p>Todos activos muestra todos los partes activos asignados, sin filtrar por fecha. Los finalizados pasan a historial independiente. Fecha local: {today}.</p>{refreshMessage && <p className="success-note">{refreshMessage}</p>}</div><div className="actions"><button onClick={refresh}>Actualizar trabajos</button><SyncButton /></div></div><div className="tabs">{technicianDayTabs.map(([key, label]) => <button key={key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{label} ({counts[key]})</button>)}</div><StateBlock loading={source.loading} error={undefined} retry={source.reload} empty={false}>{!rows.length ? <Card title={tab === 'todos' ? 'Sin trabajos activos' : 'Sin resultados en este filtro'}><p className={source.error ? 'form-error' : 'large-note'}>{emptyMessage}</p>{tab !== 'todos' && active.data.length > 0 && <button className="primary" onClick={() => setTab('todos')}>Ver Todos activos ({counts.todos})</button>}</Card> : rows.map((work: any) => { const local = pending.filter((item) => item.workOrderId === work.work_order_id).length; const pendingChecks = Number(work.pending_checks_count ?? (work.check_status && work.check_status !== 'Realizado' ? 1 : 0)); return <article className="journey-card" key={work.assignment_id ?? `${work.work_order_id}-${work.assignment_date}-${work.technician_id}`}><div><strong>{work.planned_start_time ?? 'Sin hora'} · {work.code ?? work.work_order_code} · {work.title}</strong><span>{displayStatus(work.work_order_status)} · Prioridad {displayStatus(work.priority ?? 'Normal')}</span><span>{work.assignment_date ?? 'Sin fecha'} · {work.client_name} · {work.site_name}</span><span>{work.site_address ?? work.address ?? 'Dirección no informada'}</span><span>{work.equipment_code ?? 'Sin equipo'} · {displayStatus(work.type ?? 'Trabajo técnico')}</span><p>{work.description ?? work.work_order_description ?? 'Sin descripción breve.'}</p><small>Acceso: {work.access_description ?? work.access_requirements ?? 'No informado'} · Material previsto: {work.planned_material ?? 'No informado'}</small></div><div><Badge tone={severityForStatus(work.work_order_status)}>{displayStatus(work.work_order_status)}</Badge>{pendingChecks > 0 && <small>{pendingChecks} check(s) pendiente(s)</small>}{local > 0 && <Badge tone="warn">{local} cambios locales</Badge>}<button className="primary" onClick={() => navigate(`/app/tecnico/trabajo/${work.work_order_id}`)}>{tab === 'finalizados' ? 'Ver historial' : 'Abrir trabajo'}</button></div></article>; })}</StateBlock></section>;
 }
 function TechnicianWorkPage() {
+  const { id = '' } = useParams();
+  const { profile } = useAuth();
+  const { data, loading, error, reload } = useLoad(() => workOrdersService.getTechnicianAssigned(id), [id], null as any);
+  const [message, setMessage] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [work, setWork] = useState('');
+  const [savingWork, setSavingWork] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
+
+  useEffect(() => { if (data) setWork(data.work_performed ?? ''); }, [data?.id, data?.work_performed]);
+  if (loading) return <StateBlock loading={loading} retry={reload} empty={false} />;
+  if (error || !data || !canViewWorkOrder(profile, data)) return <AccessDenied />;
+  const progress = technicianProgress(data);
+  const saveWork = async () => {
+    if (savingWork) return;
+    setSavingWork(true); setActionError('');
+    try {
+      await workOrdersService.updateOperationalFields(data.id, { work_performed: work });
+      setMessage('Trabajo realizado guardado.'); reload();
+    } catch (saveError) {
+      try {
+        await technicianOfflineService.upsert({ type: 'work-note', workOrderId: data.id, payload: { work, localChangeId: crypto.randomUUID() } });
+        setMessage('Trabajo realizado guardado en el dispositivo. Pendiente de sincronizar.');
+      } catch (offlineError) { setActionError(offlineError instanceof Error ? offlineError.message : 'No se ha podido guardar el trabajo realizado.'); }
+    } finally { setSavingWork(false); }
+  };
+  return <section className="page technician-page technician-workstation">
+    <BackButton />
+    <div className="technician-workstation-head"><div><p className="eyebrow">Mesa de trabajo del técnico</p><h2>{data.code} · {data.title}</h2><p>{data.clients?.legal_name ?? 'Cliente no informado'} · {data.sites?.name ?? 'Centro no informado'}</p></div><Badge tone={severityForStatus(data.status)}>{displayStatus(data.status)}</Badge></div>
+    {message && <p className="success-note" role="status">{message}</p>}{actionError && <p className="form-error">{actionError}</p>}
+    <Card title="CABECERA DEL PARTE"><InfoGrid items={[[ 'Código', data.code ], [ 'Cliente', data.clients?.legal_name ?? '-' ], [ 'Centro', data.sites?.name ?? '-' ], [ 'Equipos', (data.associated_equipment ?? []).map((row: any) => (row.equipment ?? row).code).filter(Boolean).join(', ') || data.primary_equipment?.code || '-' ], [ 'Tipo de trabajo', displayStatus(data.type ?? 'Trabajo técnico') ], [ 'Prioridad', displayStatus(data.priority ?? 'Normal') ], [ 'Aviso inicial', data.description ?? '-' ], [ 'Responsable', fullName(data.primary_technician) || 'No asignado' ], [ 'Estado operativo', displayStatus(data.status) ]]} /></Card>
+    <Card title="PROGRESO DEL PARTE"><div className="technician-progress-grid"><span className={progress.work === 'complete' ? 'progress-done' : 'progress-pending'}>Trabajo realizado {progress.work === 'complete' ? '✓' : 'Pendiente'}</span><span className="progress-done">Materiales {progress.materials === 'complete' ? '✓' : 'Sin materiales'}</span><span className="progress-done">Horas {progress.hours === 'complete' ? '✓' : 'Sin registrar'}</span><span className="progress-done">Desplazamientos {progress.travel === 'complete' ? '✓' : 'No aplica'}</span><span className={progress.checks.done === progress.checks.total ? 'progress-done' : 'progress-pending'}>Checks {progress.checks.done}/{progress.checks.total}</span><span className="progress-done">Fotos {progress.photos}</span><span className={progress.signature === 'complete' ? 'progress-done' : 'progress-pending'}>Firma {progress.signature === 'complete' ? '✓ Registrada' : 'Pendiente'}</span></div></Card>
+    <Card title="Trabajo realizado" action={<button className="primary" onClick={saveWork} disabled={savingWork}>{savingWork ? 'Guardando...' : 'Guardar trabajo'}</button>}><textarea className="technician-work-textarea" value={work} onChange={(event) => setWork(event.target.value)} placeholder="Describe la intervención realizada, las comprobaciones y el resultado." rows={7} /></Card>
+    <TechnicianConceptSelection workOrder={data} onChanged={reload} />
+    <TechnicianMaterialsCard workOrder={data} onChanged={reload} />
+    <WorkOrderTimeCard workOrder={data} onChanged={reload} />
+    <Card title="Desplazamientos"><p className="large-note">Los desplazamientos planificados se muestran como conceptos operativos y se resuelven desde el bloque de conceptos.</p><TechnicianTravelList workOrder={data} /></Card>
+    <Card title="CHECKS DEL PARTE"><div className="compact-list">{(data.checks ?? []).filter((check: any) => !check.deleted_at).map((check: any) => <article key={check.id}><div><strong>{check.equipment?.code ?? 'Equipo'} · {check.code}</strong><p>{equipmentTypeName(check.equipment) ?? 'Tipo no informado'} · {displayStatus(check.global_result ?? check.status)}</p></div><Badge tone={check.status === 'Realizado' ? 'ok' : check.status === 'En curso' ? 'info' : 'warn'}>{check.status === 'Realizado' ? 'Finalizado' : check.status === 'En curso' ? 'En curso' : 'Pendiente'}</Badge><Link className="primary" to={`/app/checks/${check.id}`}>Abrir check</Link></article>)}</div>{!(data.checks ?? []).length && <p className="large-note">No hay checks asociados.</p>}</Card>
+    <Card title="Fotos y firma"><div className="technician-media-summary"><strong>Fotos: {progress.photos}</strong><span>Firma: {progress.signature === 'complete' ? 'Registrada' : 'Pendiente'}</span></div><div className="grid half"><WorkOrderPhotoForm workOrderId={data.id} /><WorkOrderSignatureForm workOrderId={data.id} /></div><MediaGallery photos={data.photos ?? []} signatures={data.signatures ?? []} /></Card>
+    <div className="technician-final-action"><button className="primary big" onClick={() => setFinalizing(true)} disabled={!canFinalizeWorkOrderTechnical(profile, data)}>FINALIZAR TRABAJO EN CAMPO</button><SyncButton workOrderId={data.id} onSynced={reload} /></div>
+    {finalizing && <WorkOrderFinalizeModal workOrder={data} onClose={() => setFinalizing(false)} onDone={() => { setFinalizing(false); setMessage('Trabajo finalizado en campo y enviado a la cola SAT.'); reload(); }} onError={setActionError} />}
+  </section>;
+}
+
+function TechnicianConceptSelection({ workOrder, onChanged }: { workOrder: any; onChanged: () => void }) {
+  const { profile } = useAuth();
+  const lines = technicianConceptLines(workOrder);
+  const [saving, setSaving] = useState(false);
+  const selected = lines.filter((line: any) => plannedQuoteLineDecision(workOrder, line.id)?.decision === 'confirmado').map((line: any) => line.id);
+  const update = async (line: any, checked: boolean) => { setSaving(true); try { await workOrdersService.setTechnicalPlannedQuoteLineDecision({ work_order_id: workOrder.id, quote_line_id: line.id, decision: checked ? 'confirmado' : 'no_realizado', actual_quantity: line.quantity, technical_notes: checked ? 'Ejecutado por técnico' : 'No ejecutado por técnico' }); onChanged(); } finally { setSaving(false); } };
+  const updateAll = async (checked: boolean) => { setSaving(true); try { await Promise.all(lines.map((line: any) => update(line, checked))); onChanged(); } finally { setSaving(false); } };
+  if (!lines.length) return <Card title="CONCEPTOS DEL TRABAJO"><p className="large-note">No hay conceptos planificados para este parte.</p></Card>;
+  return <Card title="CONCEPTOS DEL TRABAJO"><div className="actions"><button onClick={() => updateAll(true)} disabled={saving}>Seleccionar todos</button><button onClick={() => updateAll(false)} disabled={saving}>Deseleccionar todos</button><span className="large-note">{selected.length}/{lines.length} ejecutados</span></div><div className="compact-list technician-concepts">{lines.map((line: any) => <label key={line.id} className="technician-concept-row"><input type="checkbox" checked={selected.includes(line.id)} onChange={(event) => update(line, event.target.checked)} disabled={saving} /><span><strong>{line.description}</strong><small>{Number(line.quantity ?? 0).toLocaleString('es-ES')} {line.unit ?? 'ud'}</small></span></label>)}</div></Card>;
+}
+
+function TechnicianTravelList({ workOrder }: { workOrder: any }) { const rows = (workOrder.planned_quote_lines ?? []).filter((line: any) => ['transport', 'travel'].includes(line.line_type)); return rows.length ? <div className="compact-list">{rows.map((line: any) => <article key={line.id}><strong>{line.description}</strong><span>{line.quantity ?? 0} {line.unit ?? 'ud'}</span></article>)}</div> : <p className="large-note">No hay desplazamientos planificados.</p>; }
+
+function TechnicianMaterialsCard({ workOrder, onChanged }: { workOrder: any; onChanged: () => void }) { const { profile } = useAuth(); const [editing, setEditing] = useState<any | null>(null); const rows = workOrder.materials ?? []; return <Card title="Materiales" action={canManageWorkOrderMaterials(profile, workOrder) ? <button className="primary" onClick={() => setEditing({})}>Añadir material</button> : null}><div className="compact-list">{rows.map((row: any) => <article key={row.id}><strong>{row.materials?.description ?? row.description ?? 'Material'}</strong><span>Material · {row.used_quantity ?? row.quantity ?? 0} {row.unit ?? 'ud'}</span></article>)}</div>{!rows.length && <p className="large-note">Sin materiales añadidos.</p>}{editing && <WorkOrderMaterialForm workOrder={workOrder} initial={editing.id ? editing : undefined} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); onChanged(); }} />}</Card>; }
+
+function TechnicianLegacyWorkPage() {
   const { id = '' } = useParams();
   const { profile } = useAuth();
   const { data, loading, error, reload } = useLoad(() => workOrdersService.getTechnicianAssigned(id), [id], null as any);

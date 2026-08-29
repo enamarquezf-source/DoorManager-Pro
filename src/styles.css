@@ -112,6 +112,9 @@ main { padding: 24px; }
 .mini-modal h3 { margin: 0; }
 .mini-modal label { display: grid; gap: 7px; font-weight: 850; }
 .mini-modal input, .mini-modal textarea, .mini-modal select { min-height: 42px; border: 1px solid var(--line); border-radius: 12px; padding: 0 10px; background: white; color: var(--dark); min-width: 0; }
+.work-actions button:disabled { display: none; }
+.commercial-review-sat { border: 1px solid #f1c27d; border-radius: 14px; padding: 12px; background: #fffaf0; margin: 12px 0; }
+.commercial-review-sat h4 { margin: 0 0 8px; color: #9a5b00; font-size: .78rem; letter-spacing: .06em; }
 .mini-modal textarea { padding: 10px; resize: vertical; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .modal-footer { position: sticky; bottom: -18px; z-index: 2; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--line); padding: 12px 0 0; background: white; }

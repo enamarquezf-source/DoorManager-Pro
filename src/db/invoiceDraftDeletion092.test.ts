@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { canDeleteInvoiceDraft } from '../auth/permissions';
+import { shouldRenderDraftDelete } from '../modules/BillingModule';
 
 const root = resolve(process.cwd());
 const migration = readFileSync(resolve(root, 'supabase/migrations/092_safe_invoice_draft_deletion.sql'), 'utf8');
@@ -38,9 +39,18 @@ describe('092 safe invoice draft deletion contract', () => {
     expect(canDeleteInvoiceDraft(profile('Oficina', false))).toBe(false);
   });
 
+  it('covers the real UI render predicate for Elena Ruiz and non-draft states', () => {
+    expect(shouldRenderDraftDelete(canDeleteInvoiceDraft(profile('Oficina')), { status: 'borrador' })).toBe(true);
+    expect(shouldRenderDraftDelete(canDeleteInvoiceDraft(profile('superadmin')), { status: 'borrador' })).toBe(true);
+    expect(shouldRenderDraftDelete(canDeleteInvoiceDraft(profile('Gerencia')), { status: 'borrador' })).toBe(true);
+    for (const role of ['Tecnico', 'Comercial', 'SAT']) expect(shouldRenderDraftDelete(canDeleteInvoiceDraft(profile(role)), { status: 'borrador' })).toBe(false);
+    for (const status of ['emitida', 'parcialmente_cobrada', 'cobrada', 'cancelada']) expect(shouldRenderDraftDelete(canDeleteInvoiceDraft(profile('Oficina')), { status })).toBe(false);
+    expect(shouldRenderDraftDelete(true, null)).toBe(false);
+  });
+
   it('exposes a draft-only destructive UI with strong confirmation and refresh callback', () => {
     expect(moduleSource).toContain('canDeleteDraft');
-    expect(moduleSource).toContain('invoice.status === \'borrador\'');
+    expect(moduleSource).toContain("shouldRenderDraftDelete(canDelete, invoice)");
     expect(moduleSource).toContain('ELIMINAR BORRADOR');
     expect(moduleSource).toContain('El borrador y sus líneas se eliminarán.');
     expect(moduleSource).toContain('El parte volverá a estar disponible para preparar una nueva factura.');

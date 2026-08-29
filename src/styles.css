@@ -118,7 +118,7 @@ main { padding: 24px; }
 .mini-modal textarea { padding: 10px; resize: vertical; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .modal-footer { position: sticky; bottom: -18px; z-index: 2; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--line); padding: 12px 0 0; background: white; }
-.draft-delete-action { position: fixed; left: 24px; bottom: 24px; z-index: 1002; }
+.draft-delete-button { justify-self: start; margin-top: 2px; }
 .modal-footer button { border: 1px solid var(--line); border-radius: 12px; padding: 10px 13px; font-weight: 850; background: white; color: var(--dark); min-height: 44px; }
 .page { display: grid; gap: 18px; }
 .breadcrumb { color: var(--text-soft); font-size: 13px; font-weight: 700; }

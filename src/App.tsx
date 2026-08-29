@@ -1226,6 +1226,7 @@ function ChecksPage() { const { profile, workspace } = useAuth(); const scope = 
 function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
   const { id: routeId = "" } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { profile, workspace } = useAuth();
   const id = forcedId ?? routeId;
   const { data, loading, error, reload } = useLoad(
@@ -1303,7 +1304,11 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
         );
       await checksService.finish(id, globalResult);
       setMode(null);
-      reload();
+      if (workspace === "tecnico" && data.work_order_id && location.pathname.startsWith("/app/checks/")) {
+        navigate(`/app/tecnico/trabajo/${data.work_order_id}`);
+      } else {
+        reload();
+      }
     } catch (err) {
       console.error(err);
       setActionError(

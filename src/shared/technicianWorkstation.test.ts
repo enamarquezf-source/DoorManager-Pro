@@ -41,4 +41,16 @@ describe('technician workstation', () => {
     expect(block).toContain('window.scrollTo({ top: 0, behavior: "auto" })');
     expect(block).toContain('setSaveState("error");');
   });
+
+  it('returns a technician to the originating work order only after check finish succeeds', () => {
+    const detail = app.slice(app.indexOf('function CheckDetailPage('), app.indexOf('function CheckBlockPageV2('));
+    expect(detail).toContain('await checksService.finish(id, globalResult);');
+    expect(detail).toContain('data.work_order_id');
+    expect(detail).toContain('navigate(`/app/tecnico/trabajo/${data.work_order_id}`)');
+    expect(detail).toContain('location.pathname.startsWith("/app/checks/")');
+    expect(detail).toContain('catch (err)');
+    expect(detail).toContain('setActionError(');
+    const finishBlock = detail.slice(detail.indexOf('const finish = async'), detail.indexOf('return (', detail.indexOf('const finish = async')));
+    expect(finishBlock.indexOf('await checksService.finish(id, globalResult);')).toBeLessThan(finishBlock.indexOf('navigate(`/app/tecnico/trabajo/${data.work_order_id}`)'));
+  });
 });

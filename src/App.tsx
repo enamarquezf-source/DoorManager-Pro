@@ -39,6 +39,7 @@ import { buildTechnicalReference, publicErrorMessage } from './shared/errorDiagn
 import { canCloseOfficeValidationModal, canShowOfficeValidationActions, submitOfficeValidationReview } from './shared/officeValidation';
 import { technicianConceptLines, technicianProgress } from './shared/technicianWorkstation';
 import { isModernBillingRouting } from './shared/guidedBillingEligibility';
+import { isPendingCommercialReview } from './shared/commercialReview';
 import type { Profile, RoleName, Severity, Workspace } from './shared/types';
 import { entityLabels, entityLifecycleService, isArchivedRecord, type ArchiveFilter, type LifecycleEntity, type LifecycleSummary } from './services/entityLifecycleService';
 import { quotePurgeBlocks, quotePurgeCanShowButton, quotePurgeExpectedConfirmation, quotePurgePlanMatchesScope, quotePurgeResultOk, quotePurgeScope, quotePurgeScopeKey, type QuotePurgeScopeKey } from './services/quotePurgeFlow';
@@ -721,7 +722,7 @@ function WorkOrderStatusSelector({ workOrder, onChanged, onError }: { workOrder:
   const [confirm, setConfirm] = useState<any | null>(null);
   const [finalizing, setFinalizing] = useState(false);
   const [saving, setSaving] = useState(false);
-  if (!canManageWorkOrderStatus(profile, workOrder)) return null;
+  if (!canManageWorkOrderStatus(profile, workOrder)) return <WorkOrderCommercialReviewCard workOrder={workOrder} onChanged={onChanged} onError={onError} />;
   const canFinalize = canFinalizeWorkOrderTechnical(profile, workOrder);
   const prepare = (next: string) => {
     if (next === workOrder.status || saving || finalizing) return;
@@ -784,7 +785,7 @@ function WorkOrderCommercialReviewCard({ workOrder, onChanged, onError }: { work
   const { profile } = useAuth();
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
-  if (workOrder.sat_review_destination !== 'comercial' || workOrder.commercial_review_status !== 'pending') return null;
+  if (!isPendingCommercialReview(workOrder, profile)) return null;
   const roles = profile ? normalizedRoleNames(profile.primary_area, profile.roles ?? []) : [];
   const assignedReviewer = roles.includes('Comercial') && !roles.some((role) => ['superadmin', 'Gerencia'].includes(role)) ? workOrder.current_responsible_id === profile?.id : true;
   const canApprove = canReviewWorkOrderCommercial(profile) && assignedReviewer;

@@ -160,6 +160,7 @@ export function canManageWorkOrderCosts(profile: Profile | null | undefined, wor
   return false;
 }
 export function canViewInternalEconomics(profile: Profile | null | undefined) { return hasAny(profile, economicRoles); }
+export function canDeleteInvoiceDraft(profile: Profile | null | undefined) { return isActiveProfile(profile) && hasAny(profile, ['superadmin', 'Gerencia', 'Oficina']); }
 export function canViewWorkOrderCosts(profile: Profile | null | undefined) { return canViewInternalEconomics(profile); }
 export function canViewSalesEconomics(profile: Profile | null | undefined) { return hasAny(profile, quoteManagerRoles); }
 export function canReviewWorkOrderOffice(profile: Profile | null | undefined) { return isActiveProfile(profile) && hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina']); }

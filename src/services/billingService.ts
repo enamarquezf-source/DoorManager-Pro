@@ -10,6 +10,7 @@ function billingError(error: any, operation: string, resource?: string) {
   if (message.includes('debe estar validado') || message.includes('validado por oficina')) return new Error('El parte debe estar validado por Oficina antes de preparar la factura.');
   if (message.includes('ya esta asociado') || message.includes('ya pertenece a una factura')) return new Error('Este parte ya está asociado a una factura.');
   if (message.includes('garantias') || message.includes('no facturables')) return new Error('Las garantías y partes no facturables no pueden prepararse para facturación.');
+  if (operation === 'Eliminar borrador') return new Error(raw?.message ?? 'No se ha podido eliminar el borrador.');
   return new Error(error instanceof Error ? error.message : 'No se ha podido preparar la factura. Revisa el parte e inténtalo de nuevo.');
 }
 
@@ -64,6 +65,9 @@ export const billingService = {
   },
   issueInvoice(invoiceId: string) {
     return billingRpc<string>(supabase.rpc('dmp_issue_invoice', { p_invoice_id: invoiceId }), 'Emitir factura', invoiceId);
+  },
+  deleteDraft(invoiceId: string) {
+    return billingRpc<void>(supabase.rpc('dmp_delete_invoice_draft', { p_invoice_id: invoiceId }), 'Eliminar borrador', invoiceId);
   },
   recordPayment(invoiceId: string, payload: { amount: number; paid_at: string; method: string; reference?: string; notes?: string }) {
     return expectData<string>(supabase.rpc('dmp_record_invoice_payment', { p_invoice_id: invoiceId, p_amount: payload.amount, p_paid_at: payload.paid_at, p_method: payload.method, p_reference: payload.reference || null, p_notes: payload.notes || null }), { service: 'billingService', operation: 'Registrar cobro', resource: invoiceId });

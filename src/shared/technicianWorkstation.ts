@@ -12,13 +12,14 @@ export function technicianProgress(workOrder: any): WorkstationProgress {
   const work = String(workOrder?.work_performed ?? '').trim();
   const materials = workOrder?.materials ?? [];
   const hours = workOrder?.time_entries ?? [];
-  const travel = (workOrder?.planned_quote_lines ?? []).filter((line: any) => ['transport', 'travel'].includes(line.line_type));
+  const plannedTravel = (workOrder?.planned_quote_lines ?? []).filter((line: any) => ['transport', 'travel'].includes(line.line_type));
+  const realTravel = (workOrder?.cost_entries ?? []).filter((row: any) => row.cost_type === 'desplazamiento' && !row.deleted_at);
   const checks = (workOrder?.checks ?? []).filter((check: any) => !check.deleted_at);
   return {
     work: work ? 'complete' : 'pending',
     materials: materials.length ? 'complete' : 'empty',
     hours: hours.length ? 'complete' : 'empty',
-    travel: travel.length ? 'complete' : 'empty',
+    travel: realTravel.length ? 'complete' : plannedTravel.length ? 'pending' : 'empty',
     checks: { done: checks.filter((check: any) => check.status === 'Realizado').length, total: checks.length },
     photos: (workOrder?.photos ?? []).length,
     signature: (workOrder?.signatures ?? []).length ? 'complete' : 'pending',

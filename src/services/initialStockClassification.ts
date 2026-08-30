@@ -15,3 +15,20 @@ export function classifyInitialStockMaterial(material: { stock_quantity?: number
   if (legacy === null || !Number.isFinite(legacy)) return { legacy, canonicalTotal, status: 'LEGACY_UNKNOWN' as const };
   return { legacy, canonicalTotal, status: legacy > 0 ? 'LEGACY_ONLY_POSITIVE' as const : legacy === 0 ? 'LEGACY_ONLY_ZERO' as const : 'LEGACY_UNKNOWN' as const };
 }
+
+export function buildInitialStockRows(materials: any[], canonicalStock: any[]) {
+  return materials.map((material) => {
+    const canonical = canonicalStock.filter((item) => item.material_id === material.id);
+    const classification = classifyInitialStockMaterial(material, canonical);
+    return { material, canonical, ...classification, legacy: classification.legacy ?? 0 };
+  });
+}
+
+export function initialStockCounters(rows: Array<{ status: string }>) {
+  return {
+    pending: rows.filter((row) => row.status === 'LEGACY_ONLY_POSITIVE').length,
+    opened: rows.filter((row) => ['CANONICAL_EXISTS', 'MATCH'].includes(row.status)).length,
+    review: rows.filter((row) => row.status === 'MISMATCH').length,
+    zero: rows.filter((row) => row.status === 'LEGACY_ONLY_ZERO').length,
+  };
+}

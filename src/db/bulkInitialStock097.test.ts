@@ -61,6 +61,8 @@ describe('097 bulk initial stock opening', () => {
     expect(app).toContain('Ya abiertos');
     expect(app).toContain('Apertura inicial masiva');
     expect(app).toContain('materialsService.initialStockCatalog()');
+    expect(app).toContain('const rows = buildInitialStockRows(materials.data, stock.data)');
+    expect(app).toContain('const counters = initialStockCounters(rows)');
     expect(materialsService).toContain('initialStockCatalog');
   });
 

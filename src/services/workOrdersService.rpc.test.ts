@@ -82,6 +82,15 @@ describe('workOrdersService operational RPCs', () => {
     expect(rpc).toHaveBeenCalledWith('dmp_set_initial_warehouse_stock', { p_warehouse_id: 'warehouse-1', p_material_id: 'material-1', p_quantity: 3, p_reason: 'Apertura inicial' });
   });
 
+  it('abre stock inicial masivo mediante una unica RPC idempotente', async () => {
+    const { workOrdersService } = await import('./workOrdersService');
+    const payload = { warehouse_id: 'warehouse-1', items: [{ material_id: 'material-1', quantity: 91 }, { material_id: 'material-2', quantity: 100 }], reason: 'Recuento fisico', source: 'physical_count', idempotency_key: 'batch-1' };
+
+    await expect(workOrdersService.openInitialWarehouseStockBatch(payload)).resolves.toBe('saved-id');
+
+    expect(rpc).toHaveBeenCalledWith('dmp_set_initial_warehouse_stock_batch', { p_payload: payload });
+  });
+
   it('guarda la decisión económica de garantía mediante una RPC única', async () => {
     const { workOrdersService } = await import('./workOrdersService');
 

@@ -367,6 +367,11 @@ export const workOrdersService = {
     if (!String(reason ?? '').trim()) throw new Error('Indica el motivo de apertura del stock.');
     return expectData<string>(supabase.rpc('dmp_set_initial_warehouse_stock', { p_warehouse_id: warehouseId, p_material_id: materialId, p_quantity: quantity, p_reason: reason.trim() }), { service: 'workOrdersService', operation: 'Abrir stock inicial de almacen', resource: materialId });
   },
+  openInitialWarehouseStockBatch(payload: { warehouse_id: string; items: Array<{ material_id: string; quantity: number }>; reason: string; source: string; idempotency_key: string }) {
+    if (!String(payload.reason ?? '').trim()) throw new Error('Indica el motivo de apertura del stock.');
+    if (!payload.items.length) throw new Error('Selecciona al menos un material para abrir stock.');
+    return expectData<string>(supabase.rpc('dmp_set_initial_warehouse_stock_batch', { p_payload: { ...payload, reason: payload.reason.trim() } }), { service: 'workOrdersService', operation: 'Abrir stock inicial masivo', resource: payload.idempotency_key });
+  },
   setPlannedMaterialDecision(payload: Record<string, any>) {
     return expectData<string>(supabase.rpc('dmp_set_work_order_planned_material_decision', { p_payload: payload }), { service: 'workOrdersService', operation: 'Registrar decision de material previsto', resource: 'dmp_set_work_order_planned_material_decision' });
   },

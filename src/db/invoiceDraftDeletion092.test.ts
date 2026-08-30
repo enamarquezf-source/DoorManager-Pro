@@ -56,7 +56,15 @@ describe('092 safe invoice draft deletion contract', () => {
     expect(moduleSource).toContain('El parte volverá a estar disponible para preparar una nueva factura.');
     expect(moduleSource).toContain('Esta acción no afecta al trabajo realizado ni al routing del parte.');
     expect(moduleSource).toContain('billingService.deleteDraft(invoice.id)');
-    expect(moduleSource).toContain('onSaved()');
+    expect(moduleSource).toContain('await billingService.deleteDraft(invoice.id)');
+    expect(moduleSource).toContain('await onDeleted()');
+    expect(moduleSource).toContain('await reload()');
+    expect(moduleSource).toContain("Borrador eliminado correctamente.");
+    expect(moduleSource).toContain('deletingDraft');
+    expect(moduleSource).toContain('ELIMINANDO...');
+    expect(moduleSource).toContain('disabled={context.__deletingDraft}');
+    expect(moduleSource).toContain('role="alert"');
+    expect(moduleSource).not.toContain('window.alert(errorText(error))');
     expect(moduleSource).not.toContain('Eliminar factura');
   });
 

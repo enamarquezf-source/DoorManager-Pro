@@ -74,6 +74,14 @@ describe('workOrdersService operational RPCs', () => {
     expect(rpc).toHaveBeenCalledWith('dmp_validate_work_order_material', { p_work_order_material_id: 'usage-1' });
   });
 
+  it('abre stock inicial mediante la RPC administrativa', async () => {
+    const { workOrdersService } = await import('./workOrdersService');
+
+    await expect(workOrdersService.openInitialWarehouseStock('warehouse-1', 'material-1', 3, 'Apertura inicial')).resolves.toBe('saved-id');
+
+    expect(rpc).toHaveBeenCalledWith('dmp_set_initial_warehouse_stock', { p_warehouse_id: 'warehouse-1', p_material_id: 'material-1', p_quantity: 3, p_reason: 'Apertura inicial' });
+  });
+
   it('guarda la decisión económica de garantía mediante una RPC única', async () => {
     const { workOrdersService } = await import('./workOrdersService');
 

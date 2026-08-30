@@ -1002,12 +1002,14 @@ function WorkOrderMaterialForm({ workOrder, initial, onClose, onSaved }: { workO
   const [additional, setAdditional] = useState(initial?.source === 'additional');
   const catalog = useLoad(() => workOrdersService.materialsCatalog(search), [search], [] as any[]);
   const warehouses = useLoad(() => workOrdersService.warehousesCatalog(), [], [] as any[]);
+  const warehouseStock = useLoad(() => workOrdersService.warehouseStockCatalog(), [], [] as any[]);
   const [values, setValues] = useState<Record<string, string>>({ id: initial?.id ?? '', work_order_id: workOrder.id, material_id: initial?.material_id ?? '', warehouse_id: initial?.stock_warehouse_id ?? '', description: initial?.description ?? '', quantity: String(initial?.used_quantity ?? initial?.quantity ?? 1), unit: initial?.unit ?? 'ud', used_at: (initial?.used_at ?? new Date().toISOString()).slice(0, 10), unit_price: initial?.unit_price ? String(initial.unit_price) : '', notes: initial?.notes ?? '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const set = (key: string, value: string) => setValues((current) => ({ ...current, [key]: value }));
   const selectedMaterial = catalog.data.find((item: any) => item.id === values.material_id);
-  const selectedStock = Number(selectedMaterial?.stock_quantity ?? 0);
+  const selectedStockRow = warehouseStock.data.find((item: any) => item.material_id === values.material_id && item.warehouse_id === values.warehouse_id);
+  const selectedStock = Number(selectedStockRow?.quantity ?? 0);
   const stockBlocked = false;
   const selectMaterial = (value: string) => { const material = catalog.data.find((item: any) => item.id === value); setValues((current) => ({ ...current, material_id: value, description: material?.description ?? current.description, unit: material?.unit ?? current.unit, unit_price: material?.price != null ? String(material.price) : current.unit_price })); };
   const submit = async (event: FormEvent) => {
@@ -1026,11 +1028,11 @@ function WorkOrderMaterialForm({ workOrder, initial, onClose, onSaved }: { workO
   };
   return <div className="mini-modal" role="dialog" aria-modal="true"><form onSubmit={submit}>
     <h3>{initial ? 'Editar material' : 'Añadir material'}</h3>
-    <p className="large-note">El material de catálogo descuenta stock y conserva coste/venta resueltos por el servidor. El material manual no afecta stock.</p>
+    <p className="large-note">El material de catálogo queda pendiente de validacion y conserva coste/venta resueltos por el servidor. El material manual no afecta stock.</p>
     <label>Buscar catálogo<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Código, descripción, fabricante o referencia" /></label>
     <FormSelect label="Material de catálogo" value={values.material_id ?? ''} onChange={selectMaterial} options={[{ value: '', label: 'Material no catalogado' }, ...catalog.data.map((item: any) => ({ value: item.id, label: `${item.code ?? '-'} · ${item.description}` }))]} loading={catalog.loading} />
     {selectedMaterial?.stock_controlled !== false && <FormSelect label="Almacen de origen" value={values.warehouse_id ?? ''} onChange={(value) => set('warehouse_id', value)} options={[{ value: '', label: warehouses.loading ? 'Cargando almacenes...' : 'Selecciona almacen' }, ...warehouses.data.map((item: any) => ({ value: item.id, label: `${item.code} · ${item.name}` }))]} loading={warehouses.loading} />}
-    {selectedMaterial && <p className={stockBlocked ? 'form-error' : materialStockStatus(selectedMaterial) === 'Bajo stock' ? 'state-warning' : 'large-note'}>Stock disponible: {selectedStock.toLocaleString('es-ES')} {selectedMaterial.unit ?? 'ud'} · Mínimo: {Number(selectedMaterial.minimum_stock ?? 0).toLocaleString('es-ES')} · {materialStockStatus(selectedMaterial)}</p>}
+    {selectedMaterial && <p className={stockBlocked ? 'form-error' : 'large-note'}>{values.warehouse_id ? selectedStockRow ? `Stock canonico en el almacen seleccionado: ${selectedStock.toLocaleString('es-ES')} ${selectedMaterial.unit ?? 'ud'}` : 'Sin apertura en este almacen' : 'Selecciona un almacen para consultar stock canonico'} · Stock legacy de referencia: {Number(selectedMaterial.stock_quantity ?? 0).toLocaleString('es-ES')} {selectedMaterial.unit ?? 'ud'}</p>}
     <label>Descripción alternativa<input value={values.description ?? ''} onChange={(event) => set('description', event.target.value)} placeholder="Obligatoria si no eliges catálogo" /></label>
     <div className="form-grid"><label>Cantidad<input type="number" step="0.01" min="0.01" value={values.quantity} onChange={(event) => set('quantity', event.target.value)} required /></label><label>Unidad<input value={values.unit} onChange={(event) => set('unit', event.target.value)} /></label><label>Fecha<input type="date" value={values.used_at} onChange={(event) => set('used_at', event.target.value)} /></label>{showCosts && <label>Precio unitario<input type="number" step="0.01" min="0" value={values.unit_price ?? ''} onChange={(event) => set('unit_price', event.target.value)} /></label>}</div>
     <label>Observaciones<textarea value={values.notes ?? ''} onChange={(event) => set('notes', event.target.value)} /></label>
@@ -2044,7 +2046,41 @@ function QuotesModule() {
   return <><ListPage title="Presupuestos" search={search} setSearch={setSearch} archiveFilter={archiveFilter} setArchiveFilter={setArchiveFilter} action={canManageQuotes(profile) ? <button className="primary" onClick={() => setCreating(true)}>Crear presupuesto</button> : null} loading={loading} error={error} retry={reload} empty={!data.length}><div className="tabs">{quoteStatusFilters.map((item) => <button key={item} className={status === item ? 'active' : ''} onClick={() => setStatus(item)}>{item === 'Enviado' ? 'Enviado/Mandado' : item} ({counts[item] ?? 0})</button>)}</div><div className="record-list">{visibleQuotes.map((quote: any) => <RecordCard key={quote.id} archived={isArchivedRecord('quotes', quote)} title={<strong>{quote.code} · {quote.title}</strong>} status={[quote.deleted_at ? 'Archivado' : displayStatus(quote.status), quote.deleted_at ? 'muted' : severityForStatus(quote.status)]} to={`/app/modulos/presupuestos/${quote.id}`} actions={<LifecycleActionPanel entity="quotes" record={quote} onChanged={reload} />} meta={<RecordMeta items={[[ 'Tipo', displayStatus(quote.quote_type ?? 'reparacion') ], [ 'Cliente', quote.clients?.legal_name ?? '-' ], [ 'Total', `${Number(quote.total_amount ?? quote.total ?? 0).toLocaleString('es-ES')} €` ], [ 'Validez', quote.valid_until ?? '-' ]]} />} />)}</div>{!visibleQuotes.length && <p className="large-note">No hay presupuestos para el estado seleccionado.</p>}{creating && <QuoteForm initial={undefined} onClose={() => setCreating(false)} onSaved={(id: string) => { setCreating(false); reload(); navigate(`/app/modulos/presupuestos/${id}`); }} />}</ListPage></>;
 }
 
-function MaterialsModule() {
+function StockOpeningPanel() {
+  const { profile } = useAuth();
+  const roles = profile ? normalizedRoleNames(profile.primary_area, profile.roles ?? []) : [];
+  const canOpen = roles.some((role) => ['superadmin', 'Gerencia', 'Oficina'].includes(role));
+  const materials = useLoad(() => canOpen ? materialsService.list('', undefined, 'active') : Promise.resolve([]), [canOpen], [] as any[]);
+  const warehouses = useLoad(() => canOpen ? workOrdersService.warehousesCatalog() : Promise.resolve([]), [canOpen], [] as any[]);
+  const stock = useLoad(() => canOpen ? workOrdersService.warehouseStockCatalog() : Promise.resolve([]), [canOpen], [] as any[]);
+  const [materialId, setMaterialId] = useState('');
+  const [warehouseId, setWarehouseId] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [reason, setReason] = useState('');
+  const [confirming, setConfirming] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  if (!canOpen) return null;
+  const material = materials.data.find((item: any) => item.id === materialId);
+  const warehouse = warehouses.data.find((item: any) => item.id === warehouseId);
+  const warehouseStock = stock.data.find((item: any) => item.material_id === materialId && item.warehouse_id === warehouseId);
+  const submit = async () => {
+    if (!materialId || !warehouseId) { setError('Selecciona un material catalogado y un almacen activo.'); return; }
+    if (Number(quantity) <= 0) { setError('La cantidad inicial debe ser mayor que cero.'); return; }
+    if (!reason.trim()) { setError('Indica el motivo de la apertura inicial.'); return; }
+    setSaving(true); setError('');
+    try {
+      await workOrdersService.openInitialWarehouseStock(warehouseId, materialId, Number(quantity), reason);
+      setMessage('Saldo inicial registrado correctamente.'); setConfirming(false); setQuantity(''); setReason('');
+      await stock.reload();
+    } catch (err) { setError(formErrorMessage(err, 'No se ha podido registrar el saldo inicial.')); }
+    finally { setSaving(false); }
+  };
+  return <Card title="Apertura inicial de inventario"><p className="large-note">Solo establece el saldo inicial oficial de un material en un almacen. No representa una compra ni una recepcion.</p><div className="form-grid"><FormSelect label="Material catalogado" value={materialId} onChange={(value) => { setMaterialId(value); setConfirming(false); setMessage(''); }} options={[{ value: '', label: materials.loading ? 'Cargando materiales...' : 'Selecciona material' }, ...materials.data.map((item: any) => ({ value: item.id, label: `${item.code} · ${item.description}` }))]} loading={materials.loading} /><FormSelect label="Almacen activo" value={warehouseId} onChange={(value) => { setWarehouseId(value); setConfirming(false); setMessage(''); }} options={[{ value: '', label: warehouses.loading ? 'Cargando almacenes...' : 'Selecciona almacen' }, ...warehouses.data.map((item: any) => ({ value: item.id, label: `${item.code} · ${item.name}` }))]} loading={warehouses.loading} /><label>Cantidad inicial<input type="number" min="0.01" step="0.01" value={quantity} onChange={(event) => setQuantity(event.target.value)} /></label></div>{material && warehouse && <Card title="Referencia antes de registrar"><InfoGrid items={[[ 'Material', `${material.code} · ${material.description}` ], [ 'Almacen', `${warehouse.code} · ${warehouse.name}` ], [ 'Stock legacy', `${Number(material.stock_quantity ?? 0).toLocaleString('es-ES')} ${material.unit ?? 'ud'}` ], [ 'Stock canonico en este almacen', warehouseStock ? `${Number(warehouseStock.quantity ?? 0).toLocaleString('es-ES')} ${material.unit ?? 'ud'}` : 'Sin apertura en este almacen' ], [ 'Apertura previa', warehouseStock ? 'Si' : 'No' ]]} /></Card>}<label>Motivo / observacion<textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Recuento fisico inicial" /></label>{message && <p className="success-note">{message}</p>}{error && <p className="form-error">{error}</p>}{confirming ? <div className="state-warning"><p>Vas a establecer el saldo inicial oficial de este material en este almacen.</p><p>{material?.code ?? '-'} · {material?.description ?? '-'} · {warehouse?.code ?? '-'} · {quantity || '0'} {material?.unit ?? 'ud'} · {reason || 'Sin motivo'}</p><p>Esta operacion no representa una compra y quedara registrada como apertura inicial de inventario.</p><div className="row-actions"><button type="button" onClick={() => setConfirming(false)} disabled={saving}>Cancelar</button><button type="button" className="primary" onClick={submit} disabled={saving}>{saving ? 'Registrando...' : 'Registrar saldo inicial'}</button></div></div> : <button type="button" className="primary" onClick={() => { setError(''); setConfirming(true); }}>Revisar apertura inicial</button>}</Card>;
+}
+
+function MaterialsModuleContent() {
   const { workspace } = useAuth();
   const [search, setSearch] = useState('');
   const [archiveFilter, setArchiveFilter] = useState<MaterialFilter>('active');
@@ -2776,6 +2812,8 @@ function MultiEquipmentPicker({ values, setValues, filteredEquipment, equipmentT
 
   return <Card title="EQUIPOS DEL PARTE"><p className="large-note">Cada unidad nueva se guarda como un equipo físico independiente. Puedes mezclar equipos existentes y nuevos.</p><div className="form-grid"><FormSelect label="Equipo existente" value={existingId} onChange={setExistingId} options={filteredEquipment.filter((item: any) => !selection.some((selected: any) => selected.kind === 'existing' && selected.equipment_id === item.id)).map((item: any) => ({ value: item.id, label: `${item.code} · ${item.equipment_types?.name ?? item.model ?? 'Equipo'} · ${item.internal_location ?? ''}` }))} disabled={!values.site_id} /><button type="button" onClick={addExisting} disabled={!existingId}>+ Añadir existente</button></div>{installation && <div className="nested-form"><h4>Crear equipo nuevo</h4><div className="form-grid"><FormSelect label="Tipo de equipo" value={draft.equipment_type_id} onChange={(value) => setDraft({ ...draft, equipment_type_id: value })} options={equipmentTypes.data.map((type: any) => ({ value: type.id, label: type.name }))} loading={equipmentTypes.loading} /><label>Cantidad<input type="number" min="1" value={draft.quantity} onChange={(event) => setDraft({ ...draft, quantity: event.target.value })} /></label><label>Marca<input value={draft.brand} onChange={(event) => setDraft({ ...draft, brand: event.target.value })} /></label><label>Modelo<input value={draft.model} onChange={(event) => setDraft({ ...draft, model: event.target.value })} /></label><label>Referencia / ubicación<input value={draft.internal_location} onChange={(event) => setDraft({ ...draft, internal_location: event.target.value })} /></label><label>Número de serie<input value={draft.serial_number} onChange={(event) => setDraft({ ...draft, serial_number: event.target.value })} /></label></div><label>Observaciones<textarea value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} /></label><button type="button" onClick={addNew} disabled={!draft.equipment_type_id || !Number.isInteger(Number(draft.quantity)) || Number(draft.quantity) < 1}>+ Añadir equipos nuevos</button></div>}{selection.length > 0 && <div className="compact-list multi-equipment-list">{selection.map((item: any, index: number) => <article key={`${item.kind}-${item.equipment_id ?? index}`}><Badge tone={item.kind === 'new' ? 'info' : 'ok'}>{item.kind === 'new' ? 'NUEVO' : 'EXISTENTE'}</Badge>{item.kind === 'existing' ? <p><strong>{filteredEquipment.find((equipment: any) => equipment.id === item.equipment_id)?.code ?? 'Equipo existente'}</strong></p> : <><strong>{equipmentTypes.data.find((type: any) => type.id === item.equipment_type_id)?.name ?? 'Equipo nuevo'}</strong><label>Ubicación<input value={item.internal_location ?? ''} onChange={(event) => update(selection.map((selected: any, itemIndex: number) => itemIndex === index ? { ...selected, internal_location: event.target.value } : selected))} /></label><label>Serie<input value={item.serial_number ?? ''} onChange={(event) => update(selection.map((selected: any, itemIndex: number) => itemIndex === index ? { ...selected, serial_number: event.target.value } : selected))} /></label></>}<button type="button" onClick={() => remove(index)}>Eliminar</button></article>)}</div>}</Card>;
 }
+
+function MaterialsModule() { return <><StockOpeningPanel /><MaterialsModuleContent /></>; }
 
 function LegacyMultiEquipmentPicker({ values, setValues, filteredEquipment, equipmentTypes, installation }: any) {
   const [existingId, setExistingId] = useState('');

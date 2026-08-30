@@ -7,7 +7,7 @@ const service = readFileSync(new URL('../services/workOrdersService.ts', import.
 describe('094 initial warehouse stock UI', () => {
   it('exposes the minimum-privilege opening action and fields', () => {
     expect(app).toContain('function StockOpeningPanel');
-    expect(app).toContain("['superadmin', 'Gerencia', 'Oficina']");
+    expect(app).toContain("['superadmin', 'SAT', 'Gerencia', 'Oficina']");
     expect(app).toContain('Material catalogado');
     expect(app).toContain('Almacen activo');
     expect(app).toContain('Cantidad inicial');
@@ -28,5 +28,15 @@ describe('094 initial warehouse stock UI', () => {
     expect(app).toContain('Stock canonico en este almacen');
     expect(app).toContain('Stock legacy de referencia');
     expect(app).not.toContain('Stock disponible: ${selectedStock');
+  });
+
+  it('captures the final quantity and reason in the confirmation snapshot', () => {
+    expect(app).toContain('const [confirmation, setConfirmation]');
+    expect(app).toContain('quantity: Number(quantity)');
+    expect(app).toContain('reason: reason.trim()');
+    expect(app).toContain('confirmation.quantity.toLocaleString');
+    expect(app).toContain('{confirmation.reason}');
+    expect(app).toContain('openInitialWarehouseStock(confirmation.warehouseId, confirmation.materialId, confirmation.quantity, confirmation.reason)');
+    expect(app).toContain("setConfirmation(null); setQuantity(''); setReason('');");
   });
 });

@@ -244,6 +244,7 @@ Criterio de salida:
 
 - 094 = stock canonico por almacen y consumo diferido.
 - 095 = hotfix para permitir registrar material pending antes de la apertura de stock.
-- 096 = proveedores, compras y recepciones.
-- 097 = distribucion, reservas y fiabilidad.
+- 096 = permiso SAT para apertura inicial de stock.
+- 097 = proveedores, compras y recepciones.
+- 098 = distribucion, reservas y fiabilidad.
 - Garantias = posterior a la secuencia operativa anterior.

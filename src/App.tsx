@@ -2049,7 +2049,7 @@ function QuotesModule() {
 function StockOpeningPanel() {
   const { profile } = useAuth();
   const roles = profile ? normalizedRoleNames(profile.primary_area, profile.roles ?? []) : [];
-  const canOpen = roles.some((role) => ['superadmin', 'Gerencia', 'Oficina'].includes(role));
+  const canOpen = roles.some((role) => ['superadmin', 'SAT', 'Gerencia', 'Oficina'].includes(role));
   const materials = useLoad(() => canOpen ? materialsService.list('', undefined, 'active') : Promise.resolve([]), [canOpen], [] as any[]);
   const warehouses = useLoad(() => canOpen ? workOrdersService.warehousesCatalog() : Promise.resolve([]), [canOpen], [] as any[]);
   const stock = useLoad(() => canOpen ? workOrdersService.warehouseStockCatalog() : Promise.resolve([]), [canOpen], [] as any[]);
@@ -2061,23 +2061,30 @@ function StockOpeningPanel() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [confirmation, setConfirmation] = useState<{ materialId: string; warehouseId: string; quantity: number; reason: string; materialLabel: string; warehouseLabel: string; unit: string } | null>(null);
+  const review = () => {
+    if (!materialId || !warehouseId) { setError('Selecciona un material catalogado y un almacen activo.'); return; }
+    if (Number(quantity) <= 0) { setError('La cantidad inicial debe ser mayor que cero.'); return; }
+    if (!reason.trim()) { setError('Indica el motivo de la apertura inicial.'); return; }
+    setError('');
+    setConfirmation({ materialId, warehouseId, quantity: Number(quantity), reason: reason.trim(), materialLabel: `${material?.code ?? '-'} · ${material?.description ?? '-'}`, warehouseLabel: `${warehouse?.code ?? '-'} · ${warehouse?.name ?? '-'}`, unit: material?.unit ?? 'ud' });
+    setConfirming(true);
+  };
   if (!canOpen) return null;
   const material = materials.data.find((item: any) => item.id === materialId);
   const warehouse = warehouses.data.find((item: any) => item.id === warehouseId);
   const warehouseStock = stock.data.find((item: any) => item.material_id === materialId && item.warehouse_id === warehouseId);
   const submit = async () => {
-    if (!materialId || !warehouseId) { setError('Selecciona un material catalogado y un almacen activo.'); return; }
-    if (Number(quantity) <= 0) { setError('La cantidad inicial debe ser mayor que cero.'); return; }
-    if (!reason.trim()) { setError('Indica el motivo de la apertura inicial.'); return; }
+    if (!confirmation) { setError('Revisa la apertura inicial antes de registrar.'); return; }
     setSaving(true); setError('');
     try {
-      await workOrdersService.openInitialWarehouseStock(warehouseId, materialId, Number(quantity), reason);
-      setMessage('Saldo inicial registrado correctamente.'); setConfirming(false); setQuantity(''); setReason('');
+      await workOrdersService.openInitialWarehouseStock(confirmation.warehouseId, confirmation.materialId, confirmation.quantity, confirmation.reason);
+      setMessage('Saldo inicial registrado correctamente.'); setConfirming(false); setConfirmation(null); setQuantity(''); setReason('');
       await stock.reload();
     } catch (err) { setError(formErrorMessage(err, 'No se ha podido registrar el saldo inicial.')); }
     finally { setSaving(false); }
   };
-  return <Card title="Apertura inicial de inventario"><p className="large-note">Solo establece el saldo inicial oficial de un material en un almacen. No representa una compra ni una recepcion.</p><div className="form-grid"><FormSelect label="Material catalogado" value={materialId} onChange={(value) => { setMaterialId(value); setConfirming(false); setMessage(''); }} options={[{ value: '', label: materials.loading ? 'Cargando materiales...' : 'Selecciona material' }, ...materials.data.map((item: any) => ({ value: item.id, label: `${item.code} · ${item.description}` }))]} loading={materials.loading} /><FormSelect label="Almacen activo" value={warehouseId} onChange={(value) => { setWarehouseId(value); setConfirming(false); setMessage(''); }} options={[{ value: '', label: warehouses.loading ? 'Cargando almacenes...' : 'Selecciona almacen' }, ...warehouses.data.map((item: any) => ({ value: item.id, label: `${item.code} · ${item.name}` }))]} loading={warehouses.loading} /><label>Cantidad inicial<input type="number" min="0.01" step="0.01" value={quantity} onChange={(event) => setQuantity(event.target.value)} /></label></div>{material && warehouse && <Card title="Referencia antes de registrar"><InfoGrid items={[[ 'Material', `${material.code} · ${material.description}` ], [ 'Almacen', `${warehouse.code} · ${warehouse.name}` ], [ 'Stock legacy', `${Number(material.stock_quantity ?? 0).toLocaleString('es-ES')} ${material.unit ?? 'ud'}` ], [ 'Stock canonico en este almacen', warehouseStock ? `${Number(warehouseStock.quantity ?? 0).toLocaleString('es-ES')} ${material.unit ?? 'ud'}` : 'Sin apertura en este almacen' ], [ 'Apertura previa', warehouseStock ? 'Si' : 'No' ]]} /></Card>}<label>Motivo / observacion<textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Recuento fisico inicial" /></label>{message && <p className="success-note">{message}</p>}{error && <p className="form-error">{error}</p>}{confirming ? <div className="state-warning"><p>Vas a establecer el saldo inicial oficial de este material en este almacen.</p><p>{material?.code ?? '-'} · {material?.description ?? '-'} · {warehouse?.code ?? '-'} · {quantity || '0'} {material?.unit ?? 'ud'} · {reason || 'Sin motivo'}</p><p>Esta operacion no representa una compra y quedara registrada como apertura inicial de inventario.</p><div className="row-actions"><button type="button" onClick={() => setConfirming(false)} disabled={saving}>Cancelar</button><button type="button" className="primary" onClick={submit} disabled={saving}>{saving ? 'Registrando...' : 'Registrar saldo inicial'}</button></div></div> : <button type="button" className="primary" onClick={() => { setError(''); setConfirming(true); }}>Revisar apertura inicial</button>}</Card>;
+  return <Card title="Apertura inicial de inventario"><p className="large-note">Solo establece el saldo inicial oficial de un material en un almacen. No representa una compra ni una recepcion.</p><div className="form-grid"><FormSelect label="Material catalogado" value={materialId} onChange={(value) => { setMaterialId(value); setConfirming(false); setConfirmation(null); setMessage(''); }} options={[{ value: '', label: materials.loading ? 'Cargando materiales...' : 'Selecciona material' }, ...materials.data.map((item: any) => ({ value: item.id, label: `${item.code} · ${item.description}` }))]} loading={materials.loading} /><FormSelect label="Almacen activo" value={warehouseId} onChange={(value) => { setWarehouseId(value); setConfirming(false); setConfirmation(null); setMessage(''); }} options={[{ value: '', label: warehouses.loading ? 'Cargando almacenes...' : 'Selecciona almacen' }, ...warehouses.data.map((item: any) => ({ value: item.id, label: `${item.code} · ${item.name}` }))]} loading={warehouses.loading} /><label>Cantidad inicial<input type="number" min="0.01" step="0.01" value={quantity} onChange={(event) => { setQuantity(event.target.value); setConfirming(false); setConfirmation(null); }} /></label></div>{material && warehouse && <Card title="Referencia antes de registrar"><InfoGrid items={[[ 'Material', `${material.code} · ${material.description}` ], [ 'Almacen', `${warehouse.code} · ${warehouse.name}` ], [ 'Stock legacy', `${Number(material.stock_quantity ?? 0).toLocaleString('es-ES')} ${material.unit ?? 'ud'}` ], [ 'Stock canonico en este almacen', warehouseStock ? `${Number(warehouseStock.quantity ?? 0).toLocaleString('es-ES')} ${material.unit ?? 'ud'}` : 'Sin apertura en este almacen' ], [ 'Apertura previa', warehouseStock ? 'Si' : 'No' ]]} /></Card>}<label>Motivo / observacion<textarea value={reason} onChange={(event) => { setReason(event.target.value); setConfirming(false); setConfirmation(null); }} placeholder="Recuento fisico inicial" /></label>{message && <p className="success-note">{message}</p>}{error && <p className="form-error">{error}</p>}{confirming && confirmation ? <div className="state-warning"><p>Vas a establecer el saldo inicial oficial de este material en este almacen.</p><p>{confirmation.materialLabel} · {confirmation.warehouseLabel} · {confirmation.quantity.toLocaleString('es-ES')} {confirmation.unit}</p><p>{confirmation.reason}</p><p>Esta operacion no representa una compra y quedara registrada como apertura inicial de inventario.</p><div className="row-actions"><button type="button" onClick={() => setConfirming(false)} disabled={saving}>Cancelar</button><button type="button" className="primary" onClick={submit} disabled={saving}>{saving ? 'Registrando...' : 'Registrar saldo inicial'}</button></div></div> : <button type="button" className="primary" onClick={review}>Revisar apertura inicial</button>}</Card>;
 }
 
 function MaterialsModuleContent() {

@@ -1,0 +1,23 @@
+-- 093 postflight. Read-only; execute after applying migration 093 in a controlled environment.
+with rpc as (
+  select p.oid, pg_get_functiondef(p.oid) as definition, pg_get_function_result(p.oid) as returns,
+    p.prosecdef, p.proconfig, pg_get_function_identity_arguments(p.oid) as signature
+  from pg_proc p
+  where p.pronamespace = 'public'::regnamespace and p.proname = 'dmp_delete_invoice_draft'
+), checks as (
+  select 'RPC'::text as area, 'exact_signature'::text as check_name, case when count(*) = 1 then 'OK' else 'BLOCKER' end as status, count(*)::bigint as finding_count, 'p_invoice_id uuid'::text as detail from rpc where signature = 'p_invoice_id uuid'
+  union all select 'RPC', 'security_definer', case when bool_and(prosecdef) then 'OK' else 'BLOCKER' end, count(*)::bigint, 'SECURITY DEFINER conservado' from rpc where signature = 'p_invoice_id uuid'
+  union all select 'RPC', 'search_path_public', case when bool_and(proconfig @> array['search_path=public']) then 'OK' else 'BLOCKER' end, count(*)::bigint, 'search_path=public conservado' from rpc where signature = 'p_invoice_id uuid'
+  union all select 'RPC', 'authenticated_execute', case when has_function_privilege('authenticated', 'public.dmp_delete_invoice_draft(uuid)', 'execute') then 'OK' else 'BLOCKER' end, 1, 'authenticated puede ejecutar la RPC'
+  union all select 'RPC', 'anon_execute_revoked', case when not has_function_privilege('anon', 'public.dmp_delete_invoice_draft(uuid)', 'execute') then 'OK' else 'BLOCKER' end, 1, 'anon no puede ejecutar la RPC'
+  union all select 'RPC', 'returns_void', case when count(*) = 1 and bool_and(returns = 'void') then 'OK' else 'BLOCKER' end, count(*)::bigint, 'RETURNS void conservado' from rpc where signature = 'p_invoice_id uuid'
+  union all select 'AUDIT', 'corrected_audit_insert', case when count(*) = 1 and bool_and(definition like ('%' || 'insert ' || 'into public.audit_log(company_id, table_name, record_id, operation, changed_by, old_data, new_data)%') and definition ~ $$'DELETE'\s*,\s*v_actor\.id\s*,\s*jsonb_build_object$$) then 'OK' else 'BLOCKER' end, count(*)::bigint, 'INSERT de auditoria con siete columnas y siete expresiones' from rpc where signature = 'p_invoice_id uuid'
+  union all select 'SECURITY', 'role_and_tenant_guards', case when count(*) = 1 and bool_and(definition like '%has_any_role(array[''superadmin'',''Gerencia'',''Oficina''])%' and definition like '%assert_member_of_current_company%') then 'OK' else 'BLOCKER' end, count(*)::bigint, 'Roles permitidos y aislamiento tenant conservados' from rpc where signature = 'p_invoice_id uuid'
+  union all select 'AUDIT', 'draft_delete_guards', case when count(*) = 1 and bool_and(definition like '%v_invoice.status <> ''borrador''%' and definition like '%v_invoice.code is not null%' and definition like '%v_invoice.fiscal_snapshot is not null%' and definition like '%invoice_payments%') then 'OK' else 'BLOCKER' end, count(*)::bigint, 'Protecciones de borrador, numero, snapshot y pagos conservadas' from rpc where signature = 'p_invoice_id uuid'
+  union all select 'DATA', 'invoice_work_orders_orphans', case when count(*) = 0 then 'OK' else 'BLOCKER' end, count(*)::bigint, 'No hay enlaces sin factura padre' from public.invoice_work_orders l left join public.invoices i on i.id = l.invoice_id where i.id is null
+  union all select 'DATA', 'drafts_blocked_by_protected_state', case when count(*) = 0 then 'OK' else 'REVIEW' end, count(*)::bigint, 'Se identifican borradores con pagos, numero o snapshot antes de la prueba' from public.invoices i left join public.invoice_payments p on p.invoice_id = i.id where i.status = 'borrador' and (i.code is not null or i.fiscal_snapshot is not null or p.invoice_id is not null)
+  union all select 'DATA', 'invoice_tenant_mismatch', case when count(*) = 0 then 'OK' else 'BLOCKER' end, count(*)::bigint, 'No hay enlaces de factura con tenant incompatible' from public.invoice_work_orders l join public.invoices i on i.id = l.invoice_id join public.work_orders w on w.id = l.work_order_id where l.company_id is distinct from i.company_id or l.company_id is distinct from w.company_id
+  union all select 'DATA', 'active_invoice_duplicates', case when count(*) = 0 then 'OK' else 'BLOCKER' end, count(*)::bigint, 'No hay partes con multiples enlaces activos' from (select l.work_order_id from public.invoice_work_orders l where l.deleted_at is null and l.work_order_id is not null group by l.work_order_id having count(*) > 1) duplicates
+  union all select 'READ_ONLY', 'no_rpc_invocation', 'OK', 0, 'Este postflight solo inspecciona metadatos y datos'::text
+)
+select area, check_name, status, finding_count, detail from checks order by area, check_name;

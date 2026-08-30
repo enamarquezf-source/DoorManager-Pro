@@ -7,8 +7,10 @@ const read = (file: string) => readFileSync(new URL(file, root), 'utf8');
 const migration = read('supabase/migrations/097_bulk_initial_stock_opening.sql');
 const preflight = read('supabase/verification/preflight_bulk_initial_stock_097.sql');
 const postflight = read('supabase/verification/postflight_bulk_initial_stock_097.sql');
+const customConsumedProbe = read('supabase/verification/probe_custom_consumed_inventory_097.sql');
 const app = read('src/App.tsx');
 const service = read('src/services/workOrdersService.ts');
+const materialsService = read('src/services/materialsService.ts');
 
 describe('097 bulk initial stock opening', () => {
   it('uses a single atomic batch RPC with explicit items and reason', () => {
@@ -58,6 +60,8 @@ describe('097 bulk initial stock opening', () => {
     expect(app).toContain('idempotency_key: confirmation.idempotency_key');
     expect(app).toContain('Ya abiertos');
     expect(app).toContain('Apertura inicial masiva');
+    expect(app).toContain('materialsService.initialStockCatalog()');
+    expect(materialsService).toContain('initialStockCatalog');
   });
 
   it('uses the batch service instead of looping individual RPC calls', () => {
@@ -81,6 +85,25 @@ describe('097 bulk initial stock opening', () => {
       expect(sql).toMatch(/^(?:\s*--[^\n]*\n)*\s*with\s+checks/i);
       expect(sql).not.toMatch(/^\s*(insert|update|delete|alter|create|drop|perform)\b/im);
     }
+  });
+
+  it('parses the custom consumed inventory probe as one read-only result set', async () => {
+    const parser = await pgQuery();
+    expect(parser.parse(customConsumedProbe).parse_tree.stmts.length).toBe(1);
+    expect(customConsumedProbe).toMatch(/^(?:\s*--[^\n]*\n)*\s*with\s+runtime_scope/i);
+    expect(customConsumedProbe).not.toMatch(/^\s*(insert|update|delete|alter|create|drop|perform)\b/im);
+    expect(customConsumedProbe).toContain('runtime_scope');
+    expect(customConsumedProbe).toContain('(r.company_id is null or m.company_id = r.company_id)');
+    expect(customConsumedProbe).toContain('SPECIFIC_POSITIVE_LEGACY_NO_CANONICAL');
+    expect(customConsumedProbe).toContain('SPECIFIC_ZERO_LEGACY_NO_CANONICAL');
+    expect(customConsumedProbe).toContain('SPECIFIC_CANONICAL_EXISTS');
+    expect(customConsumedProbe).toContain('SPECIFIC_REVIEW');
+    expect(customConsumedProbe).toContain('SPECIFIC_UNKNOWN');
+    expect(customConsumedProbe).toContain('coalesce(c.canonical_rows, 0) > 0 and coalesce(c.canonical_quantity, 0) <> m.legacy_stock');
+    expect(customConsumedProbe).toContain('CURRENT_BALANCE_CANDIDATE_FOR_OPENING');
+    expect(customConsumedProbe).toMatch(/left join canonical/i);
+    expect(customConsumedProbe).toMatch(/left join usage/i);
+    expect(customConsumedProbe).toMatch(/left join movement/i);
   });
 
   it('audits permissions, tenant, legacy immutability and no purchase scope', () => {

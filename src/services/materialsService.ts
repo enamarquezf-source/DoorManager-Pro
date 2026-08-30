@@ -34,6 +34,12 @@ export const materialsService = {
     if (search) query = query.or(contains(['code', 'description', 'manufacturer', 'reference', 'unit'], search));
     return expectData<any[]>(query, { service: 'materialsService', operation: 'list materials' });
   },
+  async initialStockCatalog() {
+    const companyId = await currentCompanyId();
+    let query = supabase.from('materials').select('*').is('deleted_at', null).order('description');
+    if (companyId) query = query.eq('company_id', companyId);
+    return expectData<any[]>(query, { service: 'materialsService', operation: 'list initial stock materials' });
+  },
   async create(payload: Record<string, any>) {
     const company_id = payload.company_id || await currentCompanyId();
     try {

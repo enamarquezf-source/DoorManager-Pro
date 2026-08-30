@@ -310,6 +310,9 @@ export const workOrdersService = {
   setEntryBilling(kind: 'material' | 'time', entryId: string, additional: boolean) {
     return expectData<void>(supabase.rpc('dmp_set_work_order_entry_billing', { p_kind: kind, p_entry_id: entryId, p_additional: additional }), { service: 'workOrdersService', operation: 'Clasificar venta adicional', resource: entryId });
   },
+  setWarrantyBillingDecision(workOrderId: string, conceptType: 'planned_material' | 'quote_line', conceptId: string, billingDecision: 'cubierto_garantia' | 'facturable') {
+    return expectData<string>(supabase.rpc('dmp_set_work_order_billing_decision', { p_work_order_id: workOrderId, p_concept_type: conceptType, p_concept_id: conceptId, p_billing_decision: billingDecision }), { service: 'workOrdersService', operation: 'Decidir facturación de garantía', resource: conceptId });
+  },
   async requestReturn(workOrderId: string, reason: string) {
     return expectData<void>(supabase.rpc('request_work_order_return', { p_work_order_id: workOrderId, p_changed_by: null, p_reason: reason }));
   },
@@ -326,11 +329,22 @@ export const workOrdersService = {
     const description = String(payload.material ?? '').trim();
     const quantity = Number(payload.quantity || 1);
     if (!description) throw new Error('Indica el material usado antes de sincronizar.');
-    return expectData<string>(supabase.rpc('dmp_upsert_work_order_material', { p_payload: { work_order_id: workOrderId, description, quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1, local_change_id: localChangeId ?? null } }));
+    return expectData<string>(supabase.rpc('dmp_submit_work_order_material', { p_payload: { work_order_id: workOrderId, description, quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1, local_change_id: localChangeId ?? null } }));
   },
   materialsCatalog(search = '') {
     let query = supabase.from('materials').select('*').is('deleted_at', null).eq('active', true).order('description').limit(40);
     if (search) query = query.or(contains(['code', 'description', 'manufacturer', 'reference'], search));
+    return expectData<any[]>(query);
+  },
+  warehousesCatalog() {
+    return expectData<any[]>(supabase.from('warehouses').select('id,code,name').is('deleted_at', null).eq('active', true).order('name'));
+  },
+  warehouseStockCatalog() {
+    return expectData<any[]>(supabase.from('warehouse_stock').select('warehouse_id,material_id,quantity'));
+  },
+  pendingMaterialValidations(search = '') {
+    let query = supabase.from('work_order_materials').select('id,company_id,work_order_id,material_id,description,used_quantity,unit,used_at,created_at,stock_validation_status,stock_warehouse_id,work_orders!work_order_materials_work_order_id_fkey(code,title,clients(legal_name),sites(name)),materials!work_order_materials_material_id_fkey(code,description),profiles!work_order_materials_registered_by_fkey(first_name,last_name)').eq('stock_validation_status', 'pending').is('deleted_at', null).order('created_at', { ascending: true });
+    if (search) query = query.or(contains(['description'], search));
     return expectData<any[]>(query);
   },
   upsertTimeEntry(payload: Record<string, any>) {
@@ -343,7 +357,15 @@ export const workOrdersService = {
     return expectData<void>(supabase.rpc('dmp_delete_work_order_time_entry', { p_time_entry_id: id, p_reason: reason }));
   },
   upsertMaterial(payload: Record<string, any>) {
-    return expectData<string>(supabase.rpc('dmp_upsert_work_order_material', { p_payload: payload }), { service: 'workOrdersService', operation: 'Guardar material del parte', resource: 'dmp_upsert_work_order_material' });
+    // Guardar material del parte now means submit for validation; dmp_upsert_work_order_material is legacy.
+    return expectData<string>(supabase.rpc('dmp_submit_work_order_material', { p_payload: payload }), { service: 'workOrdersService', operation: 'Registrar material pendiente de validacion', resource: 'dmp_submit_work_order_material' });
+  },
+  validateMaterialStock(id: string) {
+    return expectData<string>(supabase.rpc('dmp_validate_work_order_material', { p_work_order_material_id: id }), { service: 'workOrdersService', operation: 'Validar consumo de stock', resource: id });
+  },
+  openInitialWarehouseStock(warehouseId: string, materialId: string, quantity: number, reason: string) {
+    if (!String(reason ?? '').trim()) throw new Error('Indica el motivo de apertura del stock.');
+    return expectData<string>(supabase.rpc('dmp_set_initial_warehouse_stock', { p_warehouse_id: warehouseId, p_material_id: materialId, p_quantity: quantity, p_reason: reason.trim() }), { service: 'workOrdersService', operation: 'Abrir stock inicial de almacen', resource: materialId });
   },
   setPlannedMaterialDecision(payload: Record<string, any>) {
     return expectData<string>(supabase.rpc('dmp_set_work_order_planned_material_decision', { p_payload: payload }), { service: 'workOrdersService', operation: 'Registrar decision de material previsto', resource: 'dmp_set_work_order_planned_material_decision' });

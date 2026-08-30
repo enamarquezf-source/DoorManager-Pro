@@ -26,6 +26,7 @@ import { checkProblemStatuses, checkStatuses, sectionalZones, type CheckBlockId 
 import { buildFunctionalCheckBlocks, equipmentTypeName, isUuid, remoteBlockState, templateTypeMismatch, visualTemplateForCheck } from './checks/checkBlocks';
 import { technicianOfflineService } from './services/technicianOfflineService';
 import { canAccessModule, canAccessRoute, canArchiveEntity, canAssignTechnician, canCorrectWorkOrderOperationalFields, canCreateAlert, canCreateCheck, canCreateWorkOrder, canDeleteInvoiceDraft, canEditWorkOrder, canExecuteCheck, canExecuteWorkOrder, canManageCheck, canManageHourRates, canManageQuotes, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canMarkAdditionalSale, canPermanentlyDeleteEntity, canRestoreEntity, canReviewWorkOrderCommercial, canReviewWorkOrderOffice, canReviewWorkOrderSat, canRole, canViewCheck, canViewInternalEconomics, canViewWorkOrder, canViewWorkOrderCosts, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './auth/permissions';
+import { WarrantyBillingDecisionPanel } from './components/WarrantyBillingDecisionPanel';
 import { loadInitialAuthSnapshot, loginAuthState, protectedAuthState } from './auth/sessionBootstrap';
 import { displayOfficeValidationStatus, displayStatus, formatDate, fullName, initials, nextWorkOrderStatus, previousWorkOrderStatus, severityForPriority, severityForStatus, visibleLabel, workOrderStatuses, workspaceTitles, workspaceToRole } from './shared/labels';
 import { deficiencyFiltersFromParams, isOpenDeficiencyStatus, normalizeParam, workOrderFilterFromParams } from './shared/filters';
@@ -440,11 +441,15 @@ function RoleDashboard({ title, subtitle, kpis, quickActions, children }: { titl
   return <section className="page dashboard-page"><Breadcrumb items={['Inicio', title]} /><div className="page-head"><div><h2>{title}</h2><p>{subtitle}</p><small>Última actualización: {new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</small></div></div><div className="stats-grid dashboard-kpis">{kpis.map((item) => <Link key={item.label} className={`metric ${item.tone}`} to={item.route}><div>{item.icon}<span>{item.label}</span></div><strong>{item.value}</strong><small>{item.period} · {item.help}</small></Link>)}</div><Card title="Acciones rápidas"><div className="actions quick-actions">{quickActions}</div></Card>{queue && <DepartmentRoutingPanel queue={queue} />}<div className="dashboard-grid">{children}</div></section>;
 }
 
-function DepartmentRoutingPanel({ queue }: { queue: 'sat' | 'commercial' | 'billing' }) {
+function DepartmentRoutingPanelContent({ queue }: { queue: 'sat' | 'commercial' | 'billing' }) {
   const { data, loading, error, reload } = useLoad(() => workOrdersService.routingQueue(queue), [queue], [] as any[]);
   const title = queue === 'sat' ? 'Partes pendientes de revisión SAT' : queue === 'commercial' ? 'Revisiones comerciales' : 'Partes pendientes de facturación';
   const route = queue === 'sat' ? '/app/partes?filtro=revision-sat' : queue === 'commercial' ? '/app/partes?filtro=revision-comercial' : '/app/modulos/facturacion';
   return <Card title={`${title} (${data.length})`} action={<button onClick={reload} disabled={loading}>Actualizar</button>}>{error ? <p className="form-error">{error}</p> : data.length ? <div className="compact-list department-routing-list">{data.slice(0, 8).map((work: any) => <article key={work.id}><div><strong>{work.code} · {work.client_name ?? 'Cliente no informado'}</strong><p>{work.site_name ?? 'Sin centro'} · {work.equipment_names ?? 'Sin equipo'} · {work.quote_code ?? 'Sin presupuesto'}</p><p>{queue !== 'sat' ? `${work.source} · ` : ''}Indicadores: {satReviewFlagLabels(work.sat_review_flags).join(' · ') || 'Ninguno'}</p><p>Observaciones SAT: {work.sat_review_reason ?? 'Sin observaciones'}</p></div><Link className="primary" to={queue === 'billing' ? '/app/modulos/facturacion' : `/app/partes/${work.id}`}>{queue === 'commercial' ? 'REVISAR PARTE' : queue === 'billing' ? 'REVISAR / PREPARAR FACTURA' : 'Abrir parte'}</Link></article>)}</div> : <p className="large-note">Sin trabajo pendiente.</p>}<Link className="link-button" to={route}>Ver todos</Link></Card>;
+}
+
+function DepartmentRoutingPanel({ queue }: { queue: 'sat' | 'commercial' | 'billing' }) {
+  return <><PendingMaterialValidationPanel /><DepartmentRoutingPanelContent queue={queue} /></>;
 }
 
 function kpiCard(label: string, value: any, period: string, help: string, route: string, tone: Severity = 'info') {
@@ -627,6 +632,33 @@ function CasesPage() { const { workspace } = useAuth(); const scope = undefined;
 
 function CaseDetailPage({ forcedId }: { forcedId?: string } = {}) { const { id: routeId = '' } = useParams(); const navigate = useNavigate(); const { workspace } = useAuth(); const id = forcedId ?? routeId; const { data, loading, error, reload } = useLoad(() => casesService.get(id), [id], null as any); const [mode, setMode] = useState<'edit' | 'work' | null>(null); const [purgeOpen, setPurgeOpen] = useState(false); if (loading || error || !data) return <StateBlock loading={loading} error={error} retry={reload} empty={!data} />; const baseRoute = workspace === 'superadmin' ? '/app/superadmin' : '/app'; return <section className="page"><BackButton /><Hero title={`${data.code} · ${data.title}`} subtitle={`${data.clients?.legal_name ?? ''} · ${displayStatus(data.status)}`} tone={severityForPriority(data.priority)} /><div className="actions"><button onClick={() => setMode('edit')}>Modificar expediente</button><button onClick={() => setMode('work')}>Crear parte</button>{data.client_id && <Link to={`${baseRoute}/clientes/${data.client_id}`}>Abrir cliente</Link>}{data.site_id && <Link to={`${baseRoute}/centros/${data.site_id}`}>Abrir centro</Link>}{entityPurgeCanShowButton('cases', data, workspace) && <button className="danger-action" onClick={() => setPurgeOpen(true)}>Eliminar definitivamente</button>}</div><Card title="Datos del expediente"><InfoGrid items={[[ 'Cliente', data.clients?.legal_name ?? '-' ], [ 'Centro', data.sites?.name ?? '-' ], [ 'Tipo', displayStatus(data.type) ], [ 'Prioridad', displayStatus(data.priority) ], [ 'Estado', displayStatus(data.status) ], [ 'Origen', data.origin ], [ 'Descripción', data.description ?? '-' ]]} /></Card><Card title="Cronología"><Timeline items={(data.case_events ?? []).map((event: any) => `${formatDate(event.created_at)} · ${event.event_type} · ${event.description ?? ''}`)} /></Card><Related title="Registros vinculados" groups={[[ 'Vínculos', data.case_links, baseRoute ], [ 'Documentos', data.case_documents, '/app/documentos' ]]} />{mode === 'edit' && <CaseForm title="Modificar expediente" initial={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}{mode === 'work' && <WorkOrderForm initial={{ company_id: data.company_id, case_id: data.id, client_id: data.client_id, site_id: data.site_id }} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}{purgeOpen && <GenericEntityPurgeModal config={casesPurgeConfig} record={data} onClose={() => setPurgeOpen(false)} onDeleted={() => navigate(`${baseRoute}/expedientes`)} />}</section>; }
 
+function PendingMaterialValidationPanel() {
+  const { profile } = useAuth();
+  const roles = profile ? normalizedRoleNames(profile.primary_area, profile.roles ?? []) : [];
+  const canValidate = roles.some((role) => ['superadmin', 'SAT', 'Gerencia', 'Oficina'].includes(role));
+  const [search, setSearch] = useState('');
+  const [warehouseByUsage, setWarehouseByUsage] = useState<Record<string, string>>({});
+  const pending = useLoad(() => canValidate ? workOrdersService.pendingMaterialValidations(search) : Promise.resolve([]), [canValidate, search], [] as any[]);
+  const warehouses = useLoad(() => canValidate ? workOrdersService.warehousesCatalog() : Promise.resolve([]), [canValidate], [] as any[]);
+  const stock = useLoad(() => canValidate ? workOrdersService.warehouseStockCatalog() : Promise.resolve([]), [canValidate], [] as any[]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  if (!canValidate) return null;
+  const validate = async (row: any) => {
+    if (!row.material_id) return;
+    const warehouseId = row.stock_warehouse_id || warehouseByUsage[row.id];
+    if (!warehouseId) { setError('Selecciona el almacen de origen antes de validar el consumo.'); return; }
+    setBusy(row.id); setError('');
+    try {
+      if (!row.stock_warehouse_id) await workOrdersService.upsertMaterial({ id: row.id, work_order_id: row.work_order_id, material_id: row.material_id, quantity: row.used_quantity, warehouse_id: warehouseId });
+      await workOrdersService.validateMaterialStock(row.id);
+      pending.reload();
+    } catch (err) { setError(formErrorMessage(err, 'No se ha podido validar el consumo.')); }
+    finally { setBusy(null); }
+  };
+  return <Card title={`Consumos de material pendientes (${pending.data.length})`}><div className="actions"><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar material o descripcion" /><button onClick={pending.reload} disabled={pending.loading}>Actualizar</button></div>{pending.error && <p className="form-error">{formErrorMessage(pending.error, 'No se han podido cargar los consumos pendientes.')}</p>}{error && <p className="form-error">{error}</p>}{pending.data.length ? <div className="compact-list">{pending.data.map((row: any) => { const manual = !row.material_id; const work = row.work_orders; const material = row.materials; const warehouseId = row.stock_warehouse_id || warehouseByUsage[row.id]; const stockRow = stock.data.find((item: any) => item.warehouse_id === warehouseId && item.material_id === row.material_id); const mayGoNegative = !manual && stockRow && Number(stockRow.quantity) < Number(row.used_quantity); return <article key={row.id}><Badge tone={manual ? 'muted' : 'warn'}>{manual ? 'MATERIAL MANUAL · Pendiente de conciliacion' : 'Pendiente de validar'}</Badge><p><strong>{work?.code ?? 'Parte no informado'}</strong> · {work?.clients?.legal_name ?? 'Cliente no informado'} · {work?.sites?.name ?? 'Centro no informado'}<br />{material?.code ? `${material.code} · ` : ''}{material?.description ?? row.description ?? 'Material no catalogado'} · {row.used_quantity} {row.unit ?? 'ud'} · {formatDate(row.used_at ?? row.created_at)}<br />Tecnico: {fullName(row.profiles) || 'No informado'}</p>{manual ? <p className="large-note">No tiene material catalogado: no puede validarse contra stock ni crea SKU automaticamente.</p> : <div className="row-actions">{row.stock_warehouse_id ? <span className="large-note">Almacen resuelto</span> : <FormSelect label="Almacen de origen" value={warehouseByUsage[row.id] ?? ''} onChange={(value) => setWarehouseByUsage((current) => ({ ...current, [row.id]: value }))} options={[{ value: '', label: 'Selecciona almacen' }, ...warehouses.data.map((item: any) => ({ value: item.id, label: `${item.code} · ${item.name}` }))]} loading={warehouses.loading} />}{mayGoNegative && <span className="state-warning">Advertencia: la validacion puede dejar stock negativo segun la politica del material.</span>}<button className="primary" onClick={() => validate(row)} disabled={busy === row.id || (!row.stock_warehouse_id && !warehouseByUsage[row.id])}>{busy === row.id ? 'Validando...' : 'VALIDAR CONSUMO'}</button></div>}</article>; })}</div> : <p className="large-note">No hay consumos pendientes de validar.</p>}</Card>;
+}
+
 function WorkOrdersPage() {
   const { profile, workspace } = useAuth();
   const scope = undefined;
@@ -766,6 +798,7 @@ function WorkOrderSatReviewCard({ workOrder, onChanged, onError }: { workOrder: 
   const [saving, setSaving] = useState(false);
   const commercials = useLoad(() => profilesService.listCommercials(), [], [] as any[]);
   const status = workOrder.sat_review_status ?? 'not_started';
+  const canDecideWarranty = profile ? normalizedRoleNames(profile.primary_area, profile.roles ?? []).some((role) => ['superadmin', 'SAT', 'Gerencia', 'Oficina'].includes(role)) : false;
   if (!['pending', 'returned', 'approved'].includes(status)) return null;
   const submit = async () => {
     if (!decision || saving) return;
@@ -775,7 +808,7 @@ function WorkOrderSatReviewCard({ workOrder, onChanged, onError }: { workOrder: 
     finally { setSaving(false); }
   };
   return <Card title="Revisión SAT" action={<Badge tone={status === 'approved' ? 'ok' : status === 'returned' ? 'danger' : 'warn'}>{status === 'approved' ? 'Revisado' : status === 'returned' ? 'Devuelto a SAT' : 'Pendiente'}</Badge>}>
-     <InfoGrid items={[[ 'Destino', workOrder.sat_review_destination === 'comercial' ? 'Comercial' : workOrder.sat_review_destination === 'facturacion' ? 'Facturación' : '-' ], [ 'Observaciones internas', workOrder.sat_review_reason && workOrder.sat_review_reason !== 'Sin observaciones internas' ? workOrder.sat_review_reason : '-' ], [ 'Indicadores', satReviewFlagLabels(workOrder.sat_review_flags).join(', ') || 'Ninguno' ]]} />
+     <InfoGrid items={[[ 'Destino', workOrder.sat_review_destination === 'comercial' ? 'Comercial' : workOrder.sat_review_destination === 'facturacion' ? 'Facturación' : '-' ], [ 'Observaciones internas', workOrder.sat_review_reason && workOrder.sat_review_reason !== 'Sin observaciones internas' ? workOrder.sat_review_reason : '-' ], [ 'Indicadores', satReviewFlagLabels(workOrder.sat_review_flags).join(', ') || 'Ninguno' ]]} /><WarrantyBillingDecisionPanel workOrder={workOrder} lines={workOrder.planned_quote_lines ?? []} canDecide={canDecideWarranty} onChanged={onChanged} />
     {['pending', 'returned'].includes(status) && canReviewWorkOrderSat(profile) && <div className="actions"><button className="primary" onClick={() => { setDecision('approved'); setReason(''); }}>Enviar a destino</button><button className="danger" onClick={() => { setDecision('returned'); setReason(''); }}>Devolver a SAT</button></div>}
      {decision && <div className="mini-modal" role="dialog" aria-modal="true"><div><h3>{decision === 'approved' ? 'Enviar parte desde SAT' : 'Mantener parte en SAT'}</h3>{decision === 'approved' && <label>Destino<select value={destination} onChange={(event) => { const next = event.target.value as 'comercial' | 'facturacion'; setDestination(next); if (next === 'facturacion') setCommercialProfileId(''); }}><option value="facturacion">Facturación</option><option value="comercial">Comercial</option></select></label>}{decision === 'approved' && destination === 'comercial' && <label>Comercial responsable *<select value={commercialProfileId} onChange={(event) => setCommercialProfileId(event.target.value)} required><option value="">Selecciona un comercial</option>{commercials.data.map((commercial: any) => <option key={commercial.id} value={commercial.id}>{fullName(commercial)}</option>)}</select></label>}<fieldset className="sat-review-flags"><legend>Indicadores de revisión</legend>{satReviewFlags.map(([key, label]) => <label className="sat-review-flag" key={key}><input type="checkbox" checked={flags[key]} onChange={(event) => setFlags((current) => ({ ...current, [key]: event.target.checked }))} /><span>{label}</span></label>)}</fieldset><label>Observaciones internas<textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Opcional" /></label><div className="modal-footer"><button onClick={() => setDecision(null)} disabled={saving}>Cancelar</button><button className={decision === 'approved' ? 'primary' : 'danger'} onClick={submit} disabled={saving || (decision === 'approved' && destination === 'comercial' && !commercialProfileId)}>{saving ? 'Guardando...' : decision === 'approved' ? destination === 'comercial' ? 'Enviar a Comercial' : 'Enviar a Facturación' : 'Devolver a SAT'}</button></div></div></div>}
   </Card>;
@@ -803,6 +836,7 @@ function WorkOrderOfficeValidationCard({ workOrder, onChanged, onError }: { work
   const satApproved = workOrder.sat_review_status === 'approved';
   const commercialApproved = workOrder.sat_review_destination !== 'comercial' || workOrder.commercial_review_status === 'approved';
   const readyForOffice = satApproved && commercialApproved;
+  const canDecideWarranty = profile ? normalizedRoleNames(profile.primary_area, profile.roles ?? []).some((role) => ['superadmin', 'SAT', 'Gerencia', 'Oficina'].includes(role)) : false;
   if (isModernBillingRouting(workOrder)) return null;
   if (!readyForOffice || (status === 'not_started' && workOrder.economic_status !== 'pendiente_validacion')) return null;
   if (capability.loading) return null;
@@ -816,7 +850,7 @@ function WorkOrderOfficeValidationCard({ workOrder, onChanged, onError }: { work
     setSaving(false);
   };
   return <Card title="Validación de oficina" action={<Badge tone={status === 'validated' ? 'ok' : status === 'rejected' ? 'danger' : 'warn'}>{displayOfficeValidationStatus(status)}</Badge>}>
-    <InfoGrid items={[[ 'Estado técnico', displayStatus(workOrder.status) ], [ 'Estado de validación', displayOfficeValidationStatus(status) ], [ 'Estado económico', economicStatusLabel(workOrder) ], [ 'Venta', canViewWorkOrderCosts(profile) ? money(workOrder.sale_amount) : 'No disponible' ], [ 'Coste real', canViewWorkOrderCosts(profile) ? money(workOrder.real_cost_amount) : 'No disponible' ], [ 'Margen', canViewWorkOrderCosts(profile) ? money(workOrder.margin_amount) : 'No disponible' ], [ 'Presupuesto asociado', workOrder.quotes?.code ?? workOrder.quote_id ?? 'Sin presupuesto' ], [ 'Comentario / motivo', workOrder.office_validation_reason ?? '-' ], [ 'Fecha', workOrder.office_validated_at ? formatDate(workOrder.office_validated_at) : '-' ]]} />
+     <InfoGrid items={[[ 'Estado técnico', displayStatus(workOrder.status) ], [ 'Estado de validación', displayOfficeValidationStatus(status) ], [ 'Estado económico', economicStatusLabel(workOrder) ], [ 'Venta', canViewWorkOrderCosts(profile) ? money(workOrder.sale_amount) : 'No disponible' ], [ 'Coste real', canViewWorkOrderCosts(profile) ? money(workOrder.real_cost_amount) : 'No disponible' ], [ 'Margen', canViewWorkOrderCosts(profile) ? money(workOrder.margin_amount) : 'No disponible' ], [ 'Presupuesto asociado', workOrder.quotes?.code ?? workOrder.quote_id ?? 'Sin presupuesto' ], [ 'Comentario / motivo', workOrder.office_validation_reason ?? '-' ], [ 'Fecha', workOrder.office_validated_at ? formatDate(workOrder.office_validated_at) : '-' ]]} /><WarrantyBillingDecisionPanel workOrder={workOrder} lines={workOrder.planned_quote_lines ?? []} canDecide={canDecideWarranty} onChanged={onChanged} />
     {canShowOfficeValidationActions(status, canReviewWorkOrderOffice(profile)) && <div className="actions"><button className="primary" onClick={() => setDecision('validated')}>Validar</button><button className="danger" onClick={() => setDecision('rejected')}>Devolver</button></div>}
     {decision && <OfficeValidationModal decision={decision} reason={reason} saving={saving} onReasonChange={setReason} onCancel={() => setDecision(null)} onSubmit={submit} />}
   </Card>;
@@ -841,6 +875,7 @@ function WorkOrderFinalizeModal({ workOrder, onClose, onDone, onError }: { workO
   const { profile } = useAuth();
   const [saving, setSaving] = useState(false);
   const showCosts = canViewWorkOrderCosts(profile);
+  const canDecideWarranty = profile ? normalizedRoleNames(profile.primary_area, profile.roles ?? []).some((role) => ['superadmin', 'SAT', 'Gerencia', 'Oficina'].includes(role)) : false;
   const summary = interventionSummary(workOrder);
   const pending = pendingOperationalQuoteLines(workOrder);
   const pendingChecks = pendingWorkOrderCheckCount(workOrder);
@@ -866,7 +901,7 @@ function WorkOrderFinalizeModal({ workOrder, onClose, onDone, onError }: { workO
       <Card title="TRABAJO"><InfoGrid items={[[ 'Diagnóstico', summary.diagnosis ?? '-' ], [ 'Trabajo realizado', summary.work ?? '-' ], [ 'Resultado', summary.result ?? '-' ], [ 'Observaciones', summary.observations ?? '-' ]]} /></Card>
       <Card title="DETALLE DE LA INTERVENCIÓN"><div className="compact-list">{timeRows.map((row: any) => <article key={`time-${row.id}`}><strong>{formatMinutes(Number(row.duration_minutes ?? 0))} · {fullName(row.profiles) || 'Trabajador no informado'}</strong><p>{formatDate(row.work_date)} · {row.description || 'Sin descripción'}</p><p>{row.source === 'additional' ? 'Venta adicional fuera del presupuesto' : 'Horas del parte'}</p></article>)}{materialRows.map((row: any) => <article key={`material-${row.id}`}><strong>{row.materials?.description ?? row.description ?? 'Material no catalogado'} · {row.used_quantity ?? row.quantity ?? 0} {row.unit ?? 'ud'}</strong><p>{formatDate(row.used_at ?? row.created_at)} · {row.source === 'additional' ? 'Venta adicional fuera del presupuesto' : 'Material del parte'}</p></article>)}{costRows.filter((row: any) => !timeRows.some((time: any) => time.id === row.time_entry_id) && !materialRows.some((material: any) => material.id === row.work_order_material_id)).map((row: any) => <article key={`cost-${row.id}`}><strong>{row.description ?? 'Coste auxiliar'} · {row.quantity ?? 0} {row.unit ?? 'ud'}</strong><p>{row.source === 'additional' ? 'Venta adicional fuera del presupuesto' : 'Coste del parte'}</p></article>)}</div>{!timeRows.length && !materialRows.length && !costRows.length && <p className="large-note">No hay horas, materiales ni otros costes registrados.</p>}</Card>
       <Card title={showCosts ? 'ECONOMÍA CANÓNICA' : 'RESUMEN REAL'}><InfoGrid items={showCosts ? (canonicalEconomics.loading ? [[ 'Economía', 'Cargando...' ]] : [[ 'Venta presupuestada', money(canonicalEconomics.data?.quoted_sale_amount) ], [ 'Venta adicional', money(canonicalEconomics.data?.additional_sale_amount) ], [ 'Venta total', money(canonicalEconomics.data?.sale_amount) ], [ 'Coste real', money(canonicalEconomics.data?.real_cost_amount) ], [ 'Margen', money(canonicalEconomics.data?.margin_amount) ]]) : [[ 'Horas reales', formatMinutes(totalMinutes) ], [ 'Materiales utilizados', String(materialRows.length) ], [ 'Costes auxiliares', String(costRows.length) ]] } /></Card>
-      <Card title="COMPROBACIONES"><InfoGrid items={[[ 'Conceptos pendientes', String(pending.length) ], [ 'Checks pendientes', String(pendingChecks) ], [ 'Siguiente paso', 'Validación de oficina' ]]} /></Card>
+       <Card title="COMPROBACIONES"><InfoGrid items={[[ 'Conceptos pendientes', String(pending.length) ], [ 'Checks pendientes', String(pendingChecks) ], [ 'Siguiente paso', 'Validación de oficina' ]]} /><WarrantyBillingDecisionPanel workOrder={workOrder} lines={workOrder.planned_quote_lines ?? []} canDecide={canDecideWarranty} onChanged={onDone} /></Card>
     </div>
     <div className="modal-footer"><button onClick={onClose} disabled={saving}>Revisar antes</button><button className="primary" onClick={confirm} disabled={saving || blocked}>{saving ? 'Finalizando...' : 'Enviar a validación de oficina'}</button></div>
   </div></div>;
@@ -966,21 +1001,21 @@ function WorkOrderMaterialForm({ workOrder, initial, onClose, onSaved }: { workO
   const [search, setSearch] = useState('');
   const [additional, setAdditional] = useState(initial?.source === 'additional');
   const catalog = useLoad(() => workOrdersService.materialsCatalog(search), [search], [] as any[]);
-  const [values, setValues] = useState<Record<string, string>>({ id: initial?.id ?? '', work_order_id: workOrder.id, material_id: initial?.material_id ?? '', description: initial?.description ?? '', quantity: String(initial?.used_quantity ?? initial?.quantity ?? 1), unit: initial?.unit ?? 'ud', used_at: (initial?.used_at ?? new Date().toISOString()).slice(0, 10), unit_price: initial?.unit_price ? String(initial.unit_price) : '', notes: initial?.notes ?? '' });
+  const warehouses = useLoad(() => workOrdersService.warehousesCatalog(), [], [] as any[]);
+  const [values, setValues] = useState<Record<string, string>>({ id: initial?.id ?? '', work_order_id: workOrder.id, material_id: initial?.material_id ?? '', warehouse_id: initial?.stock_warehouse_id ?? '', description: initial?.description ?? '', quantity: String(initial?.used_quantity ?? initial?.quantity ?? 1), unit: initial?.unit ?? 'ud', used_at: (initial?.used_at ?? new Date().toISOString()).slice(0, 10), unit_price: initial?.unit_price ? String(initial.unit_price) : '', notes: initial?.notes ?? '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const set = (key: string, value: string) => setValues((current) => ({ ...current, [key]: value }));
   const selectedMaterial = catalog.data.find((item: any) => item.id === values.material_id);
   const selectedStock = Number(selectedMaterial?.stock_quantity ?? 0);
-  const requested = Number(values.quantity || 0);
-  const stockBlocked = Boolean(selectedMaterial?.stock_controlled !== false && !selectedMaterial?.allow_negative_stock && requested > selectedStock);
+  const stockBlocked = false;
   const selectMaterial = (value: string) => { const material = catalog.data.find((item: any) => item.id === value); setValues((current) => ({ ...current, material_id: value, description: material?.description ?? current.description, unit: material?.unit ?? current.unit, unit_price: material?.price != null ? String(material.price) : current.unit_price })); };
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!values.material_id && !values.description?.trim()) { setError('validacion del formulario: elige catálogo o describe el material.'); return; }
     if (Number(values.quantity) <= 0) { setError('validacion del formulario: la cantidad debe ser mayor que cero.'); return; }
     if (!values.unit?.trim()) { setError('validacion del formulario: indica la unidad, por ejemplo ud, m o kg.'); return; }
-    if (stockBlocked) { setError('stock: stock insuficiente para este material.'); return; }
+    if (selectedMaterial?.stock_controlled !== false && !values.warehouse_id) { setError('stock: selecciona el almacen de origen.'); return; }
     setSaving(true); setError('');
     try {
       const id = await workOrdersService.upsertMaterial(Object.fromEntries(Object.entries(values).filter(([, value]) => value !== '')));
@@ -993,7 +1028,8 @@ function WorkOrderMaterialForm({ workOrder, initial, onClose, onSaved }: { workO
     <h3>{initial ? 'Editar material' : 'Añadir material'}</h3>
     <p className="large-note">El material de catálogo descuenta stock y conserva coste/venta resueltos por el servidor. El material manual no afecta stock.</p>
     <label>Buscar catálogo<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Código, descripción, fabricante o referencia" /></label>
-    <FormSelect label="Material de catálogo" value={values.material_id ?? ''} onChange={selectMaterial} options={[{ value: '', label: 'Material no catalogado' }, ...catalog.data.map((item: any) => ({ value: item.id, label: `${item.code ?? '-'} · ${item.description} · Stock ${Number(item.stock_quantity ?? 0).toLocaleString('es-ES')} ${item.unit ?? 'ud'} · ${Number(item.price ?? 0).toLocaleString('es-ES')} €` }))]} loading={catalog.loading} />
+    <FormSelect label="Material de catálogo" value={values.material_id ?? ''} onChange={selectMaterial} options={[{ value: '', label: 'Material no catalogado' }, ...catalog.data.map((item: any) => ({ value: item.id, label: `${item.code ?? '-'} · ${item.description}` }))]} loading={catalog.loading} />
+    {selectedMaterial?.stock_controlled !== false && <FormSelect label="Almacen de origen" value={values.warehouse_id ?? ''} onChange={(value) => set('warehouse_id', value)} options={[{ value: '', label: warehouses.loading ? 'Cargando almacenes...' : 'Selecciona almacen' }, ...warehouses.data.map((item: any) => ({ value: item.id, label: `${item.code} · ${item.name}` }))]} loading={warehouses.loading} />}
     {selectedMaterial && <p className={stockBlocked ? 'form-error' : materialStockStatus(selectedMaterial) === 'Bajo stock' ? 'state-warning' : 'large-note'}>Stock disponible: {selectedStock.toLocaleString('es-ES')} {selectedMaterial.unit ?? 'ud'} · Mínimo: {Number(selectedMaterial.minimum_stock ?? 0).toLocaleString('es-ES')} · {materialStockStatus(selectedMaterial)}</p>}
     <label>Descripción alternativa<input value={values.description ?? ''} onChange={(event) => set('description', event.target.value)} placeholder="Obligatoria si no eliges catálogo" /></label>
     <div className="form-grid"><label>Cantidad<input type="number" step="0.01" min="0.01" value={values.quantity} onChange={(event) => set('quantity', event.target.value)} required /></label><label>Unidad<input value={values.unit} onChange={(event) => set('unit', event.target.value)} /></label><label>Fecha<input type="date" value={values.used_at} onChange={(event) => set('used_at', event.target.value)} /></label>{showCosts && <label>Precio unitario<input type="number" step="0.01" min="0" value={values.unit_price ?? ''} onChange={(event) => set('unit_price', event.target.value)} /></label>}</div>

@@ -46,13 +46,13 @@ describe('workOrdersService operational RPCs', () => {
     expect(rpc).toHaveBeenCalledWith('dmp_work_order_time_worker_options', { p_work_order_id: 'wo-1' });
   });
 
-  it('registra materiales mediante la RPC segura 024 con un payload unico', async () => {
+  it('registra materiales mediante la RPC pendiente con un payload unico', async () => {
     const { workOrdersService } = await import('./workOrdersService');
     const payload = { work_order_id: 'wo-1', material_id: 'mat-1', description: '', quantity: 2, unit: 'ud', used_at: '2026-08-10', notes: 'Sustituidas' };
 
     await expect(workOrdersService.upsertMaterial(payload)).resolves.toBe('saved-id');
 
-    expect(rpc).toHaveBeenCalledWith('dmp_upsert_work_order_material', { p_payload: payload });
+    expect(rpc).toHaveBeenCalledWith('dmp_submit_work_order_material', { p_payload: payload });
     expect(from).not.toHaveBeenCalledWith('work_order_materials');
   });
 
@@ -64,6 +64,22 @@ describe('workOrdersService operational RPCs', () => {
 
     expect(rpc).toHaveBeenCalledWith('dmp_upsert_work_order_cost_entry', { p_payload: { work_order_id: 'wo-1', cost_type: 'desplazamiento', description: 'Desplazamiento urbano', quantity: 12, unit: 'km', incurred_at: '2026-08-10' } });
     expect(from).not.toHaveBeenCalledWith('work_order_cost_entries');
+  });
+
+  it('valida el consumo mediante RPC administrativa idempotente', async () => {
+    const { workOrdersService } = await import('./workOrdersService');
+
+    await expect(workOrdersService.validateMaterialStock('usage-1')).resolves.toBe('saved-id');
+
+    expect(rpc).toHaveBeenCalledWith('dmp_validate_work_order_material', { p_work_order_material_id: 'usage-1' });
+  });
+
+  it('guarda la decisión económica de garantía mediante una RPC única', async () => {
+    const { workOrdersService } = await import('./workOrdersService');
+
+    await expect(workOrdersService.setWarrantyBillingDecision('wo-1', 'planned_material', 'line-1', 'facturable')).resolves.toBe('saved-id');
+
+    expect(rpc).toHaveBeenCalledWith('dmp_set_work_order_billing_decision', { p_work_order_id: 'wo-1', p_concept_type: 'planned_material', p_concept_id: 'line-1', p_billing_decision: 'facturable' });
   });
 
   it('borra recursos y costes por RPC de borrado logico 027', async () => {

@@ -38,7 +38,7 @@ export const billingService = {
   },
   async invoiceableWorkOrders() {
     const companyId = await currentCompanyId();
-    let query = supabase.from('work_orders').select('id,company_id,code,title,client_id,sale_amount,estimated_sale_amount,economic_status,office_validation_status,sat_review_status,sat_review_destination,commercial_review_status,sat_review_flags,sat_review_reason,clients!work_orders_client_id_fkey(id,code,legal_name)').in('economic_status', ['pendiente_facturar', 'pendiente_validacion']).eq('warranty', false).eq('billable', true).is('deleted_at', null).order('finished_at', { ascending: true });
+    let query = supabase.from('work_orders').select('id,company_id,code,title,client_id,sale_amount,estimated_sale_amount,economic_status,warranty,billable,office_validation_status,sat_review_status,sat_review_destination,commercial_review_status,sat_review_flags,sat_review_reason,clients!work_orders_client_id_fkey(id,code,legal_name)').in('economic_status', ['pendiente_facturar', 'pendiente_validacion']).eq('billable', true).is('deleted_at', null).order('finished_at', { ascending: true });
     if (companyId) query = query.eq('company_id', companyId);
     const [rows, links] = await Promise.all([
       expectData<any[]>(query, { service: 'billingService', operation: 'Listar partes preparables' }),

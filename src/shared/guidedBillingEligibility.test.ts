@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { isBillingEligibleWithoutOffice, isModernBillingRouting } from './guidedBillingEligibility';
 
-const base = { economic_status: 'pendiente_validacion', office_validation_status: 'pending', warranty: false, billable: true };
+const base = { economic_status: 'pendiente_validacion', office_validation_status: 'pending', warranty: false, billable: true, sale_amount: 100 };
 
 describe('guided billing eligibility 091', () => {
   it('allows approved SAT direct routing without Office validation', () => {
@@ -25,7 +25,12 @@ describe('guided billing eligibility 091', () => {
 
   it('rejects warranty, non-billable and unapproved work orders', () => {
     expect(isBillingEligibleWithoutOffice({ ...base, sat_review_status: 'pending', sat_review_destination: null })).toBe(false);
-    expect(isBillingEligibleWithoutOffice({ ...base, warranty: true, sat_review_status: 'approved', sat_review_destination: 'facturacion' })).toBe(false);
+    expect(isBillingEligibleWithoutOffice({ ...base, warranty: true, sale_amount: 0, sat_review_status: 'approved', sat_review_destination: 'facturacion' })).toBe(false);
     expect(isBillingEligibleWithoutOffice({ ...base, billable: false, sat_review_status: 'approved', sat_review_destination: 'facturacion' })).toBe(false);
+  });
+
+  it('allows only positive partial warranty sales', () => {
+    expect(isBillingEligibleWithoutOffice({ ...base, warranty: true, sale_amount: 25, sat_review_status: 'approved', sat_review_destination: 'facturacion' })).toBe(true);
+    expect(isBillingEligibleWithoutOffice({ ...base, warranty: true, sale_amount: 0, sat_review_status: 'approved', sat_review_destination: 'facturacion' })).toBe(false);
   });
 });

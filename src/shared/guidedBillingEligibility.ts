@@ -7,5 +7,6 @@ export function isModernBillingRouting(workOrder: any) {
 export function isBillingEligibleWithoutOffice(workOrder: any) {
   const modern = isModernBillingRouting(workOrder);
   const economicReady = ['pendiente_facturar', 'pendiente_validacion'].includes(workOrder?.economic_status);
-  return economicReady && !workOrder?.warranty && workOrder?.billable !== false && (modern || workOrder?.office_validation_status === 'validated');
+  const warrantyPartial = workOrder?.warranty === true && Number(workOrder?.sale_amount ?? 0) > 0;
+  return economicReady && (warrantyPartial || !workOrder?.warranty) && workOrder?.billable !== false && Number(workOrder?.sale_amount ?? 0) > 0 && (modern || workOrder?.office_validation_status === 'validated');
 }

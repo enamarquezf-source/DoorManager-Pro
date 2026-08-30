@@ -2095,6 +2095,8 @@ function StockOpeningBulkPanel() {
   const materials = useLoad(() => canOpen ? materialsService.initialStockCatalog() : Promise.resolve([]), [canOpen], [] as any[]);
   const warehouses = useLoad(() => canOpen ? workOrdersService.warehousesCatalog() : Promise.resolve([]), [canOpen], [] as any[]);
   const stock = useLoad(() => canOpen ? workOrdersService.warehouseStockCatalog() : Promise.resolve([]), [canOpen], [] as any[]);
+  const reconciliations = useLoad(() => canOpen ? workOrdersService.warehouseStockReconciliationCatalog() : Promise.resolve([]), [canOpen], [] as any[]);
+  useEffect(() => { const reloadReconciliations = () => { void reconciliations.reload(); }; window.addEventListener('warehouse-stock-reconciliation-changed', reloadReconciliations); return () => window.removeEventListener('warehouse-stock-reconciliation-changed', reloadReconciliations); }, [canOpen]);
   const [warehouseId, setWarehouseId] = useState('');
   const [source, setSource] = useState('legacy_migration');
   const [reason, setReason] = useState('');
@@ -2106,10 +2108,10 @@ function StockOpeningBulkPanel() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   if (!canOpen) return null;
-  const rows = buildInitialStockRows(materials.data, stock.data);
+  const rows = buildInitialStockRows(materials.data, stock.data, reconciliations.data);
   const counters = initialStockCounters(rows);
   const candidates = rows.filter((row) => row.status === 'LEGACY_ONLY_POSITIVE');
-  const visibleRows = rows.filter((row) => filter === 'pending' ? row.status === 'LEGACY_ONLY_POSITIVE' : filter === 'opened' ? ['CANONICAL_EXISTS', 'MATCH'].includes(row.status) : filter === 'review' ? row.status === 'MISMATCH' : row.status === 'LEGACY_ONLY_ZERO');
+  const visibleRows = rows.filter((row) => filter === 'pending' ? row.status === 'LEGACY_ONLY_POSITIVE' : filter === 'opened' ? ['CANONICAL_EXISTS', 'MATCH', 'CANONICAL_CONFIRMED'].includes(row.status) : filter === 'review' ? row.status === 'MISMATCH' : row.status === 'LEGACY_ONLY_ZERO');
   const selectedRows = candidates.filter((row) => selected.includes(row.material.id));
   const setQuantity = (id: string, value: string) => setQuantities((current) => ({ ...current, [id]: value }));
   const selectAll = () => setSelected(candidates.map((row) => row.material.id));
@@ -2135,6 +2137,46 @@ function StockOpeningBulkPanel() {
   };
   const statusLabel = (status: string) => status === 'LEGACY_ONLY_POSITIVE' ? 'Pendiente' : status === 'LEGACY_ONLY_ZERO' ? 'Legacy cero' : status === 'LEGACY_UNKNOWN' ? 'Legacy desconocido' : status === 'MISMATCH' ? 'Requiere revision' : 'Ya abierto';
   return <details className="card stock-opening-bulk"><summary>Apertura inicial masiva</summary><p className="large-note">Propone saldos legacy para que un usuario autorizado confirme cantidades y almacen. No se copian saldos automaticamente ni se modifican materiales ya abiertos.</p><div className="form-grid"><FormSelect label="Warehouse destino" value={warehouseId} onChange={(value) => { setWarehouseId(value); setConfirmation(null); }} options={[{ value: '', label: warehouses.loading ? 'Cargando almacenes...' : 'Selecciona almacen' }, ...warehouses.data.map((item: any) => ({ value: item.id, label: `${item.code} · ${item.name}` }))]} loading={warehouses.loading} /><FormSelect label="Origen" value={source} onChange={setSource} options={[{ value: 'legacy_migration', label: 'Migracion legacy' }, { value: 'physical_count', label: 'Recuento fisico' }, { value: 'external_system_import', label: 'Importacion externa' }, { value: 'initial_inventory', label: 'Inventario inicial' }]} /></div><div className="tabs"><button className={filter === 'pending' ? 'active' : ''} onClick={() => setFilter('pending')}>Pendientes ({counters.pending})</button><button className={filter === 'opened' ? 'active' : ''} onClick={() => setFilter('opened')}>Ya abiertos ({counters.opened})</button><button className={filter === 'review' ? 'active' : ''} onClick={() => setFilter('review')}>Requieren revision ({counters.review})</button><button className={filter === 'zero' ? 'active' : ''} onClick={() => setFilter('zero')}>Legacy cero ({counters.zero})</button></div><div className="row-actions"><button type="button" onClick={selectAll} disabled={!candidates.length}>Seleccionar candidatos validos</button><button type="button" onClick={clearSelection} disabled={!selected.length}>Deseleccionar</button><span>{selected.length} seleccionados · {counters.review} requieren revision · {counters.opened} ya abiertos</span></div><div className="compact-list"><table><thead><tr><th>Sel.</th><th>Codigo</th><th>Material</th><th>Stock legacy</th><th>Stock canonico total</th><th>Estado</th><th>Cantidad a abrir</th><th>Warehouse</th></tr></thead><tbody>{visibleRows.map((row) => <tr key={row.material.id}><td><input type="checkbox" checked={selected.includes(row.material.id)} disabled={row.status !== 'LEGACY_ONLY_POSITIVE'} onChange={() => setSelected((current) => current.includes(row.material.id) ? current.filter((id) => id !== row.material.id) : [...current, row.material.id])} /></td><td>{row.material.code}</td><td>{row.material.description}</td><td>{row.legacy.toLocaleString('es-ES')} {row.material.unit ?? 'ud'}</td><td>{row.canonical.length ? `${row.canonicalTotal.toLocaleString('es-ES')} ${row.material.unit ?? 'ud'}` : 'Sin apertura'}</td><td>{statusLabel(row.status)}</td><td>{row.status === 'LEGACY_ONLY_POSITIVE' ? <input type="number" min="0.01" step="0.01" value={quantities[row.material.id] ?? row.legacy} onChange={(event) => setQuantity(row.material.id, event.target.value)} /> : '-'}</td><td>{warehouseId ? warehouses.data.find((item: any) => item.id === warehouseId)?.code ?? '-' : 'Selecciona'}</td></tr>)}</tbody></table></div><p className="large-note">Las cantidades propuestas desde stock legacy son editables. Los materiales con stock canónico, mismatches o legacy cero no se seleccionan automáticamente.</p><label>Motivo / observacion<textarea value={reason} onChange={(event) => { setReason(event.target.value); setConfirmation(null); }} placeholder="Recuento fisico inicial masivo" /></label>{message && <p className="success-note">{message}</p>}{error && <p className="form-error">{error}</p>}{confirmation ? <div className="state-warning"><p>Esta operacion establecera saldos iniciales oficiales. No representa una compra ni una recepcion.</p><p>Warehouse: {confirmation.warehouseLabel} · {confirmation.items.length} materiales · {confirmation.items.reduce((sum: number, item: any) => sum + item.quantity, 0).toLocaleString('es-ES')} unidades</p>{confirmation.items.map((item: any) => <p key={item.material_id}>{item.code} · {item.description} · {item.quantity.toLocaleString('es-ES')} {item.unit} · {confirmation.warehouseLabel}</p>)}<p>{confirmation.reason}</p><div className="row-actions"><button type="button" onClick={() => setConfirmation(null)} disabled={saving}>Cancelar</button><button type="button" className="primary" onClick={submit} disabled={saving}>{saving ? 'Registrando...' : 'Registrar apertura masiva'}</button></div></div> : <button type="button" className="primary" onClick={review}>Revisar apertura masiva</button>}</details>;
+}
+
+function StockReconciliationPanel() {
+  const { profile } = useAuth();
+  const roles = profile ? normalizedRoleNames(profile.primary_area, profile.roles ?? []) : [];
+  const canReview = roles.some((role) => ['superadmin', 'SAT', 'Gerencia', 'Oficina'].includes(role));
+  const materials = useLoad(() => canReview ? materialsService.initialStockCatalog() : Promise.resolve([]), [canReview], [] as any[]);
+  const warehouses = useLoad(() => canReview ? workOrdersService.warehousesCatalog() : Promise.resolve([]), [canReview], [] as any[]);
+  const stock = useLoad(() => canReview ? workOrdersService.warehouseStockCatalog() : Promise.resolve([]), [canReview], [] as any[]);
+  const reconciliations = useLoad(() => canReview ? workOrdersService.warehouseStockReconciliationCatalog() : Promise.resolve([]), [canReview], [] as any[]);
+  const [reviewing, setReviewing] = useState<any | null>(null);
+  if (!canReview) return null;
+  const rows = buildInitialStockRows(materials.data, stock.data, reconciliations.data);
+  const reviewRows = rows.filter((row) => row.status === 'MISMATCH');
+  if (!materials.loading && !reviewRows.length && !reviewing) return null;
+  return <Card title={`Resolver discrepancias de stock (${reviewRows.length})`}><p className="large-note">Acepta el saldo canónico actual o ajustalo a un recuento físico. Los materiales con varios almacenes requieren conciliación por almacén y no se resuelven aquí.</p>{reviewRows.length ? <div className="compact-list"><table><thead><tr><th>Codigo</th><th>Material</th><th>Stock legacy</th><th>Stock canonico</th><th>Warehouse</th><th>Accion</th></tr></thead><tbody>{reviewRows.map((row) => { const singleWarehouse = row.canonical.length === 1; const warehouse = singleWarehouse ? warehouses.data.find((item: any) => item.id === row.canonical[0].warehouse_id) : null; return <tr key={row.material.id}><td>{row.material.code}</td><td>{row.material.description}</td><td>{row.legacy.toLocaleString('es-ES')} {row.material.unit ?? 'ud'}</td><td>{row.canonicalTotal.toLocaleString('es-ES')} {row.material.unit ?? 'ud'}</td><td>{singleWarehouse ? warehouse?.code ?? row.canonical[0].warehouse_id : 'Varios almacenes'}</td><td>{singleWarehouse ? <button type="button" onClick={() => setReviewing(row)}>Revisar</button> : <span className="large-note">Requiere conciliacion por almacen</span>}</td></tr>; })}</tbody></table></div> : <p className="large-note">No hay discrepancias activas.</p>}{reviewing && <StockReconciliationModal row={reviewing} warehouses={warehouses.data} onClose={() => setReviewing(null)} onResolved={async () => { setReviewing(null); await Promise.all([reconciliations.reload(), stock.reload()]); }} />}</Card>;
+}
+
+function StockReconciliationModal({ row, warehouses, onClose, onResolved }: { row: any; warehouses: any[]; onClose: () => void; onResolved: () => Promise<void> }) {
+  const canonical = row.canonical[0];
+  const warehouse = warehouses.find((item: any) => item.id === canonical.warehouse_id);
+  const movements = useLoad(() => workOrdersService.warehouseStockMovements(canonical.warehouse_id, row.material.id), [canonical.warehouse_id, row.material.id], [] as any[]);
+  const [quantity, setQuantity] = useState(String(canonical.quantity ?? 0));
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  useOverlayScrollLock();
+  const resolve = async (action: 'accept_canonical' | 'adjust_canonical') => {
+    if (!reason.trim()) { setError('Indica el motivo de la conciliacion.'); return; }
+    const confirmed = Number(quantity);
+    if (action === 'adjust_canonical' && (!Number.isFinite(confirmed) || confirmed < 0)) { setError('La cantidad confirmada no puede ser negativa.'); return; }
+    setSaving(true); setError('');
+    try {
+      await workOrdersService.resolveInitialStockReview({ warehouse_id: canonical.warehouse_id, material_id: row.material.id, action, confirmed_quantity: action === 'accept_canonical' ? Number(canonical.quantity) : confirmed, reason: reason.trim(), idempotency_key: crypto.randomUUID() });
+      await onResolved();
+      window.dispatchEvent(new Event('warehouse-stock-reconciliation-changed'));
+    } catch (err) { setError(formErrorMessage(err, 'No se ha podido resolver la discrepancia.')); }
+    finally { setSaving(false); }
+  };
+  return <div className="mini-modal" role="dialog" aria-modal="true"><form onSubmit={(event) => event.preventDefault()}><h3>Resolver discrepancia de stock</h3><InfoGrid items={[[ 'Material', `${row.material.code} · ${row.material.description}` ], [ 'Stock legacy', `${row.legacy.toLocaleString('es-ES')} ${row.material.unit ?? 'ud'}` ], [ 'Stock canonico', `${Number(canonical.quantity ?? 0).toLocaleString('es-ES')} ${row.material.unit ?? 'ud'}` ], [ 'Warehouse', warehouse ? `${warehouse.code} · ${warehouse.name}` : canonical.warehouse_id ]]} /><label>Cantidad física confirmada<input type="number" min="0" step="0.01" value={quantity} onChange={(event) => setQuantity(event.target.value)} /></label><label>Motivo obligatorio<textarea value={reason} onChange={(event) => setReason(event.target.value)} required placeholder="Recuento fisico / conciliacion documental" /></label><p className="large-note">Movimientos existentes: {movements.loading ? 'Cargando...' : movements.data.length}. Aceptar el canónico no crea movimiento; ajustar registra un movimiento Ajuste por la diferencia.</p>{error && <p className="form-error">{error}</p>}<div className="modal-footer"><button type="button" onClick={onClose} disabled={saving}>Cancelar</button><button type="button" onClick={() => resolve('accept_canonical')} disabled={saving}>Aceptar stock canonico</button><button type="button" className="primary" onClick={() => resolve('adjust_canonical')} disabled={saving}>{saving ? 'Guardando...' : 'Ajustar a cantidad confirmada'}</button></div></form></div>;
 }
 
 function MaterialsModuleContent() {
@@ -2878,7 +2920,7 @@ function MaterialsCanonicalSummary() {
   return <Card title="Lectura de stock"><p className="large-note">Los indicadores legacy del catálogo se mantienen solo como referencia de compatibilidad. El saldo canónico por almacén es la autoridad operativa.</p><p><strong>Stock canónico total informativo:</strong> {stock.loading ? 'Cargando...' : `${total.toLocaleString('es-ES')} unidades`}. No implica disponibilidad en un almacén concreto.</p></Card>;
 }
 
-function MaterialsModule() { return <><StockOpeningPanel /><StockOpeningBulkPanel /><MaterialsCanonicalSummary /><MaterialsModuleContent /></>; }
+function MaterialsModule() { return <><StockOpeningPanel /><StockOpeningBulkPanel /><StockReconciliationPanel /><MaterialsCanonicalSummary /><MaterialsModuleContent /></>; }
 
 function LegacyMultiEquipmentPicker({ values, setValues, filteredEquipment, equipmentTypes, installation }: any) {
   const [existingId, setExistingId] = useState('');

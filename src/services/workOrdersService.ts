@@ -342,6 +342,12 @@ export const workOrdersService = {
   warehouseStockCatalog() {
     return expectData<any[]>(supabase.from('warehouse_stock').select('warehouse_id,material_id,quantity'));
   },
+  warehouseStockReconciliationCatalog() {
+    return expectData<any[]>(supabase.from('warehouse_stock_reconciliations').select('id,warehouse_id,material_id,resolution,previous_quantity,confirmed_quantity,delta,reason,resolved_by,resolved_at,idempotency_key'));
+  },
+  warehouseStockMovements(warehouseId: string, materialId: string) {
+    return expectData<any[]>(supabase.from('stock_movements').select('id,movement_type,quantity,warehouse_id,material_id,work_order_id,created_at,notes,idempotency_key').eq('warehouse_id', warehouseId).eq('material_id', materialId).order('created_at', { ascending: false }).limit(20));
+  },
   pendingMaterialValidations(search = '') {
     let query = supabase.from('work_order_materials').select('id,company_id,work_order_id,material_id,description,used_quantity,unit,used_at,created_at,stock_validation_status,stock_warehouse_id,work_orders!work_order_materials_work_order_id_fkey(code,title,clients(legal_name),sites(name)),materials!work_order_materials_material_id_fkey(code,description),profiles!work_order_materials_registered_by_fkey(first_name,last_name)').eq('stock_validation_status', 'pending').is('deleted_at', null).order('created_at', { ascending: true });
     if (search) query = query.or(contains(['description'], search));
@@ -371,6 +377,10 @@ export const workOrdersService = {
     if (!String(payload.reason ?? '').trim()) throw new Error('Indica el motivo de apertura del stock.');
     if (!payload.items.length) throw new Error('Selecciona al menos un material para abrir stock.');
     return expectData<string>(supabase.rpc('dmp_set_initial_warehouse_stock_batch', { p_payload: { ...payload, reason: payload.reason.trim() } }), { service: 'workOrdersService', operation: 'Abrir stock inicial masivo', resource: payload.idempotency_key });
+  },
+  resolveInitialStockReview(payload: { warehouse_id: string; material_id: string; action: 'accept_canonical' | 'adjust_canonical'; confirmed_quantity?: number; reason: string; idempotency_key: string }) {
+    if (!String(payload.reason ?? '').trim()) throw new Error('Indica el motivo de conciliacion del stock.');
+    return expectData<string>(supabase.rpc('dmp_resolve_initial_stock_review', { p_payload: { ...payload, reason: payload.reason.trim() } }), { service: 'workOrdersService', operation: 'Resolver discrepancia de stock canónico', resource: payload.idempotency_key });
   },
   setPlannedMaterialDecision(payload: Record<string, any>) {
     return expectData<string>(supabase.rpc('dmp_set_work_order_planned_material_decision', { p_payload: payload }), { service: 'workOrdersService', operation: 'Registrar decision de material previsto', resource: 'dmp_set_work_order_planned_material_decision' });

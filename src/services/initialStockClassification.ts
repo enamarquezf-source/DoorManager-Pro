@@ -1,4 +1,4 @@
-export type InitialStockStatus = 'LEGACY_ONLY_POSITIVE' | 'LEGACY_ONLY_ZERO' | 'LEGACY_UNKNOWN' | 'MISMATCH' | 'MATCH';
+export type InitialStockStatus = 'LEGACY_ONLY_POSITIVE' | 'LEGACY_ONLY_ZERO' | 'LEGACY_UNKNOWN' | 'MISMATCH' | 'MATCH' | 'CANONICAL_CONFIRMED';
 
 export function classifyInitialStockMaterial(material: { stock_quantity?: number | string | null }, canonical: Array<{ quantity?: number | string | null }>) {
   const rawLegacy = material.stock_quantity;
@@ -16,18 +16,19 @@ export function classifyInitialStockMaterial(material: { stock_quantity?: number
   return { legacy, canonicalTotal, status: legacy > 0 ? 'LEGACY_ONLY_POSITIVE' as const : legacy === 0 ? 'LEGACY_ONLY_ZERO' as const : 'LEGACY_UNKNOWN' as const };
 }
 
-export function buildInitialStockRows(materials: any[], canonicalStock: any[]) {
+export function buildInitialStockRows(materials: any[], canonicalStock: any[], reconciliations: any[] = []) {
   return materials.map((material) => {
     const canonical = canonicalStock.filter((item) => item.material_id === material.id);
     const classification = classifyInitialStockMaterial(material, canonical);
-    return { material, canonical, ...classification, legacy: classification.legacy ?? 0 };
+    const reconciliation = canonical.length === 1 ? reconciliations.find((item) => item.material_id === material.id && item.warehouse_id === canonical[0].warehouse_id && Number(item.confirmed_quantity) === Number(canonical[0].quantity)) : undefined;
+    return { material, canonical, ...classification, status: reconciliation && classification.status === 'MISMATCH' ? 'CANONICAL_CONFIRMED' as const : classification.status, reconciliation, legacy: classification.legacy ?? 0 };
   });
 }
 
 export function initialStockCounters(rows: Array<{ status: string }>) {
   return {
     pending: rows.filter((row) => row.status === 'LEGACY_ONLY_POSITIVE').length,
-    opened: rows.filter((row) => ['CANONICAL_EXISTS', 'MATCH'].includes(row.status)).length,
+    opened: rows.filter((row) => ['CANONICAL_EXISTS', 'MATCH', 'CANONICAL_CONFIRMED'].includes(row.status)).length,
     review: rows.filter((row) => row.status === 'MISMATCH').length,
     zero: rows.filter((row) => row.status === 'LEGACY_ONLY_ZERO').length,
   };

@@ -239,3 +239,11 @@ Entregables:
 Criterio de salida:
 
 - El proyecto puede presentarse con arquitectura, datos, seguridad y recuperacion documentadas.
+
+## Secuencia actual de stock y compras
+
+- 094 = stock canonico por almacen y consumo diferido.
+- 095 = hotfix para permitir registrar material pending antes de la apertura de stock.
+- 096 = proveedores, compras y recepciones.
+- 097 = distribucion, reservas y fiabilidad.
+- Garantias = posterior a la secuencia operativa anterior.

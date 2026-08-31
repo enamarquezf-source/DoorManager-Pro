@@ -7,6 +7,7 @@ const read = (file: string) => readFileSync(new URL(file, root), 'utf8');
 const migration = read('supabase/migrations/098_canonical_stock_reconciliation.sql');
 const preflight = read('supabase/verification/preflight_canonical_stock_reconciliation_098.sql');
 const postflight = read('supabase/verification/postflight_canonical_stock_reconciliation_098.sql');
+const transitionPostflight = read('supabase/verification/postflight_stock_transition_097_098.sql');
 const app = read('src/App.tsx');
 const service = read('src/services/workOrdersService.ts');
 
@@ -54,5 +55,23 @@ describe('098 canonical stock reconciliation', () => {
       expect(sql).toMatch(/^(?:\s*--[^\n]*\n)*\s*with\s+checks/i);
       expect(sql).not.toMatch(/^\s*(insert|update|delete|alter|create|drop|perform)\b/im);
     }
+  });
+
+  it('defines a read-only single-result transition postflight', async () => {
+    const parser = await pgQuery();
+    expect(parser.parse(transitionPostflight).parse_tree.stmts.length).toBe(1);
+    expect(transitionPostflight).toMatch(/^\s*--[^\n]*\nwith\s+central/i);
+    expect(transitionPostflight).toMatch(/check_group[\s\S]*check_name[\s\S]*status[\s\S]*affected_rows[\s\S]*details/i);
+    expect(transitionPostflight).toContain("'central_warehouse_rows'");
+    expect(transitionPostflight).toContain("'all_15_batch_openings_once'");
+    expect(transitionPostflight).toContain("'four_resolutions_complete'");
+    expect(transitionPostflight).toContain("'specific_zero_without_canonical_or_initial'");
+    expect(transitionPostflight).toContain('9d3fc8ef-1a24-4fb7-bb72-b11bdfb905da');
+    expect(transitionPostflight).toContain('mat10_material_state');
+    expect(transitionPostflight).toContain('mat10_canonical_state');
+    expect(transitionPostflight).toContain('mat10_reconciliation_state');
+    expect(transitionPostflight).not.toMatch(/\bmin\s*\(\s*r\.id\b/i);
+    expect(transitionPostflight).not.toMatch(/\bmax\s*\(\s*[^)]*\bid\b/i);
+    expect(transitionPostflight).not.toMatch(/^\s*(insert|update|delete|alter|create|drop|perform)\b/im);
   });
 });

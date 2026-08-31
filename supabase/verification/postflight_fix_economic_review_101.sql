@@ -1,0 +1,15 @@
+with review_rpc as (
+  select p.oid,p.pronargs,p.pronargdefaults,p.proargdefaults,pg_get_function_arguments(p.oid) arguments,pg_get_functiondef(p.oid) definition,p.prosecdef,p.proconfig
+  from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='dmp_review_work_order_economic' and p.pronargs=4
+), checks as (
+  select 'review_overload' check_name, exists(select 1 from review_rpc where pronargdefaults=0 and proargdefaults is null) passed, 'four-argument overload has no defaults' detail
+  union all select 'review_wrapper', to_regprocedure('public.dmp_review_work_order_economic(uuid,jsonb,text)') is not null and exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='dmp_review_work_order_economic' and p.pronargs=3 and p.pronargdefaults=0), 'three-argument wrapper remains present without defaults' detail
+  union all select 'qualified_aliases', exists(select 1 from review_rpc where position('v_kind' in definition)>0 and position('v_entry_id' in definition)>0 and position('v_sell' in definition)>0 and position('v_price' in definition)>0 and position('v_source' in definition)>0 and position('entries.row_data order by entries.entry_kind,entries.entry_id' in lower(definition))>0 and position('decision_rows.kind' in lower(definition))>0 and position('decision_rows.entry_id' in lower(definition))>0) passed, 'PL/pgSQL variables and aggregate aliases are qualified' detail
+  union all select 'no_ambiguous_order', not exists(select 1 from review_rpc where position('order by kind,entry_id' in lower(definition))>0), 'ambiguous unqualified ORDER BY is absent' detail
+  union all select 'security_contract', exists(select 1 from review_rpc where prosecdef and position('search_path=public' in lower(coalesce(array_to_string(proconfig,','),'')))>0) passed, 'SECURITY DEFINER and search_path public are preserved' detail
+  union all select 'economic_contract', exists(select 1 from review_rpc where position('ECONOMIC_REVIEW_APPROVE' in definition)>0 and position('line_before' in definition)>0 and position('line_after' in definition)>0 and position('zero_sale_confirmed' in definition)>0 and position('contributes_to_sale' in definition)>0) passed, '100 economic review audit and decision contracts remain present' detail
+  union all select 'grants', has_function_privilege('authenticated','public.dmp_review_work_order_economic(uuid,jsonb,text)','execute') and has_function_privilege('authenticated','public.dmp_review_work_order_economic(uuid,jsonb,text,boolean)','execute') and not has_function_privilege('anon','public.dmp_review_work_order_economic(uuid,jsonb,text,boolean)','execute') passed, 'review grants are preserved' detail
+  union all select 'no_new_tables', not exists(select 1 from pg_class where relnamespace='public'::regnamespace and relname in ('economic_reviews','invoice_lines')) passed, '101 requires no new tables' detail
+)
+select check_name,passed,detail from checks order by check_name;

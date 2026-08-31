@@ -3,9 +3,10 @@ export type EconomicEntryKind = 'time' | 'material' | 'cost';
 export type EconomicEntryDecision = {
   kind: EconomicEntryKind;
   entry_id: string;
-  contributes_to_sale: boolean;
+  contributes_to_sale: boolean | null;
   source: 'quote' | 'manual' | 'additional';
   unit_price: number;
+  decision: 'enters' | 'does_not_enter' | null;
 };
 
 export function economicEntryRows(workOrder: any) {
@@ -23,10 +24,11 @@ export function economicReviewSummary(workOrder: any, rows = economicEntryRows(w
   const proposedSale = hasQuote
     ? Number((Number(workOrder?.quoted_sale_amount ?? 0) + saleRows.reduce((sum, row) => sum + Number((row.unit_price * row.quantity).toFixed(2)), 0)).toFixed(2))
     : Number(saleRows.reduce((sum, row) => sum + Number((row.unit_price * row.quantity).toFixed(2)), 0).toFixed(2));
-  const approvedSale = Number(workOrder?.sale_amount ?? proposedSale);
+  const explicitDecision = rows.length > 0 && rows.every((row) => typeof row.contributes_to_sale === 'boolean');
+  const approvedSale = explicitDecision ? proposedSale : Number(workOrder?.sale_amount ?? proposedSale);
   return { realCost: Number(realCost.toFixed(2)), proposedSale: Number(proposedSale.toFixed(2)), approvedSale: Number(approvedSale.toFixed(2)), margin: Number((approvedSale - realCost).toFixed(2)) };
 }
 
 export function economicDecisionFor(row: any): EconomicEntryDecision {
-  return { kind: row.kind, entry_id: row.id, contributes_to_sale: row.contributes_to_sale === true, source: row.source ?? (row.contributes_to_sale ? 'additional' : 'manual'), unit_price: Number(row.unit_price ?? 0) };
+  return { kind: row.kind, entry_id: row.id, contributes_to_sale: null, decision: null, source: row.source ?? 'manual', unit_price: Number(row.unit_price ?? 0) };
 }

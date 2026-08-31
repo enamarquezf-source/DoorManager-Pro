@@ -300,11 +300,15 @@ export const workOrdersService = {
     if (!String(reason ?? '').trim()) throw new Error('revision Comercial: el comentario o motivo es obligatorio');
     return expectData<any>(supabase.rpc('dmp_review_work_order_commercial', { p_work_order_id: workOrderId, p_reason: reason.trim() }), { service: 'workOrdersService', operation: 'Aprobar parte en Comercial', resource: workOrderId });
   },
-  reviewWorkOrderEconomic(workOrderId: string, decisions: any[], reason: string) {
+  reviewWorkOrderEconomic(workOrderId: string, decisions: any[], reason: string, zeroSaleConfirmed = false) {
     if (!uuidPattern.test(String(workOrderId ?? '').trim())) throw new Error('validacion del formulario: falta un parte valido');
     if (!decisions.length) throw new Error('validacion del formulario: el parte no tiene conceptos economicos');
     if (!String(reason ?? '').trim()) throw new Error('validacion del formulario: el motivo de revision es obligatorio');
-    return expectData<any>(supabase.rpc('dmp_review_work_order_economic', { p_work_order_id: workOrderId, p_decisions: decisions, p_reason: reason.trim() }), { service: 'workOrdersService', operation: 'Aprobar revision economica', resource: workOrderId });
+    return expectData<any>(supabase.rpc('dmp_review_work_order_economic', { p_work_order_id: workOrderId, p_decisions: decisions, p_reason: reason.trim(), p_zero_sale_confirmed: zeroSaleConfirmed }), { service: 'workOrdersService', operation: 'Aprobar revision economica', resource: workOrderId });
+  },
+  reopenWorkOrderEconomic(workOrderId: string, reason: string) {
+    if (!uuidPattern.test(String(workOrderId ?? '').trim()) || !String(reason ?? '').trim()) throw new Error('validacion del formulario: parte y motivo son obligatorios');
+    return expectData<any>(supabase.rpc('dmp_reopen_work_order_economic', { p_work_order_id: workOrderId, p_reason: reason.trim() }), { service: 'workOrdersService', operation: 'Reabrir revision economica', resource: workOrderId });
   },
   reassignWorkOrderCommercial(workOrderId: string, commercialProfileId: string) {
     if (!uuidPattern.test(String(workOrderId ?? '').trim()) || !uuidPattern.test(String(commercialProfileId ?? '').trim())) throw new Error('validacion del formulario: faltan identificadores validos');

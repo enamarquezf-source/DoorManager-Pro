@@ -38,14 +38,14 @@ export const billingService = {
   },
   async invoiceableWorkOrders() {
     const companyId = await currentCompanyId();
-    let query = supabase.from('work_orders').select('id,company_id,code,title,client_id,sale_amount,estimated_sale_amount,economic_status,warranty,billable,office_validation_status,sat_review_status,sat_review_destination,commercial_review_status,sat_review_flags,sat_review_reason,clients!work_orders_client_id_fkey(id,code,legal_name)').in('economic_status', ['pendiente_facturar', 'pendiente_validacion']).eq('billable', true).is('deleted_at', null).order('finished_at', { ascending: true });
+    let query = supabase.from('work_orders').select('id,company_id,code,title,client_id,sale_amount,estimated_sale_amount,economic_status,economic_review_status,warranty,billable,office_validation_status,sat_review_status,sat_review_destination,commercial_review_status,sat_review_flags,sat_review_reason,clients!work_orders_client_id_fkey(id,code,legal_name)').in('economic_status', ['pendiente_facturar', 'pendiente_validacion']).eq('billable', true).is('deleted_at', null).order('finished_at', { ascending: true });
     if (companyId) query = query.eq('company_id', companyId);
     const [rows, links] = await Promise.all([
       expectData<any[]>(query, { service: 'billingService', operation: 'Listar partes preparables' }),
       expectData<any[]>(supabase.from('invoice_work_orders').select('work_order_id').is('deleted_at', null), { service: 'billingService', operation: 'Comprobar borradores activos' }),
     ]);
     const linked = new Set(links.map((row) => row.work_order_id));
-    return rows.filter((row) => !linked.has(row.id) && isBillingEligibleWithoutOffice(row));
+    return rows.filter((row) => !linked.has(row.id) && ['approved', 'not_started'].includes(row.economic_review_status ?? 'not_started') && isBillingEligibleWithoutOffice(row));
   },
   async invoices() {
     const companyId = await currentCompanyId();
@@ -63,8 +63,8 @@ export const billingService = {
   updateDraft(invoiceId: string, payload: { lines: any[]; tax_rate?: number; due_date?: string; notes?: string }) {
     return billingRpc<void>(supabase.rpc('dmp_update_invoice_draft', { p_invoice_id: invoiceId, p_lines: payload.lines, p_tax_rate: payload.tax_rate ?? null, p_due_date: payload.due_date || null, p_notes: payload.notes || null }), 'Actualizar borrador', invoiceId);
   },
-  issueInvoice(invoiceId: string) {
-    return billingRpc<string>(supabase.rpc('dmp_issue_invoice', { p_invoice_id: invoiceId }), 'Emitir factura', invoiceId);
+  issueInvoice(invoiceId: string, exception?: { override: boolean; reason: string }) {
+    return billingRpc<string>(supabase.rpc('dmp_issue_invoice', { p_invoice_id: invoiceId, p_override: exception?.override ?? false, p_override_reason: exception?.reason || null }), 'Emitir factura', invoiceId);
   },
   deleteDraft(invoiceId: string) {
     return billingRpc<void>(supabase.rpc('dmp_delete_invoice_draft', { p_invoice_id: invoiceId }), 'Eliminar borrador', invoiceId);

@@ -447,6 +447,17 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
 .technician-concept-row small { color: var(--text-soft); }
 .technician-media-summary { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; color: var(--text-soft); font-weight: 800; }
 .technician-final-action { position: sticky; bottom: 12px; z-index: 2; display: flex; justify-content: flex-end; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,.94); box-shadow: 0 12px 30px rgba(15,23,42,.12); }
+.economic-review-panel { display: grid; gap: 14px; border-top: 4px solid var(--commercial); }
+.economic-review-panel .card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.economic-review-panel .card-header h3 { margin: 0; }
+.economic-review-lines { display: grid; gap: 10px; }
+.economic-review-lines article { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, .65fr); gap: 14px; padding: 13px; border: 1px solid #e7edf5; border-radius: 14px; background: #fafcff; }
+.economic-review-lines article > div:first-child { display: grid; gap: 4px; align-content: start; }
+.economic-review-lines article strong { font-size: 15px; }
+.economic-review-lines article p, .economic-review-lines article small { margin: 0; color: var(--text-soft); }
+.economic-review-controls { display: grid; gap: 8px; align-content: start; }
+.economic-review-controls input[type='number'] { width: 100%; }
+.economic-review-controls .check-consent { margin: 0; }
 
 @media (max-width: 760px) {
   .shell { display: block; }
@@ -540,6 +551,8 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
   .technician-workstation-head { flex-direction: column; }
   .technician-progress-grid { grid-template-columns: 1fr 1fr; }
   .technician-final-action { align-items: stretch; flex-direction: column; bottom: 8px; }
+  .economic-review-lines article { grid-template-columns: 1fr; }
+  .economic-review-panel .card-header { flex-direction: column; }
 }
 
 @media print {

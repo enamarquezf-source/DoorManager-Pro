@@ -28,6 +28,7 @@ import { buildFunctionalCheckBlocks, equipmentTypeName, isUuid, remoteBlockState
 import { technicianOfflineService } from './services/technicianOfflineService';
 import { canAccessModule, canAccessRoute, canArchiveEntity, canAssignTechnician, canCorrectWorkOrderOperationalFields, canCreateAlert, canCreateCheck, canCreateWorkOrder, canDeleteInvoiceDraft, canEditWorkOrder, canExecuteCheck, canExecuteWorkOrder, canManageCheck, canManageHourRates, canManageQuotes, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canMarkAdditionalSale, canPermanentlyDeleteEntity, canRestoreEntity, canReviewWorkOrderCommercial, canReviewWorkOrderOffice, canReviewWorkOrderSat, canRole, canViewCheck, canViewInternalEconomics, canViewWorkOrder, canViewWorkOrderCosts, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './auth/permissions';
 import { WarrantyBillingDecisionPanel } from './components/WarrantyBillingDecisionPanel';
+import { EconomicReviewPanel } from './components/EconomicReviewPanel';
 import { loadInitialAuthSnapshot, loginAuthState, protectedAuthState } from './auth/sessionBootstrap';
 import { displayOfficeValidationStatus, displayStatus, formatDate, fullName, initials, nextWorkOrderStatus, previousWorkOrderStatus, severityForPriority, severityForStatus, visibleLabel, workOrderStatuses, workspaceTitles, workspaceToRole } from './shared/labels';
 import { deficiencyFiltersFromParams, isOpenDeficiencyStatus, normalizeParam, workOrderFilterFromParams } from './shared/filters';
@@ -782,8 +783,9 @@ function WorkOrderStatusSelector({ workOrder, onChanged, onError }: { workOrder:
       {confirm && <div className="mini-modal" role="dialog" aria-modal="true"><div><h3>Cambiar estado</h3><p>{confirm.warning} Confirmar cambio a {displayStatus(confirm.next)}.</p><label>Motivo {confirm.needsReason ? '*' : 'opcional'}<textarea value={confirm.reason} onChange={(event) => setConfirm({ ...confirm, reason: event.target.value })} /></label><div className="modal-footer"><button onClick={() => { if (!saving) { setValue(workOrder.status); setConfirm(null); } }} disabled={saving}>Cancelar</button><button className="primary" onClick={change} disabled={saving}>{saving ? 'Guardando...' : 'Confirmar estado'}</button></div></div></div>}
       {finalizing && <WorkOrderFinalizeModal workOrder={workOrder} onClose={() => setFinalizing(false)} onDone={() => { setFinalizing(false); onChanged(); }} onError={onError} />}
     </Card>
-     <AssociatedEquipmentCard workOrder={workOrder} onChanged={onChanged} />
-      <WorkOrderOfficeValidationCard workOrder={workOrder} onChanged={onChanged} onError={onError} />
+       <AssociatedEquipmentCard workOrder={workOrder} onChanged={onChanged} />
+       <EconomicReviewPanel workOrder={workOrder} profile={profile} onChanged={onChanged} />
+       <WorkOrderOfficeValidationCard workOrder={workOrder} onChanged={onChanged} onError={onError} />
       <WorkOrderSatReviewCard workOrder={workOrder} onChanged={onChanged} onError={onError} />
       <WorkOrderCommercialReviewCard workOrder={workOrder} onChanged={onChanged} onError={onError} />
   </>;

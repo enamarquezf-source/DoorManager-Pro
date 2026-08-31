@@ -29,8 +29,8 @@ describe('guided billing eligibility 091', () => {
     expect(isBillingEligibleWithoutOffice({ ...base, billable: false, sat_review_status: 'approved', sat_review_destination: 'facturacion' })).toBe(false);
   });
 
-  it('allows only positive partial warranty sales', () => {
-    expect(isBillingEligibleWithoutOffice({ ...base, warranty: true, sale_amount: 25, sat_review_status: 'approved', sat_review_destination: 'facturacion' })).toBe(true);
+  it('does not allow warranty work orders', () => {
+    expect(isBillingEligibleWithoutOffice({ ...base, warranty: true, sale_amount: 25, sat_review_status: 'approved', sat_review_destination: 'facturacion' })).toBe(false);
     expect(isBillingEligibleWithoutOffice({ ...base, warranty: true, sale_amount: 0, sat_review_status: 'approved', sat_review_destination: 'facturacion' })).toBe(false);
   });
 });

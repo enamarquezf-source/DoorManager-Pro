@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 | --- | --- |
-| Version | 0.5 |
+| Version | 0.6 |
 | Estado | Vivo |
 | Fecha | 2026-06-28 |
 | Autor | Francisco Javier Ena Marquez |
-| Ultima modificacion | 2026-06-29 |
+| Ultima modificacion | 2026-08-31 |
 
 ## Indice
 
@@ -24,9 +24,11 @@
 
 ## 1. Identidad
 
-DoorManager Pro deja de definirse unicamente como un ERP. A partir de la version 0.3 se define como una Technical Operations Platform (TOP): una plataforma integral de operaciones tecnicas especializada en empresas instaladoras y mantenedoras de puertas automaticas.
+DoorManager Pro deja de definirse unicamente como un ERP. A partir de la version 0.3 se define como una Technical Operations Platform (TOP): una plataforma tecnica operativa para empresas de instalaciones, mantenimiento y servicios tecnicos. Nace de problemas reales de operacion tecnica y mantiene el trabajo sobre activos, equipos, instalaciones, partes, checks, incidencias, materiales, recursos y trazabilidad como centro del producto.
 
-Sigue cubriendo funciones de ERP vertical, pero su alcance es mayor: gestiona operaciones, conocimiento, seguridad, mantenimiento, inspecciones, documentacion, decisiones, trazabilidad e inteligencia tecnica.
+Sigue cubriendo funciones administrativas y economicas relacionadas con la operacion, pero no pretende convertirse en un ERP generico. Gestiona operaciones, conocimiento, seguridad, mantenimiento, inspecciones, documentacion, decisiones, trazabilidad e inteligencia tecnica.
+
+El dominio de puertas automaticas e industriales es una vertical inicial y un caso de uso de referencia, no una restriccion del nucleo del producto. Las particularidades de cada actividad deben incorporarse mediante configuracion, tipos de equipo, plantillas tecnicas y reglas de negocio reutilizables.
 
 ## 2. Proposito
 
@@ -36,7 +38,7 @@ DoorManager Pro existe para:
 - Mejorar la seguridad.
 - Reducir errores.
 - Ayudar a tomar decisiones.
-- Centralizar informacion sensible de clientes, instalaciones, puertas, grupos de carga, partes, presupuestos, facturacion y garantias.
+- Centralizar informacion sensible de clientes, centros, equipos, instalaciones, activos mantenibles, partes, presupuestos, facturacion y garantias.
 - Cambiar para mejor la forma de trabajar de una empresa.
 
 Principio fundamental:
@@ -107,7 +109,7 @@ Principio fundamental:
 
 ## 7. Aplicacion web modular e implantacion adaptable
 
-DoorManager Pro sera una aplicacion web completa y modular, similar conceptualmente a una suite empresarial vertical especializada en puertas automaticas.
+DoorManager Pro sera una aplicacion web completa y modular para operaciones tecnicas. Su nucleo debe poder adaptarse a distintas verticales sin duplicarse ni acoplarse innecesariamente a un sector concreto.
 
 Debe admitir nube gestionada, nube privada, infraestructura propia del cliente, servidor de terceros y entornos aislados. La seguridad, estructura y despliegue dependeran de las necesidades de cada empresa.
 
@@ -129,7 +131,7 @@ Familia
                 Conocimiento tecnico
 ```
 
-Nunca se debe asociar directamente un checklist a una puerta concreta. El checklist debe asociarse a esta jerarquia para permitir reutilizacion, versionado, aprendizaje tecnico y compatibilidades.
+Nunca se debe asociar directamente un checklist a una instancia concreta de equipo. El checklist debe asociarse a la jerarquia tecnica y al tipo de equipo o instalacion para permitir reutilizacion, versionado, aprendizaje tecnico y compatibilidades. Las plantillas y configuraciones especificas de puertas son una implementacion real de la vertical inicial.
 
 ## 9. Conocimiento y trazabilidad
 

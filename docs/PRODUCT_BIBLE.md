@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 | --- | --- |
-| Version | 0.6 |
+| Version | 0.7 |
 | Estado | Vivo |
 | Fecha | 2026-06-28 |
 | Autor | Francisco Javier Ena Marquez |
-| Ultima modificacion | 2026-06-29 |
+| Ultima modificacion | 2026-08-31 |
 
 ## Indice
 
@@ -39,19 +39,21 @@
 
 ## 1. Vision de producto
 
-DoorManager Pro es una Technical Operations Platform (TOP): una plataforma integral de operaciones tecnicas para empresas instaladoras y mantenedoras de puertas automaticas.
+DoorManager Pro es una Technical Operations Platform (TOP): una plataforma tecnica operativa para empresas de instalaciones, mantenimiento y servicios tecnicos. Su foco es coordinar activos y equipos mantenibles, trabajo tecnico, SAT, tecnicos de campo, mantenimiento, partes, checks, incidencias, materiales, planificacion y trazabilidad.
 
-No es solo un ERP. Gestiona recursos, operaciones, conocimiento, seguridad, mantenimiento, inspecciones, documentacion, decisiones, trazabilidad e inteligencia tecnica.
+No es solo un ERP ni un ERP generico. Gestiona recursos, operaciones, conocimiento, seguridad, mantenimiento, inspecciones, documentacion, decisiones, trazabilidad e inteligencia tecnica, junto con los procesos economicos que nacen de esa operacion.
+
+El sector de puertas automaticas e industriales es la vertical inicial y el caso de uso de referencia con mayor desarrollo actual. El nucleo del producto debe ser reutilizable para otros servicios tecnicos sin asumir que todo equipo es una puerta.
 
 DoorManager Pro no organiza la empresa ni sustituye al SAT. La plataforma proporciona informacion, trazabilidad y herramientas para que cada empresa tome sus decisiones.
 
 DoorManager Pro sera una aplicacion web completa y modular. Debe poder desplegarse en nube gestionada, nube privada, infraestructura propia del cliente, servidor de terceros o entornos aislados, segun necesidades de seguridad y operativa de cada empresa.
 
-## 2. Clientes y roles industriales
+## 2. Clientes y roles operativos
 
 El producto contempla clientes residenciales, comunidades, administradores de fincas y clientes industriales.
 
-En cliente industrial deben diferenciarse contactos como:
+En un cliente industrial deben diferenciarse contactos como:
 
 - Jefe de mantenimiento.
 - Responsable de mantenimiento.
@@ -66,10 +68,11 @@ El sistema debe permitir leads o clientes provisionales con informacion incomple
 
 ## 3. Cliente, expediente y parte
 
-El flujo recomendado sera:
+El flujo operativo recomendado sera:
 
 ```text
-Cliente -> Expediente -> Parte
+Cliente -> Centro -> Equipo / Instalacion -> Expediente / Aviso -> Parte -> Intervencion
+  -> Checks / Materiales / Recursos -> Validacion -> Resultado economico / Facturacion -> Historial
 ```
 
 Este flujo debe ser flexible para reflejar la realidad operativa:
@@ -83,9 +86,7 @@ La flexibilidad no elimina los bloqueos comerciales obligatorios. Antes de gener
 
 ## 4. Centros, referencias fisicas y equipos instalados
 
-El Grupo de Carga pasa a ser entidad principal en entornos industriales.
-
-Un grupo de carga puede estar formado por:
+El Grupo de Carga pasa a ser entidad principal en entornos industriales. En el vertical inicial de puertas, puede estar formado por:
 
 - Puerta.
 - Plataforma.
@@ -159,7 +160,9 @@ Familia
                 Conocimiento tecnico
 ```
 
-Nunca se asociara directamente un checklist a una puerta. El checklist se vincula a la jerarquia tecnica para mantener coherencia, versionado y reutilizacion.
+Un checklist es una plantilla tecnica dependiente del tipo de equipo o instalacion y de su jerarquia tecnica. No se define universalmente como checklist de puerta ni se asocia directamente a una instancia concreta. El check visual de puerta seccional es un caso concreto de la vertical inicial.
+
+La especializacion por vertical puede incorporar tipos de equipo, plantillas de checks, zonas visuales, formularios, reglas tecnicas, documentacion y procesos especificos sin duplicar el nucleo operativo.
 
 ## 6. Identificadores, expediente y buscador universal
 
@@ -169,7 +172,8 @@ La plataforma debe soportar:
 - Codigo cliente.
 - OT del cliente.
 - Codigo ERP externo del cliente.
-- Codigo de puerta.
+- Codigo de equipo o instalacion.
+- Codigo de puerta cuando corresponda al vertical inicial.
 - Codigo de grupo de carga.
 - Codigo de expediente.
 

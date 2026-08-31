@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 | --- | --- |
-| Version | 0.4 |
+| Version | 0.5 |
 | Estado | Vivo |
 | Fecha | 2026-06-28 |
 | Autor | Francisco Javier Ena Marquez |
-| Ultima modificacion | 2026-06-29 |
+| Ultima modificacion | 2026-08-31 |
 
 ## Indice
 
@@ -59,7 +59,11 @@ La app movil debe permitir cargar trabajos, consultar datos necesarios y registr
 
 ### Articulo 9. La plataforma evoluciona y es configurable
 
-DoorManager Pro debe adaptarse a distintas empresas, clientes, tipos de puerta, marcas, modelos, contratos, garantias y flujos de trabajo.
+DoorManager Pro debe adaptarse a distintas empresas, clientes, tipos de equipo o instalacion, marcas, modelos, contratos, garantias y flujos de trabajo. Las configuraciones especificas de cada vertical deben resolverse sin hardcodear innecesariamente el nucleo.
+
+Las puertas automaticas e industriales constituyen la vertical inicial y un caso de uso de referencia. Sus plantillas, nomenclaturas y reglas tecnicas concretas no definen universalmente al producto.
+
+La especializacion de cada vertical debe resolverse mediante tipos de equipo o instalacion, plantillas de checks, zonas visuales, formularios, reglas tecnicas, documentacion y procesos configurables, sin duplicar ni acoplar innecesariamente el nucleo.
 
 ### Articulo 10. Cada dato tiene un proposito
 

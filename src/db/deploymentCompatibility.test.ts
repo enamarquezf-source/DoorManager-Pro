@@ -24,7 +24,7 @@ describe('progressive deployment compatibility', () => {
   });
 
   it('keeps stock writes on controlled RPCs and reports missing 075 creation safely', () => {
-    expect(materialsService).toContain("supabase.rpc('dmp_adjust_material_stock'");
+    expect(materialsService).toContain("supabase.rpc('dmp_adjust_warehouse_stock'");
     expect(materialsService).toContain('Creación de materiales pendiente de activación');
     expect(materialsService).not.toMatch(/from\('materials'\)\.insert/);
   });

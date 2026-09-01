@@ -45,14 +45,14 @@ describe('material stock control 035', () => {
     expect(app).toContain('function StockAdjustModal');
     expect(app).toContain('function StockMovementsModal');
     expect(app).toContain('materialsService.adjustStock(material.id, values)');
-    expect(materialsService).toContain('material_stock_movements');
-    expect(materialsService).toContain('dmp_adjust_material_stock');
+    expect(materialsService).toContain("from('stock_movements')");
+    expect(materialsService).toContain('dmp_adjust_warehouse_stock');
   });
 
   it('keeps manual materials and quotes from affecting stock', () => {
     expect(app).toContain('El material manual no afecta stock');
     expect(app).toContain('Material manual / sin catálogo');
-    expect(quotesService).toContain('stock_quantity');
-    expect(workOrdersService).toContain(".from('materials').select('*')");
+    expect(quotesService).not.toContain('stock_quantity');
+    expect(workOrdersService).not.toContain(".from('materials').select('*')");
   });
 });

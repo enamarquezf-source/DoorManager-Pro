@@ -186,7 +186,7 @@ export const quotesService = {
   },
   async materialOptions(search = '', companyScope?: string | null) {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
-    let query = supabase.from('materials').select('id, code, description, manufacturer, reference, unit, cost, price, stock_quantity, minimum_stock, stock_controlled, allow_negative_stock').is('deleted_at', null).eq('active', true).order('description').limit(30);
+    let query = supabase.from('materials').select('id, code, description, manufacturer, reference, unit, cost, price, minimum_stock, stock_controlled, allow_negative_stock').is('deleted_at', null).eq('active', true).order('description').limit(30);
     if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'description', 'manufacturer', 'reference'], search));
     return expectData<any[]>(query, { service: 'quotesService', operation: 'list quote materials' });

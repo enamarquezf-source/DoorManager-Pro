@@ -4,7 +4,7 @@ import type { ArchiveFilter } from './entityLifecycleService';
 
 export type MaterialFilter = ArchiveFilter | 'inactive' | 'consumed';
 
-const materialColumns = ['company_id', 'code', 'description', 'manufacturer', 'reference', 'unit', 'cost', 'price', 'stock_quantity', 'minimum_stock', 'stock_controlled', 'allow_negative_stock', 'is_specific', 'active'];
+const materialColumns = ['company_id', 'code', 'description', 'manufacturer', 'reference', 'unit', 'cost', 'price', 'minimum_stock', 'stock_controlled', 'allow_negative_stock', 'is_specific', 'active'];
 const materialUpdateColumns = ['description', 'manufacturer', 'reference', 'unit', 'cost', 'price', 'minimum_stock', 'stock_controlled', 'allow_negative_stock', 'is_specific', 'active'];
 
 function cleanPayload(payload: Record<string, any>, columns = materialColumns) {
@@ -13,7 +13,7 @@ function cleanPayload(payload: Record<string, any>, columns = materialColumns) {
 
 function normalizeMaterial(payload: Record<string, any>, columns = materialColumns) {
   const next = cleanPayload(payload, columns);
-  for (const key of ['cost', 'price', 'stock_quantity', 'minimum_stock']) if (key in next) next[key] = Number(next[key] ?? 0);
+  for (const key of ['cost', 'price', 'minimum_stock', 'initial_quantity']) if (key in next) next[key] = Number(next[key] ?? 0);
   if ('active' in next) next.active = next.active === true || next.active === 'true' || next.active === 'Activo';
   if ('stock_controlled' in next) next.stock_controlled = next.stock_controlled === true || next.stock_controlled === 'true';
   if ('allow_negative_stock' in next) next.allow_negative_stock = next.allow_negative_stock === true || next.allow_negative_stock === 'true';
@@ -24,7 +24,7 @@ function normalizeMaterial(payload: Record<string, any>, columns = materialColum
 export const materialsService = {
   async list(search = '', companyScope?: string | null, archiveFilter: MaterialFilter = 'active') {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
-    let query = supabase.from('materials').select('*');
+    let query = supabase.from('materials').select('id,company_id,code,description,manufacturer,reference,unit,cost,price,minimum_stock,stock_controlled,allow_negative_stock,is_specific,active,deleted_at');
     if (archiveFilter === 'active') query = query.is('deleted_at', null).eq('active', true);
     if (archiveFilter === 'inactive') query = query.is('deleted_at', null).eq('active', false).eq('is_specific', false);
     if (archiveFilter === 'consumed') query = query.is('deleted_at', null).eq('active', false).eq('is_specific', true);
@@ -36,14 +36,14 @@ export const materialsService = {
   },
   async initialStockCatalog() {
     const companyId = await currentCompanyId();
-    let query = supabase.from('materials').select('*').is('deleted_at', null).order('description');
+    let query = supabase.from('materials').select('id,company_id,code,description,manufacturer,reference,unit,cost,price,minimum_stock,stock_controlled,allow_negative_stock,is_specific,active,deleted_at').is('deleted_at', null).order('description');
     if (companyId) query = query.eq('company_id', companyId);
     return expectData<any[]>(query, { service: 'materialsService', operation: 'list initial stock materials' });
   },
   async create(payload: Record<string, any>) {
     const company_id = payload.company_id || await currentCompanyId();
     try {
-      return await expectData<any>(supabase.rpc('dmp_create_material_with_stock', { p_payload: { ...normalizeMaterial(payload), company_id } }), { service: 'materialsService', operation: 'create material' });
+      return await expectData<any>(supabase.rpc('dmp_create_material_with_stock', { p_payload: { ...normalizeMaterial(payload, [...materialColumns, 'initial_quantity', 'warehouse_id']), company_id } }), { service: 'materialsService', operation: 'create material' });
     } catch (error: any) {
       if (['42883', 'PGRST202'].includes(error?.code)) throw new Error('Creación de materiales pendiente de activación del backend de stock.');
       throw error;
@@ -59,9 +59,11 @@ export const materialsService = {
     return expectData<any>(supabase.from('materials').update({ active: true, deleted_at: null, deleted_by: null, delete_reason: null }).eq('id', id).select().maybeSingle(), { service: 'materialsService', operation: 'reactivate material', resource: id });
   },
   movements(materialId: string) {
-    return expectData<any[]>(supabase.from('material_stock_movements').select('*, profiles!material_stock_movements_created_by_fkey(first_name,last_name), work_orders!material_stock_movements_work_order_id_fkey(code,title)').eq('material_id', materialId).is('deleted_at', null).order('created_at', { ascending: false }).limit(80), { service: 'materialsService', operation: 'list material stock movements', resource: materialId });
+    return expectData<any[]>(supabase.from('stock_movements').select('id,movement_type,quantity,warehouse_id,material_id,work_order_id,created_at,notes,idempotency_key').eq('material_id', materialId).order('created_at', { ascending: false }).limit(80), { service: 'materialsService', operation: 'list warehouse stock movements', resource: materialId });
   },
-  adjustStock(materialId: string, payload: { movement_type: string; quantity: number | string; reason: string; unit_cost?: number | string }) {
-    return expectData<number>(supabase.rpc('dmp_adjust_material_stock', { p_material_id: materialId, p_movement_type: payload.movement_type, p_quantity: Number(payload.quantity), p_reason: payload.reason, p_unit_cost: payload.unit_cost === '' || payload.unit_cost == null ? null : Number(payload.unit_cost) }), { service: 'materialsService', operation: 'adjust material stock', resource: materialId });
+  adjustStock(materialId: string, payload: { movement_type: string; quantity: number | string; reason: string; warehouse_id?: string }) {
+    const warehouseId = payload.warehouse_id;
+    if (!warehouseId) throw new Error('Selecciona el almacen del movimiento.');
+    return expectData<number>(supabase.rpc('dmp_adjust_warehouse_stock', { p_warehouse_id: warehouseId, p_material_id: materialId, p_movement_type: payload.movement_type, p_quantity: Number(payload.quantity), p_reason: payload.reason, p_idempotency_key: crypto.randomUUID() }), { service: 'materialsService', operation: 'adjust warehouse stock', resource: materialId });
   },
 };

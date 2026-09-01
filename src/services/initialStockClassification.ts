@@ -1,19 +1,13 @@
-export type InitialStockStatus = 'LEGACY_ONLY_POSITIVE' | 'LEGACY_ONLY_ZERO' | 'LEGACY_UNKNOWN' | 'MISMATCH' | 'MATCH' | 'CANONICAL_CONFIRMED';
+export type InitialStockStatus = 'NO_CANONICAL_STOCK' | 'CANONICAL_EXISTS' | 'CANONICAL_CONFIRMED';
+type InitialStockClassification = { canonicalTotal: number; status: string; legacy: number };
 
-export function classifyInitialStockMaterial(material: { stock_quantity?: number | string | null }, canonical: Array<{ quantity?: number | string | null }>) {
-  const rawLegacy = material.stock_quantity;
-  const legacy = rawLegacy === null || rawLegacy === undefined || rawLegacy === '' ? null : Number(rawLegacy);
+export function classifyInitialStockMaterial(_material: Record<string, unknown>, canonical: Array<{ quantity?: number | string | null }>): InitialStockClassification {
   const canonicalTotal = canonical.reduce((sum, row) => sum + Number(row.quantity ?? 0), 0);
 
   if (canonical.length > 0) {
-    return {
-      legacy,
-      canonicalTotal,
-      status: canonical.length > 1 || legacy === null || !Number.isFinite(legacy) || canonicalTotal !== legacy ? 'MISMATCH' as const : 'MATCH' as const,
-    };
+    return { canonicalTotal, status: 'CANONICAL_EXISTS' as const, legacy: 0 };
   }
-  if (legacy === null || !Number.isFinite(legacy)) return { legacy, canonicalTotal, status: 'LEGACY_UNKNOWN' as const };
-  return { legacy, canonicalTotal, status: legacy > 0 ? 'LEGACY_ONLY_POSITIVE' as const : legacy === 0 ? 'LEGACY_ONLY_ZERO' as const : 'LEGACY_UNKNOWN' as const };
+  return { canonicalTotal, status: 'NO_CANONICAL_STOCK' as const, legacy: 0 };
 }
 
 export function buildInitialStockRows(materials: any[], canonicalStock: any[], reconciliations: any[] = []) {
@@ -21,15 +15,15 @@ export function buildInitialStockRows(materials: any[], canonicalStock: any[], r
     const canonical = canonicalStock.filter((item) => item.material_id === material.id);
     const classification = classifyInitialStockMaterial(material, canonical);
     const reconciliation = canonical.length === 1 ? reconciliations.find((item) => item.material_id === material.id && item.warehouse_id === canonical[0].warehouse_id && Number(item.confirmed_quantity) === Number(canonical[0].quantity)) : undefined;
-    return { material, canonical, ...classification, status: reconciliation && classification.status === 'MISMATCH' ? 'CANONICAL_CONFIRMED' as const : classification.status, reconciliation, legacy: classification.legacy ?? 0 };
+    return { material, canonical, ...classification, status: reconciliation ? 'CANONICAL_CONFIRMED' as const : classification.status, reconciliation };
   });
 }
 
 export function initialStockCounters(rows: Array<{ status: string }>) {
   return {
-    pending: rows.filter((row) => row.status === 'LEGACY_ONLY_POSITIVE').length,
-    opened: rows.filter((row) => ['CANONICAL_EXISTS', 'MATCH', 'CANONICAL_CONFIRMED'].includes(row.status)).length,
-    review: rows.filter((row) => row.status === 'MISMATCH').length,
-    zero: rows.filter((row) => row.status === 'LEGACY_ONLY_ZERO').length,
+    pending: rows.filter((row) => row.status === 'NO_CANONICAL_STOCK').length,
+    opened: rows.filter((row) => ['CANONICAL_EXISTS', 'CANONICAL_CONFIRMED'].includes(row.status)).length,
+    review: 0,
+    zero: 0,
   };
 }

@@ -23,10 +23,10 @@ describe('094 initial warehouse stock UI', () => {
     expect(app).toContain('Sin apertura en este almacen');
   });
 
-  it('keeps legacy stock as a labelled reference only', () => {
-    expect(app).toContain('Stock legacy');
-    expect(app).toContain('Stock canonico en este almacen');
-    expect(app).toContain('Stock legacy de referencia');
+  it('uses only warehouse stock in the active material module', () => {
+    const activeModule = app.slice(app.indexOf('function CanonicalMaterialsModule'), app.indexOf('function MaterialsModule()'));
+    expect(activeModule).toContain('warehouseStockCatalog');
+    expect(activeModule).not.toContain('Stock legacy');
     expect(app).not.toContain('Stock disponible: ${selectedStock');
   });
 

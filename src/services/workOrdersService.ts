@@ -342,7 +342,7 @@ export const workOrdersService = {
     return expectData<string>(supabase.rpc('dmp_submit_work_order_material', { p_payload: { work_order_id: workOrderId, description, quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1, local_change_id: localChangeId ?? null } }));
   },
   materialsCatalog(search = '') {
-    let query = supabase.from('materials').select('*').is('deleted_at', null).eq('active', true).order('description').limit(40);
+    let query = supabase.from('materials').select('id,code,description,manufacturer,reference,unit,cost,price,minimum_stock,stock_controlled,allow_negative_stock,is_specific').is('deleted_at', null).eq('active', true).order('description').limit(40);
     if (search) query = query.or(contains(['code', 'description', 'manufacturer', 'reference'], search));
     return expectData<any[]>(query);
   },

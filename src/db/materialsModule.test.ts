@@ -13,7 +13,7 @@ describe('materials module', () => {
   it('reuses the real materials table and server-side stock creation', () => {
     expect(initialSchema).toContain('create table public.materials');
     for (const column of ['company_id', 'code', 'description', 'manufacturer', 'reference', 'unit', 'cost', 'price', 'minimum_stock', 'active', 'deleted_at']) expect(initialSchema).toContain(column);
-    for (const column of ['stock_quantity', 'stock_controlled', 'allow_negative_stock']) expect(materialsService).toContain(column);
+    for (const column of ['stock_controlled', 'allow_negative_stock']) expect(materialsService).toContain(column);
     expect(materialsService).toContain("supabase.rpc('dmp_create_material_with_stock'");
     expect(materialsService).not.toContain("codesService.next('materials'");
     expect(stockBoundary).toContain('Stock inicial al crear material');
@@ -27,20 +27,19 @@ describe('materials module', () => {
   });
 
   it('implements list create edit search and deactivate UI', () => {
-    expect(app).toContain('function MaterialsModule');
-    expect(app).toContain('function MaterialForm');
-    expect(app).toContain('materialsService.list(search, scope, archiveFilter)');
+    expect(app).toContain('function CanonicalMaterialsModule');
+    expect(app).toContain('function CanonicalMaterialForm');
+    expect(app).toContain('materialsService.list(search, undefined, archiveFilter)');
     expect(app).toContain('materialsService.create(values)');
     expect(app).toContain('materialsService.update(initial.id, values)');
     expect(app).toContain("entityLifecycleService.archive('materials', removing.id, reason)");
     expect(app).toContain('Desactivar material');
     expect(app).toContain('Ajustar stock');
-    expect(app).toContain('Ver movimientos');
     expect(materialsService).toContain("contains(['code', 'description', 'manufacturer', 'reference', 'unit'], search)");
   });
 
   it('connects catalog materials to quotes and work orders while keeping manual material fallback', () => {
-    expect(quotesService).toContain('stock_quantity');
+    expect(quotesService).not.toContain('stock_quantity');
     expect(workOrdersService).toContain("contains(['code', 'description', 'manufacturer', 'reference'], search)");
     expect(app).toContain('Material manual / sin catálogo');
     expect(app).toContain('Material no catalogado');

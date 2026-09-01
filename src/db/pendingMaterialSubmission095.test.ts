@@ -54,8 +54,7 @@ describe('095 pending material submission hotfix', () => {
   });
 
   it('keeps the warning visible for a proposed warehouse without opening', () => {
-    expect(app).toContain('Sin apertura en este almacen. Puedes registrar el consumo');
-    expect(app).toContain('Stock legacy de referencia');
+    expect(app).toContain('Sin apertura en este almacen. Puedes registrar el consumo cuando exista apertura.');
   });
 
   it('parses the hotfix and both read-only single-result verifications', async () => {

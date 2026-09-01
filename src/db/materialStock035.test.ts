@@ -43,7 +43,7 @@ describe('material stock control 035', () => {
   it('exposes stock UI, adjustment and movement history', () => {
     for (const text of ['Stock actual', 'Stock mínimo', 'Ajustar stock', 'Ver movimientos', 'Bajo stock', 'Sin stock', 'Valor stock']) expect(app).toContain(text);
     expect(app).toContain('function StockAdjustModal');
-    expect(app).toContain('function StockMovementsModal');
+    expect(app).toContain('function CanonicalStockMovementsModal');
     expect(app).toContain('materialsService.adjustStock(material.id, values)');
     expect(materialsService).toContain("from('stock_movements')");
     expect(materialsService).toContain('dmp_adjust_warehouse_stock');

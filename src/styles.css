@@ -147,6 +147,11 @@ main { padding: 24px; }
 .interactive-bars strong { font-size: 18px; }
 .interactive-bars small { color: var(--text-soft); text-align: center; overflow-wrap: break-word; word-break: normal; }
 .metric { min-height: 98px; padding: 14px; border: 1px solid var(--line); border-radius: 18px; background: white; box-shadow: 0 12px 30px rgba(15, 23, 42, .05); text-align: left; text-decoration: none; }
+.metric.selected { outline: 3px solid rgba(37, 99, 235, .2); box-shadow: 0 8px 22px rgba(37, 99, 235, .12); }
+.material-filter-context { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; color: var(--text-soft); font-size: 13px; }
+.material-filter-context .link-button { min-height: 34px; padding: 6px 10px; }
+.file-input { display: grid; gap: 6px; font-weight: 800; }
+.file-input input { padding: 10px; border: 1px dashed var(--line); border-radius: 12px; background: #f8fafc; }
 .metric div { display: flex; align-items: center; gap: 8px; color: var(--text-soft); font-size: 12px; font-weight: 800; }
 .metric strong { display: block; margin-top: 13px; font-size: 25px; color: #172033; }
 .metric small { color: var(--text-soft); font-weight: 800; }

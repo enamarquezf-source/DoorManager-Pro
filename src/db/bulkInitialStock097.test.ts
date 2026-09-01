@@ -72,11 +72,12 @@ describe('097 bulk initial stock opening', () => {
     expect(app).not.toContain('for (const item of confirmation.items)');
   });
 
-  it('labels legacy adjustment separately from canonical stock', () => {
-    expect(app).toContain('Ajustar stock legacy');
-    expect(app).toContain('Esta acción modifica únicamente el stock legacy global');
-    expect(app).toContain('Stock canónico total informativo');
-    expect(app).toContain('No implica disponibilidad en un almacén concreto');
+  it('keeps future mass import visible with the canonical stock contract', () => {
+    expect(app).toContain('function MaterialBulkImportPanel');
+    expect(app).toContain('warehouse_stock');
+    expect(app).toContain('stock_movements');
+    const canonicalModule = app.slice(app.indexOf('function CanonicalMaterialsModule'), app.indexOf('function MaterialsModule()'));
+    expect(canonicalModule).not.toContain('stock_quantity');
   });
 
   it('parses migration and both read-only single-result verifications', async () => {

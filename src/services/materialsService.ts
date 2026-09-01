@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, expectData } from './query';
 import type { ArchiveFilter } from './entityLifecycleService';
 
-export type MaterialFilter = ArchiveFilter | 'inactive' | 'consumed';
+export type MaterialFilter = ArchiveFilter | 'inactive' | 'consumed' | 'all';
 
 const materialColumns = ['company_id', 'code', 'description', 'manufacturer', 'reference', 'unit', 'cost', 'price', 'minimum_stock', 'stock_controlled', 'allow_negative_stock', 'is_specific', 'active'];
 const materialUpdateColumns = ['description', 'manufacturer', 'reference', 'unit', 'cost', 'price', 'minimum_stock', 'stock_controlled', 'allow_negative_stock', 'is_specific', 'active'];
@@ -59,7 +59,12 @@ export const materialsService = {
     return expectData<any>(supabase.from('materials').update({ active: true, deleted_at: null, deleted_by: null, delete_reason: null }).eq('id', id).select().maybeSingle(), { service: 'materialsService', operation: 'reactivate material', resource: id });
   },
   movements(materialId: string) {
-    return expectData<any[]>(supabase.from('stock_movements').select('id,movement_type,quantity,warehouse_id,material_id,work_order_id,created_at,notes,idempotency_key').eq('material_id', materialId).order('created_at', { ascending: false }).limit(80), { service: 'materialsService', operation: 'list warehouse stock movements', resource: materialId });
+    const movements = supabase.from('stock_movements').select('id,movement_type,quantity,warehouse_id,material_id,work_order_id,created_at,notes,idempotency_key,warehouses!stock_movements_warehouse_id_fkey(code,name),profiles!stock_movements_created_by_fkey(first_name,last_name),work_orders!stock_movements_work_order_id_fkey(id,code,title,quote_id,clients!work_orders_client_id_fkey(code,legal_name),sites!work_orders_site_id_fkey(code,name),equipment!work_orders_main_equipment_id_fkey(code),quotes!work_orders_quote_id_fkey(id,code,title))').eq('material_id', materialId).order('created_at', { ascending: false }).limit(80);
+    const stock = supabase.from('warehouse_stock').select('warehouse_id,quantity').eq('material_id', materialId);
+    return Promise.all([expectData<any[]>(movements, { service: 'materialsService', operation: 'list warehouse stock movements', resource: materialId }), expectData<any[]>(stock, { service: 'materialsService', operation: 'read current warehouse stock for movement history', resource: materialId })]).then(([rows, balances]) => {
+      const balanceByWarehouse = new Map(balances.map((row) => [row.warehouse_id, Number(row.quantity ?? 0)]));
+      return rows.map((row) => ({ ...row, current_quantity: balanceByWarehouse.get(row.warehouse_id) ?? null }));
+    });
   },
   adjustStock(materialId: string, payload: { movement_type: string; quantity: number | string; reason: string; warehouse_id?: string }) {
     const warehouseId = payload.warehouse_id;

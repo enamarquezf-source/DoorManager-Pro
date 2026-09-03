@@ -102,12 +102,11 @@ describe('052 material lifecycle and rate traceability', () => {
     expect(migration).toContain('update public.materials set active = true, deleted_at = null, deleted_by = null, delete_reason = null, updated_at = now() where id = p_entity_id returning to_jsonb(materials.*) into v_new;');
   });
 
-  it('exposes four distinct UI states: Activo, Sin stock, Consumido and Archivado', () => {
-    expect(app).toContain("function materialStockStatus(material: any) { if (Number(material.stock_quantity ?? 0) <= 0) return 'Sin stock'; if (Number(material.minimum_stock ?? 0) > 0 && Number(material.stock_quantity ?? 0) <= Number(material.minimum_stock ?? 0)) return 'Bajo stock'; return 'Activo'; }");
-    expect(app).toContain("function materialDisplayStatus(material: any) { if (material.deleted_at) return 'Archivado'; if (material.active === false) return material.is_specific === true ? 'Consumido' : 'Inactivo'; return materialStockStatus(material); }");
-    expect(app).not.toMatch(/materialDisplayStatus\([^)]*\)\s*\{\s*if \(material\.active === false\) return 'Inactivo'/);
-    expect(app).toContain("'Archivado'");
-    expect(app).toContain("'Consumido'");
+  it('keeps lifecycle labels in the active canonical module', () => {
+    const activeModule = app.slice(app.indexOf('function CanonicalMaterialsModule'), app.indexOf('function MaterialsModule()'));
+    expect(activeModule).toContain("'Inactivo'");
+    expect(activeModule).toContain("archiveFilter === 'archived'");
+    expect(activeModule).not.toContain('stock_quantity');
   });
 
   it('freezes proposed rate values in quote lines without recalculating history', () => {
@@ -121,22 +120,9 @@ describe('052 material lifecycle and rate traceability', () => {
     expect(quotesService).toContain('lineColumns = [\'quote_id\', \'line_type\', \'description\', \'quantity\', \'unit\', \'unit_cost\', \'unit_price\', \'tax_rate\', \'material_id\', \'profile_id\', \'position\', \'discount_percent\', \'quote_rate_id\', \'concept_id\', \'rate_version_id\', \'billing_mode\', \'period_days\', \'contributes_to_sale\']');
   });
 
-  it('exposes UI states without exposing deleted_at: Activo, Sin stock, Consumido, Archivado', () => {
-    expect(app).toContain("if (material.deleted_at) return 'Archivado'; if (material.active === false) return material.is_specific === true ? 'Consumido' : 'Inactivo'; return materialStockStatus(material)");
-    expect(app).toContain('stockStatus === \'Activo\' ? \'ok\'');
-    expect(app).toContain('Reactivar');
-    expect(app).toContain("materialsService.reactivate(reactivating.id)");
-    expect(app).toContain('materialsService.reactivate');
-    expect(app).toContain('Material específico / a medida');
-    expect(app).toContain('queda como Consumido (sin borrar historial); se reactiva automáticamente si vuelve a haber stock');
-  });
-
-  it('reactivates materials only through an explicit service method, keeping the restore flow for archived records', () => {
+  it('reactivates materials only through an explicit service method', () => {
     expect(materialsService).toContain('reactivate(id: string)');
     expect(materialsService).toContain('{ active: true, deleted_at: null, deleted_by: null, delete_reason: null }');
-    expect(app).toContain("entityLifecycleService.restore('materials', removing.id, reason)");
-    expect(app).toContain('Restaurar material');
-    expect(app).toContain('Motivo de restauración');
   });
 
   it('shows the canonical service/rate selector instead of technician_hour_rates for new quote lines', () => {

@@ -38,14 +38,8 @@ describe('098 canonical stock reconciliation', () => {
     expect(migration).toContain('for update');
   });
 
-  it('connects the review UI to the canonical reconciliation RPC', () => {
-    expect(app).toContain('function StockReconciliationPanel');
-    expect(app).toContain('Aceptar stock canonico');
-    expect(app).toContain('Ajustar a cantidad confirmada');
-    expect(app).toContain('warehouseStockReconciliationCatalog');
-    expect(app).toContain('resolveInitialStockReview');
-    expect(app).toContain('Requiere conciliacion por almacen');
-    expect(service).toContain("dmp_resolve_initial_stock_review");
+  it('does not retain the removed legacy reconciliation panel', () => {
+    expect(app).not.toContain('function StockReconciliationPanel');
   });
 
   it('keeps preflight and postflight read-only single-result', async () => {

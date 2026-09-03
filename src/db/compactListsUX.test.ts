@@ -54,8 +54,6 @@ describe('compact list design and sidebar updates', () => {
   it('keeps the essential operational data on each compact row', () => {
     expect(app).toContain("[ 'Total', `${Number(quote.total_amount ?? quote.total ?? 0)");
     expect(app).toContain('quote.clients?.legal_name ?? \'-\'');
-    expect(app).toContain("[ 'Stock actual', `${Number(item.stock_quantity ?? 0)");
-    expect(app).toContain("[ 'Stock mínimo',");
     expect(app).toContain('client.code ?? \'-\'');
     expect(app).toContain("work.main_technician_name ?? 'Sin asignar'");
     expect(app).toContain("work.commercial_name ?? work.creator_name ?? 'No informado'");
@@ -66,8 +64,6 @@ describe('compact list design and sidebar updates', () => {
     expect(app).not.toContain("[ 'Impuestos', `${Number(quote.tax_amount");
     expect(app).not.toContain("[ 'Margen estimado', `${Number(quote.estimated_margin");
     expect(app).toContain('Number(quote.total_amount ?? quote.total ?? 0)');
-    expect(app).toContain('Number(item.stock_quantity ?? 0) * Number(item.cost ?? 0)');
     expect(app).toContain("checks.filter((check: any) => check.status !== 'Realizado')");
-    expect(app).toContain('stockValue.toLocaleString');
   });
 });

@@ -13,8 +13,9 @@ describe('material catalog lifecycle', () => {
     expect(service).toContain("eq('active', true)");
     expect(service).toContain("archiveFilter === 'archived'");
     expect(service).toContain("active.eq.false,deleted_at.not.is.null");
-    expect(app).toContain('materialDisplayStatus');
-    expect(app).toContain('Consumido');
+    const activeModule = app.slice(app.indexOf('function CanonicalMaterialsModule'), app.indexOf('function MaterialsModule()'));
+    expect(activeModule).toContain("archiveFilter === 'consumed'");
+    expect(activeModule).toContain("archiveFilter === 'inactive'");
   });
 
   it('keeps one-off semantics distinct and derives consumption from stock movements', () => {

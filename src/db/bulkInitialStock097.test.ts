@@ -49,27 +49,12 @@ describe('097 bulk initial stock opening', () => {
     expect(migration).toContain('created_by, notes, idempotency_key');
   });
 
-  it('exposes controlled classification, selection, editable proposals and confirmation', () => {
-    expect(app).toContain('function StockOpeningBulkPanel');
-    expect(app).toContain('LEGACY_ONLY_POSITIVE');
-    expect(app).toContain('LEGACY_ONLY_ZERO');
-    expect(app).toContain('MISMATCH');
-    expect(app).toContain('Seleccionar candidatos validos');
-    expect(app).toContain('Cantidad a abrir');
-    expect(app).toContain('warehouse_id: confirmation.warehouseId');
-    expect(app).toContain('idempotency_key: confirmation.idempotency_key');
-    expect(app).toContain('Ya abiertos');
-    expect(app).toContain('Apertura inicial masiva');
-    expect(app).toContain('materialsService.initialStockCatalog()');
-    expect(app).toContain('const rows = buildInitialStockRows(materials.data, stock.data, reconciliations.data)');
-    expect(app).toContain('const counters = initialStockCounters(rows)');
-    expect(materialsService).toContain('initialStockCatalog');
+  it('does not retain the removed legacy bulk opening panel', () => {
+    expect(app).not.toContain('function StockOpeningBulkPanel');
   });
 
   it('uses the batch service instead of looping individual RPC calls', () => {
     expect(service).toContain("supabase.rpc('dmp_set_initial_warehouse_stock_batch'");
-    expect(app).toContain('workOrdersService.openInitialWarehouseStockBatch');
-    expect(app).not.toContain('for (const item of confirmation.items)');
   });
 
   it('keeps future mass import visible with the canonical stock contract', () => {

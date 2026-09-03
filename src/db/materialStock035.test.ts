@@ -40,9 +40,9 @@ describe('material stock control 035', () => {
     expect(migration).toContain('select id into v_id from public.work_order_materials where company_id = v_work.company_id and work_order_id = v_work.id and local_change_id = v_local');
   });
 
-  it('exposes stock UI, adjustment and movement history', () => {
-    for (const text of ['Stock actual', 'Stock mínimo', 'Ajustar stock', 'Ver movimientos', 'Bajo stock', 'Sin stock', 'Valor stock']) expect(app).toContain(text);
-    expect(app).toContain('function StockAdjustModal');
+  it('exposes canonical stock adjustment and movement history', () => {
+    for (const text of ['Ajustar stock', 'Ver movimientos', 'Bajo stock', 'Sin stock']) expect(app).toContain(text);
+    expect(app).not.toContain('function StockAdjustModal');
     expect(app).toContain('function CanonicalStockMovementsModal');
     expect(app).toContain('materialsService.adjustStock(material.id, values)');
     expect(materialsService).toContain("from('stock_movements')");

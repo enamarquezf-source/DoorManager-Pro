@@ -15,8 +15,6 @@ describe('096 SAT initial stock opening', () => {
     expect(migration).toContain("array['superadmin','SAT','Gerencia','Oficina']");
     expect(migration).not.toContain("array['superadmin','SAT','Gerencia','Oficina','Tecnico']");
     expect(migration).not.toContain("array['superadmin','SAT','Gerencia','Oficina','Comercial']");
-    expect(app).toContain("['superadmin', 'SAT', 'Gerencia', 'Oficina']");
-    expect(app).toContain('workOrdersService.openInitialWarehouseStock');
     expect(service).toContain("supabase.rpc('dmp_set_initial_warehouse_stock'");
   });
 
@@ -28,15 +26,6 @@ describe('096 SAT initial stock opening', () => {
     expect(migration).toContain('created_by, notes, idempotency_key');
     expect(migration).toContain('language plpgsql security definer set search_path = public');
     expect(migration).toContain('create or replace function public.dmp_set_initial_warehouse_stock(p_warehouse_id uuid, p_material_id uuid, p_quantity numeric, p_reason text)');
-  });
-
-  it('keeps the opening confirmation exact and resets only after success', () => {
-    expect(app).toContain('quantity: Number(quantity)');
-    expect(app).toContain('reason: reason.trim()');
-    expect(app).toContain("confirmation.quantity.toLocaleString('es-ES')");
-    expect(app).toContain('{confirmation.reason}');
-    expect(app).toContain('openInitialWarehouseStock(confirmation.warehouseId, confirmation.materialId, confirmation.quantity, confirmation.reason)');
-    expect(app).toContain("setMessage('Saldo inicial registrado correctamente.'); setConfirming(false); setConfirmation(null); setQuantity(''); setReason('');");
   });
 
   it('parses migration and both read-only single-result verifications', async () => {

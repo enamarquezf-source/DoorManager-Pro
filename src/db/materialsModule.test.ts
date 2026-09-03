@@ -32,8 +32,8 @@ describe('materials module', () => {
     expect(app).toContain("materialsService.list(search, undefined, 'all')");
     expect(app).toContain('materialsService.create(values)');
     expect(app).toContain('materialsService.update(initial.id, values)');
-    expect(app).toContain("entityLifecycleService.archive('materials', removing.id, reason)");
-    expect(app).toContain('Desactivar material');
+    expect(app).toContain('function LifecycleActionPanel');
+    expect(app).toContain('entity="materials"');
     expect(app).toContain('Ajustar stock');
     expect(materialsService).toContain("contains(['code', 'description', 'manufacturer', 'reference', 'unit'], search)");
   });

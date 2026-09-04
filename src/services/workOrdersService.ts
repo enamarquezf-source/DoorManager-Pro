@@ -3,6 +3,7 @@ import { contains, currentCompanyId, currentProfileId, expectData, expectStep, t
 import { isOfficeValidationUnavailable } from '../shared/officeValidation';
 import { filesBucket, withSignedFileUrl } from '../shared/signedFiles';
 import { applyArchiveFilter, type ArchiveFilter } from './entityLifecycleService';
+import { applyDateRangeFilters, type DateRangeFilters } from '../shared/dateRange';
 
 const workOrderColumns = ['case_id', 'quote_id', 'client_id', 'site_id', 'main_equipment_id', 'contact_id', 'access_requirement_id', 'title', 'description', 'type', 'priority', 'status', 'origin', 'scheduled_date', 'scheduled_time', 'estimated_duration_minutes', 'planned_material', 'technical_team', 'diagnosis', 'work_performed', 'result'];
 function workOrderPayload(payload: Record<string, any>) {
@@ -82,11 +83,12 @@ export const workOrdersService = {
     }
     return data !== null;
   },
-  async list(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active') {
+  async list(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active', dateFilters: DateRangeFilters = {}) {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
     let query = applyArchiveFilter(supabase.from('v_work_order_full_detail').select('*'), archiveFilter).order('scheduled_date', { ascending: false });
     if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'title', 'description', 'client_name', 'site_name', 'equipment_code', 'status'], search));
+    query = applyDateRangeFilters(query, dateFilters);
     const workOrders = await expectData<any[]>(query);
     if (!workOrders.length || !(await this.hasOfficeValidation())) return workOrders;
     const ids = workOrders.map((item) => item.id).filter(Boolean);
@@ -98,8 +100,8 @@ export const workOrdersService = {
   async routingQueue(queue: 'sat' | 'commercial' | 'billing') {
     return expectData<any[]>(supabase.rpc('dmp_department_routing_queue', { p_queue: queue }), { service: 'workOrdersService', operation: `Cola departamental ${queue}`, resource: 'dmp_department_routing_queue' });
   },
-  async listWithAssignments(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active') {
-    const workOrders = await this.list(search, companyScope, archiveFilter);
+  async listWithAssignments(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active', dateFilters: DateRangeFilters = {}) {
+    const workOrders = await this.list(search, companyScope, archiveFilter, dateFilters);
     const ids = workOrders.map((item) => item.id).filter(Boolean);
     if (!ids.length) return [];
     const [assignments, checks] = await Promise.all([

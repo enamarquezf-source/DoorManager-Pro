@@ -90,6 +90,11 @@ main { padding: 24px; }
 .invoice-context-grid p { margin: 5px 0; }
 .sat-review-summary { grid-column: 1 / -1; border: 1px solid #f1c27d; border-radius: 14px; padding: 12px; background: #fffaf0; }
 .sat-review-summary h4 { margin: 0 0 8px; color: #9a5b00; font-size: .78rem; letter-spacing: .06em; }
+.billing-page > section.card:first-of-type { border-color: #b9d8f2; box-shadow: 0 12px 28px rgba(15, 76, 129, .08); }
+.billing-page > section.card:first-of-type h3 { color: #0f4c81; }
+.billing-page > section.card:first-of-type .compact-list article { background: #f5faff; border-color: #d5e8f8; }
+.billing-page > section.card:first-of-type .row-actions { align-items: stretch; }
+.billing-page > section.card:first-of-type .row-actions .primary { box-shadow: 0 5px 12px rgba(15, 76, 129, .16); }
 .sat-review-flags { display: grid; gap: 8px; margin: 0; padding: 12px; border: 1px solid var(--line); border-radius: 14px; }
 .sat-review-flag { display: grid !important; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px !important; border: 1px solid var(--line); border-radius: 12px; padding: 11px; background: #f8fbff; cursor: pointer; }
 .sat-review-flag input { width: 18px; min-height: 18px; margin: 0; }
@@ -207,6 +212,8 @@ main { padding: 24px; }
 .filters { display: grid; grid-template-columns: minmax(260px, 1.5fr) repeat(3, minmax(140px, 1fr)); gap: 10px; }
 .filters label, .filters select, .filters input { height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--line); border-radius: 12px; background: white; color: var(--text-soft); }
 .sat-filters { grid-template-columns: repeat(2, minmax(180px, 1fr)); }
+.date-range-filters { grid-template-columns: minmax(150px, .8fr) repeat(2, minmax(140px, 1fr)) minmax(180px, .9fr) repeat(2, minmax(140px, 1fr)); align-items: center; }
+.date-range-filters .filter-label { font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--text-soft); }
 .rate-status-filter { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; }
 .rate-status-filter button { border: 1px solid var(--line); border-radius: 12px; background: white; color: var(--dark); padding: 8px 11px; min-height: 40px; font-weight: 800; }
 .rate-status-filter button.active, .rate-status-filter button[aria-pressed="true"] { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
@@ -497,7 +504,7 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
   .multi-equipment-list article strong, .multi-equipment-list article p, .multi-equipment-list article > .badge, .multi-equipment-list article:has(label) > label, .multi-equipment-list article:has(label) > button, .multi-equipment-list article:not(:has(label)) > button { grid-column: auto; grid-row: auto; min-width: 0; }
   .finalize-grid { grid-template-columns: 1fr; }
   .work-time-list article { grid-template-columns: minmax(0, 1fr); align-items: start; }
-  .sat-filters { grid-template-columns: 1fr; }
+  .sat-filters, .date-range-filters { grid-template-columns: 1fr; }
   .assignment-row { align-items: stretch; flex-direction: column; }
   .assignment-row .row-actions, .work-actions { display: grid; grid-template-columns: 1fr; }
   .sat-work-card header, .sat-work-card footer { align-items: flex-start; flex-direction: column; }

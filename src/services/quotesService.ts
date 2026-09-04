@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, currentProfileId, expectData } from './query';
 import { codesService } from './codesService';
 import { applyArchiveFilter, type ArchiveFilter } from './entityLifecycleService';
+import { applyDateRangeFilters, type DateRangeFilters } from '../shared/dateRange';
 
 export const quoteStatuses = ['Borrador', 'Enviado', 'Aceptado', 'Ejecutado en cliente', 'Rechazado', 'Caducado', 'Cancelado'] as const;
 export const quoteStatusFilters = ['Todos', 'Borrador', 'Enviado', 'Aceptado', 'Ejecutado en cliente', 'Rechazado', 'Caducado', 'Cancelado'] as const;
@@ -97,12 +98,13 @@ async function optionalRelated(table: string, id: string, columns: string, quote
 }
 
 export const quotesService = {
-  async list(search = '', status = 'Todos', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active') {
+  async list(search = '', status = 'Todos', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active', dateFilters: DateRangeFilters = {}) {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
     let query = applyArchiveFilter(supabase.from('quotes').select('*, clients!quotes_client_id_fkey(code,legal_name), sites!quotes_site_id_fkey(code,name), opportunities!quotes_opportunity_id_fkey(code,title), profiles!quotes_created_by_fkey(first_name,last_name)'), archiveFilter).order('issue_date', { ascending: false });
     if (companyId) query = query.eq('company_id', companyId);
     if (status && status !== 'Todos') query = query.eq('status', status === 'Mandado' ? 'Enviado' : status);
     if (search) query = query.or(contains(['code', 'title', 'status', 'quote_type'], search));
+    query = applyDateRangeFilters(query, dateFilters);
     return expectData<any[]>(query, { service: 'quotesService', operation: 'list quotes' });
   },
   async get(id: string) {

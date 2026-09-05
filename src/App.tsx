@@ -43,6 +43,7 @@ import { buildTechnicalReference, publicErrorMessage } from './shared/errorDiagn
 import { canCloseOfficeValidationModal, canShowOfficeValidationActions, submitOfficeValidationReview } from './shared/officeValidation';
 import { technicianConceptLines, technicianProgress } from './shared/technicianWorkstation';
 import { isModernBillingRouting } from './shared/guidedBillingEligibility';
+import { quoteEquipmentSelection } from './shared/quoteEquipment';
 import { isPendingCommercialReview } from './shared/commercialReview';
 import type { Profile, RoleName, Severity, Workspace } from './shared/types';
 import { entityLabels, entityLifecycleService, isArchivedRecord, type ArchiveFilter, type LifecycleEntity, type LifecycleSummary } from './services/entityLifecycleService';
@@ -2102,7 +2103,7 @@ function quotePlannedMaterial(lines: any[]) {
 }
 
 function quoteWorkOrderInitial(quote: any, lines: any[]) {
-  return { company_id: quote.company_id, quote_id: quote.id, client_id: quote.client_id, site_id: quote.site_id, main_equipment_id: quote.equipment_id, case_id: quote.case_id, title: quote.title, description: quote.description, type: quote.quote_type === 'instalacion' ? 'Instalacion' : 'Correctivo', priority: 'Normal', origin: 'Comercial', planned_material: quotePlannedMaterial(lines) };
+  return { company_id: quote.company_id, quote_id: quote.id, client_id: quote.client_id, site_id: quote.site_id, main_equipment_id: quote.equipment_id, case_id: quote.case_id, title: quote.title, description: quote.description, type: quote.quote_type === 'instalacion' ? 'Instalacion' : quote.quote_type === 'mantenimiento' ? 'Mantenimiento' : 'Correctivo', priority: 'Normal', origin: 'Comercial', planned_material: quotePlannedMaterial(lines), quote_equipment_lines: lines };
 }
 
 function QuoteDetailModal({ quoteId, onClose, onChanged }: { quoteId: string; onClose: () => void; onChanged: () => void }) {
@@ -2762,7 +2763,8 @@ function CaseQuickCreate({ initial, onClose, onSaved }: any) {
   };
   return <div className="nested-form"><h4>Crear expediente</h4><p className="large-note">El código se generará automáticamente al guardar.</p><label>Título<input value={values.title} onChange={(event) => set('title', event.target.value)} required /></label><label>Descripción<textarea value={values.description} onChange={(event) => set('description', event.target.value)} /></label><div className="form-grid"><FormSelect label="Tipo" value={values.type} onChange={(value) => set('type', value)} options={['Averia','Mantenimiento','Obra','Inspeccion','Garantia','Reclamacion','Mejora','Comercial'].map((value) => ({ value, label: displayStatus(value) }))} /><FormSelect label="Prioridad" value={values.priority} onChange={(value) => set('priority', value)} options={['Baja','Normal','Alta','Critica'].map((value) => ({ value, label: displayStatus(value) }))} /></div>{error && <p className="form-error">{error}</p>}<div className="modal-footer"><button type="button" onClick={onClose} disabled={saving}>Cancelar expediente</button><button type="button" className="primary" onClick={submit} disabled={saving}>{saving ? 'Creando...' : 'Crear y seleccionar'}</button></div></div>;
 }
-function MultiEquipmentPicker({ values, setValues, filteredEquipment, equipmentTypes, installation }: any) {
+function MultiEquipmentPicker({ values, setValues, filteredEquipment, equipmentTypes, installation: initialInstallation }: any) {
+  const installation = initialInstallation || values.type === 'Mantenimiento';
   const selection = values.equipment_selection ?? [];
   const [existingId, setExistingId] = useState('');
   const [draft, setDraft] = useState<any>({ equipment_type_id: '', quantity: 1, brand: '', model: '', internal_location: '', serial_number: '', notes: '' });
@@ -2821,7 +2823,8 @@ function CanonicalStockAdjustForm({ material, warehouses, onClose, onSaved }: { 
 
 function MaterialsModule() { return <CanonicalMaterialsModule />; }
 
-function LegacyMultiEquipmentPicker({ values, setValues, filteredEquipment, equipmentTypes, installation }: any) {
+function LegacyMultiEquipmentPicker({ values, setValues, filteredEquipment, equipmentTypes, installation: initialInstallation }: any) {
+  const installation = initialInstallation || values.type === 'Mantenimiento';
   const [existingId, setExistingId] = useState('');
   const [draft, setDraft] = useState<any>({ equipment_type_id: '', quantity: 1, brand: '', model: '', internal_location: '', serial_number: '', notes: '' });
   const selection = values.equipment_selection ?? [];
@@ -2878,6 +2881,8 @@ function WorkOrderForm({ initial, sourceQuote, onClose, onSaved }: any) {
   const [values, setValues] = useState<Record<string, any>>({ type: 'Correctivo', priority: 'Normal', origin: creatorRole, scheduled_date: new Date().toISOString().slice(0, 10), ...initial, equipment_selection: initial?.equipment_selection ?? (initial?.main_equipment_id ? [{ kind: 'existing', equipment_id: initial.main_equipment_id }] : []) });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [quoteEquipmentMappingError, setQuoteEquipmentMappingError] = useState('');
+  const quoteEquipmentInitialized = useRef(false);
   const clients = useLoad(() => clientsService.list('', initial?.company_id), [initial?.company_id], [] as any[]);
   const sites = useLoad(() => sitesService.list('', initial?.company_id), [initial?.company_id], [] as any[]);
   const equipment = useLoad(() => equipmentService.list('', initial?.company_id), [initial?.company_id], [] as any[]);
@@ -2887,6 +2892,16 @@ function WorkOrderForm({ initial, sourceQuote, onClose, onSaved }: any) {
   const filteredSites = filterSitesForClient(sites.data, values.client_id);
   const filteredEquipment = filterEquipmentForContext(equipment.data, values.client_id, values.site_id);
   const filteredCases = cases.data.filter((item) => (!values.client_id || item.client_id === values.client_id) && (!values.site_id || !item.site_id || item.site_id === values.site_id) && !['Cerrado', 'Cancelado'].includes(item.status));
+  useEffect(() => {
+    if (quoteEquipmentInitialized.current || !initial?.quote_id || !initial.quote_equipment_lines || equipmentTypes.loading) return;
+    quoteEquipmentInitialized.current = true;
+    const mapped = quoteEquipmentSelection(initial.quote_equipment_lines, equipmentTypes.data);
+    if (mapped.selection.length) setValues((current) => ({ ...current, equipment_selection: [...(current.equipment_selection ?? []), ...mapped.selection] }));
+    if (mapped.unresolved.length) {
+      setQuoteEquipmentMappingError(`No se puede crear el parte: ${mapped.unresolved.join('; ')} no tiene un tipo de equipo asociado.`);
+      setError(`No se puede crear el parte: ${mapped.unresolved.join('; ')} no tiene un tipo de equipo asociado.`);
+    }
+  }, [initial?.quote_id, initial?.quote_equipment_lines, equipmentTypes.loading, equipmentTypes.data.length, values.equipment_selection?.length]);
   const set = (key: string, value: any) => setValues((current) => ({ ...current, [key]: value }));
   const changeContext = (key: 'client_id' | 'site_id', value: string) => {
     const selected = values.equipment_selection ?? [];
@@ -2896,11 +2911,12 @@ function WorkOrderForm({ initial, sourceQuote, onClose, onSaved }: any) {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (saving) return;
+    if (quoteEquipmentMappingError) { setError(quoteEquipmentMappingError); return; }
     const selectedEquipment = values.equipment_selection ?? [];
     if (values.type === 'Instalacion' && !selectedEquipment.length) { setError('Añade al menos un equipo al parte de instalación.'); return; }
     setSaving(true); setError('');
     const equipment_selection = selectedEquipment.map((item: any) => item.kind === 'existing' ? { existing_equipment_id: item.equipment_id } : { new: item });
-    const payload = { ...values, estimated_duration_minutes: values.estimated_duration_minutes ? Number(values.estimated_duration_minutes) : null, equipment_selection, main_equipment_id: undefined, installation_equipment: undefined };
+    const payload = { ...values, estimated_duration_minutes: values.estimated_duration_minutes ? Number(values.estimated_duration_minutes) : null, equipment_selection, main_equipment_id: values.main_equipment_id || null, installation_equipment: undefined };
     try { const result = initial?.id ? await workOrdersService.update(initial.id, payload) : await workOrdersService.create(payload, creatorRole); onSaved?.(result?.id ?? result); }
     catch (err: any) { setError(formErrorMessage(err, initial?.id ? 'No se ha podido modificar el parte.' : initial?.quote_id ? 'No se pudo generar el parte desde el presupuesto.' : 'No se ha podido crear el parte.')); }
     finally { setSaving(false); }

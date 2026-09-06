@@ -4,9 +4,9 @@ import { equipmentService } from '../services/equipmentService';
 import { profilesService } from '../services/profilesService';
 import { superadminService } from '../services/superadminService';
 import { materialsService } from '../services/materialsService';
-import { workOrdersService } from '../services/workOrdersService';
 import { catalogStaleTime } from './queryDefaults';
 import { queryKeys } from './queryKeys';
+import { workOrdersService } from '../services/workOrdersService';
 
 export function useEquipmentTypes(companyId: string | null | undefined, admin = false) {
   return useQuery({
@@ -59,5 +59,33 @@ export function useOfficeValidationCapability(companyId: string | null | undefin
     queryFn: () => workOrdersService.hasOfficeValidation(),
     enabled: Boolean(companyId),
     staleTime: catalogStaleTime.medium,
+  });
+}
+
+export function useWorkOrderList(companyId: string | null | undefined, search: string, archiveFilter: string, dateFilters: Record<string, unknown>) {
+  return useQuery({
+    queryKey: queryKeys.workOrders.list(companyId, { search, archiveFilter, ...dateFilters }),
+    queryFn: () => workOrdersService.listWithAssignments(search, companyId, archiveFilter as any, dateFilters as any),
+    enabled: Boolean(companyId),
+    placeholderData: (previous) => previous,
+    staleTime: 30_000,
+  });
+}
+
+export function useWorkOrderSummary(companyId: string | null | undefined, workOrderId: string, technicianOnly = false) {
+  return useQuery({
+    queryKey: queryKeys.workOrders.summary(companyId, workOrderId),
+    queryFn: () => workOrdersService.getWorkOrderSummary(workOrderId, technicianOnly),
+    enabled: Boolean(companyId && workOrderId),
+    staleTime: 30_000,
+  });
+}
+
+export function useWorkOrderDetail(companyId: string | null | undefined, workOrderId: string, enabled: boolean, technicianOnly = false) {
+  return useQuery({
+    queryKey: queryKeys.workOrders.detail(companyId, workOrderId),
+    queryFn: () => technicianOnly ? workOrdersService.getTechnicianAssigned(workOrderId) : workOrdersService.get(workOrderId),
+    enabled: Boolean(companyId && workOrderId && enabled),
+    staleTime: 30_000,
   });
 }

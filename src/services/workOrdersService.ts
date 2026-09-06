@@ -68,6 +68,24 @@ export type WorkOrderFullDetail = {
   photos: any[];
 };
 
+export type WorkOrderSummary = Omit<WorkOrderFullDetail, 'status_history' | 'time_entries' | 'notes' | 'materials' | 'planned_quote_lines' | 'planned_quote_line_decisions' | 'planned_material_lines' | 'planned_material_decisions' | 'cost_entries' | 'checks' | 'alerts' | 'documents' | 'deficiencies' | 'signatures' | 'photos'> & {
+  status_history: any[];
+  time_entries: any[];
+  notes: any[];
+  materials: any[];
+  planned_quote_lines: any[];
+  planned_quote_line_decisions: any[];
+  planned_material_lines: any[];
+  planned_material_decisions: any[];
+  cost_entries: any[];
+  checks: any[];
+  alerts: any[];
+  documents: any[];
+  deficiencies: any[];
+  signatures: any[];
+  photos: any[];
+};
+
 export type OfficeReviewDecision = 'validated' | 'rejected';
 export type SatReviewDecision = 'approved' | 'returned';
 export type SatReviewDestination = 'comercial' | 'facturacion';
@@ -85,7 +103,7 @@ export const workOrdersService = {
   },
   async list(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active', dateFilters: DateRangeFilters = {}) {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
-    let query = applyArchiveFilter(supabase.from('v_work_order_full_detail').select('*'), archiveFilter).order('scheduled_date', { ascending: false });
+    let query = applyArchiveFilter(supabase.from('v_work_order_full_detail').select('id,company_id,code,title,description,type,priority,status,origin,scheduled_date,scheduled_time,case_code,client_code,client_name,site_code,site_name,equipment_code,equipment_type,main_technician_name,created_by_name,deleted_at'), archiveFilter).order('scheduled_date', { ascending: false });
     if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'title', 'description', 'client_name', 'site_name', 'equipment_code', 'status'], search));
     query = applyDateRangeFilters(query, dateFilters);
@@ -122,6 +140,37 @@ export const workOrdersService = {
   },
   get(id: string) {
     return this.getWorkOrderFullDetail(id);
+  },
+  async getWorkOrderSummary(workOrderId: string, technicianOnly = false): Promise<WorkOrderSummary> {
+    if (technicianOnly) {
+      const profileId = await currentProfileId();
+      const assignment = await expectData<any>(supabase.from('work_order_assignments').select('id,status,work_orders!work_order_assignments_work_order_id_fkey(status,deleted_at)').eq('work_order_id', workOrderId).eq('technician_id', profileId).is('deleted_at', null).not('status', 'in', '(Finalizado,Cancelado)').maybeSingle(), { service: 'workOrdersService', operation: 'Permiso técnico / resumen del parte', resource: workOrderId });
+      if (!assignment || !['Pendiente','Trabajo descargado','En desplazamiento','En intervencion','Pausado','Pendiente de material'].includes(assignment.work_orders?.status)) throw new Error('No tienes permiso para acceder a este trabajo');
+    }
+    const workOrder = await expectData<any>(supabase.from('work_orders').select(`
+      id, company_id, code, title, description, type, priority, status, origin, scheduled_date, scheduled_time,
+      diagnosis, work_performed, result, planned_material, main_equipment_id, client_id, site_id, case_id, quote_id,
+      economic_status, sale_amount, real_cost_amount, margin_amount, office_validation_status, office_validation_reason,
+      clients!work_orders_client_id_fkey(*), sites!work_orders_site_id_fkey(*), cases!work_orders_case_id_fkey(*),
+      primary_equipment:equipment!work_orders_main_equipment_id_fkey(*, equipment_types!equipment_equipment_type_id_fkey(*)),
+      access_requirement:access_requirements!work_orders_access_requirement_id_fkey(*),
+      primary_technician:profiles!work_orders_main_technician_id_fkey(*), responsible:profiles!work_orders_current_responsible_id_fkey(*),
+      quotes!work_orders_quote_id_fkey(id,code,title,status,total_amount,total)
+    `).eq('id', workOrderId).maybeSingle(), { service: 'workOrdersService', operation: 'Resumen del parte', resource: workOrderId });
+    if (!workOrder) throw new Error('No se ha encontrado el parte solicitado.');
+    const [associated, assignments] = await Promise.all([
+      expectData<any[]>(supabase.from('work_order_equipment').select('id,work_order_id,equipment_id,is_primary,check_status,equipment!work_order_equipment_equipment_id_fkey(id,code,internal_location,brand,model,equipment_type_id,equipment_types!equipment_equipment_type_id_fkey(name))').eq('work_order_id', workOrderId).order('is_primary', { ascending: false }).order('created_at')),
+      expectData<any[]>(supabase.from('work_order_assignments').select('id,work_order_id,technician_id,role,status,assignment_date,planned_start_time,planned_end_time,profiles!work_order_assignments_technician_id_fkey(id,first_name,last_name,primary_area)').eq('work_order_id', workOrderId).is('deleted_at', null).order('planned_start_time')),
+    ]);
+    const primaryAssignment = assignments.find((item) => item.role === 'Principal') ?? assignments[0];
+    return {
+      work_order: workOrder, ...workOrder, client: workOrder.clients, site: workOrder.sites, case: workOrder.cases,
+      primary_equipment: workOrder.primary_equipment, additional_equipment: associated.filter((item) => !item.is_primary).map((item) => item.equipment).filter(Boolean), associated_equipment: associated,
+      compatible_check_templates: [], assignments, primary_technician: workOrder.primary_technician ?? primaryAssignment?.profiles ?? null,
+      support_technicians: assignments.filter((item) => item.role !== 'Principal').map((item) => item.profiles).filter(Boolean),
+      status_history: [], time_entries: [], notes: [], materials: [], planned_quote_lines: [], planned_quote_line_decisions: [], planned_material_lines: [], planned_material_decisions: [], cost_entries: [], checks: [], alerts: [], documents: [], deficiencies: [], signatures: [], photos: [],
+      clients: workOrder.clients, sites: workOrder.sites, cases: workOrder.cases, equipment: workOrder.primary_equipment, work_order_assignments: assignments, work_order_status_history: [], work_order_time_entries: [], work_order_notes: [], work_order_materials: [], work_order_quote_line_decisions: [], work_order_planned_material_decisions: [], work_order_cost_entries: [],
+    } as WorkOrderSummary;
   },
   async getTechnicianAssigned(id: string) {
     const profileId = await currentProfileId();

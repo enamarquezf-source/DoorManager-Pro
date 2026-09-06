@@ -12,4 +12,10 @@ describe('multitenant query keys', () => {
     expect(queryKeys.equipmentTypes('company-b')).not.toEqual(target);
     expect(queryKeys.profiles('company-a', 'technicians')).not.toEqual(target);
   });
+
+  it('separates work order list filters and detail caches by tenant', () => {
+    expect(queryKeys.workOrders.list('company-a', { search: 'a' })).not.toEqual(queryKeys.workOrders.list('company-b', { search: 'a' }));
+    expect(queryKeys.workOrders.list('company-a', { search: 'a' })).not.toEqual(queryKeys.workOrders.list('company-a', { search: 'ab' }));
+    expect(queryKeys.workOrders.summary('company-a', 'work-1')).not.toEqual(queryKeys.workOrders.summary('company-b', 'work-1'));
+  });
 });

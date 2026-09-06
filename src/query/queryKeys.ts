@@ -5,4 +5,9 @@ export const queryKeys = {
   profiles: (companyId: string | null | undefined, role: 'technicians' | 'commercials' | 'active') => [...queryKeys.company(companyId), 'profiles', role] as const,
   materials: (companyId: string | null | undefined, search = '') => [...queryKeys.company(companyId), 'materials', search] as const,
   capabilities: (companyId: string | null | undefined) => [...queryKeys.company(companyId), 'capabilities'] as const,
+  workOrders: {
+    list: (companyId: string | null | undefined, filters: Record<string, unknown> = {}) => [...queryKeys.company(companyId), 'work-orders', 'list', filters] as const,
+    summary: (companyId: string | null | undefined, workOrderId: string) => [...queryKeys.company(companyId), 'work-orders', workOrderId, 'summary'] as const,
+    detail: (companyId: string | null | undefined, workOrderId: string) => [...queryKeys.company(companyId), 'work-orders', workOrderId, 'detail'] as const,
+  },
 };

@@ -46,7 +46,7 @@ import { isModernBillingRouting } from './shared/guidedBillingEligibility';
 import { quoteEquipmentSelection } from './shared/quoteEquipment';
 import { isPendingCommercialReview } from './shared/commercialReview';
 import { useDebouncedValue } from './shared/useDebouncedValue';
-import { useEquipmentTypes, useManagedCheckTemplates, useMaterialsCatalog, useOfficeValidationCapability, useProfiles } from './query/hooks';
+import { useEquipmentTypes, useManagedCheckTemplates, useMaterialsCatalog, useOfficeValidationCapability, useProfiles, useWorkOrderDetail, useWorkOrderList, useWorkOrderSummary } from './query/hooks';
 import { queryClient } from './query/queryClient';
 import { queryKeys } from './query/queryKeys';
 import type { Profile, RoleName, Severity, Workspace } from './shared/types';
@@ -724,15 +724,19 @@ function PendingMaterialValidationPanel() {
 }
 
 function WorkOrdersPage() {
-  const { profile, workspace } = useAuth();
-  const scope = undefined;
+  const { profile, workspace, companyId } = useAuth();
   const [params, setParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>('active');
   const [filter, setFilter] = useState(() => workOrderFilterFromParams(params));
    const [person, setPerson] = useState(params.get('tecnico') ?? '');
    const dateFilters: DateRangeFilters = { createdFrom: params.get('creado_desde') ?? undefined, createdTo: params.get('creado_hasta') ?? undefined, updatedFrom: params.get('actualizado_desde') ?? undefined, updatedTo: params.get('actualizado_hasta') ?? undefined };
-   const { data, loading, error, reload } = useLoad(() => workOrdersService.listWithAssignments(search, scope, archiveFilter, dateFilters), [search, scope, archiveFilter, dateFilters.createdFrom, dateFilters.createdTo, dateFilters.updatedFrom, dateFilters.updatedTo], [] as any[]);
+   const debouncedSearch = useDebouncedValue(search, 300);
+   const listQuery = useWorkOrderList(companyId, debouncedSearch, archiveFilter, dateFilters);
+   const data = listQuery.data ?? [];
+   const loading = listQuery.isPending;
+   const error = listQuery.error?.message ?? '';
+   const reload = () => listQuery.refetch();
   const [creating, setCreating] = useState(false);
   const [purgeTarget, setPurgeTarget] = useState<any | null>(null);
   useEffect(() => { const next = workOrderFilterFromParams(params); setFilter((current) => current === next ? current : next); }, [params]);
@@ -763,15 +767,24 @@ function SatWorkOrderCard({ work, onChanged, onPurge }: { work: any; onChanged?:
 
 function WorkOrderDetailPageV2({ forcedId }: { forcedId?: string } = {}) {
   const { id: routeId = '' } = useParams();
-  const { profile, workspace } = useAuth();
+  const { profile, workspace, companyId } = useAuth();
   const id = forcedId ?? routeId;
-  const { data, loading, error, reload } = useLoad(() => workspace === 'tecnico' ? workOrdersService.getTechnicianAssigned(id) : workOrdersService.get(id), [id, workspace], null as any);
   const [mode, setMode] = useState<'edit' | 'assign' | 'check' | 'time' | 'material' | 'cost' | null>(null);
   const [tab, setTab] = useState<'resumen' | 'trabajo' | 'checks' | 'horas' | 'materiales' | 'costes' | 'media' | 'historial'>('resumen');
   const [message, setMessage] = useState('');
   const [actionError, setActionError] = useState('');
   const [purgeOpen, setPurgeOpen] = useState(false);
   const navigate = useNavigate();
+  const summaryQuery = useWorkOrderSummary(companyId, id, workspace === 'tecnico');
+  const detailQuery = useWorkOrderDetail(companyId, id, tab !== 'resumen', workspace === 'tecnico');
+  const data = (detailQuery.data ?? summaryQuery.data) as any;
+  const loading = summaryQuery.isPending || (tab !== 'resumen' && detailQuery.isPending && !detailQuery.data);
+  const error = summaryQuery.error?.message ?? (detailQuery.error?.message ?? '');
+  const reload = async () => {
+    await queryClient.invalidateQueries({ queryKey: [...queryKeys.company(companyId), 'work-orders', 'list'] });
+    if (detailQuery.data) await Promise.all([summaryQuery.refetch(), detailQuery.refetch()]);
+    else await summaryQuery.refetch();
+  };
   if (workspace === 'tecnico' && (error || (!loading && !data))) return <AccessDenied />;
   if (loading || error || !data) return <StateBlock loading={loading} error={error} retry={reload} empty={!data} />;
   if (!canViewWorkOrder(profile, data)) return workspace === 'tecnico' ? <AccessDenied /> : <StateBlock loading={false} error="No tienes permiso para acceder a este parte" retry={undefined} empty={false} />;

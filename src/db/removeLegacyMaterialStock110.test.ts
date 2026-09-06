@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import pgQuery from 'pg-query-emscripten';
 
-const read = (path: string) => readFileSync(path, 'utf8');
+const read = (path: string) => readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
 const migration = read('supabase/migrations/110_remove_legacy_material_stock_movements.sql');
 const validator = read('supabase/verification/validate_110_functions_transactionally.sql');
 const dropValidator = read('supabase/verification/validate_110_drop_transactionally.sql');

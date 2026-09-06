@@ -10,7 +10,8 @@ describe('check template visibility regression', () => {
     expect(superadminService).toContain('async templates(companyScope?: string | null)');
     expect(superadminService).toContain('const companyId = companyScope === undefined ? await currentCompanyId() : companyScope');
     expect(superadminService).toContain('if (companyId) query = query.eq');
-    expect(app).toContain('const templateScope = undefined');
+    expect(app).toContain('useManagedCheckTemplates(companyId)');
+    expect(app).toContain("queryKeys.checkTemplates(companyId, 'managed')");
   });
 
   it('permite a SAT ver plantillas de su empresa y no convierte undefined en global', () => {

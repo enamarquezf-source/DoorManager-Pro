@@ -45,6 +45,10 @@ import { technicianConceptLines, technicianProgress } from './shared/technicianW
 import { isModernBillingRouting } from './shared/guidedBillingEligibility';
 import { quoteEquipmentSelection } from './shared/quoteEquipment';
 import { isPendingCommercialReview } from './shared/commercialReview';
+import { useDebouncedValue } from './shared/useDebouncedValue';
+import { useEquipmentTypes, useManagedCheckTemplates, useMaterialsCatalog, useOfficeValidationCapability, useProfiles } from './query/hooks';
+import { queryClient } from './query/queryClient';
+import { queryKeys } from './query/queryKeys';
 import type { Profile, RoleName, Severity, Workspace } from './shared/types';
 import { entityLabels, entityLifecycleService, isArchivedRecord, type ArchiveFilter, type LifecycleEntity, type LifecycleSummary } from './services/entityLifecycleService';
 import { quotePurgeBlocks, quotePurgeCanShowButton, quotePurgeExpectedConfirmation, quotePurgePlanMatchesScope, quotePurgeResultOk, quotePurgeScope, quotePurgeScopeKey, type QuotePurgeScopeKey } from './services/quotePurgeFlow';
@@ -54,8 +58,8 @@ import { filterEquipmentForContext, filterSitesForClient } from './shared/client
 import { BillingModule } from './modules/BillingModule';
 import type { DateRangeFilters } from './shared/dateRange';
 
-type AuthContextValue = { initialized: boolean; session: Session | null; profile: Profile | null; profileError: string | null; workspace: Workspace; setWorkspace: (workspace: Workspace) => void; refreshProfile: () => Promise<void>; signOut: () => Promise<void> };
-type LoadState<T> = { data: T; loading: boolean; error: string };
+type AuthContextValue = { initialized: boolean; session: Session | null; profile: Profile | null; profileError: string | null; userId: string | null; companyId: string | null; profileId: string | null; workspace: Workspace; setWorkspace: (workspace: Workspace) => void; refreshProfile: () => Promise<void>; signOut: () => Promise<void> };
+type LoadState<T> = { data: T; loading: boolean; refreshing: boolean; error: string };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 const sidebarKey = 'dmp-sidebar-collapsed';
@@ -135,7 +139,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
 
   const setWorkspace = (next: Workspace) => { localStorage.setItem(workspaceKey, next); setWorkspaceState(next); };
   const signOut = async () => { await authService.signOut(); localStorage.removeItem(workspaceKey); setSession(null); setProfile(null); setProfileError(null); setInitialized(true); };
-  const value = useMemo(() => ({ initialized, session, profile, profileError, workspace, setWorkspace, refreshProfile, signOut }), [initialized, session, profile, profileError, workspace]);
+  const value = useMemo(() => ({ initialized, session, profile, profileError, userId: session?.user?.id ?? null, companyId: profile?.company_id ?? null, profileId: profile?.id ?? null, workspace, setWorkspace, refreshProfile, signOut }), [initialized, session, profile, profileError, workspace]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
@@ -352,10 +356,30 @@ function homeForWorkspace(workspace: Workspace) {
   return '/app/inicio';
 }
 
-function useLoad<T>(loader: () => Promise<T>, deps: unknown[] = [], empty: T) {
-  const [state, setState] = useState<LoadState<T>>({ data: empty, loading: true, error: '' });
-  const reload = async () => { setState((prev) => ({ ...prev, loading: true, error: '' })); try { setState({ data: await loader(), loading: false, error: '' }); } catch (err) { setState({ data: empty, loading: false, error: err instanceof Error ? err.message : 'Error inesperado' }); } };
-  useEffect(() => { reload(); }, deps);
+function useLoad<T>(loader: (signal: AbortSignal) => Promise<T>, deps: unknown[] = [], empty: T) {
+  const [state, setState] = useState<LoadState<T>>({ data: empty, loading: true, refreshing: false, error: '' });
+  const requestRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
+  const loadedRef = useRef(false);
+  const reload = async () => {
+    const requestId = ++requestRef.current;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const refreshing = loadedRef.current;
+    setState((prev) => ({ ...prev, loading: !refreshing, refreshing, error: '' }));
+    try {
+      const next = await loader(controller.signal);
+      if (!mountedRef.current || requestId !== requestRef.current) return;
+      loadedRef.current = true;
+      setState({ data: next, loading: false, refreshing: false, error: '' });
+    } catch (err) {
+      if (!mountedRef.current || requestId !== requestRef.current) return;
+      setState((prev) => ({ data: prev.data, loading: false, refreshing: false, error: err instanceof Error ? err.message : 'Error inesperado' }));
+    }
+  };
+  useEffect(() => { mountedRef.current = true; void reload(); return () => { mountedRef.current = false; requestRef.current += 1; abortRef.current?.abort(); }; }, deps);
   return { ...state, reload };
 }
 
@@ -545,32 +569,39 @@ function SuperadminRoles() {
 }
 
 function SuperadminTemplates() {
-  const { workspace } = useAuth();
+  const { workspace, companyId } = useAuth();
   const isPlatformScope = workspace === 'superadmin';
   const [params] = useSearchParams();
   const typeFilter = params.get('equipment_type_id') ?? '';
-  const templateScope = undefined;
-  const { data: loadedTemplates, loading, error, reload } = useLoad(() => superadminService.templates(templateScope), [templateScope], [] as any[]);
+  const templatesQuery = useManagedCheckTemplates(companyId);
+  const loadedTemplates = templatesQuery.data ?? [];
+  const loading = templatesQuery.isPending;
+  const error = templatesQuery.error?.message ?? '';
+  const reload = () => templatesQuery.refetch();
   const data = typeFilter ? loadedTemplates.filter((template: any) => template.equipment_type_id === typeFilter) : loadedTemplates;
   const [form, setForm] = useState<any>(null);
   const [message, setMessage] = useState('');
   const [actionError, setActionError] = useState('');
   useEffect(() => { if (typeFilter && form?.type === 'template' && form.initial && !form.initial.equipment_type_id) setForm((current: any) => ({ ...current, initial: { ...current.initial, equipment_type_id: typeFilter } })); }, [typeFilter, form]);
-  const run = async (operation: () => Promise<any>, ok: string) => { try { setActionError(''); await operation(); setMessage(ok); reload(); } catch (err) { console.error(err); setActionError(err instanceof Error ? err.message : 'No se ha podido completar la operación.'); } };
+  const run = async (operation: () => Promise<any>, ok: string) => { try { setActionError(''); await operation(); setMessage(ok); await Promise.all([queryClient.invalidateQueries({ queryKey: queryKeys.checkTemplates(companyId, 'managed') }), queryClient.invalidateQueries({ queryKey: queryKeys.checkTemplates(companyId) })]); } catch (err) { console.error(err); setActionError(err instanceof Error ? err.message : 'No se ha podido completar la operación.'); } };
   const toggle = (template: any) => run(() => superadminService.toggleTemplate(template.id, !template.active), template.active ? 'Plantilla desactivada.' : 'Plantilla activada.');
   const duplicate = (template: any) => run(() => superadminService.duplicateTemplate(template), 'Plantilla duplicada con sus bloques e ítems.');
   return <section className="page"><Breadcrumb items={[(isPlatformScope ? 'Propietario DMP' : 'SAT'), 'Plantillas de checks']} /><div className="page-head"><div><h2>Plantillas de checks</h2><p>Crear, editar, duplicar, ordenar y activar plantillas disponibles para la empresa.</p></div><button className="primary" onClick={() => setForm({ type: 'template', initial: { active: true, version: '1.0' } })}>Crear plantilla</button></div>{message && <p className="success-note">{message}</p>}{actionError && <p className="form-error">{actionError}</p>}<StateBlock loading={loading} error={error} retry={reload} empty={!data.length}><div className="grid half">{data.map((template: any) => { const sections = [...(template.check_template_sections ?? [])].sort(byTemplatePosition); return <Card key={template.id} title={template.name} action={<button onClick={() => toggle(template)}>{template.active ? 'Desactivar' : 'Activar'}</button>}><InfoGrid items={[[ 'Tipo compatible', template.equipment_types?.name ?? 'Global' ], [ 'Versión', template.version ], [ 'Estado', template.active ? 'Activo' : 'Inactivo' ], [ 'Bloques', String(sections.length) ], [ 'Ítems', String(sections.reduce((sum: number, section: any) => sum + (section.check_template_items?.length ?? 0), 0)) ], [ 'Creación', formatDate(template.created_at) ], [ 'Última modificación', formatDate(template.updated_at) ]]} /><div className="actions"><button onClick={() => setForm({ type: 'template', initial: template })}>Editar plantilla</button><button onClick={() => duplicate(template)}>Duplicar plantilla</button><button onClick={() => setForm({ type: 'section', template, initial: { position: sections.length + 1 } })}>Añadir bloque</button></div><div className="template-builder">{sections.map((section: any, index: number) => { const items = [...(section.check_template_items ?? [])].sort(byTemplatePosition); return <article key={section.id} className="template-section"><header><strong>{section.position}. {section.title}</strong><div className="row-actions"><button onClick={() => setForm({ type: 'section', template, initial: section })}>Editar</button><button disabled={index === 0} onClick={() => run(() => superadminService.reorderSections(moveItem(sections, index, index - 1)), 'Bloques reordenados.')}>Subir</button><button disabled={index === sections.length - 1} onClick={() => run(() => superadminService.reorderSections(moveItem(sections, index, index + 1)), 'Bloques reordenados.')}>Bajar</button><button onClick={() => window.confirm('Eliminar este bloque solo si no tiene resultados asociados?') && run(() => superadminService.deleteSection(section.id), 'Bloque eliminado si no tenía resultados vinculados.')}>Eliminar</button></div></header><div className="template-items">{items.map((item: any, itemIndex: number) => <div key={item.id} className="template-item"><span>{item.position}. {item.title} · {item.component} · {item.mandatory ? 'Obligatorio' : 'Opcional'}</span><div className="row-actions"><button onClick={() => setForm({ type: 'item', section, initial: item })}>Editar</button><button disabled={itemIndex === 0} onClick={() => run(() => superadminService.reorderItems(moveItem(items, itemIndex, itemIndex - 1)), 'Ítems reordenados.')}>Subir</button><button disabled={itemIndex === items.length - 1} onClick={() => run(() => superadminService.reorderItems(moveItem(items, itemIndex, itemIndex + 1)), 'Ítems reordenados.')}>Bajar</button><button onClick={() => window.confirm('Eliminar este ítem solo si no tiene resultados asociados?') && run(() => superadminService.deleteItem(item.id), 'Ítem eliminado si no tenía resultados vinculados.')}>Eliminar</button></div></div>)}<button onClick={() => setForm({ type: 'item', section, initial: { position: items.length + 1, mandatory: true } })}>Añadir ítem</button></div></article>; })}</div></Card>; })}</div></StateBlock>{form?.type === 'template' && <TemplateForm initial={form.initial} onClose={() => setForm(null)} onSaved={() => { setForm(null); reload(); }} />}{form?.type === 'section' && <TemplateSectionForm template={form.template} initial={form.initial} onClose={() => setForm(null)} onSaved={() => { setForm(null); reload(); }} />}{form?.type === 'item' && <TemplateItemForm section={form.section} initial={form.initial} onClose={() => setForm(null)} onSaved={() => { setForm(null); reload(); }} />}</section>;
 }
 
 function EquipmentTypesPage() {
-  const { profile, workspace } = useAuth();
+  const { profile, workspace, companyId } = useAuth();
   const [search, setSearch] = useState('');
   const [form, setForm] = useState<any>(null);
   const [message, setMessage] = useState('');
   const [actionError, setActionError] = useState('');
-  const { data, loading, error, reload } = useLoad(() => equipmentService.typesAdmin(), [], [] as any[]);
+  const typesQuery = useEquipmentTypes(companyId, true);
+  const data = typesQuery.data ?? [];
+  const loading = typesQuery.isPending;
+  const error = typesQuery.error?.message ?? '';
+  const reload = () => typesQuery.refetch();
   const visible = data.filter((type: any) => !search.trim() || `${type.name} ${type.description ?? ''}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
-  const run = async (operation: () => Promise<any>, ok: string) => { try { setActionError(''); await operation(); setMessage(ok); reload(); } catch (err) { setActionError(err instanceof Error ? err.message : 'No se ha podido completar la operación.'); } };
+  const run = async (operation: () => Promise<any>, ok: string) => { try { setActionError(''); await operation(); setMessage(ok); await Promise.all([queryClient.invalidateQueries({ queryKey: queryKeys.equipmentTypes(companyId, true) }), queryClient.invalidateQueries({ queryKey: queryKeys.equipmentTypes(companyId) })]); } catch (err) { setActionError(err instanceof Error ? err.message : 'No se ha podido completar la operación.'); } };
   if (!canManageEquipmentTypes(profile)) return <AccessDeniedZone />;
   return <ListPage title="Tipos de equipo" summary="Catálogo técnico de tipos disponibles para equipos y plantillas de checks." search={search} setSearch={setSearch} action={<button className="primary" onClick={() => setForm({})}>Crear tipo de equipo</button>} loading={loading} error={error || actionError} retry={reload} empty={!visible.length}>{message && <p className="success-note">{message}</p>}<div className="grid half">{visible.map((type: any) => { const global = !type.company_id; const editable = !global || workspace === 'superadmin'; return <Card key={type.id} title={type.name} action={<Badge tone={type.active ? 'ok' : 'muted'}>{type.active ? 'Activo' : 'Inactivo'}</Badge>}><InfoGrid items={[[ 'Descripción', type.description ?? '-' ], [ 'Ámbito', global ? 'Global' : 'Empresa actual' ], [ 'Uso', 'Equipo y plantilla de check' ]]} /><div className="actions"><button onClick={() => setForm(type)} disabled={!editable}>Editar</button><Link to={`/app/plantillas?equipment_type_id=${encodeURIComponent(type.id)}`}>Gestionar plantillas/checks</Link>{editable && <button onClick={() => run(() => equipmentService.toggleType(type.id, !type.active), type.active ? 'Tipo desactivado.' : 'Tipo activado.')}>{type.active ? 'Desactivar' : 'Activar'}</button>}</div>{global && !editable && <p className="large-note">Tipo global protegido para este rol.</p>}</Card>; })}</div>{form && <EquipmentTypeForm initial={form.id ? form : undefined} onClose={() => setForm(null)} onSaved={() => { setForm(null); setMessage(form?.id ? 'Tipo actualizado.' : 'Tipo creado.'); reload(); }} />}</ListPage>;
 }
@@ -585,7 +616,9 @@ function EquipmentTypeForm({ initial, onClose, onSaved }: any) {
 }
 
 function TemplateForm({ initial, onClose, onSaved }: any) {
-  const types = useLoad(() => equipmentService.types(initial?.company_id), [initial?.company_id], [] as any[]);
+  const { companyId } = useAuth();
+  const typesQuery = useEquipmentTypes(initial?.company_id ?? companyId);
+  const types = { data: typesQuery.data ?? [], loading: typesQuery.isPending };
   const [values, setValues] = useState<Record<string, any>>(initial);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -822,14 +855,15 @@ function WorkOrderStatusSelector({ workOrder, onChanged, onError }: { workOrder:
 }
 
 function WorkOrderSatReviewCard({ workOrder, onChanged, onError }: { workOrder: any; onChanged: () => void; onError: (message: string) => void }) {
-  const { profile } = useAuth();
+  const { profile, companyId } = useAuth();
   const [decision, setDecision] = useState<'approved' | 'returned' | null>(null);
   const [destination, setDestination] = useState<'comercial' | 'facturacion'>('facturacion');
   const [commercialProfileId, setCommercialProfileId] = useState('');
   const [reason, setReason] = useState('');
   const [flags, setFlags] = useState<Record<string, boolean>>(() => normalizedSatReviewFlags(workOrder.sat_review_flags));
   const [saving, setSaving] = useState(false);
-  const commercials = useLoad(() => profilesService.listCommercials(), [], [] as any[]);
+  const commercialsQuery = useProfiles(companyId, 'commercials');
+  const commercials = { data: commercialsQuery.data ?? [], loading: commercialsQuery.isPending };
   const status = workOrder.sat_review_status ?? 'not_started';
   const canDecideWarranty = profile ? normalizedRoleNames(profile.primary_area, profile.roles ?? []).some((role) => ['superadmin', 'SAT', 'Gerencia', 'Oficina'].includes(role)) : false;
   if (!['pending', 'returned', 'approved'].includes(status)) return null;
@@ -860,8 +894,9 @@ function WorkOrderCommercialReviewCard({ workOrder, onChanged, onError }: { work
 }
 
 function WorkOrderOfficeValidationCard({ workOrder, onChanged, onError }: { workOrder: any; onChanged: () => void; onError: (message: string) => void }) {
-  const { profile } = useAuth();
-  const capability = useLoad(() => workOrdersService.hasOfficeValidation(), [], false);
+  const { profile, companyId } = useAuth();
+  const capabilityQuery = useOfficeValidationCapability(companyId);
+  const capability = { loading: capabilityQuery.isPending, error: capabilityQuery.error?.message ?? '', data: capabilityQuery.data ?? false };
   const [decision, setDecision] = useState<'validated' | 'rejected' | null>(null);
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
@@ -2707,13 +2742,15 @@ function GlobalSearch({ query, setQuery }: { query: string; setQuery: (value: st
   const [loading, setLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
   const trimmed = query.trim();
+  const debounced = useDebouncedValue(trimmed, 300);
+  useEffect(() => { requestRef.current += 1; }, [trimmed, workspace]);
   useEffect(() => {
-    const requestId = ++requestRef.current;
-    if (!trimmed) { setData([]); setLoading(false); setSearchError(''); return; }
+    const requestId = requestRef.current;
+    if (!debounced) { setData([]); setLoading(false); setSearchError(''); return; }
     setLoading(true); setSearchError('');
     const timer = window.setTimeout(async () => {
       try {
-        const rows = workspace === 'tecnico' ? await searchService.technician(trimmed) : await searchService.global(trimmed);
+        const rows = workspace === 'tecnico' ? await searchService.technician(debounced) : await searchService.global(debounced);
         if (requestRef.current === requestId) setData(rows);
       } catch (error) {
         console.error('No se ha podido ejecutar la búsqueda global', error);
@@ -2723,7 +2760,7 @@ function GlobalSearch({ query, setQuery }: { query: string; setQuery: (value: st
       }
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [trimmed, workspace]);
+  }, [debounced, workspace]);
   const open = (item: any) => { setQuery(''); navigate(item.route); };
   return <div className="search-wrap"><label className="search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={workspace === 'tecnico' ? 'Buscar mis trabajos y checks...' : 'Buscar cliente, equipo, expediente, parte...'} /></label>{trimmed && <div className="search-results">{loading && <p>Buscando...</p>}{!loading && searchError && <p className="form-error">{searchError}</p>}{!loading && !searchError && data.slice(0, 8).map((item) => <button key={`${item.route}-${item.id}`} onClick={() => open(item)}><Badge tone="info">{item.kind ?? 'Resultado'}</Badge><span>{item.title}</span><small>{item.subtitle ?? 'Registro'}</small></button>)}{!loading && !searchError && !data.length && <p>Sin resultados.</p>}</div>}</div>;
 }
@@ -2816,11 +2853,15 @@ function MaterialBulkImportPanel() {
 }
 
 function CanonicalMaterialsModule() {
-  const { profile } = useAuth();
+  const { profile, companyId } = useAuth();
   const [search, setSearch] = useState('');
   const [archiveFilter, setArchiveFilter] = useState<MaterialFilter>('active');
   const [stockFilter, setStockFilter] = useState<MaterialStockFilter>('all');
-  const { data, loading, error, reload } = useLoad(() => materialsService.list(search, undefined, 'all'), [search], [] as any[]);
+  const materialsQuery = useMaterialsCatalog(companyId, search);
+  const data = materialsQuery.data ?? [];
+  const loading = materialsQuery.isPending;
+  const error = materialsQuery.error?.message ?? '';
+  const reload = () => materialsQuery.refetch();
   const stock = useLoad(() => workOrdersService.warehouseStockCatalog(), [], [] as any[]);
   const warehouses = useLoad(() => workOrdersService.warehousesCatalog(), [], [] as any[]);
   const [editing, setEditing] = useState<any | null>(null);
@@ -2864,7 +2905,7 @@ function LegacyMultiEquipmentPicker({ values, setValues, filteredEquipment, equi
 }
 
 function LegacyWorkOrderForm({ initial, sourceQuote, onClose, onSaved }: any) {
-  const { workspace } = useAuth();
+  const { workspace, companyId } = useAuth();
   const creatorRole = workspace === 'superadmin' ? 'SAT' : workspaceToRole[workspace];
   const [values, setValues] = useState<Record<string, any>>({ type: 'Correctivo', priority: 'Normal', origin: creatorRole, scheduled_date: new Date().toISOString().slice(0, 10), ...initial, equipment_selection: initial?.equipment_selection ?? (initial?.main_equipment_id ? [{ kind: 'existing', equipment_id: initial.main_equipment_id }] : []) });
   const [creatingCase, setCreatingCase] = useState(false);
@@ -2873,9 +2914,11 @@ function LegacyWorkOrderForm({ initial, sourceQuote, onClose, onSaved }: any) {
   const clients = useLoad(() => clientsService.list('', initial?.company_id), [initial?.company_id], [] as any[]);
   const sites = useLoad(() => sitesService.list('', initial?.company_id), [initial?.company_id], [] as any[]);
   const equipment = useLoad(() => equipmentService.list('', initial?.company_id), [initial?.company_id], [] as any[]);
-  const equipmentTypes = useLoad(() => equipmentService.types(initial?.company_id), [initial?.company_id], [] as any[]);
+  const equipmentTypesQuery = useEquipmentTypes(initial?.company_id ?? companyId);
+  const equipmentTypes = { data: equipmentTypesQuery.data ?? [], loading: equipmentTypesQuery.isPending };
   const cases = useLoad(() => casesService.list('', initial?.company_id), [initial?.company_id], [] as any[]);
-  const technicians = useLoad(() => profilesService.listTechnicians(initial?.company_id), [initial?.company_id], [] as any[]);
+  const techniciansQuery = useProfiles(initial?.company_id ?? companyId, 'technicians');
+  const technicians = { data: techniciansQuery.data ?? [], loading: techniciansQuery.isPending };
   const filteredSites = filterSitesForClient(sites.data, values.client_id);
   const filteredEquipment = filterEquipmentForContext(equipment.data, values.client_id, values.site_id);
   const filteredCases = cases.data.filter((item) => (!values.client_id || item.client_id === values.client_id) && (!values.site_id || !item.site_id || item.site_id === values.site_id) && !['Cerrado', 'Cancelado'].includes(item.status));
@@ -2903,7 +2946,7 @@ function LegacyWorkOrderForm({ initial, sourceQuote, onClose, onSaved }: any) {
   return <ModalForm title={initial?.id ? 'Modificar parte' : 'Crear parte'} onClose={onClose} onSubmit={submit} saving={saving} error={error}><FormSelect label="Cliente" value={values.client_id} onChange={(value) => setValues((current) => ({ ...current, client_id: value, site_id: '', main_equipment_id: '', case_id: '' }))} required options={clients.data.map((client) => ({ value: client.id, label: `${client.code} · ${client.legal_name}` }))} loading={clients.loading} /><FormSelect label="Centro" value={values.site_id} onChange={(value) => setValues((current) => ({ ...current, site_id: value, main_equipment_id: '', case_id: '' }))} required={filteredSites.length > 0} options={filteredSites.map((site) => ({ value: site.id, label: `${site.code} · ${site.name}` }))} loading={sites.loading} disabled={!values.client_id} /><FormSelect label="Equipo" value={values.main_equipment_id} onChange={(value) => set('main_equipment_id', value)} options={filteredEquipment.map((item) => ({ value: item.id, label: `${item.code} · ${item.equipment_types?.name ?? item.model ?? 'Equipo'}` }))} loading={equipment.loading} disabled={!values.site_id} />{values.type === 'Instalacion' && !values.main_equipment_id && <Card title="Equipo nuevo de instalación"><p className="large-note">El equipo se creará automáticamente con el cliente y centro del presupuesto/parte. También se generará el check de instalación si existe plantilla activa compatible.</p><FormSelect label="Tipo de equipo" value={values.installation_equipment?.equipment_type_id ?? ''} onChange={(value) => setValues((current) => ({ ...current, installation_equipment: { ...(current.installation_equipment ?? {}), equipment_type_id: value } }))} required options={equipmentTypes.data.map((type) => ({ value: type.id, label: type.name }))} loading={equipmentTypes.loading} /><div className="form-grid"><label>Marca<input value={values.installation_equipment?.brand ?? ''} onChange={(event) => setValues((current) => ({ ...current, installation_equipment: { ...(current.installation_equipment ?? {}), brand: event.target.value } }))} /></label><label>Modelo<input value={values.installation_equipment?.model ?? ''} onChange={(event) => setValues((current) => ({ ...current, installation_equipment: { ...(current.installation_equipment ?? {}), model: event.target.value } }))} /></label><label>Referencia / ubicación<input value={values.installation_equipment?.internal_location ?? ''} onChange={(event) => setValues((current) => ({ ...current, installation_equipment: { ...(current.installation_equipment ?? {}), internal_location: event.target.value } }))} /></label><label>Número de serie<input value={values.installation_equipment?.serial_number ?? ''} onChange={(event) => setValues((current) => ({ ...current, installation_equipment: { ...(current.installation_equipment ?? {}), serial_number: event.target.value } }))} /></label></div><label>Observaciones técnicas<textarea value={values.installation_equipment?.notes ?? ''} onChange={(event) => setValues((current) => ({ ...current, installation_equipment: { ...(current.installation_equipment ?? {}), notes: event.target.value } }))} /></label></Card>}<div className="field-with-action"><FormSelect label="Expediente" value={values.case_id} onChange={(value) => set('case_id', value)} options={filteredCases.map((item) => ({ value: item.id, label: `${item.code} · ${item.title} · ${displayStatus(item.type)} · ${displayStatus(item.status)}` }))} loading={cases.loading} disabled={!values.client_id} />{values.client_id && !cases.loading && !filteredCases.length && <p className="large-note">No hay expedientes activos para este cliente.</p>}<button type="button" onClick={() => setCreatingCase(true)} disabled={!values.client_id}>Crear expediente</button></div><div className="form-grid"><FormSelect label="Tipo" value={values.type} onChange={(value) => set('type', value)} required options={['Averia urgente','Correctivo','Preventivo','Mantenimiento','Inspeccion','Instalacion','Visita tecnica','Visita comercial','Garantia'].map((value) => ({ value, label: displayStatus(value) }))} /><FormSelect label="Prioridad" value={values.priority} onChange={(value) => set('priority', value)} options={['Baja','Normal','Alta','Critica'].map((value) => ({ value, label: displayStatus(value) }))} /></div><label>Título *<input value={values.title ?? ''} onChange={(event) => set('title', event.target.value)} required /></label><label>Avería o descripción<textarea value={values.description ?? ''} onChange={(event) => set('description', event.target.value)} placeholder="Describe la avería, solicitud o trabajo previsto" /></label><div className="form-grid"><label>Fecha<input type="date" value={values.scheduled_date ?? ''} onChange={(event) => set('scheduled_date', event.target.value)} /></label><label>Hora<input type="time" value={values.scheduled_time ?? ''} onChange={(event) => set('scheduled_time', event.target.value)} /></label><label>Duración estimada (min)<input type="number" min="1" value={values.estimated_duration_minutes ?? ''} onChange={(event) => set('estimated_duration_minutes', event.target.value)} /></label><FormSelect label="Técnico" value={values.technician_id} onChange={(value) => set('technician_id', value)} options={technicians.data.map((row) => ({ value: row.id, label: fullName(row) }))} loading={technicians.loading} /></div><label>Material previsto<input value={values.planned_material ?? ''} onChange={(event) => set('planned_material', event.target.value)} /></label><label>Acceso / requisitos<input value={values.access_notes ?? ''} onChange={(event) => set('access_notes', event.target.value)} /></label><label>Observaciones<textarea value={values.notes ?? ''} onChange={(event) => set('notes', event.target.value)} /></label>{creatingCase && <CaseQuickCreate initial={{ client_id: values.client_id, site_id: values.site_id }} onClose={() => setCreatingCase(false)} onSaved={async (created: any) => { set('case_id', typeof created === 'string' ? created : created.id); setCreatingCase(false); await cases.reload(); }} />}</ModalForm>;
 }
 function WorkOrderForm({ initial, sourceQuote, onClose, onSaved }: any) {
-  const { workspace } = useAuth();
+  const { workspace, companyId } = useAuth();
   const creatorRole = workspace === 'superadmin' ? 'SAT' : workspaceToRole[workspace];
   const [values, setValues] = useState<Record<string, any>>({ type: 'Correctivo', priority: 'Normal', origin: creatorRole, scheduled_date: new Date().toISOString().slice(0, 10), ...initial, equipment_selection: initial?.equipment_selection ?? (initial?.main_equipment_id ? [{ kind: 'existing', equipment_id: initial.main_equipment_id }] : []) });
   const [saving, setSaving] = useState(false);
@@ -2913,9 +2956,11 @@ function WorkOrderForm({ initial, sourceQuote, onClose, onSaved }: any) {
   const clients = useLoad(() => clientsService.list('', initial?.company_id), [initial?.company_id], [] as any[]);
   const sites = useLoad(() => sitesService.list('', initial?.company_id), [initial?.company_id], [] as any[]);
   const equipment = useLoad(() => equipmentService.list('', initial?.company_id), [initial?.company_id], [] as any[]);
-  const equipmentTypes = useLoad(() => equipmentService.types(initial?.company_id), [initial?.company_id], [] as any[]);
+  const equipmentTypesQuery = useEquipmentTypes(initial?.company_id ?? companyId);
+  const equipmentTypes = { data: equipmentTypesQuery.data ?? [], loading: equipmentTypesQuery.isPending };
   const cases = useLoad(() => casesService.list('', initial?.company_id), [initial?.company_id], [] as any[]);
-  const technicians = useLoad(() => profilesService.listTechnicians(initial?.company_id), [initial?.company_id], [] as any[]);
+  const techniciansQuery = useProfiles(initial?.company_id ?? companyId, 'technicians');
+  const technicians = { data: techniciansQuery.data ?? [], loading: techniciansQuery.isPending };
   const filteredSites = filterSitesForClient(sites.data, values.client_id);
   const filteredEquipment = filterEquipmentForContext(equipment.data, values.client_id, values.site_id);
   const filteredCases = cases.data.filter((item) => (!values.client_id || item.client_id === values.client_id) && (!values.site_id || !item.site_id || item.site_id === values.site_id) && !['Cerrado', 'Cancelado'].includes(item.status));
@@ -3118,7 +3163,7 @@ function DateRangeFiltersPanel({ params, setParams }: { params: URLSearchParams;
 function ListPage({ title, summary, search, setSearch, action, loading, error, retry, empty, children, archiveFilter, setArchiveFilter }: any) { const [listParams, setListParams] = useSearchParams(); return <section className="page"><Breadcrumb items={['Listado', title]} /><div className="page-head"><div><h2>{title}</h2><p>{summary}</p></div>{action}</div><div className="filters local-filters"><label><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`Buscar en ${title.toLowerCase()}...`} /></label>{archiveFilter && setArchiveFilter && <ArchiveFilterTabs value={archiveFilter} onChange={setArchiveFilter} material={title === 'Materiales'} />}</div>{(title === 'Partes' || title === 'Presupuestos') && <DateRangeFiltersPanel params={listParams} setParams={setListParams} />}<StateBlock loading={loading} error={error} retry={retry} empty={empty}>{children}</StateBlock></section>; }
 
 function ArchiveFilterTabs({ value, onChange, material = false }: { value: ArchiveFilter | MaterialFilter; onChange: (value: any) => void; material?: boolean }) { return <div className="tabs archive-tabs" aria-label={material ? 'Filtro de materiales' : 'Filtro de archivo'}><button className={value === 'active' ? 'active' : ''} onClick={() => onChange('active')}>Activos</button>{material && <button className={value === 'inactive' ? 'active' : ''} onClick={() => onChange('inactive')}>Inactivos</button>}{material && <button className={value === 'consumed' ? 'active' : ''} onClick={() => onChange('consumed')}>Equipos a medida consumidos</button>}<button className={value === 'archived' ? 'active' : ''} onClick={() => onChange('archived')}>{material ? 'Archivados' : 'Archivados'}</button><button className={value === 'all' ? 'active' : ''} onClick={() => onChange('all')}>Todos</button></div>; }
-function StateBlock({ loading, error, retry, empty, children }: any) { if (loading) return <Card title="Cargando"><p className="large-note">Cargando datos...</p></Card>; if (error) return <Card title="Error"><p className="form-error">{error}</p><button className="primary" onClick={retry}>Reintentar</button></Card>; if (empty) return <Card title="Sin registros"><p className="large-note">No hay datos para este filtro.</p>{retry && <button onClick={retry}>Reintentar</button>}</Card>; return <>{children}</>; }
+function StateBlock({ loading, error, retry, empty, children }: any) { if (loading) return <Card title="Cargando"><p className="large-note">Cargando datos...</p></Card>; if (error && empty) return <Card title="Error"><p className="form-error">{error}</p><button className="primary" onClick={retry}>Reintentar</button></Card>; if (empty) return <Card title="Sin registros"><p className="large-note">No hay datos para este filtro.</p>{retry && <button onClick={retry}>Reintentar</button>}</Card>; return <>{error && <p className="form-error" role="status">{error} <button onClick={retry}>Reintentar</button></p>}{children}</>; }
 function Card({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) { return <section className="card"><header><h3>{title}</h3>{action}</header>{children}</section>; }
 function Badge({ tone, children }: { tone: Severity; children: ReactNode }) { return <span className={`badge ${tone}`}>{typeof children === 'string' ? visibleLabel(children) : children}</span>; }
 function InfoGrid({ items }: { items: [string, any][] }) { return <dl className="info-grid">{items.map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{String(value ?? '-')}</dd></div>)}</dl>; }

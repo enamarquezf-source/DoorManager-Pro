@@ -18,8 +18,10 @@ describe('signed files', () => {
 
     expect(fileReference(row)).toEqual({ bucket: 'dmp-files', path: 'company/work-orders/id/photos/photo.jpg' });
     await expect(withSignedFileUrl(row)).resolves.toMatchObject({ signed_url: 'https://signed.example/photo.jpg', file_error: null });
+    await expect(withSignedFileUrl(row)).resolves.toMatchObject({ signed_url: 'https://signed.example/photo.jpg', file_error: null });
     expect(from).toHaveBeenCalledWith('dmp-files');
     expect(createSignedUrl).toHaveBeenCalledWith('company/work-orders/id/photos/photo.jpg', 600);
+    expect(createSignedUrl).toHaveBeenCalledOnce();
   });
 
   it('no intenta firmar si no hay path y devuelve error seguro', async () => {

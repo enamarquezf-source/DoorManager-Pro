@@ -8,7 +8,7 @@ const migration = readFileSync(new URL('../../supabase/migrations/015_technician
 describe('technician global search hardening', () => {
   it('uses the technician RPC instead of global list queries for technician workspace', () => {
     expect(service).toContain("supabase.rpc('technician_global_search'");
-    expect(app).toContain("workspace === 'tecnico' ? await searchService.technician(trimmed) : await searchService.global(trimmed)");
+    expect(app).toContain("workspace === 'tecnico' ? await searchService.technician(debounced) : await searchService.global(debounced)");
   });
 
   it('ignores stale search responses and clears search on route/workspace changes', () => {

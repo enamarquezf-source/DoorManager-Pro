@@ -47,7 +47,7 @@ describe('equipment types management 113', () => {
     expect(app).toContain('/app/modulos/tipos-equipo');
     expect(app).toContain('function EquipmentTypesPage');
     expect(app).toContain('function EquipmentTypeForm');
-    expect(app).toContain('equipmentService.typesAdmin()');
+    expect(app).toContain('useEquipmentTypes(companyId, true)');
     expect(app).toContain('Gestionar plantillas/checks');
     expect(app).toContain('equipment_type_id');
     expect(app).toContain('typeFilter');

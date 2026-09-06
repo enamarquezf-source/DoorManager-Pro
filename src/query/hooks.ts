@@ -1,0 +1,63 @@
+import { useQuery } from '@tanstack/react-query';
+import { checksService } from '../services/checksService';
+import { equipmentService } from '../services/equipmentService';
+import { profilesService } from '../services/profilesService';
+import { superadminService } from '../services/superadminService';
+import { materialsService } from '../services/materialsService';
+import { workOrdersService } from '../services/workOrdersService';
+import { catalogStaleTime } from './queryDefaults';
+import { queryKeys } from './queryKeys';
+
+export function useEquipmentTypes(companyId: string | null | undefined, admin = false) {
+  return useQuery({
+    queryKey: queryKeys.equipmentTypes(companyId, admin),
+    queryFn: () => admin ? equipmentService.typesAdmin(companyId) : equipmentService.types(companyId),
+    enabled: Boolean(companyId),
+    staleTime: catalogStaleTime.long,
+  });
+}
+
+export function useCheckTemplates(companyId: string | null | undefined) {
+  return useQuery({
+    queryKey: queryKeys.checkTemplates(companyId, 'active'),
+    queryFn: () => checksService.templates(null, companyId),
+    enabled: Boolean(companyId),
+    staleTime: catalogStaleTime.long,
+  });
+}
+
+export function useManagedCheckTemplates(companyId: string | null | undefined) {
+  return useQuery({
+    queryKey: queryKeys.checkTemplates(companyId, 'managed'),
+    queryFn: () => superadminService.templates(companyId),
+    enabled: Boolean(companyId),
+    staleTime: catalogStaleTime.medium,
+  });
+}
+
+export function useProfiles(companyId: string | null | undefined, role: 'technicians' | 'commercials' | 'active' = 'active') {
+  return useQuery({
+    queryKey: queryKeys.profiles(companyId, role),
+    queryFn: () => role === 'technicians' ? profilesService.listTechnicians(companyId) : role === 'commercials' ? profilesService.listCommercials(companyId) : profilesService.listActive(companyId),
+    enabled: Boolean(companyId),
+    staleTime: catalogStaleTime.medium,
+  });
+}
+
+export function useMaterialsCatalog(companyId: string | null | undefined, search = '') {
+  return useQuery({
+    queryKey: queryKeys.materials(companyId, search),
+    queryFn: () => materialsService.list(search, companyId, 'all'),
+    enabled: Boolean(companyId),
+    staleTime: catalogStaleTime.medium,
+  });
+}
+
+export function useOfficeValidationCapability(companyId: string | null | undefined) {
+  return useQuery({
+    queryKey: queryKeys.capabilities(companyId),
+    queryFn: () => workOrdersService.hasOfficeValidation(),
+    enabled: Boolean(companyId),
+    staleTime: catalogStaleTime.medium,
+  });
+}

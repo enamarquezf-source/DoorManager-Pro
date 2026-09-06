@@ -29,7 +29,7 @@ describe('materials module', () => {
   it('implements list create edit search and deactivate UI', () => {
     expect(app).toContain('function CanonicalMaterialsModule');
     expect(app).toContain('function CanonicalMaterialForm');
-    expect(app).toContain("materialsService.list(search, undefined, 'all')");
+    expect(app).toContain('useMaterialsCatalog(companyId, search)');
     expect(app).toContain('materialsService.create(values)');
     expect(app).toContain('materialsService.update(initial.id, values)');
     expect(app).toContain('function LifecycleActionPanel');

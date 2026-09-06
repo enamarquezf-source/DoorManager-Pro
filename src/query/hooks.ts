@@ -65,8 +65,9 @@ export function useOfficeValidationCapability(companyId: string | null | undefin
 export function useWorkOrderList(companyId: string | null | undefined, search: string, archiveFilter: string, dateFilters: Record<string, unknown>) {
   return useQuery({
     queryKey: queryKeys.workOrders.list(companyId, { search, archiveFilter, ...dateFilters }),
-    queryFn: () => workOrdersService.listWithAssignments(search, companyId, archiveFilter as any, dateFilters as any),
-    enabled: Boolean(companyId),
+    // The service resolves the effective operating company, as the legacy loader did.
+    queryFn: () => workOrdersService.listWithAssignments(search, undefined, archiveFilter as any, dateFilters as any),
+    enabled: true,
     placeholderData: (previous) => previous,
     staleTime: 30_000,
   });

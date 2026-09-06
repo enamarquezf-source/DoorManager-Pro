@@ -16,7 +16,9 @@ describe('work order performance foundation', () => {
   it('runs independent SAT dashboard reads in parallel', () => {
     const method = dashboard.slice(dashboard.indexOf('async getSatDashboardData'), dashboard.indexOf('async getCommercialDashboardData'));
     expect(method).toContain('const [workOrders, assignments, technicians, pendingChecks, completedChecks, deficiencies, alerts, materials] = await Promise.all');
-    expect(method).toContain("select('id,company_id,code,title,status,scheduled_date,scheduled_time,priority,type,description,client_name,site_name,equipment_code,main_technician_name,creator_name,planned_material,deleted_at')");
+    expect(method).toContain("select('id,company_id,code,title,status,scheduled_date,scheduled_time,priority,type,description,client_name,site_name,equipment_code,main_technician_name,created_by_name,deleted_at')");
+    expect(method).not.toContain('creator_name');
+    expect(method).not.toContain(',planned_material,');
   });
 
   it('defers the heavy detail query until a secondary tab is requested', () => {

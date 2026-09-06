@@ -147,10 +147,12 @@ export const workOrdersService = {
       const assignment = await expectData<any>(supabase.from('work_order_assignments').select('id,status,work_orders!work_order_assignments_work_order_id_fkey(status,deleted_at)').eq('work_order_id', workOrderId).eq('technician_id', profileId).is('deleted_at', null).not('status', 'in', '(Finalizado,Cancelado)').maybeSingle(), { service: 'workOrdersService', operation: 'Permiso técnico / resumen del parte', resource: workOrderId });
       if (!assignment || !['Pendiente','Trabajo descargado','En desplazamiento','En intervencion','Pausado','Pendiente de material'].includes(assignment.work_orders?.status)) throw new Error('No tienes permiso para acceder a este trabajo');
     }
+    const officeValidationAvailable = await this.hasOfficeValidation();
+    const officeValidationColumns = officeValidationAvailable ? 'office_validation_status, office_validation_reason,' : '';
     const workOrder = await expectData<any>(supabase.from('work_orders').select(`
       id, company_id, code, title, description, type, priority, status, origin, scheduled_date, scheduled_time,
       diagnosis, work_performed, result, planned_material, main_equipment_id, client_id, site_id, case_id, quote_id,
-      economic_status, sale_amount, real_cost_amount, margin_amount, office_validation_status, office_validation_reason,
+      economic_status, sale_amount, real_cost_amount, margin_amount, ${officeValidationColumns}
       clients!work_orders_client_id_fkey(*), sites!work_orders_site_id_fkey(*), cases!work_orders_case_id_fkey(*),
       primary_equipment:equipment!work_orders_main_equipment_id_fkey(*, equipment_types!equipment_equipment_type_id_fkey(*)),
       access_requirement:access_requirements!work_orders_access_requirement_id_fkey(*),

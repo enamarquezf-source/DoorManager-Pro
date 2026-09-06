@@ -9,6 +9,8 @@ describe('work order performance foundation', () => {
   it('keeps list payload explicit and provides a lightweight summary', () => {
     expect(service).toContain("select('id,company_id,code,title,description,type,priority,status,origin,scheduled_date,scheduled_time,case_code,client_code,client_name,site_code,site_name,equipment_code,equipment_type,main_technician_name,created_by_name,deleted_at')");
     expect(service).toContain('async getWorkOrderSummary(workOrderId: string, technicianOnly = false)');
+    expect(service).toContain('const officeValidationAvailable = await this.hasOfficeValidation()');
+    expect(service).toContain("const officeValidationColumns = officeValidationAvailable ? 'office_validation_status, office_validation_reason,' : ''");
     expect(service).toContain('id,company_id,code,title,description,type,priority,status,origin,scheduled_date,scheduled_time');
     expect(service).not.toMatch(/getWorkOrderSummary[\s\S]{0,500}check_photos/);
   });

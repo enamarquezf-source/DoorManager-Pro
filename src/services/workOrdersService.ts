@@ -161,7 +161,7 @@ export const workOrdersService = {
     `).eq('id', workOrderId).maybeSingle(), { service: 'workOrdersService', operation: 'Resumen del parte', resource: workOrderId });
     if (!workOrder) throw new Error('No se ha encontrado el parte solicitado.');
     const [associated, assignments] = await Promise.all([
-      expectData<any[]>(supabase.from('work_order_equipment').select('id,work_order_id,equipment_id,is_primary,check_status,equipment!work_order_equipment_equipment_id_fkey(id,code,internal_location,brand,model,equipment_type_id,equipment_types!equipment_equipment_type_id_fkey(name))').eq('work_order_id', workOrderId).order('is_primary', { ascending: false }).order('created_at')),
+      expectData<any[]>(supabase.from('work_order_equipment').select('work_order_id,equipment_id,is_primary,check_status,equipment!work_order_equipment_equipment_id_fkey(id,code,internal_location,brand,model,equipment_type_id,equipment_types!equipment_equipment_type_id_fkey(name))').eq('work_order_id', workOrderId).order('is_primary', { ascending: false }).order('created_at')),
       expectData<any[]>(supabase.from('work_order_assignments').select('id,work_order_id,technician_id,role,status,assignment_date,planned_start_time,planned_end_time,profiles!work_order_assignments_technician_id_fkey(id,first_name,last_name,primary_area)').eq('work_order_id', workOrderId).is('deleted_at', null).order('planned_start_time')),
     ]);
     const primaryAssignment = assignments.find((item) => item.role === 'Principal') ?? assignments[0];

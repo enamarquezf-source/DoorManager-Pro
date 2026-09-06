@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessRoute, canArchiveEntity, canCorrectWorkOrderOperationalFields, canCreateAlert, canCreateCheck, canExecuteCheck, canManageCheck, canManageHourRates, canManageQuotes, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canPermanentlyDeleteEntity, canRestoreEntity, canRole, canViewCheck, canViewSalesEconomics, canViewWorkOrderCosts, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './permissions';
+import { canAccessRoute, canArchiveEntity, canCorrectWorkOrderOperationalFields, canCreateAlert, canCreateCheck, canExecuteCheck, canManageCheck, canManageEquipmentTypes, canManageHourRates, canManageQuotes, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canPermanentlyDeleteEntity, canRestoreEntity, canRole, canViewCheck, canViewSalesEconomics, canViewWorkOrderCosts, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './permissions';
 import type { Profile, RoleName } from '../shared/types';
 
 function profile(primary_area: RoleName, roles: RoleName[] = []): Profile {
@@ -67,6 +67,15 @@ describe('canAccessRoute', () => {
     for (const route of ['/app/clientes', '/app/partes', '/app/partes/90ad219b-f5d0-4489-a834-eac040469be6', '/app/trabajos/90ad219b-f5d0-4489-a834-eac040469be6', '/app/checks', '/app/checks/check-1', '/app/expedientes']) {
       expect(canAccessRoute(satByRole, route)).toBe(true);
     }
+  });
+
+  it('limita la administración de tipos de equipo a superadmin y SAT', () => {
+    expect(canManageEquipmentTypes(profile('superadmin'))).toBe(true);
+    expect(canManageEquipmentTypes(profile('SAT'))).toBe(true);
+    expect(canManageEquipmentTypes(profile('Tecnico'))).toBe(false);
+    expect(canManageEquipmentTypes(profile('Comercial'))).toBe(false);
+    expect(canAccessRoute(profile('SAT'), '/app/modulos/tipos-equipo')).toBe(true);
+    expect(canAccessRoute(profile('Tecnico'), '/app/modulos/tipos-equipo')).toBe(false);
   });
 
   it('mantiene la matriz de gerencia alineada con permisos operativos decididos', () => {

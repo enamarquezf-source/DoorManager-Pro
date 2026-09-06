@@ -19,7 +19,7 @@ const workspaceByRole: Record<RoleName, Workspace> = {
 export const permissionMatrix: Record<RoleName, string[]> = {
   superadmin: ['*'],
   Gerencia: ['ver clientes','ver centros','ver equipos','ver partes','crear partes','editar partes','asignar técnicos','ver checks','ver facturación','ver documentación','ver auditoría'],
-  SAT: ['ver clientes','crear clientes','editar clientes','ver centros','crear centros','editar centros','ver equipos','crear equipos','editar equipos','ver partes','crear partes','editar partes','asignar técnicos','ver checks','crear checks','ejecutar checks','sincronizar trabajo técnico','ver documentación','gestionar plantillas'],
+  SAT: ['ver clientes','crear clientes','editar clientes','ver centros','crear centros','editar centros','ver equipos','crear equipos','editar equipos','ver partes','crear partes','editar partes','asignar técnicos','ver checks','crear checks','ejecutar checks','sincronizar trabajo técnico','ver documentación','gestionar plantillas','gestionar tipos de equipo'],
   Comercial: ['ver clientes','crear clientes','editar clientes','ver centros','ver equipos','ver partes','crear partes','ver checks','ver documentación'],
   Oficina: ['ver clientes','ver centros','ver equipos','ver partes','editar partes','ver checks','ver facturación','ver documentación'],
   Tecnico: ['ver partes','editar partes','ver checks','ejecutar checks','sincronizar trabajo técnico','ver documentación'],
@@ -173,6 +173,7 @@ export function canManageHourRates(profile: Profile | null | undefined) { return
 export function canCreateCheck(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT']); }
 export function canExecuteCheck(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Tecnico']); }
 export function canManageCheck(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT']); }
+export function canManageEquipmentTypes(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT']); }
 export function canViewCheck(profile: Profile | null | undefined, check?: any) {
   if (!profile) return false;
   if (hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina', 'Comercial'])) return true;
@@ -212,6 +213,7 @@ export function canAccessRoute(profile: Profile | null | undefined, path: string
   if (path.startsWith('/app/documentos')) return hasAny(profile, ['SAT', 'Gerencia', 'Oficina']);
   if (path.startsWith('/app/gerencia')) return hasAny(profile, ['superadmin', 'Gerencia', 'SAT', 'Comercial', 'Oficina']);
   if (path.startsWith('/app/modulos/tecnicos')) return hasAny(profile, ['SAT', 'Gerencia']);
+  if (path.startsWith('/app/modulos/tipos-equipo')) return hasAny(profile, ['superadmin', 'SAT']);
   if (path.startsWith('/app/modulos/comerciales')) return hasAny(profile, ['SAT', 'Gerencia', 'Comercial']);
   if (path.startsWith('/app/modulos/presupuestos') || path.startsWith('/app/modulos/materiales') || path.startsWith('/app/modulos/cobros') || path.startsWith('/app/modulos/rentabilidad')) return hasAny(profile, economicRoles);
   if (path.startsWith('/app/modulos/tarifas-horas')) return hasAny(profile, ['superadmin', 'Gerencia', 'Oficina']);

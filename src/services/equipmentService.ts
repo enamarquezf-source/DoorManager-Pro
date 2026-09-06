@@ -26,6 +26,31 @@ export const equipmentService = {
     if (companyId) query = query.or(`company_id.eq.${companyId},company_id.is.null`);
     return expectData<any[]>(query);
   },
+  async typesAdmin(companyScope?: string | null) {
+    const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
+    let query = supabase.from('equipment_types').select('*').order('name');
+    if (companyId) query = query.or(`company_id.eq.${companyId},company_id.is.null`);
+    return expectData<any[]>(query);
+  },
+  async createType(payload: Record<string, any>) {
+    const company_id = payload.company_id || await currentCompanyId();
+    const name = String(payload.name ?? '').trim();
+    if (!name) throw new Error('validacion del formulario: el nombre del tipo de equipo es obligatorio');
+    const existing = await expectData<any[]>(supabase.from('equipment_types').select('id, name').or(`company_id.eq.${company_id},company_id.is.null`));
+    if (existing.some((type) => type.name?.trim().toLocaleLowerCase() === name.toLocaleLowerCase())) throw new Error('Ya existe un tipo de equipo con ese nombre.');
+    return expectData<any>(supabase.from('equipment_types').insert({ company_id, name, description: String(payload.description ?? '').trim() || null, active: payload.active !== false }).select().maybeSingle());
+  },
+  async updateType(id: string, payload: Record<string, any>) {
+    const name = String(payload.name ?? '').trim();
+    if (!name) throw new Error('validacion del formulario: el nombre del tipo de equipo es obligatorio');
+    const companyId = await currentCompanyId();
+    const existing = await expectData<any[]>(supabase.from('equipment_types').select('id, name').or(`company_id.eq.${companyId},company_id.is.null`).neq('id', id));
+    if (existing.some((type) => type.name?.trim().toLocaleLowerCase() === name.toLocaleLowerCase())) throw new Error('Ya existe un tipo de equipo con ese nombre.');
+    return expectData<any>(supabase.from('equipment_types').update({ name, description: String(payload.description ?? '').trim() || null, active: payload.active !== false }).eq('id', id).select().maybeSingle());
+  },
+  toggleType(id: string, active: boolean) {
+    return expectData<any>(supabase.from('equipment_types').update({ active }).eq('id', id).select().maybeSingle());
+  },
   async get(id: string) {
     const row = await expectData<any>(supabase.from('equipment').select(`
       *,

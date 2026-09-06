@@ -30,4 +30,10 @@ describe('quote equipment mapping', () => {
     expect(result.selection).toHaveLength(0);
     expect(result.unresolved).toEqual(['15 · Mantenimiento persiana grandes dimensiones']);
   });
+
+  it('resolves a custom equipment type from its current name without hardcoded ids', () => {
+    const result = quoteEquipmentSelection([{ description: 'Mantenimiento Persiana enrollable', quantity: 1 }], [{ id: 'custom-type', name: 'Persiana enrollable' }]);
+    expect(result.unresolved).toEqual([]);
+    expect(result.selection[0]?.equipment_type_id).toBe('custom-type');
+  });
 });

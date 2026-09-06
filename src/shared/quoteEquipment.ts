@@ -14,7 +14,7 @@ function equipmentFamily(description?: string | null) {
   return null;
 }
 
-function resolveType(family: string, description: string, types: EquipmentType[]) {
+function resolveType(family: string | null, description: string, types: EquipmentType[]) {
   const named = types.map((type) => ({ type, name: normalize(type.name) }));
   if (family === 'persiana') return named.find(({ name }) => name.includes('persiana'))?.type;
   if (family === 'seccional') {
@@ -22,9 +22,10 @@ function resolveType(family: string, description: string, types: EquipmentType[]
       ?? named.find(({ name }) => name.includes('seccional'))?.type;
   }
   if (family === 'rapida') return named.find(({ name }) => name.includes('rapida'))?.type;
-  return named.find(({ name }) => name.includes('automatica') && name.includes('peatonal'))?.type
+  if (family === 'corredera_cristal') return named.find(({ name }) => name.includes('automatica') && name.includes('peatonal'))?.type
     ?? named.find(({ name }) => name.includes('peatonal'))?.type
     ?? named.find(({ name }) => name.includes('corredera') && name.includes('cristal'))?.type;
+  return named.find(({ name }) => name.length >= 8 && description.includes(name))?.type;
 }
 
 export function quoteEquipmentSelection(lines: QuoteLine[], types: EquipmentType[]) {

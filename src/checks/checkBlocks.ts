@@ -47,6 +47,15 @@ export function buildFunctionalCheckBlocks(check: any): FunctionalCheckBlock[] {
   });
 }
 
+export function resolveFunctionalCheckBlock(blocks: FunctionalCheckBlock[], requestedId?: string | null) {
+  const requested = String(requestedId ?? '').trim();
+  if (!requested) return undefined;
+  const exact = blocks.find((block) => block.sectionId === requested);
+  if (exact) return exact;
+  const legacyMatches = blocks.filter((block) => block.visual?.id === requested || block.slug === requested);
+  return legacyMatches.length === 1 ? legacyMatches[0] : undefined;
+}
+
 export function isUuid(value?: string | null) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value ?? '');
 }

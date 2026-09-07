@@ -18,14 +18,14 @@ describe('visual check navigation safety', () => {
     expect(detail).toContain('door-check');
     expect(detail).toContain('template?.image');
     expect(detail).toContain('className="block-list status-summary"');
-    expect(detail).toContain('to={blockHref(zone.id)}');
+    expect(detail).toContain('to={blockHref(zone.sectionId)}');
     expect(detail).not.toContain('physicalZones.map');
     expect(detail).not.toContain('className={`hotspot');
   });
 
   it('CheckBlockPageV2 resolves only the requested persisted section id', () => {
     const source = v2;
-    expect(source).toContain('zones.find((item) => item.sectionId === blockId)');
+    expect(source).toContain('resolveFunctionalCheckBlock(zones, blockId)');
     expect(source).not.toContain('item.id === blockId ||');
   });
 });

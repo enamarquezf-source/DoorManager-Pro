@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync } from 'node:fs';
-import { buildFunctionalCheckBlocks, equipmentTypeName, isUuid, remoteBlockState, templateTypeMismatch, visualTemplateForCheck, visualTemplateForEquipment } from './checkBlocks';
+import { buildFunctionalCheckBlocks, equipmentTypeName, isUuid, remoteBlockState, resolveFunctionalCheckBlock, templateTypeMismatch, visualTemplateForCheck, visualTemplateForEquipment } from './checkBlocks';
 import { equipmentCheckTemplates } from './config/sectionalDoorHotspots';
 
 const sectionId = '11111111-1111-4111-8111-111111111111';
@@ -40,6 +40,28 @@ describe('functional check blocks', () => {
     expect(blocks.map((block) => block.id)).toEqual([sectionId, '33333333-3333-4333-8333-333333333333']);
     expect(blocks.every((block) => isUuid(block.sectionId))).toBe(true);
     expect(blocks[0].result?.result).toBe('Todo favorable');
+  });
+
+  it('resuelve exactamente la sección solicitada sin usar otra como fallback', () => {
+    const blocks = buildFunctionalCheckBlocks(check('Muelle de carga'));
+    expect(resolveFunctionalCheckBlock(blocks, blocks[1].sectionId)).toBe(blocks[1]);
+    expect(resolveFunctionalCheckBlock(blocks, 'missing-section-id')).toBeUndefined();
+  });
+
+  it('resuelve una ruta legacy por clave visual solo cuando es inequívoca', () => {
+    const sections = [
+      { id: sectionId, title: 'Hoja', position: 1, check_template_items: [] },
+      { id: '33333333-3333-4333-8333-333333333333', title: 'Funcionamiento general', position: 2, check_template_items: [] },
+    ];
+    const blocks = buildFunctionalCheckBlocks({ equipment: { equipment_types: { name: 'Puerta seccional industrial' } }, check_templates: { check_template_sections: sections }, check_section_results: [] });
+    expect(resolveFunctionalCheckBlock(blocks, 'hoja')?.sectionId).toBe(sectionId);
+  });
+
+  it('respeta la plantilla persistida del check aunque el equipo sea compatible con otra', () => {
+    const persistedSection = { id: sectionId, title: 'Sección de plantilla X', position: 1, check_template_items: [] };
+    const blocks = buildFunctionalCheckBlocks({ equipment: { equipment_type_id: 'template-y', equipment_types: { name: 'Puerta rápida' } }, check_templates: { id: 'template-x', equipment_type_id: 'template-x', check_template_sections: [persistedSection] }, check_section_results: [] });
+    expect(resolveFunctionalCheckBlock(blocks, sectionId)?.sectionId).toBe(sectionId);
+    expect(blocks).toHaveLength(1);
   });
 
   it('detecta desalineacion entre plantilla y tipo', () => {

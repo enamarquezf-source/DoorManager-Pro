@@ -25,7 +25,7 @@ import { dashboardService } from './services/dashboardService';
 import { superadminService } from './services/superadminService';
 import { searchService } from './services/searchService';
 import { checkProblemStatuses, checkStatuses, sectionalZones, type CheckBlockId } from './checks/sectionalZones';
-import { buildFunctionalCheckBlocks, equipmentTypeName, isUuid, remoteBlockState, templateTypeMismatch, visualTemplateForCheck } from './checks/checkBlocks';
+import { buildFunctionalCheckBlocks, equipmentTypeName, isUuid, remoteBlockState, resolveFunctionalCheckBlock, templateTypeMismatch, visualTemplateForCheck } from './checks/checkBlocks';
 import { technicianOfflineService } from './services/technicianOfflineService';
 import { canAccessModule, canAccessRoute, canArchiveEntity, canAssignTechnician, canCorrectWorkOrderOperationalFields, canCreateAlert, canCreateCheck, canCreateWorkOrder, canDeleteInvoiceDraft, canEditWorkOrder, canExecuteCheck, canExecuteWorkOrder, canManageCheck, canManageEquipmentTypes, canManageHourRates, canManageQuotes, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canMarkAdditionalSale, canPermanentlyDeleteEntity, canRestoreEntity, canReviewWorkOrderCommercial, canReviewWorkOrderOffice, canReviewWorkOrderSat, canRole, canViewCheck, canViewInternalEconomics, canViewWorkOrder, canViewWorkOrderCosts, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './auth/permissions';
 import { WarrantyBillingDecisionPanel } from './components/WarrantyBillingDecisionPanel';
@@ -1530,8 +1530,8 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
         {zones.map((zone) => (
           <Link
             className="check-block-card"
-            to={blockHref(zone.id)}
-            key={zone.id}
+            to={blockHref(zone.sectionId)}
+            key={zone.sectionId}
           >
             <div>
               <strong>{zone.name}</strong>
@@ -1635,7 +1635,7 @@ function CheckBlockPageV2({
   const [saving, setSaving] = useState(false);
   const [localLoaded, setLocalLoaded] = useState(false);
   const zones = data ? buildFunctionalCheckBlocks(data) : [];
-  const zone = zones.find((item) => item.sectionId === blockId);
+  const zone = resolveFunctionalCheckBlock(zones, blockId);
   const section = zone
     ? { id: zone.sectionId, title: zone.name, check_template_items: zone.items }
     : null;

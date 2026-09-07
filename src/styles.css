@@ -229,6 +229,16 @@ main { padding: 24px; }
 .equipment-operational-title { display: grid; gap: 3px; min-width: 0; }
 .equipment-operational-title strong { color: var(--dark); font-size: 1.05rem; overflow-wrap: anywhere; }
 .equipment-operational-title small { color: var(--text-soft); font-weight: 700; overflow-wrap: anywhere; }
+.equipment-photo-panel { display: grid; gap: 12px; }
+.equipment-primary-photo { width: min(100%, 520px); max-height: 320px; object-fit: contain; border-radius: 12px; background: var(--surface-soft); }
+.equipment-photo-empty { min-height: 120px; display: grid; place-items: center; border: 1px dashed var(--line); border-radius: 12px; color: var(--text-soft); font-weight: 800; }
+.equipment-photo-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.equipment-photo-actions small { color: var(--text-soft); flex-basis: 100%; }
+.equipment-photo-history { display: flex; flex-wrap: wrap; gap: 8px; }
+.equipment-photo-history img { width: 72px; height: 56px; object-fit: cover; border-radius: 8px; }
+.equipment-check-visual { display: grid; gap: 10px; }
+.equipment-template-reference { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text-soft); font-size: 12px; font-weight: 750; }
+.equipment-template-reference img { width: 72px; height: 48px; object-fit: contain; border-radius: 6px; background: var(--surface-soft); }
 .record-card .record-title a { color: inherit; text-decoration: none; }
 .record-meta { display: flex; flex-wrap: wrap; gap: 3px 16px; color: var(--text-soft); font-size: 12px; font-weight: 750; min-width: 0; }
 .record-meta b { margin-right: 4px; color: var(--dark); font-weight: 900; }

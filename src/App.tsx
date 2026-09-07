@@ -56,6 +56,8 @@ import { workOrderPurgeBlocks, workOrderPurgeCanShowButton, workOrderPurgeExpect
 import { entityPurgeBlockers, entityPurgeCanShowButton, entityPurgeExpectedConfirmation, entityPurgePlanMatchesScope, entityPurgeResultOk, entityPurgeScope, entityPurgeScopeKey, casesPurgeConfig, checksPurgeConfig, equipmentPurgeConfig, type EntityPurgeConfig, type EntityPurgeDecision, type PurgeScopeKey } from './services/entityPurgeFlow';
 import { filterEquipmentForContext, filterSitesForClient } from './shared/clientCenterEquipment';
 import { equipmentOperationalLabel } from './shared/equipmentPresentation';
+import { primaryEquipmentPhoto } from './shared/equipmentPhotoPresentation';
+import { equipmentPhotosService } from './services/equipmentPhotosService';
 import { BillingModule } from './modules/BillingModule';
 import type { DateRangeFilters } from './shared/dateRange';
 
@@ -1393,6 +1395,7 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
   const zones = buildFunctionalCheckBlocks(data);
   const typeName = equipmentTypeName(data.equipment);
   const equipmentLabel = equipmentOperationalLabel(data.equipment);
+  const [equipmentPhotoVersion, setEquipmentPhotoVersion] = useState(0);
   const sectionStatus = (zone: any) => {
     const local = pending.find(
       (item) => item.type === "check-block" && item.blockId === zone.id,
@@ -1507,25 +1510,8 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
           }}
         />
       </div>
-      <div
-        className={`door-check ${template?.placeholder ? "placeholder" : ""}`}
-        aria-label="Imagen del equipo"
-      >
-        {template?.image ? (
-          <img
-            src={template?.image}
-            alt={template?.name ?? data.check_templates?.name ?? "Equipo"}
-          />
-        ) : (
-          <div className="equipment-placeholder">
-            <Factory size={48} />
-            <strong>
-              {template?.name ?? data.check_templates?.name ?? "Equipo"}
-            </strong>
-            <span>Imagen específica pendiente</span>
-          </div>
-        )}
-      </div>
+      <EquipmentCheckImage equipmentId={data.equipment?.id} template={template} templateImage={template?.image} className="door-check" refreshKey={equipmentPhotoVersion} />
+      <EquipmentPhotoPanel equipmentId={data.equipment?.id} canManage={canExecuteCheck(profile) && Boolean(data.work_order_id)} contextWorkOrderId={data.work_order_id} onChanged={() => setEquipmentPhotoVersion((value) => value + 1)} compact />
       <div
         className="block-list status-summary"
         aria-label="Resumen de bloques revisados"
@@ -1883,6 +1869,7 @@ function CheckBlockPageV2({
           )}
         </div>
       </header>
+      <EquipmentPhotoPanel equipmentId={data.equipment?.id} canManage={canExecuteCheck(profile) && Boolean(data.work_order_id)} contextWorkOrderId={data.work_order_id} compact />
       <Card title="Resultado remoto">
         <InfoGrid
           items={[
@@ -3181,9 +3168,35 @@ function ListPage({ title, summary, search, setSearch, action, loading, error, r
 
 function ArchiveFilterTabs({ value, onChange, material = false }: { value: ArchiveFilter | MaterialFilter; onChange: (value: any) => void; material?: boolean }) { return <div className="tabs archive-tabs" aria-label={material ? 'Filtro de materiales' : 'Filtro de archivo'}><button className={value === 'active' ? 'active' : ''} onClick={() => onChange('active')}>Activos</button>{material && <button className={value === 'inactive' ? 'active' : ''} onClick={() => onChange('inactive')}>Inactivos</button>}{material && <button className={value === 'consumed' ? 'active' : ''} onClick={() => onChange('consumed')}>Equipos a medida consumidos</button>}<button className={value === 'archived' ? 'active' : ''} onClick={() => onChange('archived')}>{material ? 'Archivados' : 'Archivados'}</button><button className={value === 'all' ? 'active' : ''} onClick={() => onChange('all')}>Todos</button></div>; }
 function StateBlock({ loading, error, retry, empty, children }: any) { if (loading) return <Card title="Cargando"><p className="large-note">Cargando datos...</p></Card>; if (error && empty) return <Card title="Error"><p className="form-error">{error}</p><button className="primary" onClick={retry}>Reintentar</button></Card>; if (empty) return <Card title="Sin registros"><p className="large-note">No hay datos para este filtro.</p>{retry && <button onClick={retry}>Reintentar</button>}</Card>; return <>{error && <p className="form-error" role="status">{error} <button onClick={retry}>Reintentar</button></p>}{children}</>; }
-function Card({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) { return <section className="card"><header><h3>{title}</h3>{action}</header>{children}</section>; }
+function Card({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) { const equipmentId = title === 'Identificación' && typeof window !== 'undefined' ? window.location.pathname.match(/^\/app\/(?:superadmin\/)?equipos\/([^/]+)$/)?.[1] : undefined; return <section className="card">{equipmentId && <EquipmentPhotoPanel equipmentId={equipmentId} canManage /> }<header><h3>{title}</h3>{action}</header>{children}</section>; }
 function Badge({ tone, children }: { tone: Severity; children: ReactNode }) { return <span className={`badge ${tone}`}>{typeof children === 'string' ? visibleLabel(children) : children}</span>; }
 function InfoGrid({ items }: { items: [string, any][] }) { return <dl className="info-grid">{items.map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{String(value ?? '-')}</dd></div>)}</dl>; }
+function canManageEquipmentPhotoUi(profile: any) { return normalizedRoleNames(profile?.primary_area, profile?.roles ?? []).some((role) => ['superadmin', 'SAT', 'Gerencia', 'Oficina'].includes(role)); }
+function EquipmentPhotoPanel({ equipmentId, canManage, contextWorkOrderId, onChanged, compact = false }: { equipmentId?: string; canManage: boolean; contextWorkOrderId?: string; onChanged?: () => void; compact?: boolean }) {
+  const photos = useLoad(() => equipmentId ? equipmentPhotosService.list(equipmentId) : Promise.resolve([]), [equipmentId], [] as any[]);
+  const [message, setMessage] = useState('');
+  const primary = primaryEquipmentPhoto(photos.data);
+  if (!equipmentId) return null;
+  const upload = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      const photo = await equipmentPhotosService.prepare(file);
+      await equipmentPhotosService.upload(equipmentId, photo);
+      setMessage('Foto principal guardada.');
+      photos.reload();
+      onChanged?.();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'No se ha podido guardar la foto del equipo.');
+    }
+  };
+  const title = compact ? 'Foto del equipo' : 'Foto principal del equipo';
+  return <Card title={title}><div className="equipment-photo-panel">{primary?.signed_url ? <img className="equipment-primary-photo" src={primary.signed_url} alt="Foto principal del equipo" /> : <div className="equipment-photo-empty">Sin foto del equipo</div>}<div className="equipment-photo-actions">{canManage && <label className="component-photo">{primary ? 'Cambiar foto' : 'Añadir foto'}<input type="file" accept="image/*" capture="environment" onChange={(event) => { void upload(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>}{primary?.signed_url && <a href={primary.signed_url} target="_blank" rel="noreferrer">Ver imagen</a>}{contextWorkOrderId && canManage && <small>Se valida el acceso operativo al equipo antes de guardar.</small>}</div></div>{photos.data.length > 1 && <div className="equipment-photo-history" aria-label="Fotos históricas del equipo">{photos.data.filter((photo) => photo.id !== primary?.id).map((photo) => photo.signed_url ? <img key={photo.id} src={photo.signed_url} alt="Foto histórica del equipo" /> : null)}</div>}{message && <p className={message.includes('guardada') ? 'success-note' : 'form-error'}>{message}</p>}</Card>;
+}
+function EquipmentCheckImage({ equipmentId, template, templateImage, className = 'door-check', refreshKey = 0 }: { equipmentId?: string; template: any; templateImage?: string; className?: string; refreshKey?: number }) {
+  const photos = useLoad(() => equipmentId ? equipmentPhotosService.list(equipmentId) : Promise.resolve([]), [equipmentId, refreshKey], [] as any[]);
+  const primary = primaryEquipmentPhoto(photos.data);
+  return <div className="equipment-check-visual"><div className={`${className} ${template?.placeholder ? 'placeholder' : ''}`} aria-label="Imagen del equipo"><>{primary?.signed_url ? <img src={primary.signed_url} alt="Foto real del equipo" /> : templateImage ? <img src={templateImage} alt={template?.name ?? 'Equipo'} /> : <div className="equipment-placeholder"><Factory size={48} /><strong>{template?.name ?? 'Equipo'}</strong><span>Imagen específica pendiente</span></div>}</></div>{primary?.signed_url && templateImage && <figure className="equipment-template-reference"><img src={templateImage} alt="Referencia visual de plantilla" /><figcaption>Referencia de plantilla</figcaption></figure>}</div>;
+}
 function EquipmentOperationalTitle({ equipment }: { equipment: any }) { const label = equipmentOperationalLabel(equipment); return <div className="equipment-operational-title"><strong>{label.primary}</strong><small>{label.secondary}</small></div>; }
 function EquipmentOperationalMeta({ equipment }: { equipment: any }) { const label = equipmentOperationalLabel(equipment); return <RecordMeta items={[[ 'Tipo · código', label.secondary ], [ 'Cliente · centro', label.context ], [ 'Marca/modelo', label.detail ]]} />; }
 function CompactRows({ rows, empty }: { rows: [string, string, Severity, string?][]; empty: string }) { if (!rows.length) return <p className="large-note">{empty}</p>; return <div className="compact-list">{rows.map(([title, text, tone, route]) => <article key={`${title}-${text}`}><Badge tone={tone}>{title}</Badge><p>{text}</p>{route && <Link to={route}>Abrir</Link>}</article>)}</div>; }

@@ -114,6 +114,39 @@ describe('099 economic review and structured billing', () => {
     expect(economicReviewSummary(workOrder).proposedSale).toBe(555);
   });
 
+  it('does not present a pre-review work-order sale as approved when there are no concepts', () => {
+    const workOrder = {
+      quote_id: 'q',
+      quoted_sale_amount: 0,
+      sale_amount: 3004.75,
+      economic_review_status: 'pending',
+      time_entries: [],
+      materials: [],
+      cost_entries: [],
+    };
+
+    expect(economicEntryRows(workOrder)).toHaveLength(0);
+    expect(economicReviewSummary(workOrder).approvedSale).toBe(0);
+  });
+
+  it('keeps local decision previews separate from an approved sale', () => {
+    const workOrder = {
+      economic_review_status: 'pending',
+      sale_amount: 3004.75,
+      time_entries: [{ id: 'time', duration_minutes: 60, hourly_price: 100, total_price: 100, source: 'manual', contributes_to_sale: true }],
+      materials: [],
+      cost_entries: [],
+    };
+
+    expect(economicReviewSummary(workOrder).proposedSale).toBe(100);
+    expect(economicReviewSummary(workOrder).approvedSale).toBe(0);
+  });
+
+  it('does not request concept decisions when the panel has no concepts', () => {
+    expect(component).toContain('No se puede aprobar la revisión hasta que existan conceptos económicos.');
+    expect(component).toContain('rows.length > 0 ?');
+  });
+
   it('preserves structured multiline associations and aggregate invoiced amount', () => {
     expect(migration).not.toContain('case when not v_attached then v_work.id else null end');
     expect(migration).toContain('group by work_order_id');

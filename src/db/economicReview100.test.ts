@@ -56,7 +56,7 @@ describe('100 economic review and billing hardening', () => {
   });
 
   it('calculates the PAR-29 fixture and preserves partial warranty costs', () => {
-    const part = { sale_amount: 0, warranty: false, billable: true, time_entries: [{ id: 'h', duration_minutes: 120, hourly_cost: 22, hourly_price: 110, total_cost: 44, total_price: 220, source: 'manual', contributes_to_sale: true }], materials: [{ id: 'm', used_quantity: 1, unit_cost: 79, unit_price: 0, total_cost: 79, total_price: 0, source: 'manual', contributes_to_sale: false }], cost_entries: [{ id: 't', quantity: 1, unit_cost: 35, unit_price: 55, total_cost: 35, total_price: 55, source: 'manual', contributes_to_sale: true }] };
+    const part = { sale_amount: 275, economic_review_status: 'approved', warranty: false, billable: true, time_entries: [{ id: 'h', duration_minutes: 120, hourly_cost: 22, hourly_price: 110, total_cost: 44, total_price: 220, source: 'manual', contributes_to_sale: true }], materials: [{ id: 'm', used_quantity: 1, unit_cost: 79, unit_price: 0, total_cost: 79, total_price: 0, source: 'manual', contributes_to_sale: false }], cost_entries: [{ id: 't', quantity: 1, unit_cost: 35, unit_price: 55, total_cost: 35, total_price: 55, source: 'manual', contributes_to_sale: true }] };
     const summary = economicReviewSummary(part, economicEntryRows(part));
     expect(summary).toMatchObject({ realCost: 158, proposedSale: 275, approvedSale: 275, margin: 117 });
     const warranty = { ...part, warranty: true };

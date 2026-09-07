@@ -4,6 +4,7 @@ import { buildFunctionalCheckBlocks, equipmentTypeName, isUuid, remoteBlockState
 import { equipmentCheckTemplates } from './config/sectionalDoorHotspots';
 
 const sectionId = '11111111-1111-4111-8111-111111111111';
+const productionSectionId = '81000000-0000-0000-0000-000000000001';
 
 function check(equipmentTypeNameValue: string | null) {
   return {
@@ -46,6 +47,20 @@ describe('functional check blocks', () => {
     const blocks = buildFunctionalCheckBlocks(check('Muelle de carga'));
     expect(resolveFunctionalCheckBlock(blocks, blocks[1].sectionId)).toBe(blocks[1]);
     expect(resolveFunctionalCheckBlock(blocks, 'missing-section-id')).toBeUndefined();
+  });
+
+  it('acepta los identificadores UUID persistidos por las plantillas reales', () => {
+    const blocks = buildFunctionalCheckBlocks({
+      equipment: { equipment_types: { name: 'Puerta seccional industrial' } },
+      check_templates: {
+        id: '80000000-0000-0000-0000-000000000001',
+        check_template_sections: [{ id: productionSectionId, title: 'Hoja', position: 1, check_template_items: [] }],
+      },
+      check_section_results: [],
+    });
+
+    expect(isUuid(productionSectionId)).toBe(true);
+    expect(resolveFunctionalCheckBlock(blocks, productionSectionId)?.sectionId).toBe(productionSectionId);
   });
 
   it('resuelve una ruta legacy por clave visual solo cuando es inequívoca', () => {

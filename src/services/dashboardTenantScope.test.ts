@@ -37,9 +37,9 @@ describe('dashboard tenant scope', () => {
 
   it.each([
     ['getSatDashboardData', ['v_work_order_full_detail', 'work_order_assignments', 'profiles', 'v_pending_checks', 'v_completed_checks', 'deficiencies', 'alerts', 'work_order_materials']],
-    ['getCommercialDashboardData', ['opportunities', 'quotes', 'deficiencies', 'clients']],
-    ['getOfficeDashboardData', ['documents', 'material_requests', 'work_order_materials', 'alerts', 'v_work_order_full_detail', 'suppliers']],
-    ['getManagementDashboardData', ['v_management_metrics', 'v_work_order_full_detail', 'deficiencies', 'alerts', 'clients']],
+    ['getCommercialDashboardData', ['opportunities', 'quotes', 'deficiencies', 'alerts', 'clients', 'v_work_order_full_detail']],
+    ['getOfficeDashboardData', ['documents', 'materials', 'material_requests', 'work_order_materials', 'alerts', 'v_work_order_full_detail', 'suppliers']],
+    ['getManagementDashboardData', ['v_management_metrics', 'v_work_order_full_detail', 'deficiencies', 'alerts', 'clients', 'opportunities', 'quotes']],
   ] as const)('%s applies the profile company to every scoped source', async (method, tables) => {
     const { dashboardService } = await import('./dashboardService');
 

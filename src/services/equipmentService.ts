@@ -15,7 +15,7 @@ function componentPayload(payload: Record<string, any>) {
 export const equipmentService = {
   async list(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active') {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
-    let query = applyArchiveFilter(supabase.from('equipment').select('id,company_id,client_id,site_id,equipment_type_id,code,brand,model,serial_number,internal_location,status,criticality,deleted_at,delete_reason,clients!equipment_client_id_fkey(code,legal_name),sites!equipment_site_id_fkey(code,name),equipment_types!equipment_equipment_type_id_fkey(name)'), archiveFilter).order('code');
+    let query = applyArchiveFilter(supabase.from('equipment').select('*, companies!equipment_company_id_fkey(name), clients!equipment_client_id_fkey(code, legal_name), sites!equipment_site_id_fkey(code, name), equipment_types!equipment_equipment_type_id_fkey(name), equipment_components!equipment_components_equipment_id_fkey(*)'), archiveFilter).order('code');
     if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'brand', 'model', 'serial_number', 'internal_location', 'status'], search));
     return expectData<any[]>(query);

@@ -11,11 +11,6 @@ export const alertsService = {
   unread() {
     return expectData<any[]>(supabase.from('v_unread_alerts').select('*').order('alert_date', { ascending: false }), { service: 'alertsService', operation: 'Avisos no leidos', resource: 'v_unread_alerts' });
   },
-  async unreadCount() {
-    const { count, error } = await supabase.from('v_unread_alerts').select('id', { count: 'exact', head: true });
-    if (error) throw error;
-    return count ?? 0;
-  },
   async create(payload: Record<string, any>, recipients: { role?: string; profile_id?: string }[]) {
     const company_id = await currentCompanyId();
     const created_by = await currentProfileId();

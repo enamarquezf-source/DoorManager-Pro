@@ -11,7 +11,7 @@ function clientPayload(payload: Record<string, any>) {
 export const clientsService = {
   async list(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active') {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
-    let query = applyArchiveFilter(supabase.from('clients').select('id,company_id,code,legal_name,trade_name,tax_id,status,phone,email,deleted_at,delete_reason,equipment!equipment_client_id_fkey(id)'), archiveFilter).order('legal_name');
+    let query = applyArchiveFilter(supabase.from('clients').select('*, companies!clients_company_id_fkey(name), client_contacts!client_contacts_client_id_fkey(*), sites!sites_client_id_fkey(id, code, name), equipment!equipment_client_id_fkey(id, code), cases!cases_client_id_fkey(id, code), work_orders!work_orders_client_id_fkey(id, code), quotes!quotes_client_id_fkey(id, code, title, status, total_amount, total, estimated_margin)'), archiveFilter).order('legal_name');
     if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'legal_name', 'trade_name', 'tax_id', 'email', 'phone'], search));
     return expectData<any[]>(query);

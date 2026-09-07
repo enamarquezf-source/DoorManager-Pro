@@ -11,7 +11,7 @@ function sitePayload(payload: Record<string, any>) {
 export const sitesService = {
   async list(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active') {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
-    let query = applyArchiveFilter(supabase.from('sites').select('id,company_id,client_id,code,name,address,city,province,postal_code,country,schedule,active,deleted_at,delete_reason,clients!sites_client_id_fkey(code,legal_name)'), archiveFilter).order('name');
+    let query = applyArchiveFilter(supabase.from('sites').select('*, companies!sites_company_id_fkey(name), clients!sites_client_id_fkey(code, legal_name), site_contacts!site_contacts_site_id_fkey(*), equipment!equipment_site_id_fkey(id, code), cases!cases_site_id_fkey(id, code), work_orders!work_orders_site_id_fkey(id, code), access_requirements!sites_access_requirement_id_fkey(*)'), archiveFilter).order('name');
     if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'name', 'address', 'city'], search));
     return expectData<any[]>(query);

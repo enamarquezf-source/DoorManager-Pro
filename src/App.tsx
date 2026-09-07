@@ -1379,6 +1379,7 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
     checkId: id,
     remoteLocalChangeIds: remoteLocalChangeIds(data),
   });
+  const [equipmentPhotoVersion, setEquipmentPhotoVersion] = useState(0);
   if (workspace === "tecnico" && (error || (!loading && !data)))
     return <AccessDenied />;
   if (loading || error || !data)
@@ -1395,7 +1396,6 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
   const zones = buildFunctionalCheckBlocks(data);
   const typeName = equipmentTypeName(data.equipment);
   const equipmentLabel = equipmentOperationalLabel(data.equipment);
-  const [equipmentPhotoVersion, setEquipmentPhotoVersion] = useState(0);
   const sectionStatus = (zone: any) => {
     const local = pending.find(
       (item) => item.type === "check-block" && item.blockId === zone.id,

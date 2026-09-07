@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 const migration = readFileSync(new URL('../../supabase/migrations/116_equipment_primary_photos.sql', import.meta.url), 'utf8');
 const postflight = readFileSync(new URL('../../supabase/verification/verify_116_equipment_primary_photos.sql', import.meta.url), 'utf8');
+const app = readFileSync(new URL('../../src/App.tsx', import.meta.url), 'utf8');
 
 describe('116 equipment primary photos', () => {
   it('keeps operational technician access behind the Tecnico role', () => {
@@ -42,5 +43,12 @@ describe('116 equipment primary photos', () => {
     expect(postflight).not.toContain("position('company_id = public.current_company_id()'");
     expect(postflight).not.toContain('pg_get_function_identity_arguments');
     expect(postflight).toContain("p.proname = 'dmp_register_equipment_photo'");
+  });
+
+  it('keeps the photo refresh hook before CheckDetailPage early returns', () => {
+    const component = app.slice(app.indexOf('function CheckDetailPage('), app.indexOf('function CheckBlockPage('));
+    expect(component.indexOf('const [equipmentPhotoVersion, setEquipmentPhotoVersion] = useState(0);')).toBeGreaterThanOrEqual(0);
+    expect(component.indexOf('const [equipmentPhotoVersion, setEquipmentPhotoVersion] = useState(0);')).toBeLessThan(component.indexOf('if (workspace === "tecnico"'));
+    expect(component.indexOf('const [equipmentPhotoVersion, setEquipmentPhotoVersion] = useState(0);')).toBeLessThan(component.indexOf('if (loading || error || !data)'));
   });
 });

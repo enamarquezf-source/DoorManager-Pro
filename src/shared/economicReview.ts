@@ -34,3 +34,11 @@ export function economicReviewSummary(workOrder: any, rows = economicEntryRows(w
 export function economicDecisionFor(row: any): EconomicEntryDecision {
   return { kind: row.kind, entry_id: row.id, contributes_to_sale: null, decision: null, source: row.source ?? 'manual', unit_price: Number(row.unit_price ?? 0) };
 }
+
+export function reconcileEconomicDecisions(rows: any[], current: EconomicEntryDecision[], preserveExisting = true): EconomicEntryDecision[] {
+  const existing = preserveExisting
+    ? new Map(current.map((decision) => [`${decision.kind}:${decision.entry_id}`, decision]))
+    : new Map<string, EconomicEntryDecision>();
+  const reconciled = rows.map((row) => existing.get(`${row.kind}:${row.id}`) ?? economicDecisionFor(row));
+  return reconciled.every((decision, index) => decision === current[index]) && reconciled.length === current.length ? current : reconciled;
+}

@@ -38,9 +38,10 @@ describe('work order performance foundation', () => {
     expect(method).not.toContain(',planned_material,');
   });
 
-  it('defers the heavy detail query until a secondary tab is requested', () => {
+  it('keeps the heavy detail query selective for economic SAT review', () => {
     expect(app).toContain('useWorkOrderSummary(companyId, id, workspace === \'tecnico\')');
-    expect(app).toContain("useWorkOrderDetail(companyId, id, tab !== 'resumen', workspace === 'tecnico')");
+    expect(app).toContain('const economicDetailEnabled = shouldLoadEconomicReviewDetail');
+    expect(app).toContain("useWorkOrderDetail(companyId, id, economicDetailEnabled, workspace === 'tecnico')");
     expect(app).toContain("const tabs = [['resumen','Resumen']");
   });
 });

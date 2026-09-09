@@ -27,7 +27,7 @@ import { searchService } from './services/searchService';
 import { checkProblemStatuses, checkStatuses, sectionalZones, type CheckBlockId } from './checks/sectionalZones';
 import { buildFunctionalCheckBlocks, equipmentTypeName, isUuid, remoteBlockState, resolveFunctionalCheckBlock, templateTypeMismatch, visualTemplateForCheck } from './checks/checkBlocks';
 import { technicianOfflineService } from './services/technicianOfflineService';
-import { canAccessModule, canAccessRoute, canArchiveEntity, canAssignTechnician, canCorrectWorkOrderOperationalFields, canCreateAlert, canCreateCheck, canCreateWorkOrder, canDeleteInvoiceDraft, canEditWorkOrder, canExecuteCheck, canExecuteWorkOrder, canManageCheck, canManageEquipmentTypes, canManageHourRates, canManageQuotes, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canMarkAdditionalSale, canPermanentlyDeleteEntity, canRestoreEntity, canReviewWorkOrderCommercial, canReviewWorkOrderOffice, canReviewWorkOrderSat, canRole, canViewCheck, canViewInternalEconomics, canViewWorkOrder, canViewWorkOrderCosts, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './auth/permissions';
+import { canAccessModule, canAccessRoute, canArchiveEntity, canAssignTechnician, canCorrectWorkOrderOperationalFields, canCreateAlert, canCreateCheck, canCreateWorkOrder, canDeleteInvoiceDraft, canEditWorkOrder, canExecuteCheck, canExecuteWorkOrder, canManageCheck, canManageEquipmentTypes, canManageHourRates, canManageQuotes, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canMarkAdditionalSale, canPermanentlyDeleteEntity, canRestoreEntity, canReviewWorkOrderCommercial, canReviewWorkOrderEconomic, canReviewWorkOrderOffice, canReviewWorkOrderSat, canRole, canViewCheck, canViewInternalEconomics, canViewWorkOrder, canViewWorkOrderCosts, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './auth/permissions';
 import { WarrantyBillingDecisionPanel } from './components/WarrantyBillingDecisionPanel';
 import { EconomicReviewPanel } from './components/EconomicReviewPanel';
 import { loadInitialAuthSnapshot, loginAuthState, protectedAuthState } from './auth/sessionBootstrap';
@@ -45,6 +45,7 @@ import { technicianConceptLines, technicianProgress } from './shared/technicianW
 import { isModernBillingRouting } from './shared/guidedBillingEligibility';
 import { quoteEquipmentSelection } from './shared/quoteEquipment';
 import { isPendingCommercialReview } from './shared/commercialReview';
+import { shouldLoadEconomicReviewDetail } from './shared/economicReviewDetailLoading';
 import { useDebouncedValue } from './shared/useDebouncedValue';
 import { useEquipmentTypes, useManagedCheckTemplates, useMaterialsCatalog, useOfficeValidationCapability, useProfiles, useWorkOrderDetail, useWorkOrderList, useWorkOrderSummary } from './query/hooks';
 import { queryClient } from './query/queryClient';
@@ -779,9 +780,10 @@ function WorkOrderDetailPageV2({ forcedId }: { forcedId?: string } = {}) {
   const [purgeOpen, setPurgeOpen] = useState(false);
   const navigate = useNavigate();
   const summaryQuery = useWorkOrderSummary(companyId, id, workspace === 'tecnico');
-  const detailQuery = useWorkOrderDetail(companyId, id, tab !== 'resumen', workspace === 'tecnico');
+  const economicDetailEnabled = shouldLoadEconomicReviewDetail({ workspace, canReview: canReviewWorkOrderEconomic(profile), status: summaryQuery.data?.work_order?.status, tab });
+  const detailQuery = useWorkOrderDetail(companyId, id, economicDetailEnabled, workspace === 'tecnico');
   const data = (detailQuery.data ?? summaryQuery.data) as any;
-  const loading = summaryQuery.isPending || (tab !== 'resumen' && detailQuery.isPending && !detailQuery.data);
+  const loading = summaryQuery.isPending || (economicDetailEnabled && detailQuery.isPending && !detailQuery.data);
   const error = summaryQuery.error?.message ?? (detailQuery.error?.message ?? '');
   const reload = async () => {
     await queryClient.invalidateQueries({ queryKey: [...queryKeys.company(companyId), 'work-orders', 'list'] });

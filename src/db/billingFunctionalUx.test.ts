@@ -13,6 +13,10 @@ describe('billing functional and UX flow', () => {
     expect(moduleSource).toContain('Abrir parte');
     expect(moduleSource).toContain('work.source');
     expect(moduleSource).toContain('work.entered_at');
+    expect(moduleSource).toContain('const isPreparing = preparing.has(billingWork.id)');
+    expect(moduleSource).toContain('const isPreparing = preparing.has(work.id)');
+    expect(moduleSource).toContain('disabled={isPreparing}');
+    expect(moduleSource).toContain('PREPARANDO...');
   });
 
   it('shows the full internal review context without changing economic lines', () => {

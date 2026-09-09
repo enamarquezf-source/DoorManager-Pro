@@ -28,4 +28,11 @@ describe('dashboard route declarations', () => {
       expect(matchRoutes(declaredRoutes, pathname), route).not.toBeNull();
     }
   });
+
+  it('uses canonical modules for OfficeDashboard quick actions', () => {
+    const officeDashboard = app.slice(app.indexOf('function OfficeDashboard('), app.indexOf('function ManagementDashboard('));
+    expect(officeDashboard).toContain('<Link to="/app/modulos/compras">Crear pedido</Link>');
+    expect(officeDashboard).toContain('<Link to="/app/modulos/proveedores">Abrir proveedor</Link>');
+    expect(officeDashboard).toContain('<Link to="/app/modulos/facturacion">Abrir facturación</Link>');
+  });
 });

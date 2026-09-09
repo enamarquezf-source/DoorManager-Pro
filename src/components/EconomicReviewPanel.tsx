@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { workOrdersService } from '../services/workOrdersService';
 import { normalizedRoleNames, canReviewWorkOrderEconomic } from '../auth/permissions';
 import { economicDecisionFor, economicEntryRows, economicReviewSummary, type EconomicEntryDecision } from '../shared/economicReview';
@@ -22,9 +22,11 @@ export function EconomicReviewPanel({ workOrder, profile, onChanged }: { workOrd
   const mergedRows = rows.map((row) => ({ ...row, ...decisions.find((decision) => decision.entry_id === row.id) }));
   const summary = economicReviewSummary(workOrder, mergedRows);
   const needsZeroConfirmation = decisionsComplete && workOrder.billable !== false && workOrder.warranty !== true && summary.proposedSale === 0;
+  const economicInputFingerprint = JSON.stringify({ id: workOrder?.id, billable: workOrder?.billable, warranty: workOrder?.warranty, quote_id: workOrder?.quote_id, quoted_sale_amount: workOrder?.quoted_sale_amount, rows: rows.map((row) => ({ kind: row.kind, id: row.id, quantity: row.quantity, unit_price: row.unit_price, source: row.source, contributes_to_sale: row.contributes_to_sale, sale_total: row.sale_total, cost_total: row.cost_total })) });
+  useEffect(() => { setZeroSaleConfirmed(false); }, [economicInputFingerprint]);
   if (!canReview || !['Finalizado tecnicamente', 'Enviado', 'Cerrado', 'Devuelto por SAT'].includes(workOrder?.status)) return null;
 
-  const updateDecision = (entryId: string, patch: Partial<EconomicEntryDecision>) => setDecisions((current) => current.map((decision) => decision.entry_id === entryId ? { ...decision, ...patch } : decision));
+  const updateDecision = (entryId: string, patch: Partial<EconomicEntryDecision>) => { setZeroSaleConfirmed(false); setDecisions((current) => current.map((decision) => decision.entry_id === entryId ? { ...decision, ...patch } : decision)); };
   const submit = async () => {
     if (saving || assignedCommercial || approved) return;
     if (!decisionsComplete) { setError('Selecciona Facturable Sí o No para cada concepto.'); return; }

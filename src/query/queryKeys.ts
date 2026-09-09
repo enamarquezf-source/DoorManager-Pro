@@ -7,7 +7,7 @@ export const queryKeys = {
   capabilities: (companyId: string | null | undefined) => [...queryKeys.company(companyId), 'capabilities'] as const,
   workOrders: {
     list: (companyId: string | null | undefined, filters: Record<string, unknown> = {}) => [...queryKeys.company(companyId), 'work-orders', 'list', filters] as const,
-    summary: (companyId: string | null | undefined, workOrderId: string) => [...queryKeys.company(companyId), 'work-orders', workOrderId, 'summary'] as const,
-    detail: (companyId: string | null | undefined, workOrderId: string) => [...queryKeys.company(companyId), 'work-orders', workOrderId, 'detail'] as const,
+    summary: (companyId: string | null | undefined, workOrderId: string, technicianOnly = false) => [...queryKeys.company(companyId), 'work-orders', workOrderId, 'summary', technicianOnly ? 'technician' : 'full'] as const,
+    detail: (companyId: string | null | undefined, workOrderId: string, technicianOnly = false) => [...queryKeys.company(companyId), 'work-orders', workOrderId, 'detail', technicianOnly ? 'technician' : 'full'] as const,
   },
 };

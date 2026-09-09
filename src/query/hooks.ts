@@ -75,7 +75,7 @@ export function useWorkOrderList(companyId: string | null | undefined, search: s
 
 export function useWorkOrderSummary(companyId: string | null | undefined, workOrderId: string, technicianOnly = false) {
   return useQuery({
-    queryKey: queryKeys.workOrders.summary(companyId, workOrderId),
+    queryKey: queryKeys.workOrders.summary(companyId, workOrderId, technicianOnly),
     queryFn: () => workOrdersService.getWorkOrderSummary(workOrderId, technicianOnly),
     enabled: Boolean(companyId && workOrderId),
     staleTime: 30_000,
@@ -84,7 +84,7 @@ export function useWorkOrderSummary(companyId: string | null | undefined, workOr
 
 export function useWorkOrderDetail(companyId: string | null | undefined, workOrderId: string, enabled: boolean, technicianOnly = false) {
   return useQuery({
-    queryKey: queryKeys.workOrders.detail(companyId, workOrderId),
+    queryKey: queryKeys.workOrders.detail(companyId, workOrderId, technicianOnly),
     queryFn: () => technicianOnly ? workOrdersService.getTechnicianAssigned(workOrderId) : workOrdersService.get(workOrderId),
     enabled: Boolean(companyId && workOrderId && enabled),
     staleTime: 30_000,

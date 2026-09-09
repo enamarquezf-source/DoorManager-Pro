@@ -18,4 +18,9 @@ describe('multitenant query keys', () => {
     expect(queryKeys.workOrders.list('company-a', { search: 'a' })).not.toEqual(queryKeys.workOrders.list('company-a', { search: 'ab' }));
     expect(queryKeys.workOrders.summary('company-a', 'work-1')).not.toEqual(queryKeys.workOrders.summary('company-b', 'work-1'));
   });
+
+  it('separates full and technician-only work order caches', () => {
+    expect(queryKeys.workOrders.summary('company-a', 'work-1', false)).not.toEqual(queryKeys.workOrders.summary('company-a', 'work-1', true));
+    expect(queryKeys.workOrders.detail('company-a', 'work-1', false)).not.toEqual(queryKeys.workOrders.detail('company-a', 'work-1', true));
+  });
 });

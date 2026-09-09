@@ -22,4 +22,20 @@ describe('query cache foundation', () => {
     await expect(client.fetchQuery({ queryKey: key, queryFn: () => Promise.reject(new Error('refresh failed')) })).rejects.toThrow('refresh failed');
     expect(client.getQueryData(key)).toEqual([{ id: 'old' }]);
   });
+
+  it('does not reuse a fresh work order cache across access modes', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { staleTime: 60_000, retry: false } } });
+    const fullKey = queryKeys.workOrders.detail('company-a', 'work-1', false);
+    const technicianKey = queryKeys.workOrders.detail('company-a', 'work-1', true);
+    const fullLoader = vi.fn().mockResolvedValue({ mode: 'full' });
+    const technicianLoader = vi.fn().mockResolvedValue({ mode: 'technician' });
+
+    await client.fetchQuery({ queryKey: fullKey, queryFn: fullLoader });
+    await client.fetchQuery({ queryKey: technicianKey, queryFn: technicianLoader });
+
+    expect(fullLoader).toHaveBeenCalledOnce();
+    expect(technicianLoader).toHaveBeenCalledOnce();
+    expect(client.getQueryData(fullKey)).toEqual({ mode: 'full' });
+    expect(client.getQueryData(technicianKey)).toEqual({ mode: 'technician' });
+  });
 });

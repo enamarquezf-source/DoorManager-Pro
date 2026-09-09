@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deficiencyFiltersFromParams, isOpenDeficiencyStatus, workOrderFilterFromParams } from './filters';
+import { checkTabFromParams, deficiencyFiltersFromParams, isOpenDeficiencyStatus, workOrderFilterFromParams } from './filters';
 
 describe('URL filter mapping', () => {
   it('maps management KPI params to work order filters', () => {
@@ -19,5 +19,12 @@ describe('URL filter mapping', () => {
     expect(isOpenDeficiencyStatus('Detectada')).toBe(true);
     expect(isOpenDeficiencyStatus('En valoracion')).toBe(true);
     expect(isOpenDeficiencyStatus('Cerrada')).toBe(false);
+  });
+
+  it('maps check status params to the checks tabs', () => {
+    expect(checkTabFromParams(new URLSearchParams('estado=por-realizar'))).toBe('pending');
+    expect(checkTabFromParams(new URLSearchParams('estado=realizado'))).toBe('done');
+    expect(checkTabFromParams(new URLSearchParams())).toBe('pending');
+    expect(checkTabFromParams(new URLSearchParams('estado=desconocido'))).toBe('pending');
   });
 });

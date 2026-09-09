@@ -16,6 +16,10 @@ export function workOrderFilterFromParams(params: URLSearchParams) {
   return 'todos';
 }
 
+export function checkTabFromParams(params: URLSearchParams): 'pending' | 'done' {
+  return normalizeParam(params.get('estado')) === 'realizado' ? 'done' : 'pending';
+}
+
 export function deficiencyFiltersFromParams(params: URLSearchParams) {
   const state = normalizeParam(params.get('estado'));
   const severity = normalizeParam(params.get('gravedad'));

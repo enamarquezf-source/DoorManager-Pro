@@ -29,3 +29,12 @@ describe('check block navigation', () => {
     expect(v2).toContain('canExecuteCheck(profile)');
   });
 });
+
+describe('checks page URL state', () => {
+  it('initializes and synchronizes the tab from the estado search param', () => {
+    const checksPage = app.slice(app.indexOf('function ChecksPage('), app.indexOf('function CheckDetailPage('));
+    expect(checksPage).toContain('useSearchParams()');
+    expect(checksPage).toContain('checkTabFromParams(params)');
+    expect(checksPage).toContain('}, [params])');
+  });
+});

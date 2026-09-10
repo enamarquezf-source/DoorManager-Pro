@@ -172,6 +172,8 @@ export function canManageQuotes(profile: Profile | null | undefined) { return is
 export function canManageHourRates(profile: Profile | null | undefined) { return isActiveProfile(profile) && hasAny(profile, ['superadmin', 'Gerencia', 'Oficina']); }
 export function canViewSuppliers(profile: Profile | null | undefined) { return isActiveProfile(profile) && hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina']); }
 export function canManageSuppliers(profile: Profile | null | undefined) { return isActiveProfile(profile) && hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina']); }
+export function canViewPurchaseOrders(profile: Profile | null | undefined) { return isActiveProfile(profile) && hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina']); }
+export function canManagePurchaseOrders(profile: Profile | null | undefined) { return isActiveProfile(profile) && hasAny(profile, ['superadmin', 'Gerencia', 'Oficina']); }
 export function canCreateCheck(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT']); }
 export function canExecuteCheck(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Tecnico']); }
 export function canManageCheck(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT']); }
@@ -219,7 +221,7 @@ export function canAccessRoute(profile: Profile | null | undefined, path: string
   if (path.startsWith('/app/modulos/comerciales')) return hasAny(profile, ['SAT', 'Gerencia', 'Comercial']);
   if (path.startsWith('/app/modulos/presupuestos') || path.startsWith('/app/modulos/materiales') || path.startsWith('/app/modulos/cobros') || path.startsWith('/app/modulos/rentabilidad')) return hasAny(profile, economicRoles);
   if (path.startsWith('/app/modulos/tarifas-horas')) return hasAny(profile, ['superadmin', 'Gerencia', 'Oficina']);
-  if (path.startsWith('/app/modulos/proveedores')) return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina']);
+  if (path.startsWith('/app/modulos/proveedores') || path.startsWith('/app/modulos/compras')) return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina']);
   if (path.startsWith('/app/modulos')) return hasAny(profile, ['SAT', 'Gerencia', 'Comercial', 'Oficina']);
   if (path.startsWith('/app/avisos')) return hasAny(profile, ['SAT', 'Gerencia', 'Comercial', 'Oficina', 'Tecnico']);
   if (path === '/app/inicio') return hasAny(profile, ['SAT', 'Gerencia', 'Comercial', 'Oficina']);

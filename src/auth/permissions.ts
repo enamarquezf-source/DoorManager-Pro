@@ -1,4 +1,5 @@
 import type { Profile, RoleName, Workspace } from '../shared/types';
+import { hasPermission as hasGranularPermission, moduleVisible } from './rbac';
 
 const adminRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia', 'Oficina'];
 const backOfficeRoles: RoleName[] = ['superadmin', 'SAT', 'Gerencia', 'Oficina'];
@@ -170,10 +171,11 @@ export function canReviewWorkOrderEconomic(profile: Profile | null | undefined) 
 export function canMarkAdditionalSale(profile: Profile | null | undefined) { return isActiveProfile(profile) && hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina', 'Comercial']); }
 export function canManageQuotes(profile: Profile | null | undefined) { return isActiveProfile(profile) && hasAny(profile, quoteManagerRoles); }
 export function canManageHourRates(profile: Profile | null | undefined) { return isActiveProfile(profile) && hasAny(profile, ['superadmin', 'Gerencia', 'Oficina']); }
-export function canViewSuppliers(profile: Profile | null | undefined) { return isActiveProfile(profile) && hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina']); }
-export function canManageSuppliers(profile: Profile | null | undefined) { return isActiveProfile(profile) && hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina']); }
-export function canViewPurchaseOrders(profile: Profile | null | undefined) { return isActiveProfile(profile) && hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina']); }
-export function canManagePurchaseOrders(profile: Profile | null | undefined) { return isActiveProfile(profile) && hasAny(profile, ['superadmin', 'Gerencia', 'Oficina']); }
+export function hasPermission(profile: Profile | null | undefined, permission: string) { return hasGranularPermission(profile as any, permission); }
+export function canViewSuppliers(profile: Profile | null | undefined) { return hasPermission(profile, 'suppliers.read'); }
+export function canManageSuppliers(profile: Profile | null | undefined) { return hasPermission(profile, 'suppliers.update') || hasPermission(profile, 'suppliers.create'); }
+export function canViewPurchaseOrders(profile: Profile | null | undefined) { return hasPermission(profile, 'purchase_orders.read'); }
+export function canManagePurchaseOrders(profile: Profile | null | undefined) { return hasPermission(profile, 'purchase_orders.create') || hasPermission(profile, 'purchase_orders.update'); }
 export function canCreateCheck(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT']); }
 export function canExecuteCheck(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Tecnico']); }
 export function canManageCheck(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT']); }
@@ -193,6 +195,8 @@ export function canReopenWorkOrder(profile: Profile | null | undefined) { return
 
 export function canAccessModule(profile: Profile | null | undefined, workspace: Workspace, moduleId: string) {
   if (!profile) return false;
+  const moduleMap: Record<string, string> = { compras: 'purchase_orders', proveedores: 'suppliers', materiales: 'materials', 'tipos-equipo': 'sat', facturacion: 'billing', cobros: 'billing', documentos: 'documents', comerciales: 'commercial' };
+  if (moduleMap[moduleId] && !moduleVisible(profile as any, moduleMap[moduleId])) return false;
   if (workspace === 'superadmin') return hasAny(profile, ['superadmin']);
   if (workspace === 'tecnico') return ['jornada', 'checks', 'avisos'].includes(moduleId);
   if (workspace === 'sat') return hasAny(profile, ['SAT', 'Gerencia']) && !['comerciales'].includes(moduleId);
@@ -206,6 +210,9 @@ export function canAccessRoute(profile: Profile | null | undefined, path: string
   if (!profile) return false;
   const roles = rolesOf(profile);
   if (!roles.length || !roles.some((role) => roleToWorkspaceSafe(role))) return false;
+  const protectedModules: Array<[string, string, string]> = [['/app/modulos/compras', 'purchase_orders', 'purchase_orders.read'], ['/app/modulos/proveedores', 'suppliers', 'suppliers.read'], ['/app/modulos/materiales', 'materials', 'materials.read'], ['/app/modulos/facturacion', 'billing', 'billing.read'], ['/app/modulos/cobros', 'billing', 'billing.read']];
+  const protectedModule = protectedModules.find(([prefix]) => path.startsWith(prefix));
+  if (protectedModule && (!moduleVisible(profile as any, protectedModule[1]) || !hasPermission(profile, protectedModule[2]))) return false;
   if (path.startsWith('/app/superadmin')) return hasAny(profile, ['superadmin']);
   if (hasAny(profile, ['superadmin']) && (path === '/app/inicio' || path.startsWith('/app/clientes') || path.startsWith('/app/centros') || path.startsWith('/app/equipos') || path.startsWith('/app/expedientes') || path.startsWith('/app/partes') || path.startsWith('/app/trabajos') || path.startsWith('/app/checks') || path.startsWith('/app/deficiencias') || path.startsWith('/app/documentos') || path.startsWith('/app/avisos') || path.startsWith('/app/gerencia') || path.startsWith('/app/modulos'))) return true;
   if (path.startsWith('/app/tecnico') || path.startsWith('/app/pendientes')) return hasAny(profile, ['Tecnico']);

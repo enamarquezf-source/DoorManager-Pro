@@ -13,6 +13,9 @@ export type Profile = {
   primary_area: RoleName;
   active: boolean;
   roles: RoleName[];
+  permission_grants?: string[];
+  hidden_modules?: string[];
+  visible_modules?: string[];
   deleted_at?: string | null;
 };
 

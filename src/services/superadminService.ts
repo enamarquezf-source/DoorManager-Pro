@@ -29,10 +29,7 @@ export const superadminService = {
     };
   },
   async users() {
-    const companyId = await currentCompanyId();
-    let query = supabase.from('profiles').select('*, companies!profiles_company_id_fkey(name), profile_roles!profile_roles_profile_id_fkey(roles!profile_roles_role_id_fkey(id,name))').order('created_at', { ascending: false });
-    query = query.eq('company_id', companyId);
-    return expectData<any[]>(query);
+    return expectData<any[]>(supabase.rpc('dmp_admin_list_users'));
   },
   roles() {
     return expectData<any[]>(supabase.from('roles').select('*').order('name'));

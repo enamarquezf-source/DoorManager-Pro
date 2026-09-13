@@ -10,7 +10,8 @@ export const profilesService = {
     if (!profile) throw new Error('No hay un perfil enlazado a esta sesión.');
     if (!profile.active || profile.deleted_at) throw new Error('Usuario desactivado. Contacta con el administrador.');
     const roles = await expectData<any[]>(supabase.from('profile_roles').select('roles!profile_roles_role_id_fkey(name)').eq('profile_id', profile.id), { service: 'profilesService', operation: 'Roles del perfil actual', resource: 'profile_roles' });
-    return { ...profile, roles: roles.map((row) => row.roles?.name).filter(Boolean) as RoleName[] };
+    const access = await expectData<any>(supabase.rpc('dmp_get_current_access'), { service: 'profilesService', operation: 'Permisos del perfil actual', resource: 'permissions' });
+    return { ...profile, roles: roles.map((row) => row.roles?.name).filter(Boolean) as RoleName[], permission_grants: access?.permissions ?? [], visible_modules: (access?.modules ?? []).filter((item: any) => item.visible).map((item: any) => item.code), hidden_modules: (access?.modules ?? []).filter((item: any) => item.visible === false).map((item: any) => item.code) };
   },
   async listTechnicians(companyScope?: string | null) {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;

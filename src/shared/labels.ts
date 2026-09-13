@@ -83,7 +83,15 @@ export function previousWorkOrderStatus(status: string) {
 }
 
 export function displayStatus(status?: string | null) {
-  return (status ?? 'Sin estado')
+  const translated = ({
+    draft: 'Borrador', ordered: 'Pedido', partially_received: 'Recibido parcialmente', received: 'Recibido',
+    cancelled: 'Cancelado', confirmed: 'Confirmada', pending: 'Pendiente', active: 'Activo', inactive: 'Inactivo',
+    preferred: 'Preferente', supplier: 'Proveedor', warehouse: 'Almacén', quantity: 'Cantidad',
+    unit_cost: 'Coste unitario', actual_cost: 'Coste real', Entrada: 'Entrada', Salida: 'Salida',
+    Devolucion: 'Devolución', Ajuste: 'Ajuste', in: 'Entrada', out: 'Salida', return: 'Devolución', adjustment: 'Ajuste',
+    material: 'Material', service: 'Servicio', manual: 'Manual',
+  } as Record<string, string>)[status ?? ''];
+  return translated ?? (status ?? 'Sin estado')
     .replace('superadmin', 'Propietario DMP')
     .replace('tecnico', 'Técnico')
     .replace('sat', 'SAT')

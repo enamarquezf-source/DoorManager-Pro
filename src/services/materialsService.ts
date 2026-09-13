@@ -4,8 +4,8 @@ import type { ArchiveFilter } from './entityLifecycleService';
 
 export type MaterialFilter = ArchiveFilter | 'inactive' | 'consumed' | 'all';
 
-const materialColumns = ['company_id', 'code', 'description', 'manufacturer', 'reference', 'unit', 'cost', 'price', 'minimum_stock', 'stock_controlled', 'allow_negative_stock', 'is_specific', 'active'];
-const materialUpdateColumns = ['description', 'manufacturer', 'reference', 'unit', 'cost', 'price', 'minimum_stock', 'stock_controlled', 'allow_negative_stock', 'is_specific', 'active'];
+const materialColumns = ['company_id', 'code', 'description', 'manufacturer', 'reference', 'unit', 'cost', 'price', 'minimum_stock', 'stock_controlled', 'allow_negative_stock', 'is_specific', 'made_to_measure', 'single_use', 'active'];
+const materialUpdateColumns = ['description', 'manufacturer', 'reference', 'unit', 'cost', 'price', 'minimum_stock', 'stock_controlled', 'allow_negative_stock', 'is_specific', 'made_to_measure', 'single_use', 'active'];
 
 function cleanPayload(payload: Record<string, any>, columns = materialColumns) {
   return Object.fromEntries(columns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
@@ -18,13 +18,15 @@ function normalizeMaterial(payload: Record<string, any>, columns = materialColum
   if ('stock_controlled' in next) next.stock_controlled = next.stock_controlled === true || next.stock_controlled === 'true';
   if ('allow_negative_stock' in next) next.allow_negative_stock = next.allow_negative_stock === true || next.allow_negative_stock === 'true';
   if ('is_specific' in next) next.is_specific = next.is_specific === true || next.is_specific === 'true';
+  if ('made_to_measure' in next) next.made_to_measure = next.made_to_measure === true || next.made_to_measure === 'true';
+  if ('single_use' in next) next.single_use = next.single_use === true || next.single_use === 'true';
   return next;
 }
 
 export const materialsService = {
   async list(search = '', companyScope?: string | null, archiveFilter: MaterialFilter = 'active') {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
-    let query = supabase.from('materials').select('id,company_id,code,description,manufacturer,reference,unit,cost,price,minimum_stock,stock_controlled,allow_negative_stock,is_specific,active,deleted_at');
+    let query = supabase.from('materials').select('id,company_id,code,description,manufacturer,reference,unit,cost,price,minimum_stock,stock_controlled,allow_negative_stock,is_specific,made_to_measure,single_use,active,deleted_at');
     if (archiveFilter === 'active') query = query.is('deleted_at', null).eq('active', true);
     if (archiveFilter === 'inactive') query = query.is('deleted_at', null).eq('active', false).eq('is_specific', false);
     if (archiveFilter === 'consumed') query = query.is('deleted_at', null).eq('active', false).eq('is_specific', true);
@@ -34,9 +36,14 @@ export const materialsService = {
     if (search) query = query.or(contains(['code', 'description', 'manufacturer', 'reference', 'unit'], search));
     return expectData<any[]>(query, { service: 'materialsService', operation: 'list materials' });
   },
+  async get(id: string) {
+    const material = await expectData<any>(supabase.from('materials').select('id,company_id,code,description,manufacturer,reference,unit,cost,price,minimum_stock,stock_controlled,allow_negative_stock,is_specific,made_to_measure,single_use,active,deleted_at').eq('id', id).maybeSingle(), { service: 'materialsService', operation: 'get material', resource: id });
+    if (!material) throw new Error('No se ha encontrado el material solicitado.');
+    return material;
+  },
   async initialStockCatalog() {
     const companyId = await currentCompanyId();
-    let query = supabase.from('materials').select('id,company_id,code,description,manufacturer,reference,unit,cost,price,minimum_stock,stock_controlled,allow_negative_stock,is_specific,active,deleted_at').is('deleted_at', null).order('description');
+    let query = supabase.from('materials').select('id,company_id,code,description,manufacturer,reference,unit,cost,price,minimum_stock,stock_controlled,allow_negative_stock,is_specific,made_to_measure,single_use,active,deleted_at').is('deleted_at', null).order('description');
     if (companyId) query = query.eq('company_id', companyId);
     return expectData<any[]>(query, { service: 'materialsService', operation: 'list initial stock materials' });
   },

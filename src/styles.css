@@ -281,6 +281,7 @@ button.danger:disabled { opacity: .6; cursor: progress; }
 .quote-lines-table { max-width: 100%; overflow-x: auto; }
 .quote-lines-table table { min-width: 760px; }
 .table-card.slim table { min-width: 700px; }
+.purchase-orders-table table { min-width: 760px; }
 table { width: 100%; border-collapse: collapse; min-width: 920px; }
 th, td { padding: 12px 14px; border-bottom: 1px solid #e8eef6; text-align: left; vertical-align: top; }
 th { font-size: 12px; color: var(--text-soft); text-transform: uppercase; letter-spacing: .05em; background: #f8fafc; }
@@ -541,6 +542,8 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
   .row-actions { justify-content: stretch; }
   .row-actions button { flex: 1 1 120px; }
   .table-card { max-width: 100%; overflow-x: auto; }
+  .purchase-orders-table { border-radius: 14px; }
+  .purchase-orders-table table { min-width: 700px; }
   .quote-detail-page { max-width: 100%; }
   .quote-lines-table table, .quote-lines-table thead, .quote-lines-table tbody, .quote-lines-table tr, .quote-lines-table th, .quote-lines-table td { display: block; min-width: 0; width: 100%; }
   .quote-lines-table thead { display: none; }

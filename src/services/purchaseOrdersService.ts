@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, expectData } from './query';
+import type { ArchiveFilter } from './entityLifecycleService';
 
 export const purchaseOrderStatuses = ['draft', 'ordered', 'cancelled'] as const;
 export type PurchaseOrderStatus = typeof purchaseOrderStatuses[number];
@@ -8,10 +9,16 @@ function clean(value: unknown) {
   return value === '' || value === undefined ? null : value;
 }
 
+function applyPurchaseOrderArchiveFilter(query: any, filter: ArchiveFilter = 'active') {
+  if (filter === 'archived') return query.not('archived_at', 'is', null);
+  if (filter === 'all') return query;
+  return query.is('archived_at', null);
+}
+
 export const purchaseOrdersService = {
-  async list(filters: { search?: string; supplierId?: string; status?: string; warehouseId?: string; from?: string; to?: string } = {}) {
+  async list(filters: { search?: string; supplierId?: string; status?: string; warehouseId?: string; from?: string; to?: string; archiveFilter?: ArchiveFilter } = {}) {
     const companyId = await currentCompanyId();
-    let query = supabase.from('purchase_orders').select('*,suppliers(id,name),warehouses(id,code,name),profiles!purchase_orders_created_by_fkey(id,first_name,last_name)').eq('company_id', companyId).order('order_date', { ascending: false }).order('created_at', { ascending: false });
+    let query = applyPurchaseOrderArchiveFilter(supabase.from('purchase_orders').select('*,suppliers(id,name),warehouses(id,code,name),profiles!purchase_orders_created_by_fkey(id,first_name,last_name)').eq('company_id', companyId), filters.archiveFilter).order('order_date', { ascending: false }).order('created_at', { ascending: false });
     if (filters.search) query = query.or(contains(['code', 'supplier_reference', 'status'], filters.search));
     if (filters.supplierId) query = query.eq('supplier_id', filters.supplierId);
     if (filters.status) query = query.eq('status', filters.status);
@@ -46,5 +53,8 @@ export const purchaseOrdersService = {
   },
   cancel(id: string) {
     return expectData<any>(supabase.rpc('dmp_cancel_purchase_order', { p_purchase_order_id: id }), { service: 'purchaseOrdersService', operation: 'cancel purchase order', resource: id });
+  },
+  archive(id: string, reason = 'Pedido de compra archivado desde el listado') {
+    return expectData<any>(supabase.rpc('dmp_archive_purchase_order', { p_purchase_order_id: id, p_reason: reason }), { service: 'purchaseOrdersService', operation: 'archive purchase order', resource: id });
   },
 };

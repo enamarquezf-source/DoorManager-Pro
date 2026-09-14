@@ -354,6 +354,22 @@ button.danger:disabled { opacity: .6; cursor: progress; }
 .material-page-movements details { font-size: 11px; }
 .material-page-movements details small { display: block; max-width: 180px; overflow-wrap: anywhere; color: var(--text-soft); }
 .material-detail-footer { display: flex; justify-content: space-between; gap: 12px; color: var(--text-soft); font-size: 12px; font-weight: 700; }
+.material-ux-stats { grid-template-columns: repeat(4, minmax(130px, 1fr)); }
+.material-ux-list { display: grid; gap: 8px; }
+.material-ux-row { display: grid; grid-template-columns: minmax(220px, 1.4fr) minmax(150px, .65fr) minmax(330px, auto); gap: 14px; align-items: center; padding: 11px 12px; border: 1px solid #e2e8f0; border-radius: 14px; background: rgba(255,255,255,.94); }
+.material-ux-main { min-width: 0; }
+.material-ux-main a { display: grid; gap: 3px; color: var(--dark); text-decoration: none; }
+.material-ux-main a:hover strong { color: var(--info); }
+.material-ux-main span, .material-ux-main small { color: var(--text-soft); }
+.material-ux-main span { overflow-wrap: anywhere; }
+.material-ux-main small { display: block; margin-top: 6px; font-size: 12px; }
+.material-ux-stock { display: grid; gap: 5px; justify-items: start; }
+.material-ux-actions { display: flex; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
+.material-ux-actions a, .material-ux-actions button { min-height: 38px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: white; color: var(--dark); font-weight: 850; text-decoration: none; }
+.material-ux-actions a.primary { color: white; background: var(--dark); border-color: var(--dark); }
+.purchase-context { display: grid; gap: 4px; margin: 0; padding: 12px; border: 1px solid #bfdbfe; border-radius: 14px; background: #eff6ff; color: #1e3a8a; }
+.purchase-context span { color: #334155; font-size: 13px; }
+.contextual-purchase > form { width: min(620px, calc(100vw - 24px)); }
 table { width: 100%; border-collapse: collapse; min-width: 920px; }
 th, td { padding: 12px 14px; border-bottom: 1px solid #e8eef6; text-align: left; vertical-align: top; }
 th { font-size: 12px; color: var(--text-soft); text-transform: uppercase; letter-spacing: .05em; background: #f8fafc; }
@@ -678,6 +694,10 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
   .material-page-movements td:nth-child(1), .material-page-movements td:nth-child(2), .material-page-movements td:nth-child(3), .material-page-movements td:nth-child(5), .material-page-movements td:nth-child(8) { grid-column: 1 / -1; }
   .material-page-movements .movement-reason { max-width: none; white-space: normal; }
   .material-detail-footer { align-items: flex-start; flex-direction: column; }
+  .material-ux-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .material-ux-row { grid-template-columns: 1fr; gap: 9px; align-items: stretch; }
+  .material-ux-actions { justify-content: stretch; }
+  .material-ux-actions a, .material-ux-actions button { flex: 1 1 120px; text-align: center; }
   .quote-detail-page { max-width: 100%; }
   .quote-lines-table table, .quote-lines-table thead, .quote-lines-table tbody, .quote-lines-table tr, .quote-lines-table th, .quote-lines-table td { display: block; min-width: 0; width: 100%; }
   .quote-lines-table thead { display: none; }

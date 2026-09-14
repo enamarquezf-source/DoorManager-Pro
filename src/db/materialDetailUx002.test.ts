@@ -43,4 +43,22 @@ describe('MATERIAL-DETAIL-UX-002', () => {
     expect([65, 15, -35].reduce((sum, value) => sum + value, 0)).toBe(45);
     expect(app).toContain('Stock total:');
   });
+
+  it('keeps listing actions focused and detail actions permission-aware', () => {
+    const listing = app.slice(app.indexOf('function MaterialsUxModule'), app.indexOf('function SupplierForm'));
+    const detail = app.slice(app.indexOf('function MaterialDetailPage'), app.indexOf('function MaterialDetailPanelLegacy'));
+    const lifecycle = app.slice(app.indexOf('function LifecycleActionPanel'), app.indexOf('function LifecycleConfirmModal'));
+    expect(listing).toContain('>Detalles</Link>');
+    for (const action of ['Ver movimientos', 'Editar material', 'Ajustar stock', 'Gestionar registro', 'Archivar/desactivar', 'Comprar', '>Abrir</Link>', '>Editar</Link>']) expect(listing).not.toContain(action);
+    expect(detail).toContain('canEdit &&');
+    expect(detail).toContain("hasPermission(profile, 'materials.update')");
+    expect(detail).toContain('canAdjust &&');
+    expect(detail).toContain("hasPermission(profile, 'stock.adjust')");
+    expect(detail).toContain('MaterialDetailLifecycleActions');
+    expect(detail).toContain('<LifecycleActionPanel entity="materials" record={material.data}');
+    for (const action of ['Editar material', 'Ajustar stock', 'Comprar']) expect(detail).toContain(action);
+    for (const action of ['Gestionar registro', 'Archivar/desactivar']) expect(lifecycle).toContain(action);
+    expect(detail).toContain('app/modulos/compras?material=${id}');
+    expect(detail).toContain("searchParams.get('tab') === 'movimientos'");
+  });
 });

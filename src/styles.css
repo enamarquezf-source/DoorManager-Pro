@@ -295,6 +295,24 @@ button.danger:disabled { opacity: .6; cursor: progress; }
 .receipt-complete { color: var(--text-soft); font-size: 12px; font-weight: 800; }
 .receipt-line-complete { background: #f8fafc; }
 .receipt-help { margin-top: 10px; font-size: 12px; }
+.material-detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.material-detail-grid .card { margin: 0; }
+.supplier-link-form { padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: #f8fafc; margin-bottom: 12px; }
+.supplier-link-form h4 { margin: 0 0 10px; }
+.material-supplier-table, .material-stock-table, .material-movements-table { overflow-x: auto; }
+.material-supplier-head, .material-supplier-row, .material-stock-head, .material-stock-row, .material-movement-head, .material-movement-row { display: grid; gap: 10px; align-items: center; min-width: 680px; }
+.material-supplier-head, .material-supplier-row { grid-template-columns: 1.4fr 1fr 1fr .8fr .8fr 1.5fr; }
+.material-stock-head, .material-stock-row { grid-template-columns: 1.5fr 1fr 1fr; min-width: 0; }
+.material-movement-head, .material-movement-row { grid-template-columns: 1fr .9fr 1fr 1fr 1.2fr 1fr 1.4fr .8fr; }
+.material-supplier-head, .material-stock-head, .material-movement-head { padding: 8px 10px; color: var(--text-soft); font-size: 11px; font-weight: 850; text-transform: uppercase; }
+.material-supplier-row, .material-stock-row, .material-movement-row { padding: 10px; border-top: 1px solid #e8eef6; font-size: 13px; }
+.material-supplier-row .row-actions { justify-content: flex-start; }
+.material-movement-row details { margin-top: 5px; font-size: 11px; }
+.material-movement-row details small { color: var(--text-soft); overflow-wrap: anywhere; }
+.movement-positive { color: #166534; }
+.movement-negative { color: #991b1b; }
+.movement-filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.movement-filter-bar select, .movement-filter-bar input { min-height: 38px; }
 table { width: 100%; border-collapse: collapse; min-width: 920px; }
 th, td { padding: 12px 14px; border-bottom: 1px solid #e8eef6; text-align: left; vertical-align: top; }
 th { font-size: 12px; color: var(--text-soft); text-transform: uppercase; letter-spacing: .05em; background: #f8fafc; }
@@ -572,6 +590,17 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
   .receipt-lines-table td:nth-child(5), .receipt-lines-table td:nth-child(7) { align-items: center; gap: 5px; }
   .receipt-lines-table td:nth-child(5)::before { content: 'Recibir: '; font-weight: 800; }
   .receipt-lines-table td:nth-child(7)::before { content: 'Coste: '; font-weight: 800; }
+  .material-detail-grid { grid-template-columns: 1fr; }
+  .material-supplier-table, .material-stock-table, .material-movements-table { overflow-x: visible; }
+  .material-supplier-head, .material-stock-head, .material-movement-head { display: none; }
+  .material-supplier-row, .material-stock-row, .material-movement-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); min-width: 0; border: 1px solid var(--line); border-radius: 14px; margin-bottom: 8px; padding: 10px; }
+  .material-supplier-row strong, .material-movement-row > span:first-child { grid-column: 1 / -1; }
+  .material-supplier-row .row-actions, .material-movement-row > span:last-child { grid-column: 1 / -1; }
+  .material-movement-row > span:nth-child(2)::before { content: 'Tipo: '; font-weight: 800; }
+  .material-movement-row > span:nth-child(4)::before { content: 'Almacén: '; font-weight: 800; }
+  .material-movement-row > span:nth-child(5)::before { content: 'Origen: '; font-weight: 800; }
+  .material-movement-row > span:nth-child(6)::before { content: 'Usuario: '; font-weight: 800; }
+  .material-movement-row > span:nth-child(7)::before { content: 'Motivo: '; font-weight: 800; }
   .quote-detail-page { max-width: 100%; }
   .quote-lines-table table, .quote-lines-table thead, .quote-lines-table tbody, .quote-lines-table tr, .quote-lines-table th, .quote-lines-table td { display: block; min-width: 0; width: 100%; }
   .quote-lines-table thead { display: none; }

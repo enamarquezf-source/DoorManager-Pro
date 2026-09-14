@@ -23,4 +23,8 @@ describe('query error mapping', () => {
   it('conserva el diagnóstico funcional de tarifas sin exponer detalles internos', () => {
     expect(toSpanishSupabaseError({ message: 'tarifa: no existe una tarifa horaria vigente aplicable al tecnico para la fecha indicada' })).toBe('tarifa: no existe una tarifa horaria vigente aplicable al tecnico para la fecha indicada');
   });
+
+  it('does not classify row-level security as a permission denial', () => {
+    expect(toSpanishSupabaseError({ message: 'new row violates row-level security policy for table purchase_orders' })).toBe('La operación no cumple el alcance de empresa o los datos enviados.');
+  });
 });

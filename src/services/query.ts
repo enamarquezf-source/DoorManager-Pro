@@ -48,7 +48,8 @@ export async function expectStep<T>(operation: string, loader: () => Promise<T>)
 export function toSpanishSupabaseError(error: any) {
   const message = error?.message ?? String(error ?? '');
   if (message.includes('more than one relationship')) return 'No se han podido cargar los datos relacionados. Reinténtalo o avisa a administración.';
-  if (message.includes('permission denied') || message.includes('row-level security')) return 'No tienes permisos para realizar esta operación con tu rol actual.';
+  if (message.includes('permission denied') || message.includes('insufficient privilege')) return 'No tienes permisos para realizar esta operación con tu rol actual.';
+  if (message.includes('row-level security')) return 'La operación no cumple el alcance de empresa o los datos enviados.';
   if (message.includes('JWT') || message.includes('auth')) return 'Tu sesión no permite realizar esta operación. Vuelve a iniciar sesión si el problema continúa.';
   if (message.includes('Failed to fetch') || message.includes('NetworkError') || message.includes('fetch failed')) return 'No hay conexión. Revisa la red e inténtalo de nuevo.';
   if (error?.code === 'PGRST202' || message.includes('Could not find the function') || message.includes('function') && message.includes('does not exist')) {

@@ -29,7 +29,14 @@ export const superadminService = {
     };
   },
   async users() {
-    return expectData<any[]>(supabase.rpc('dmp_admin_list_users'));
+    try {
+      const profiles = await expectData<any[]>(supabase.rpc('dmp_admin_list_users'), { service: 'superadminService', operation: 'Listado de usuarios', resource: 'profiles' });
+      if (!profiles.length) return profiles;
+      const profileRoles = await expectData<any[]>(supabase.from('profile_roles').select('profile_id,roles!profile_roles_role_id_fkey(name)').in('profile_id', profiles.map((profile) => profile.id)), { service: 'superadminService', operation: 'Roles del listado de usuarios', resource: 'profile_roles' });
+      return profiles.map((profile) => ({ ...profile, profile_roles: profileRoles.filter((item) => item.profile_id === profile.id) }));
+    } catch {
+      throw new Error('No se ha podido cargar la gestión de usuarios. Inténtalo de nuevo.');
+    }
   },
   roles() {
     return expectData<any[]>(supabase.from('roles').select('*').order('name'));

@@ -143,7 +143,26 @@ function AuthProvider({ children }: { children: ReactNode }) {
         setInitialized(true);
       }
     });
-    return () => { mounted = false; data.subscription.unsubscribe(); };
+    const refreshAccess = async () => {
+      const requestId = ++authRequestId.current;
+      try {
+        const nextProfile = await profilesService.getCurrentProfile();
+        if (!mounted || requestId !== authRequestId.current) return;
+        setProfileError(null);
+        applyProfile(nextProfile);
+      } catch (error) {
+        if (!mounted || requestId !== authRequestId.current) return;
+        const message = error instanceof Error ? error.message : '';
+        if (/No hay sesión activa|No hay un perfil enlazado|Usuario desactivado/.test(message)) {
+          setProfile(null);
+          setProfileError('La sesión existe, pero no hay perfil activo enlazado a este usuario.');
+          return;
+        }
+        console.error('[DMP access refresh failed]', error);
+      }
+    };
+    window.addEventListener('focus', refreshAccess);
+    return () => { mounted = false; data.subscription.unsubscribe(); window.removeEventListener('focus', refreshAccess); };
   }, []);
 
   const setWorkspace = (next: Workspace) => { localStorage.setItem(workspaceKey, next); setWorkspaceState(next); };
@@ -351,12 +370,14 @@ function navForWorkspace(workspace: Workspace) {
   const comercial = [{ id: 'inicio', label: 'Inicio', path: '/app/inicio', icon: Home }, { id: 'clientes', label: 'Clientes', path: '/app/clientes', icon: Building2 }, { id: 'comerciales', label: 'Comerciales', path: '/app/modulos/comerciales', icon: BriefcaseBusiness }, { id: 'oportunidades', label: 'Oportunidades', path: '/app/modulos/oportunidades', icon: BriefcaseBusiness }, { id: 'presupuestos', label: 'Presupuestos', path: '/app/modulos/presupuestos', icon: FileText }, { id: 'materiales', label: 'Materiales', path: '/app/modulos/materiales', icon: PackageCheck }, { id: 'contratos', label: 'Contratos', path: '/app/modulos/contratos', icon: ClipboardList }, { id: 'visitas', label: 'Visitas', path: '/app/modulos/visitas', icon: CalendarClock }, { id: 'expedientes', label: 'Expedientes', path: '/app/expedientes', icon: FileText }, { id: 'partes', label: 'Partes', path: '/app/partes', icon: ClipboardList }, { id: 'informes', label: 'Informes comerciales', path: '/app/modulos/informes-comerciales', icon: PieChart }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }];
   const oficina = [{ id: 'inicio', label: 'Inicio', path: '/app/inicio', icon: Home }, { id: 'administracion', label: 'Administración', path: '/app/modulos/administracion', icon: ClipboardCheck }, { id: 'facturacion', label: 'Facturación', path: '/app/modulos/facturacion', icon: FileText }, { id: 'cobros', label: 'Cobros', path: '/app/modulos/cobros', icon: Bell }, { id: 'compras', label: 'Compras', path: '/app/modulos/compras', icon: Truck }, { id: 'materiales', label: 'Materiales', path: '/app/modulos/materiales', icon: PackageCheck }, { id: 'tarifas-horas', label: 'Tarifas horas', path: '/app/modulos/tarifas-horas', icon: Settings }, { id: 'proveedores', label: 'Proveedores', path: '/app/modulos/proveedores', icon: Warehouse }, { id: 'prl', label: 'PRL y personal', path: '/app/modulos/prl', icon: ShieldAlert }, { id: 'vehiculos', label: 'Vehículos', path: '/app/modulos/vehiculos', icon: Truck }, { id: 'documentos', label: 'Documentos', path: '/app/documentos', icon: FileText }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }];
   const gerencia = [{ id: 'inicio', label: 'Inicio', path: '/app/inicio', icon: Home }, { id: 'resumen', label: 'Resumen', path: '/app/gerencia', icon: PieChart }, { id: 'ventas', label: 'Ventas', path: '/app/modulos/ventas', icon: BriefcaseBusiness }, { id: 'presupuestos', label: 'Presupuestos', path: '/app/modulos/presupuestos', icon: FileText }, { id: 'materiales', label: 'Materiales', path: '/app/modulos/materiales', icon: PackageCheck }, { id: 'tarifas-horas', label: 'Tarifas horas', path: '/app/modulos/tarifas-horas', icon: Settings }, { id: 'cobros', label: 'Cobros', path: '/app/modulos/cobros', icon: Bell }, { id: 'operaciones', label: 'Operaciones', path: '/app/modulos/operaciones', icon: Gauge }, { id: 'rentabilidad', label: 'Rentabilidad', path: '/app/modulos/rentabilidad', icon: PieChart }, { id: 'calidad', label: 'Calidad', path: '/app/deficiencias', icon: ShieldAlert }, { id: 'clientes', label: 'Clientes', path: '/app/clientes', icon: Building2 }, { id: 'tecnicos', label: 'Técnicos', path: '/app/modulos/tecnicos', icon: UsersRound }, { id: 'comerciales', label: 'Comerciales', path: '/app/modulos/comerciales', icon: BriefcaseBusiness }, { id: 'personal', label: 'Personal', path: '/app/modulos/personal', icon: UsersRound }, { id: 'informes', label: 'Informes', path: '/app/modulos/informes', icon: FileText }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }];
-  if (workspace === 'superadmin') return superadmin;
+  const purchases = { id: 'compras', label: 'Compras', path: '/app/modulos/compras', icon: Truck };
+  const withPurchases = (items: typeof oficina) => items.some((item) => item.id === purchases.id) ? items : [...items, purchases];
+  if (workspace === 'superadmin') return withPurchases(superadmin);
   if (workspace === 'tecnico') return [{ id: 'jornada', label: 'Mi jornada', path: '/app/tecnico', icon: CalendarClock }, { id: 'checks', label: 'Checks', path: '/app/checks', icon: ClipboardCheck }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }];
-  if (workspace === 'sat') return sat;
+  if (workspace === 'sat') return withPurchases(sat);
   if (workspace === 'comercial') return comercial;
-  if (workspace === 'oficina') return oficina;
-  return gerencia;
+  if (workspace === 'oficina') return withPurchases(oficina);
+  return withPurchases(gerencia);
 }
 
 function homeForWorkspace(workspace: Workspace) {
@@ -2901,7 +2922,7 @@ function SuperadminUsers() {
   const { data, loading, error, reload } = useLoad(() => superadminService.users(), [], [] as any[]);
   const [selected, setSelected] = useState<any | null>(null);
   const [roleEditing, setRoleEditing] = useState<any | null>(null);
-  return <section className="page"><Breadcrumb items={['Administración', 'Usuarios y permisos']} /><Hero title="Usuarios y permisos" subtitle="Gestiona roles, permisos adicionales y visibilidad del menú de tu empresa." tone="info" /><StateBlock loading={loading} error={error} retry={reload} empty={!data.length}><div className="table-card"><table><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Empresa</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>{data.map((user: any) => <tr key={user.id}><td>{fullName(user)}</td><td>{user.email}</td><td>{rolesText(user) || areaLabel(user.primary_area)}</td><td>{user.companies?.name ?? user.company_id}</td><td>{user.active ? 'Activo' : 'Inactivo'}</td><td><div className="row-actions"><button onClick={() => setRoleEditing(user)}>Editar rol</button><button onClick={() => setSelected(user)}>Gestionar permisos</button></div></td></tr>)}</tbody></table></div></StateBlock>{roleEditing && <SuperadminProfileForm initial={roleEditing} onClose={() => setRoleEditing(null)} onSaved={() => { setRoleEditing(null); reload(); }} />}{selected && <UserAccessPanel user={selected} onSaved={() => { setSelected(null); reload(); }} />}</section>;
+  return <section className="page"><Breadcrumb items={['Administración', 'Usuarios y permisos']} /><Hero title="Usuarios y permisos" subtitle="Gestiona roles, permisos adicionales y visibilidad del menú de tu empresa." tone="info" /><StateBlock loading={loading} error={error} retry={reload} empty={!data.length}><div className="table-card"><table><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Empresa</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>{data.map((user: any) => <tr key={user.id}><td>{fullName(user)}</td><td>{user.email}</td><td>{rolesText(user)}</td><td>{user.companies?.name ?? user.company_id}</td><td>{user.active ? 'Activo' : 'Inactivo'}</td><td><div className="row-actions"><button onClick={() => setRoleEditing(user)}>Editar rol</button><button onClick={() => setSelected(user)}>Gestionar permisos</button></div></td></tr>)}</tbody></table></div></StateBlock>{roleEditing && <SuperadminProfileForm initial={roleEditing} onClose={() => setRoleEditing(null)} onSaved={() => { setRoleEditing(null); reload(); }} />}{selected && <UserAccessPanel user={selected} onSaved={() => { setSelected(null); reload(); }} />}</section>;
 }
 
 function PurchaseOrderForm({ initial, suppliers, warehouses, onClose, onSaved }: any) {
@@ -3329,12 +3350,13 @@ function ReasonConfirmModal({ title, text, requiredLabel, onCancel, onConfirm }:
 function metric(title: string, text: string, tone: Severity, route: string, icon: ReactNode) { return { title, text, tone, route, icon }; }
 function readPath(row: any, path: string) { return path.split('.').reduce((value, key) => value?.[key], row); }
 function rolesList(profile: any) { return (profile.profile_roles ?? []).map((item: any) => item.roles?.name).filter(Boolean); }
-function rolesText(profile: any) { const roles = rolesList(profile); return roles.length ? roles.join(', ') : 'Sin roles'; }
+function rolesText(profile: any) { const roles = rolesList(profile); return roles.length ? roles.map(roleLabel).join(', ') : 'Sin roles'; }
 function areaOptions() { return ['superadmin','Gerencia','SAT','Comercial','Oficina','Tecnico']; }
 function selectPrimaryRole(roles: string[], primary: string) { const next = [...new Set([primary, ...roles].filter(Boolean))]; if (primary === 'SAT') return next.filter((role) => role !== 'Comercial'); if (primary === 'Comercial') return next.filter((role) => role !== 'SAT'); return next.includes('SAT') ? next.filter((role) => role !== 'Comercial') : next; }
 function toggleExclusiveRole(roles: string[], role: string) { const selected = roles.includes(role) ? roles.filter((item) => item !== role) : [...roles, role]; if (role === 'SAT') return selected.filter((item) => item !== 'Comercial'); if (role === 'Comercial') return selected.filter((item) => item !== 'SAT'); return selected.includes('SAT') ? selected.filter((item) => item !== 'Comercial') : selected; }
 function normalizeArea(value?: string | null) { return normalize(value ?? '').replace('tecnico', 'tecnico'); }
 function areaLabel(value?: string | null) { const labels: Record<string, string> = { superadmin: 'Propietario DMP', gerencia: 'Gerencia', sat: 'SAT', comercial: 'Comercial', oficina: 'Oficina', tecnico: 'Técnico' }; return labels[normalizeArea(value)] ?? displayStatus(value); }
+function roleLabel(value: string) { const labels: Record<string, string> = { superadmin: 'Superadmin', gerencia: 'Gerencia', sat: 'SAT', comercial: 'Comercial', oficina: 'Oficina', tecnico: 'Técnico' }; return labels[normalizeArea(value)] ?? value; }
 function permissionForRole(role: string, permission: string) {
   return canRole(role, permission);
 }

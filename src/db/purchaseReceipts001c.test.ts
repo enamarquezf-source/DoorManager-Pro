@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 
 const migration = readFileSync(new URL('../../supabase/migrations/120_purchase_receipts.sql', import.meta.url), 'utf8');
+const migration124 = readFileSync(new URL('../../supabase/migrations/124_auth_rbac_runtime_fix.sql', import.meta.url), 'utf8');
 const verification = readFileSync(new URL('../../supabase/verification/verify_120_purchase_receipts.sql', import.meta.url), 'utf8');
+const verification124 = readFileSync(new URL('../../supabase/verification/verify_124_auth_rbac_runtime_fix.sql', import.meta.url), 'utf8');
 const purchaseOrdersMigration = readFileSync(new URL('../../supabase/migrations/119_purchase_orders.sql', import.meta.url), 'utf8');
 const suppliersMigration = readFileSync(new URL('../../supabase/migrations/117_suppliers_material_relations.sql', import.meta.url), 'utf8');
 const service = readFileSync(new URL('../services/purchaseReceiptsService.ts', import.meta.url), 'utf8');
@@ -116,5 +118,32 @@ describe('SUPPLIERS-STOCK-001C', () => {
     expect(migration).toContain('unit_cost=v_line.actual_unit_cost');
     expect(migration).toContain('purchase_order_id=v_receipt.purchase_order_id');
     expect(migration).toContain("if v_receipt.status = 'confirmed' then return p_receipt_id");
+  });
+  it('keeps all receipt line mutations draft-only and preserves stock traceability', () => {
+    const updateLine = migration124.slice(migration124.indexOf('dmp_update_purchase_receipt_line'));
+    expect(migration124).toContain("v_receipt.status <> 'draft'");
+    expect(updateLine).toContain('v_line public.purchase_receipt_lines');
+    expect(updateLine).toContain('v_receipt public.purchase_receipts');
+    expect(updateLine).toContain('where id=v_line.purchase_receipt_id for update');
+    expect(updateLine).toContain('v_receipt.company_id <> v_line.company_id');
+    expect(updateLine).toContain('p_received_quantity is null or p_received_quantity <= 0');
+    expect(updateLine).toContain('p_actual_unit_cost is not null and p_actual_unit_cost < 0');
+    expect(verification124).toContain('update receipt line immutability');
+    expect(verification124).toContain('must require draft receipt');
+    expect(migration124).toContain("pr.status='draft'");
+    expect(migration124).toContain('purchase_receipt_line_id=v_line.id');
+    expect(migration124).toContain('unit_cost=v_line.actual_unit_cost');
+  });
+  it('keeps receipt immutability checks inside the receipt RPC loop', () => {
+    const purchaseLoop = verification124.slice(verification124.indexOf('-- PURCHASE RPCS'), verification124.indexOf('-- RECEIPT RPCS'));
+    const receiptLoop = verification124.slice(verification124.indexOf('-- RECEIPT RPCS'));
+    for (const signature of ['dmp_add_purchase_receipt_line', 'dmp_update_purchase_receipt_line', 'dmp_remove_purchase_receipt_line']) {
+      expect(purchaseLoop).not.toContain(signature);
+      expect(receiptLoop).toContain(signature);
+    }
+    expect(purchaseLoop).not.toContain('must require draft receipt');
+    expect(purchaseLoop).not.toContain('update receipt line immutability');
+    expect(receiptLoop).toContain('must require draft receipt');
+    expect(receiptLoop).toContain('update receipt line immutability');
   });
 });

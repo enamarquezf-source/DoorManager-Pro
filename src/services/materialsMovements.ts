@@ -48,5 +48,7 @@ export function movementReason(movement: any) {
   const reason = String(movement?.notes ?? '').trim();
   if (!reason) return 'Sin motivo informado';
   if (/legacy_migration|initial stock|initial-batch/i.test(reason)) return 'Importación inicial';
-  return reason.replace(/\s*batch=[0-9a-f-]{20,}/ig, '').replace(/\s+/g, ' ').trim() || 'Sin motivo informado';
+  const cleaned = reason.replace(/\s*batch=[0-9a-f-]{20,}/ig, '').replace(/\s+/g, ' ').trim();
+  if (/^<?\/?svg\b/i.test(cleaned)) return 'Sin motivo informado';
+  return cleaned || 'Sin motivo informado';
 }

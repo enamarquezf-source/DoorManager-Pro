@@ -56,7 +56,7 @@ export function toSpanishSupabaseError(error: any) {
     if (message.includes('create_work_order_full')) return 'La API no encuentra la firma esperada de create_work_order_full.';
     return 'Esta operación no está disponible ahora mismo. Reinténtalo o avisa a administración.';
   }
-  if (message.includes('schema cache')) return 'Los datos no están disponibles todavía. Reinténtalo en unos segundos.';
+  if (error?.code === 'PGRST200') return 'No se han podido cargar algunos datos relacionados. Revisa el diagnóstico o inténtalo de nuevo.';
   if (message.includes('No se ha encontrado')) return message;
   if (message.includes('audit_log_operation_check')) return 'No se ha podido registrar la operación. Reinténtalo o avisa a administración.';
   if (message.includes('violates check constraint')) return 'Los datos no cumplen una regla de validación. Revisa la información introducida.';

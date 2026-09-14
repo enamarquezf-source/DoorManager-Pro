@@ -33,6 +33,14 @@ function normalizeMaterial(payload: Record<string, any>, columns = materialColum
   return next;
 }
 
+export function isValidMaterialId(value: unknown): value is string {
+  return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
+function invalidMaterialIdError() {
+  return new Error('No se ha podido identificar el material.');
+}
+
 export const materialsService = {
   async list(search = '', companyScope?: string | null, archiveFilter: MaterialFilter = 'active') {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
@@ -47,6 +55,7 @@ export const materialsService = {
     return expectData<any[]>(query, { service: 'materialsService', operation: 'list materials' });
   },
   async get(id: string) {
+    if (!isValidMaterialId(id)) throw invalidMaterialIdError();
     const material = await expectData<any>(supabase.from('materials').select('id,company_id,code,description,manufacturer,reference,unit,cost,price,minimum_stock,stock_controlled,allow_negative_stock,is_specific,made_to_measure,single_use,active,deleted_at').eq('id', id).maybeSingle(), { service: 'materialsService', operation: 'get material', resource: id });
     if (!material) throw new Error('No se ha encontrado el material solicitado.');
     return material;
@@ -76,6 +85,7 @@ export const materialsService = {
     return expectData<any>(supabase.from('materials').update({ active: true, deleted_at: null, deleted_by: null, delete_reason: null }).eq('id', id).select().maybeSingle(), { service: 'materialsService', operation: 'reactivate material', resource: id });
   },
   movements(materialId: string) {
+    if (!isValidMaterialId(materialId)) return Promise.reject(invalidMaterialIdError());
     const movements = supabase.from('stock_movements').select('id,movement_type,quantity,warehouse_id,material_id,work_order_id,purchase_order_id,purchase_receipt_id,source,source_reference,created_by,created_at,notes,idempotency_key').eq('material_id', materialId).order('created_at', { ascending: false }).limit(80);
     const stock = supabase.from('warehouse_stock').select('warehouse_id,quantity').eq('material_id', materialId);
     return Promise.all([expectData<any[]>(movements, { service: 'materialsService', operation: 'list warehouse stock movements', resource: materialId }), expectData<any[]>(stock, { service: 'materialsService', operation: 'read current warehouse stock for movement history', resource: materialId })]).then(async ([rows, balances]) => {

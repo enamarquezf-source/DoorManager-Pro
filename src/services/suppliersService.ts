@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, expectData } from './query';
+import { isValidMaterialId } from './materialsService';
 
 const supplierColumns = ['name', 'trade_name', 'internal_code', 'tax_id', 'email', 'phone', 'contact_name', 'website', 'fiscal_address', 'postal_code', 'city', 'province', 'country', 'payment_method', 'payment_terms_days', 'payment_due_day', 'currency_code', 'usual_discount', 'supplier_customer_reference', 'billing_email', 'billing_notes', 'internal_notes', 'active'];
 
@@ -57,6 +58,7 @@ export const suppliersService = {
     return expectData<any>(supabase.from('supplier_bank_accounts').update({ active, ...(active ? {} : { is_primary: false }) }).eq('id', accountId).eq('company_id', company_id).select().single(), { service: 'suppliersService', operation: 'set supplier bank account active', resource: accountId });
   },
   async listMaterialSuppliers(materialId: string) {
+    if (!isValidMaterialId(materialId)) throw new Error('No se ha podido identificar el material.');
     return expectData<any[]>(supabase.from('material_suppliers').select('id,company_id,material_id,supplier_id,supplier_reference,purchase_unit_price,is_preferred,active,created_at,updated_at,suppliers(id,name,tax_id,active)').eq('material_id', materialId).order('is_preferred', { ascending: false }).order('created_at'), { service: 'suppliersService', operation: 'list material suppliers', resource: materialId });
   },
   async addMaterialSupplier(materialId: string, payload: Record<string, any>) {

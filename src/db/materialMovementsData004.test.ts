@@ -30,6 +30,7 @@ describe('MATERIAL-MOVEMENTS-DATA-004', () => {
 
   it('keeps readable origins and fallback origins without external relations', () => {
     expect(movementOrigin({ purchase_receipts: { id: 'r', code: 'REC-2026-000001' }, purchase_order_id: 'po' }).text).toBe('Recepción REC-2026-000001');
+    expect(movementOrigin({ purchase_receipts: { id: 'r', code: 'REC-2026-000001', supplier_document_reference: 'ALB-7' }, purchase_orders: { id: 'po', code: 'PED-2026-000001', supplier_reference: 'OC-28' } }).text).toBe('Recepción REC-2026-000001 · Albarán: ALB-7 · Pedido PED-2026-000001 · Referencia proveedor: OC-28');
     expect(movementOrigin({ work_orders: { id: 'w', code: 'PAR-2026-000039' } }).text).toBe('Parte PAR-2026-000039');
     expect(movementOrigin({ purchase_orders: { id: 'po', code: 'PED-2026-000001' } }).text).toBe('Pedido PED-2026-000001');
     expect(movementOrigin({ source: 'legacy_migration' }).text).toBe('Importación inicial');

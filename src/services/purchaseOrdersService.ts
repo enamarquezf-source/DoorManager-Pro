@@ -19,7 +19,7 @@ export const purchaseOrdersService = {
   async list(filters: { search?: string; supplierId?: string; status?: string; warehouseId?: string; from?: string; to?: string; archiveFilter?: ArchiveFilter } = {}) {
     const companyId = await currentCompanyId();
     let query = applyPurchaseOrderArchiveFilter(supabase.from('purchase_orders').select('*,suppliers(id,name),warehouses(id,code,name),profiles!purchase_orders_created_by_fkey(id,first_name,last_name)').eq('company_id', companyId), filters.archiveFilter).order('order_date', { ascending: false }).order('created_at', { ascending: false });
-    if (filters.search) query = query.or(contains(['code', 'supplier_reference', 'status'], filters.search));
+    if (filters.search) query = query.or(contains(['code', 'supplier_reference', 'internal_reference', 'status'], filters.search));
     if (filters.supplierId) query = query.eq('supplier_id', filters.supplierId);
     if (filters.status) query = query.eq('status', filters.status);
     if (filters.warehouseId) query = query.eq('destination_warehouse_id', filters.warehouseId);
@@ -34,10 +34,10 @@ export const purchaseOrdersService = {
     return { ...order, purchase_order_lines: lines ?? [] };
   },
   create(payload: Record<string, any>) {
-    return currentCompanyId().then((companyId) => expectData<any>(supabase.rpc('dmp_create_purchase_order', { p_company_id: companyId, p_supplier_id: payload.supplier_id, p_order_date: clean(payload.order_date), p_destination_warehouse_id: clean(payload.destination_warehouse_id), p_supplier_reference: clean(payload.supplier_reference), p_notes: clean(payload.notes) }), { service: 'purchaseOrdersService', operation: 'create purchase order' }));
+    return currentCompanyId().then((companyId) => expectData<any>(supabase.rpc('dmp_create_purchase_order', { p_company_id: companyId, p_supplier_id: payload.supplier_id, p_order_date: clean(payload.order_date), p_destination_warehouse_id: clean(payload.destination_warehouse_id), p_supplier_reference: clean(payload.supplier_reference), p_notes: clean(payload.notes), p_internal_reference: clean(payload.internal_reference) }), { service: 'purchaseOrdersService', operation: 'create purchase order' }));
   },
   update(id: string, payload: Record<string, any>) {
-    return expectData<any>(supabase.rpc('dmp_update_purchase_order', { p_purchase_order_id: id, p_supplier_id: payload.supplier_id, p_order_date: clean(payload.order_date), p_destination_warehouse_id: clean(payload.destination_warehouse_id), p_supplier_reference: clean(payload.supplier_reference), p_notes: clean(payload.notes) }), { service: 'purchaseOrdersService', operation: 'update purchase order', resource: id });
+    return expectData<any>(supabase.rpc('dmp_update_purchase_order', { p_purchase_order_id: id, p_supplier_id: payload.supplier_id, p_order_date: clean(payload.order_date), p_destination_warehouse_id: clean(payload.destination_warehouse_id), p_supplier_reference: clean(payload.supplier_reference), p_notes: clean(payload.notes), p_internal_reference: clean(payload.internal_reference) }), { service: 'purchaseOrdersService', operation: 'update purchase order', resource: id });
   },
   addLine(orderId: string, payload: Record<string, any>) {
     return expectData<any>(supabase.rpc('dmp_add_purchase_order_line', { p_purchase_order_id: orderId, p_material_id: payload.material_id, p_material_supplier_id: clean(payload.material_supplier_id), p_ordered_quantity: Number(payload.ordered_quantity), p_unit_purchase_price: clean(payload.unit_purchase_price) === null ? null : Number(payload.unit_purchase_price) }), { service: 'purchaseOrdersService', operation: 'add purchase order line', resource: orderId });

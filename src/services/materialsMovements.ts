@@ -28,16 +28,16 @@ export function movementLinks(movement: any) {
   return {
     workOrder: workOrder?.id && workOrder?.code ? { label: workOrder.code, to: `/app/partes/${workOrder.id}` } : null,
     quote: quote?.id && quote?.code ? { label: quote.code, to: `/app/modulos/presupuestos/${quote.id}` } : null,
-    ...(receipt?.id && receipt?.code ? { receipt: { label: receipt.code, to: `/app/modulos/compras?pedido=${movement.purchase_order_id}` } } : {}),
-    ...(purchaseOrder?.id && purchaseOrder?.code ? { purchaseOrder: { label: purchaseOrder.code, to: `/app/modulos/compras?pedido=${purchaseOrder.id}` } } : {}),
+    ...(receipt?.id && receipt?.code ? { receipt: { label: receipt.code, reference: receipt.supplier_document_reference ?? null, purchaseOrder: purchaseOrder ? { ...purchaseOrder, internalReference: purchaseOrder.internal_reference ?? null, reference: purchaseOrder.supplier_reference ?? null } : null, to: `/app/modulos/compras?pedido=${purchaseOrder?.id ?? receipt.purchase_order_id ?? movement.purchase_order_id}` } } : {}),
+    ...(purchaseOrder?.id && purchaseOrder?.code ? { purchaseOrder: { label: purchaseOrder.code, internalReference: purchaseOrder.internal_reference ?? null, reference: purchaseOrder.supplier_reference ?? null, to: `/app/modulos/compras?pedido=${purchaseOrder.id}` } } : {}),
   };
 }
 
 export function movementOrigin(movement: any) {
   const links = movementLinks(movement);
-  if (links.receipt) return { ...links.receipt, text: `Recepción ${links.receipt.label}` };
+  if (links.receipt) { const order = links.receipt.purchaseOrder; const orderText = order?.code ? ` · Pedido ${order.code}${order.internalReference ? ` · Referencia interna: ${order.internalReference}` : ''}${order.reference ? ` · Referencia proveedor: ${order.reference}` : ''}` : ''; return { ...links.receipt, text: `Recepción ${links.receipt.label}${links.receipt.reference ? ` · Albarán: ${links.receipt.reference}` : ''}${orderText}` }; }
   if (links.workOrder) return { ...links.workOrder, text: `Parte ${links.workOrder.label}` };
-  if (links.purchaseOrder) return { ...links.purchaseOrder, text: `Pedido ${links.purchaseOrder.label}` };
+  if (links.purchaseOrder) return { ...links.purchaseOrder, text: `Pedido ${links.purchaseOrder.label}${links.purchaseOrder.internalReference ? ` · Referencia interna: ${links.purchaseOrder.internalReference}` : ''}${links.purchaseOrder.reference ? ` · Referencia proveedor: ${links.purchaseOrder.reference}` : ''}` };
   const source = [movement?.source, movement?.notes].filter(Boolean).join(' ').toLowerCase();
   if (source.includes('initial') || source.includes('legacy')) return { text: 'Importación inicial', technical: movement.source };
   if (source.includes('adjust')) return { text: 'Ajuste de stock', technical: movement.source };

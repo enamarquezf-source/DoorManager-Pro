@@ -90,17 +90,19 @@ export const materialsService = {
     const stock = supabase.from('warehouse_stock').select('warehouse_id,quantity').eq('material_id', materialId);
     return Promise.all([expectData<any[]>(movements, { service: 'materialsService', operation: 'list warehouse stock movements', resource: materialId }), expectData<any[]>(stock, { service: 'materialsService', operation: 'read current warehouse stock for movement history', resource: materialId })]).then(async ([rows, balances]) => {
       const ids = (key: string) => [...new Set(rows.map((row) => row[key]).filter(Boolean))];
-      const [warehouses, profiles, workOrders, receipts, purchaseOrders] = await Promise.all([
+      const [warehouses, profiles, workOrders, receipts] = await Promise.all([
         optionalMovementRelations('warehouses', ids('warehouse_id'), 'id,code,name', 'resolve movement warehouses'),
         optionalMovementRelations('profiles', ids('created_by'), 'id,first_name,last_name', 'resolve movement profiles'),
         optionalMovementRelations('work_orders', ids('work_order_id'), 'id,code,title', 'resolve movement work orders'),
-        optionalMovementRelations('purchase_receipts', ids('purchase_receipt_id'), 'id,code', 'resolve movement receipts'),
-        optionalMovementRelations('purchase_orders', ids('purchase_order_id'), 'id,code', 'resolve movement purchase orders'),
+        optionalMovementRelations('purchase_receipts', ids('purchase_receipt_id'), 'id,code,purchase_order_id,supplier_document_reference', 'resolve movement receipts'),
       ]);
+      const receiptById = new Map(receipts.map((item) => [item.id, item]));
+      const purchaseOrderIds = [...new Set([...ids('purchase_order_id'), ...receipts.map((receipt) => receipt.purchase_order_id).filter(Boolean)])];
+      const purchaseOrders = await optionalMovementRelations('purchase_orders', purchaseOrderIds, 'id,code,internal_reference,supplier_reference', 'resolve movement purchase orders');
       const relationMap = (items: any[]) => new Map(items.map((item) => [item.id, item]));
-      const warehouseById = relationMap(warehouses); const profileById = relationMap(profiles); const workOrderById = relationMap(workOrders); const receiptById = relationMap(receipts); const purchaseOrderById = relationMap(purchaseOrders);
+      const warehouseById = relationMap(warehouses); const profileById = relationMap(profiles); const workOrderById = relationMap(workOrders); const purchaseOrderById = relationMap(purchaseOrders);
       const balanceByWarehouse = new Map(balances.map((row) => [row.warehouse_id, Number(row.quantity ?? 0)]));
-      return rows.map((row) => ({ ...row, warehouses: warehouseById.get(row.warehouse_id) ?? null, profiles: profileById.get(row.created_by) ?? null, work_orders: workOrderById.get(row.work_order_id) ?? null, purchase_receipts: receiptById.get(row.purchase_receipt_id) ?? null, purchase_orders: purchaseOrderById.get(row.purchase_order_id) ?? null, current_quantity: balanceByWarehouse.get(row.warehouse_id) ?? null }));
+      return rows.map((row) => { const receipt = receiptById.get(row.purchase_receipt_id) ?? null; const purchaseOrder = purchaseOrderById.get(receipt?.purchase_order_id ?? row.purchase_order_id) ?? null; return { ...row, warehouses: warehouseById.get(row.warehouse_id) ?? null, profiles: profileById.get(row.created_by) ?? null, work_orders: workOrderById.get(row.work_order_id) ?? null, purchase_receipts: receipt, purchase_orders: purchaseOrder, current_quantity: balanceByWarehouse.get(row.warehouse_id) ?? null }; });
     });
   },
   adjustStock(materialId: string, payload: { movement_type: string; quantity: number | string; reason: string; warehouse_id?: string }) {

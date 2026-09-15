@@ -11,6 +11,11 @@ export const permissionLabels: Record<string, string> = {
   'purchase_receipts.update': 'Editar borradores',
   'purchase_receipts.confirm': 'Confirmar recepciones',
   'purchase_receipts.cancel': 'Cancelar borradores',
+  'supplier_invoices.read': 'Ver facturas de proveedor',
+  'supplier_invoices.create': 'Crear facturas de proveedor',
+  'supplier_invoices.update': 'Editar borradores de proveedor',
+  'supplier_invoices.register': 'Registrar facturas de proveedor',
+  'supplier_invoices.cancel': 'Cancelar facturas de proveedor',
   'materials.read': 'Ver materiales',
   'materials.create': 'Crear materiales',
   'materials.update': 'Editar materiales',
@@ -31,7 +36,7 @@ export const permissionLabels: Record<string, string> = {
 export const permissionCatalog = Object.keys(permissionLabels);
 
 export const moduleLabels: Record<string, string> = {
-  users: 'Usuarios y permisos', suppliers: 'Proveedores', purchase_orders: 'Compras',
+  users: 'Usuarios y permisos', suppliers: 'Proveedores', purchase_orders: 'Compras', supplier_invoices: 'Facturas de proveedor',
   purchase_receipts: 'Recepciones', materials: 'Materiales', stock: 'Stock / Almacenes',
   sat: 'SAT', commercial: 'Comercial', documents: 'Documentos', billing: 'Facturación', admin: 'Administración',
 };
@@ -39,7 +44,7 @@ export const moduleLabels: Record<string, string> = {
 const roleDefaults: Record<RoleName, string[]> = {
   superadmin: permissionCatalog,
   Gerencia: permissionCatalog.filter((key) => !key.startsWith('admin.') && !['users.create', 'users.deactivate'].includes(key)),
-  Oficina: permissionCatalog.filter((key) => key.startsWith('purchase_') || key.startsWith('materials.') || key.startsWith('suppliers.') || key.startsWith('documents.') || key.startsWith('billing.') || key === 'stock.read'),
+  Oficina: permissionCatalog.filter((key) => key.startsWith('purchase_') || key.startsWith('supplier_invoices.') || key.startsWith('materials.') || key.startsWith('suppliers.') || key.startsWith('documents.') || key.startsWith('billing.') || key === 'stock.read'),
   SAT: ['suppliers.read', 'purchase_orders.read', 'purchase_receipts.read', 'materials.read', 'stock.read', 'sat.read', 'sat.write', 'sat.assign', 'sat.checks.manage', 'documents.read'],
   Comercial: ['suppliers.read', 'materials.read', 'commercial.read', 'commercial.write', 'documents.read', 'documents.create', 'documents.update'],
   Tecnico: ['materials.read', 'stock.read', 'sat.read', 'sat.write', 'sat.checks.manage', 'documents.read'],

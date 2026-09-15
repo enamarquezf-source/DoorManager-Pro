@@ -195,7 +195,7 @@ export function canReopenWorkOrder(profile: Profile | null | undefined) { return
 
 export function canAccessModule(profile: Profile | null | undefined, workspace: Workspace, moduleId: string) {
   if (!profile) return false;
-  const moduleMap: Record<string, string> = { compras: 'purchase_orders', proveedores: 'suppliers', materiales: 'materials', 'tipos-equipo': 'sat', facturacion: 'billing', cobros: 'billing', documentos: 'documents', comerciales: 'commercial' };
+  const moduleMap: Record<string, string> = { compras: 'purchase_orders', 'facturas-proveedor': 'supplier_invoices', proveedores: 'suppliers', materiales: 'materials', 'tipos-equipo': 'sat', facturacion: 'billing', cobros: 'billing', documentos: 'documents', comerciales: 'commercial' };
   if (moduleMap[moduleId] && !moduleVisible(profile as any, moduleMap[moduleId])) return false;
   if (workspace === 'superadmin') return hasAny(profile, ['superadmin']);
   if (workspace === 'tecnico') return ['jornada', 'checks', 'avisos'].includes(moduleId);
@@ -210,7 +210,7 @@ export function canAccessRoute(profile: Profile | null | undefined, path: string
   if (!profile) return false;
   const roles = rolesOf(profile);
   if (!roles.length || !roles.some((role) => roleToWorkspaceSafe(role))) return false;
-  const protectedModules: Array<[string, string, string]> = [['/app/modulos/compras', 'purchase_orders', 'purchase_orders.read'], ['/app/modulos/proveedores', 'suppliers', 'suppliers.read'], ['/app/modulos/materiales', 'materials', 'materials.read'], ['/app/modulos/facturacion', 'billing', 'billing.read'], ['/app/modulos/cobros', 'billing', 'billing.read']];
+  const protectedModules: Array<[string, string, string]> = [['/app/modulos/compras', 'purchase_orders', 'purchase_orders.read'], ['/app/modulos/facturas-proveedor', 'supplier_invoices', 'supplier_invoices.read'], ['/app/modulos/proveedores', 'suppliers', 'suppliers.read'], ['/app/modulos/materiales', 'materials', 'materials.read'], ['/app/modulos/facturacion', 'billing', 'billing.read'], ['/app/modulos/cobros', 'billing', 'billing.read']];
   const protectedModule = protectedModules.find(([prefix]) => path.startsWith(prefix));
   if (protectedModule && (!moduleVisible(profile as any, protectedModule[1]) || !hasPermission(profile, protectedModule[2]))) return false;
   if (path.startsWith('/app/superadmin')) return hasAny(profile, ['superadmin']);
@@ -229,6 +229,7 @@ export function canAccessRoute(profile: Profile | null | undefined, path: string
   if (path.startsWith('/app/modulos/presupuestos') || path.startsWith('/app/modulos/materiales') || path.startsWith('/app/modulos/cobros') || path.startsWith('/app/modulos/rentabilidad')) return hasAny(profile, economicRoles);
   if (path.startsWith('/app/modulos/tarifas-horas')) return hasAny(profile, ['superadmin', 'Gerencia', 'Oficina']);
   if (path.startsWith('/app/modulos/proveedores') || path.startsWith('/app/modulos/compras')) return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina']);
+  if (path.startsWith('/app/modulos/facturas-proveedor')) return hasPermission(profile, 'supplier_invoices.read');
   if (path.startsWith('/app/modulos')) return hasAny(profile, ['SAT', 'Gerencia', 'Comercial', 'Oficina']);
   if (path.startsWith('/app/avisos')) return hasAny(profile, ['SAT', 'Gerencia', 'Comercial', 'Oficina', 'Tecnico']);
   if (path === '/app/inicio') return hasAny(profile, ['SAT', 'Gerencia', 'Comercial', 'Oficina']);

@@ -3002,7 +3002,9 @@ function PurchaseReceiptForm({ order, warehouses, onClose, onSaved }: any) {
 }
 
 function PurchaseOrderDetail(props: any) {
-  return <><PurchaseOrderDetailContent {...props} />{props.canManage && <Link className="primary" to={`/app/modulos/facturas-proveedor?nuevo=1&order=${props.id}`}>Registrar factura proveedor</Link>}</>;
+  const { profile } = useAuth();
+  const canCreateSupplierInvoice = hasPermission(profile, 'supplier_invoices.create');
+  return <><PurchaseOrderDetailContent {...props} canCreateSupplierInvoice={canCreateSupplierInvoice} />{canCreateSupplierInvoice && <Link className="primary" to={`/app/modulos/facturas-proveedor?nuevo=1&supplier=${props.supplier_id ?? ''}&order=${props.id}`}>Registrar factura de proveedor</Link>}</>;
 }
 
 function PurchaseOrderDetailContent({ id, suppliers, warehouses, materials, canManage, onChanged }: any) {

@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, currentProfileId, expectData } from './query';
+import { supplierPaymentSummary } from './supplierPaymentsService';
 
 export const supplierInvoiceStatuses = ['draft', 'registered', 'cancelled'] as const;
 export type SupplierInvoiceStatus = typeof supplierInvoiceStatuses[number];
@@ -9,15 +10,16 @@ const clean = (value: unknown) => value === '' || value === undefined ? null : v
 
 export const supplierInvoicesService = {
   async list(search = '', status?: SupplierInvoiceStatus) {
-    let query = supabase.from('supplier_invoices').select('*,suppliers(id,name,tax_id),supplier_invoice_lines(id,description,quantity,unit_price,net_amount,tax_amount,total_amount),supplier_invoice_allocations(id,purchase_order_id,purchase_receipt_id,allocated_amount)').order('invoice_date', { ascending: false }).order('created_at', { ascending: false });
+    let query = supabase.from('supplier_invoices').select('*,suppliers(id,name,tax_id),supplier_invoice_lines(id,description,quantity,unit_price,net_amount,tax_amount,total_amount),supplier_invoice_allocations(id,purchase_order_id,purchase_receipt_id,allocated_amount),supplier_invoice_payments(id,supplier_invoice_id,payment_date,amount,payment_method,reference,notes,created_at,created_by,reversed_at,reversed_by,reversal_reason)').order('invoice_date', { ascending: false }).order('created_at', { ascending: false });
     if (search) query = query.or(contains(['code', 'supplier_invoice_number', 'status'], search));
     if (status) query = query.eq('status', status);
-    return expectData<any[]>(query, context('list supplier invoices'));
+    const rows = await expectData<any[]>(query, context('list supplier invoices'));
+    return rows.map((row) => ({ ...row, payment_summary: supplierPaymentSummary(row) }));
   },
   async get(id: string) {
-    const invoice = await expectData<any>(supabase.from('supplier_invoices').select('*,suppliers(id,name,tax_id,email,payment_terms_days,currency_code),supplier_invoice_lines(*,materials(id,code,description,unit)),supplier_invoice_allocations(*,purchase_orders(id,code,supplier_id),purchase_order_lines(id,material_description_snapshot,unit_purchase_price),purchase_receipts(id,code,receipt_date,supplier_id),purchase_receipt_lines(id,description_snapshot,received_quantity,actual_unit_cost)').eq('id', id).maybeSingle(), context('get supplier invoice', id));
+    const invoice = await expectData<any>(supabase.from('supplier_invoices').select('*,suppliers(id,name,tax_id,email,payment_terms_days,currency_code),supplier_invoice_lines(*,materials(id,code,description,unit)),supplier_invoice_allocations(*,purchase_orders(id,code,supplier_id),purchase_order_lines(id,material_description_snapshot,unit_purchase_price),purchase_receipts(id,code,receipt_date,supplier_id),purchase_receipt_lines(id,description_snapshot,received_quantity,actual_unit_cost)),supplier_invoice_payments(id,supplier_invoice_id,payment_date,amount,payment_method,reference,notes,created_at,created_by,reversed_at,reversed_by,reversal_reason)').eq('id', id).maybeSingle(), context('get supplier invoice', id));
     if (!invoice) throw new Error('No se ha encontrado la factura de proveedor solicitada.');
-    return invoice;
+    return { ...invoice, payment_summary: supplierPaymentSummary(invoice) };
   },
   async candidates(supplierId: string) {
     const orders = await expectData<any[]>(supabase.from('purchase_orders').select('id,code,supplier_id,purchase_order_lines(id,material_description_snapshot,ordered_quantity,unit_purchase_price),purchase_receipts(id,code,status,purchase_receipt_lines(id,purchase_order_line_id,description_snapshot,received_quantity,actual_unit_cost))').eq('supplier_id', supplierId).order('order_date', { ascending: false }), context('list supplier invoice candidates', supplierId));

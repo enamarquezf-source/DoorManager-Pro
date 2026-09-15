@@ -16,6 +16,9 @@ export const permissionLabels: Record<string, string> = {
   'supplier_invoices.update': 'Editar borradores de proveedor',
   'supplier_invoices.register': 'Registrar facturas de proveedor',
   'supplier_invoices.cancel': 'Cancelar facturas de proveedor',
+  'supplier_payments.read': 'Ver pagos de proveedor',
+  'supplier_payments.create': 'Registrar pagos de proveedor',
+  'supplier_payments.reverse': 'Revertir pagos de proveedor',
   'materials.read': 'Ver materiales',
   'materials.create': 'Crear materiales',
   'materials.update': 'Editar materiales',
@@ -44,7 +47,7 @@ export const moduleLabels: Record<string, string> = {
 const roleDefaults: Record<RoleName, string[]> = {
   superadmin: permissionCatalog,
   Gerencia: permissionCatalog.filter((key) => !key.startsWith('admin.') && !['users.create', 'users.deactivate'].includes(key)),
-  Oficina: permissionCatalog.filter((key) => key.startsWith('purchase_') || key.startsWith('supplier_invoices.') || key.startsWith('materials.') || key.startsWith('suppliers.') || key.startsWith('documents.') || key.startsWith('billing.') || key === 'stock.read'),
+  Oficina: permissionCatalog.filter((key) => key.startsWith('purchase_') || key.startsWith('supplier_invoices.') || key.startsWith('supplier_payments.') || key.startsWith('materials.') || key.startsWith('suppliers.') || key.startsWith('documents.') || key.startsWith('billing.') || key === 'stock.read'),
   SAT: ['suppliers.read', 'purchase_orders.read', 'purchase_receipts.read', 'materials.read', 'stock.read', 'sat.read', 'sat.write', 'sat.assign', 'sat.checks.manage', 'documents.read'],
   Comercial: ['suppliers.read', 'materials.read', 'commercial.read', 'commercial.write', 'documents.read', 'documents.create', 'documents.update'],
   Tecnico: ['materials.read', 'stock.read', 'sat.read', 'sat.write', 'sat.checks.manage', 'documents.read'],

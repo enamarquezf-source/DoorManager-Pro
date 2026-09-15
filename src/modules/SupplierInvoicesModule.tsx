@@ -5,6 +5,7 @@ import { hasPermission } from '../auth/permissions';
 import { suppliersService } from '../services/suppliersService';
 import { supplierInvoicesService } from '../services/supplierInvoicesService';
 import { materialsService } from '../services/materialsService';
+import { SupplierPaymentOverview, SupplierPaymentsPanel } from './SupplierPaymentsPanel';
 
 const money = (value: unknown) => `${Number(value ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 const date = (value: unknown) => value ? new Date(`${String(value).slice(0, 10)}T00:00:00`).toLocaleDateString('es-ES') : '-';
@@ -13,7 +14,7 @@ const errorMessage = (error: unknown) => error instanceof Error ? error.message 
 export function SupplierInvoicesModule({ profile }: { profile: Profile | null }) {
   const [params] = useSearchParams();
   const invoiceId = params.get('id');
-  return invoiceId ? <SupplierInvoiceDetail profile={profile} id={invoiceId} /> : <SupplierInvoiceList profile={profile} />;
+  return invoiceId ? <SupplierInvoiceDetail profile={profile} id={invoiceId} /> : <><SupplierInvoiceList profile={profile} /><SupplierPaymentOverview profile={profile} /></>;
 }
 
 function SupplierInvoiceList({ profile }: { profile: Profile | null }) {
@@ -42,6 +43,10 @@ function SupplierInvoiceCreateForm({ suppliers, initialSupplierId = '', sourceLa
 }
 
 function SupplierInvoiceDetail({ profile, id }: { profile: Profile | null; id: string }) {
+  return <><SupplierInvoiceDetailContent profile={profile} id={id} /><SupplierPaymentsPanel profile={profile} invoiceId={id} /></>;
+}
+
+function SupplierInvoiceDetailContent({ profile, id }: { profile: Profile | null; id: string }) {
   const navigate = useNavigate(); const [invoice, setInvoice] = useState<any>(null); const [suppliers, setSuppliers] = useState<any[]>([]); const [materials, setMaterials] = useState<any[]>([]); const [candidates, setCandidates] = useState<any[]>([]); const [error, setError] = useState(''); const [line, setLine] = useState({ description: '', material_id: '', quantity: '1', unit_price: '', tax_rate: '21' }); const [saving, setSaving] = useState(false); const [reason, setReason] = useState('');
   const load = async () => { try { const row = await supplierInvoicesService.get(id); setInvoice(row); setCandidates(await supplierInvoicesService.candidates(row.supplier_id)); } catch (err) { setError(errorMessage(err)); } };
   useEffect(() => { void load(); suppliersService.list('', 'active').then(setSuppliers).catch(() => setSuppliers([])); materialsService.list('', undefined, 'active').then(setMaterials).catch(() => setMaterials([])); }, [id]);

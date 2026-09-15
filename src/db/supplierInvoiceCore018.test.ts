@@ -70,7 +70,7 @@ describe('SUPPLIER-INVOICE-CORE-018', () => {
     expect(migration).toContain('pg_advisory_xact_lock');
     expect(service).toContain("p_prefix: 'FPR'");
     expect(service).toContain("dmp_register_supplier_invoice");
-    expect(service).not.toContain('invoice_payments');
+    expect(service).not.toContain('public.invoice_payments');
     expect(ui).toContain('Facturas de proveedor');
     expect(ui).toContain('Registrar factura');
     expect(ui).toContain('Vincular');

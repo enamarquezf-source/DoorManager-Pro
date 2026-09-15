@@ -22,7 +22,7 @@ export const suppliersService = {
     if (companyId) query = query.eq('company_id', companyId);
     if (active === 'active') query = query.eq('active', true).is('deleted_at', null);
     if (active === 'inactive') query = query.eq('active', false).is('deleted_at', null);
-    if (search) query = query.or(contains(['name', 'tax_id', 'email', 'phone'], search));
+    if (search) query = query.or(contains(['name', 'trade_name', 'internal_code', 'tax_id', 'email', 'phone'], search));
     return expectData<any[]>(query, { service: 'suppliersService', operation: 'list suppliers' });
   },
   async get(id: string, includeBanking = false) {

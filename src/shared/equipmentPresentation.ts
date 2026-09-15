@@ -18,15 +18,16 @@ function clean(value: unknown) {
 }
 
 export function equipmentOperationalLabel(equipment: EquipmentRecord | null | undefined) {
-  const type = clean(equipment?.equipment_types?.name) ?? clean(equipment?.type_name) ?? clean(equipment?.equipment_type) ?? 'Tipo no informado';
+  const type = clean(equipment?.equipment_types?.name) ?? clean(equipment?.type_name) ?? clean(equipment?.equipment_type);
   const code = clean(equipment?.code) ?? 'Código no informado';
   const client = clean(equipment?.clients?.legal_name) ?? clean(equipment?.client_name);
   const site = clean(equipment?.sites?.name) ?? clean(equipment?.site_name);
-  const detail = [clean(equipment?.brand), clean(equipment?.model)].filter(Boolean).join(' ') || 'Marca/modelo no informado';
+  const detail = [clean(equipment?.brand), clean(equipment?.model)].filter(Boolean).join(' ');
 
+  const operational = [type, detail].filter(Boolean).join(' · ') || clean(equipment?.internal_location) || code;
   return {
-    primary: clean(equipment?.internal_location) ?? 'Ubicación sin definir',
-    secondary: `${type} · ${code}`,
+    primary: operational || code,
+    secondary: `${type ?? 'Tipo no informado'} · ${code}`,
     context: [client, site].filter(Boolean).join(' · ') || 'Cliente / centro no informados',
     detail,
     status: clean(equipment?.status) ?? 'Sin estado',

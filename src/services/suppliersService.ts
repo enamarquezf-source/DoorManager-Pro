@@ -69,7 +69,12 @@ export const suppliersService = {
     return expectData<any>(supabase.from('material_suppliers').insert({ company_id, material_id: materialId, supplier_id: payload.supplier_id, ...relation }).select().single(), { service: 'suppliersService', operation: 'add material supplier', resource: materialId });
   },
   updateMaterialSupplier(id: string, payload: Record<string, any>) {
-    return expectData<any>(supabase.from('material_suppliers').update({ supplier_reference: payload.supplier_reference || null, purchase_unit_price: cleanPurchaseUnitPrice(payload.purchase_unit_price), is_preferred: Boolean(payload.is_preferred), active: payload.active !== false, updated_at: new Date().toISOString() }).eq('id', id).select().single(), { service: 'suppliersService', operation: 'update material supplier', resource: id });
+    const update: Record<string, any> = { updated_at: new Date().toISOString() };
+    if ('supplier_reference' in payload) update.supplier_reference = payload.supplier_reference || null;
+    if ('purchase_unit_price' in payload) update.purchase_unit_price = cleanPurchaseUnitPrice(payload.purchase_unit_price);
+    if ('is_preferred' in payload) update.is_preferred = Boolean(payload.is_preferred);
+    if ('active' in payload) update.active = payload.active !== false;
+    return expectData<any>(supabase.from('material_suppliers').update(update).eq('id', id).select().single(), { service: 'suppliersService', operation: 'update material supplier', resource: id });
   },
   deactivateMaterialSupplier(id: string) {
     return expectData<any>(supabase.from('material_suppliers').update({ active: false, is_preferred: false, updated_at: new Date().toISOString() }).eq('id', id).select().single(), { service: 'suppliersService', operation: 'deactivate material supplier', resource: id });

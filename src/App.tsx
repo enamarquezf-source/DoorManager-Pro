@@ -69,6 +69,7 @@ import { primaryEquipmentPhoto } from './shared/equipmentPhotoPresentation';
 import { equipmentPhotosService } from './services/equipmentPhotosService';
 import { BillingModule } from './modules/BillingModule';
 import { SupplierInvoicesModule } from './modules/SupplierInvoicesModule';
+import { TreasuryModule } from './modules/TreasuryModule';
 import type { DateRangeFilters } from './shared/dateRange';
 import { UserAccessPanel } from './components/UserAccessPanel';
 
@@ -79,7 +80,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 const sidebarKey = 'dmp-sidebar-collapsed';
 const workspaceKey = 'dmp-workspace';
 const iconProps = { size: 18, strokeWidth: 2 };
-const superadminSharedRoutes = ['/app/modulos/presupuestos', '/app/modulos/materiales', '/app/modulos/administracion', '/app/modulos/facturacion', '/app/modulos/cobros', '/app/modulos/compras', '/app/modulos/facturas-proveedor', '/app/modulos/rentabilidad', '/app/modulos/tarifas-horas', '/app/modulos/tipos-equipo'];
+const superadminSharedRoutes = ['/app/modulos/presupuestos', '/app/modulos/materiales', '/app/modulos/administracion', '/app/modulos/facturacion', '/app/modulos/cobros', '/app/modulos/compras', '/app/modulos/facturas-proveedor', '/app/modulos/rentabilidad', '/app/modulos/tarifas-horas', '/app/modulos/tipos-equipo', '/app/modulos/tesoreria'];
 const satReviewFlags = [
   ['materials_entered', 'Se han introducido materiales'],
   ['work_completed', 'El trabajo está terminado'],
@@ -376,11 +377,15 @@ function navForWorkspace(workspace: Workspace) {
   const oficina = [{ id: 'inicio', label: 'Inicio', path: '/app/inicio', icon: Home }, { id: 'administracion', label: 'Administración', path: '/app/modulos/administracion', icon: ClipboardCheck }, { id: 'facturacion', label: 'Facturación', path: '/app/modulos/facturacion', icon: FileText }, { id: 'cobros', label: 'Cobros', path: '/app/modulos/cobros', icon: Bell }, { id: 'compras', label: 'Compras', path: '/app/modulos/compras', icon: Truck }, { id: 'facturas-proveedor', label: 'Facturas de proveedor', path: '/app/modulos/facturas-proveedor', icon: FileText }, { id: 'materiales', label: 'Materiales', path: '/app/modulos/materiales', icon: PackageCheck }, { id: 'tarifas-horas', label: 'Tarifas horas', path: '/app/modulos/tarifas-horas', icon: Settings }, { id: 'proveedores', label: 'Proveedores', path: '/app/modulos/proveedores', icon: Warehouse }, { id: 'prl', label: 'PRL y personal', path: '/app/modulos/prl', icon: ShieldAlert }, { id: 'vehiculos', label: 'Vehículos', path: '/app/modulos/vehiculos', icon: Truck }, { id: 'documentos', label: 'Documentos', path: '/app/documentos', icon: FileText }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }];
   const gerencia = [{ id: 'inicio', label: 'Inicio', path: '/app/inicio', icon: Home }, { id: 'resumen', label: 'Resumen', path: '/app/gerencia', icon: PieChart }, { id: 'ventas', label: 'Ventas', path: '/app/modulos/ventas', icon: BriefcaseBusiness }, { id: 'presupuestos', label: 'Presupuestos', path: '/app/modulos/presupuestos', icon: FileText }, { id: 'materiales', label: 'Materiales', path: '/app/modulos/materiales', icon: PackageCheck }, { id: 'tarifas-horas', label: 'Tarifas horas', path: '/app/modulos/tarifas-horas', icon: Settings }, { id: 'cobros', label: 'Cobros', path: '/app/modulos/cobros', icon: Bell }, { id: 'operaciones', label: 'Operaciones', path: '/app/modulos/operaciones', icon: Gauge }, { id: 'rentabilidad', label: 'Rentabilidad', path: '/app/modulos/rentabilidad', icon: PieChart }, { id: 'calidad', label: 'Calidad', path: '/app/deficiencias', icon: ShieldAlert }, { id: 'clientes', label: 'Clientes', path: '/app/clientes', icon: Building2 }, { id: 'tecnicos', label: 'Técnicos', path: '/app/modulos/tecnicos', icon: UsersRound }, { id: 'comerciales', label: 'Comerciales', path: '/app/modulos/comerciales', icon: BriefcaseBusiness }, { id: 'personal', label: 'Personal', path: '/app/modulos/personal', icon: UsersRound }, { id: 'informes', label: 'Informes', path: '/app/modulos/informes', icon: FileText }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }];
   const purchases = { id: 'compras', label: 'Compras', path: '/app/modulos/compras', icon: Truck };
+  const treasury = { id: 'tesoreria', label: 'Tesorería', path: '/app/modulos/tesoreria', icon: ClipboardList };
+  superadmin.push(treasury);
   const withPurchases = (items: typeof oficina) => items.some((item) => item.id === purchases.id) ? items : [...items, purchases];
   if (workspace === 'superadmin') return withPurchases(superadmin);
   if (workspace === 'tecnico') return [{ id: 'jornada', label: 'Mi jornada', path: '/app/tecnico', icon: CalendarClock }, { id: 'checks', label: 'Checks', path: '/app/checks', icon: ClipboardCheck }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }];
   if (workspace === 'sat') return withPurchases(sat);
   if (workspace === 'comercial') return comercial;
+  oficina.push(treasury);
+  gerencia.push(treasury);
   if (workspace === 'oficina') return withPurchases(oficina);
   return withPurchases(gerencia);
 }
@@ -2569,6 +2574,7 @@ function CompanySettingsForm({ initial, onClose, onSaved }: { initial: any; onCl
 function OperationalModule({ moduleId }: { moduleId: string }) {
   const { workspace, profile } = useAuth();
   if (moduleId === 'facturas-proveedor') return <SupplierInvoicesModule profile={profile} />;
+  if (moduleId === 'tesoreria') return <TreasuryModule profile={profile} />;
   const meta = moduleMeta[moduleId] ?? { title: 'Módulo operativo', description: 'Registros relacionados disponibles.', links: [] };
   const { data, loading, error, reload } = useLoad(() => loadModuleRows(moduleId), [moduleId], [] as [string, string, Severity, string][]);
   return <section className="page"><Breadcrumb items={[workspaceTitles[workspace], meta.title]} /><Hero title={meta.title} subtitle={meta.description} tone="info" /><Card title="Registros relacionados"><div className="actions">{meta.links.map((link: any) => <Link key={link.to} to={link.to}>{link.label}</Link>)}</div></Card><StateBlock loading={loading} error={error} retry={reload} empty={!data.length}><CompactRows rows={data} empty="Sin registros relacionados." /></StateBlock></section>;

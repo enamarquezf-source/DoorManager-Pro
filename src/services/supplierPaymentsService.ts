@@ -23,8 +23,8 @@ export const supplierPaymentsService = {
   async list(invoiceId: string) {
     return expectData<any[]>(supabase.from('supplier_invoice_payments').select('id,supplier_invoice_id,payment_date,amount,payment_method,reference,notes,created_at,created_by,reversed_at,reversed_by,reversal_reason').eq('supplier_invoice_id', invoiceId).order('payment_date', { ascending: false }).order('created_at', { ascending: false }), context('list supplier invoice payments', invoiceId));
   },
-  record(invoiceId: string, payload: { amount: number; payment_date: string; payment_method: SupplierPaymentMethod; reference?: string; notes?: string }) {
-    return expectData<string>(supabase.rpc('dmp_record_supplier_payment', { p_supplier_invoice_id: invoiceId, p_amount: payload.amount, p_payment_date: payload.payment_date, p_payment_method: payload.payment_method, p_reference: payload.reference || null, p_notes: payload.notes || null }), context('record supplier invoice payment', invoiceId));
+  record(invoiceId: string, payload: { amount: number; payment_date: string; payment_method: SupplierPaymentMethod; reference?: string; notes?: string; treasury_account_id: string }) {
+    return expectData<string>(supabase.rpc('dmp_record_supplier_payment', { p_supplier_invoice_id: invoiceId, p_amount: payload.amount, p_payment_date: payload.payment_date, p_payment_method: payload.payment_method, p_reference: payload.reference || null, p_notes: payload.notes || null, p_treasury_account_id: payload.treasury_account_id }), context('record supplier invoice payment', invoiceId));
   },
   reverse(paymentId: string, reason: string) {
     return expectData<string>(supabase.rpc('dmp_reverse_supplier_payment', { p_payment_id: paymentId, p_reason: reason }), context('reverse supplier invoice payment', paymentId));

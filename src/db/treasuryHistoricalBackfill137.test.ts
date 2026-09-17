@@ -41,4 +41,17 @@ describe('treasury historical backfill 137', () => {
     expect(verify).toContain("'authenticated execute and public/anon denied'");
     expect(verify).toContain("'SUMMARY'");
   });
+
+  it('keeps historical transactions visible without changing balance semantics', () => {
+    const module = readFileSync('src/modules/TreasuryModule.tsx', 'utf8');
+    const service = readFileSync('src/services/treasuryService.ts', 'utf8');
+    expect(service).toContain('expectData<TreasuryTransaction[]>(query');
+    expect(module).toContain('setRows(nextRows.map');
+    expect(module).toContain('row.transaction_date < account.opening_balance_date');
+    expect(module).toContain('Histórico anterior al saldo inicial');
+    expect(module).toContain('row.reversed_at');
+    expect(module).toContain('row.treasury_account_id');
+    expect(module).toContain('setHasMore(nextRows.length === 50)');
+    expect(module).not.toContain('transaction_date >= account.opening_balance_date');
+  });
 });

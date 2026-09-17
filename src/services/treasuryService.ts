@@ -26,6 +26,20 @@ export type TreasuryHistoricalBackfillResult = {
   balance_affecting_count: number;
 };
 
+export type TreasuryTransaction = {
+  id: string;
+  treasury_account_id: string;
+  transaction_date: string;
+  direction: 'inflow' | 'outflow';
+  amount: number;
+  currency_code: string;
+  concept?: string | null;
+  notes?: string | null;
+  source_type?: string | null;
+  reversed_at?: string | null;
+  created_at?: string | null;
+};
+
 export const treasuryService = {
   accounts() {
     return expectData<any[]>(supabase.from('treasury_account_balances').select('*').order('name'), context('list treasury accounts'));
@@ -33,7 +47,7 @@ export const treasuryService = {
   transactions(accountId?: string, page = 0, pageSize = 50) {
     let query = supabase.from('treasury_transactions').select('*', { count: 'exact' }).order('transaction_date', { ascending: false }).order('created_at', { ascending: false }).range(page * pageSize, (page + 1) * pageSize - 1);
     if (accountId) query = query.eq('treasury_account_id', accountId);
-    return expectData<any>(query, context('list treasury transactions'));
+    return expectData<TreasuryTransaction[]>(query, context('list treasury transactions'));
   },
   createAccount(payload: { name: string; account_type: string; iban?: string; currency_code: string; opening_balance: number; opening_balance_date: string; notes?: string }) {
     return expectData<string>(supabase.rpc('dmp_create_treasury_account', { p_name: payload.name, p_account_type: payload.account_type, p_iban: payload.iban || null, p_currency_code: payload.currency_code, p_opening_balance: payload.opening_balance, p_opening_balance_date: payload.opening_balance_date, p_notes: payload.notes || null }), context('create treasury account'));

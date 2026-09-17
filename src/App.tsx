@@ -1764,7 +1764,7 @@ function CheckBlockPageV2({
       <section className="page">
         <div className="actions">
           <Link className="link-button" to={workspace === "superadmin" ? `/app/superadmin/checks/${id}` : `/app/checks/${id}`}>Volver</Link>
-          {data.work_order_id && <Link className="primary" to={`/app/partes/${data.work_order_id}`}>Volver al parte</Link>}
+          {data.work_order_id && <Link className="primary" to={workspace === "tecnico" ? `/app/tecnico/trabajo/${data.work_order_id}` : `/app/partes/${data.work_order_id}`}>Volver al parte</Link>}
         </div>
         <Card title="Bloque no encontrado">
           <p className="form-error">
@@ -1901,7 +1901,7 @@ function CheckBlockPageV2({
              <ChevronLeft size={16} /> Volver al check
           </Link>
           {data.work_order_id && (
-            <Link className="primary" to={`/app/partes/${data.work_order_id}`}>
+            <Link className="primary" to={workspace === "tecnico" ? `/app/tecnico/trabajo/${data.work_order_id}` : `/app/partes/${data.work_order_id}`}>
               Volver al parte
             </Link>
           )}
@@ -3547,7 +3547,26 @@ function RecordMeta({ items }: { items: [string, string][] }) { return items.map
 function Breadcrumb({ items }: { items: string[] }) { return <div className="breadcrumb">{items.map((item, index) => <span key={item}>{index > 0 && '/'} {item}</span>)}</div>; }
 function BackButton() { const navigate = useNavigate(); return <button className="link-button" onClick={() => navigate(-1)}><ChevronLeft size={16} /> Volver</button>; }
 function Hero({ title, subtitle, tone }: { title: string; subtitle: string; tone: Severity }) { return <div className="detail-hero"><div><p className="eyebrow">Ficha</p><h2>{normalizeEntityOptionLabel(title)}</h2><p>{subtitle}</p></div><Badge tone={tone}>{tone}</Badge></div>; }
-function Related({ title, groups }: { title: string; groups: [string, any[] | undefined, string][] }) { return <Card title={title}><div className="grid half">{groups.map(([label, rows, base]) => <Card key={label} title={label}><CompactRows rows={(rows ?? []).filter(Boolean).map((row: any) => [formatEntityLabel(row), row.legal_name ?? row.description ?? row.status ?? row.related_id ?? 'Registro vinculado', severityForStatus(row.status), `${base}/${row.id ?? ''}`])} empty={`Sin ${label.toLowerCase()}.`} /></Card>)}</div></Card>; }
+function relatedRoute(row: any, base: string) {
+  if (row?.related_type && row?.related_id) {
+    const relationBases: Record<string, string> = {
+      Equipo: 'equipos',
+      Parte: 'partes',
+      Check: 'checks',
+      Documento: 'documentos',
+      Presupuesto: 'modulos/presupuestos',
+      Incidencia: 'deficiencias',
+    };
+    const relationBase = relationBases[row.related_type];
+    if (!relationBase) return undefined;
+    const superadminRelationTypes = new Set(['Equipo', 'Parte', 'Check']);
+    const prefix = base === '/app/superadmin' && superadminRelationTypes.has(row.related_type) ? '/app/superadmin' : '/app';
+    return `${prefix}/${relationBase}/${row.related_id}`;
+  }
+  if (row?.case_id && row?.file_id) return undefined;
+  return row?.id ? `${base}/${row.id}` : undefined;
+}
+function Related({ title, groups }: { title: string; groups: [string, any[] | undefined, string][] }) { return <Card title={title}><div className="grid half">{groups.map(([label, rows, base]) => <Card key={label} title={label}><CompactRows rows={(rows ?? []).filter(Boolean).map((row: any) => [row.related_type ?? formatEntityLabel(row), row.title ?? row.legal_name ?? row.description ?? row.status ?? row.related_id ?? 'Registro vinculado', severityForStatus(row.status), relatedRoute(row, base)])} empty={`Sin ${label.toLowerCase()}.`} /></Card>)}</div></Card>; }
 function SidePanel({ title, subtitle, onClose, children }: any) { useOverlayScrollLock(); useEffect(() => { const listener = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); }; window.addEventListener('keydown', listener); return () => window.removeEventListener('keydown', listener); }, [onClose]); const materialTitle = typeof title === 'string' && title.startsWith('Ficha de material · ') ? `Ficha de material · ${subtitle ?? ''} · ${title.slice('Ficha de material · '.length)}` : title; return <div className="overlay" role="dialog" aria-modal="true" onMouseDown={onClose} onWheel={(event) => event.stopPropagation()} onTouchMove={(event) => event.stopPropagation()}><aside className="side-panel" onMouseDown={(event) => event.stopPropagation()}><header><div><p className="eyebrow">{materialTitle === title ? subtitle : 'Material'}</p><h2>{materialTitle}</h2></div><button onClick={onClose} aria-label="Cerrar"><X size={18} /></button></header>{children}</aside></div>; }
 function ConfirmModal({ title, text, onCancel, onConfirm }: any) { return <div className="mini-modal"><div><h3>{title}</h3><p>{text}</p><div className="modal-footer"><button onClick={onCancel}>Cancelar</button><button className="primary" onClick={onConfirm}>Confirmar</button></div></div></div>; }
 function ReasonConfirmModal({ title, text, requiredLabel, onCancel, onConfirm }: { title: string; text: string; requiredLabel: string; onCancel: () => void; onConfirm: (reason: string) => Promise<void> | void }) { const [reason, setReason] = useState(''); const [saving, setSaving] = useState(false); const [error, setError] = useState(''); const submit = async () => { if (!reason.trim()) { setError('El motivo es obligatorio.'); return; } setSaving(true); setError(''); try { await onConfirm(reason.trim()); } catch (err) { setError(err instanceof Error ? err.message : 'No se ha podido confirmar la operación.'); setSaving(false); } }; return <div className="mini-modal" role="dialog" aria-modal="true"><div><h3>{title}</h3><p>{text}</p><label>{requiredLabel}<textarea value={reason} onChange={(event) => setReason(event.target.value)} /></label>{error && <p className="form-error">{error}</p>}<div className="modal-footer"><button onClick={onCancel} disabled={saving}>Cancelar</button><button className="primary danger" onClick={submit} disabled={saving}>{saving ? 'Guardando...' : 'Confirmar'}</button></div></div></div>; }

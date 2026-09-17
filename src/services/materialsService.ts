@@ -110,4 +110,10 @@ export const materialsService = {
     if (!warehouseId) throw new Error('Selecciona el almacen del movimiento.');
     return expectData<number>(supabase.rpc('dmp_adjust_warehouse_stock', { p_warehouse_id: warehouseId, p_material_id: materialId, p_movement_type: payload.movement_type, p_quantity: Number(payload.quantity), p_reason: payload.reason, p_idempotency_key: crypto.randomUUID() }), { service: 'materialsService', operation: 'adjust warehouse stock', resource: materialId });
   },
+  importMaterialStock(payload: { warehouse_id: string; items: Array<{ code: string; description: string; unit: string; quantity: number }>; idempotency_key: string }) {
+    return expectData<string>(supabase.rpc('dmp_import_material_stock', { p_payload: payload }), { service: 'materialsService', operation: 'import material stock' });
+  },
+  transferStock(payload: { material_id: string; source_warehouse_id: string; destination_warehouse_id: string; quantity: number; reason: string; idempotency_key: string }) {
+    return expectData<string>(supabase.rpc('dmp_transfer_warehouse_stock', { p_material_id: payload.material_id, p_source_warehouse_id: payload.source_warehouse_id, p_destination_warehouse_id: payload.destination_warehouse_id, p_quantity: payload.quantity, p_reason: payload.reason, p_idempotency_key: payload.idempotency_key }), { service: 'materialsService', operation: 'transfer warehouse stock', resource: payload.material_id });
+  },
 };

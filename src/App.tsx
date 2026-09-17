@@ -18,6 +18,7 @@ import { documentsService } from './services/documentsService';
 import { managementService } from './services/managementService';
 import { isQuoteEditable, quoteLineTypes, quoteStatusFilters, quoteTypes, quotesService, validQuoteTransitions } from './services/quotesService';
 import { isValidMaterialId, materialsService, type MaterialFilter } from './services/materialsService';
+import { parseMaterialImport } from './services/materialImport';
 import { suppliersService } from './services/suppliersService';
 import { purchaseOrderStatuses, purchaseOrdersService } from './services/purchaseOrdersService';
 import { purchaseReceiptsService } from './services/purchaseReceiptsService';
@@ -3165,7 +3166,29 @@ function CanonicalStockAdjustForm({ material, warehouses, onClose, onSaved }: { 
   return <ModalForm title={`Ajustar stock · ${material.code}`} onClose={onClose} onSubmit={submit} saving={saving} error={error}><FormSelect label="Almacén" value={values.warehouse_id} onChange={(value) => set('warehouse_id', value)} options={[{ value: '', label: 'Selecciona almacén' }, ...warehouses.map((warehouse: any) => ({ value: warehouse.id, label: `${warehouse.code} · ${warehouse.name}` }))]} /><FormSelect label="Tipo" value={values.movement_type} onChange={(value) => set('movement_type', value)} options={['Entrada', 'Salida', 'Devolucion', 'Ajuste'].map((value) => ({ value, label: value }))} /><label>Cantidad<input type="number" min="0.01" step="0.01" value={values.quantity} onChange={(event) => set('quantity', event.target.value)} /></label><label>Motivo<textarea value={values.reason} onChange={(event) => set('reason', event.target.value)} /></label></ModalForm>;
 }
 
-function MaterialsModule() { return <MaterialsUxModule />; }
+function MaterialMigrationPanel() {
+  const { profile, companyId } = useAuth();
+  const warehouses = useLoad(() => workOrdersService.warehousesCatalog(), [], [] as any[]);
+  const materials = useLoad(() => materialsService.list('', companyId, 'active'), [companyId], [] as any[]);
+  const [warehouseId, setWarehouseId] = useState('');
+  const [source, setSource] = useState<File | null>(null);
+  const [preview, setPreview] = useState<{ rows: any[]; issues: any[] } | null>(null);
+  const [materialId, setMaterialId] = useState('');
+  const [destinationId, setDestinationId] = useState('');
+  const [transferQuantity, setTransferQuantity] = useState('');
+  const [reason, setReason] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const canImport = hasPermission(profile, 'stock.adjust') && (hasPermission(profile, 'materials.create') || hasPermission(profile, 'materials.update'));
+  const canTransfer = hasPermission(profile, 'stock.adjust');
+  const readFile = (file: File | null) => { setSource(file); setMessage(''); setError(''); if (!file) { setPreview(null); return; } const reader = new FileReader(); reader.onload = () => setPreview(parseMaterialImport(String(reader.result ?? ''))); reader.readAsText(file, 'UTF-8'); };
+  const importStock = async () => { if (!preview || preview.issues.length || !warehouseId || !preview.rows.length) { setError('Selecciona un almacén y carga un archivo válido.'); return; } setError(''); try { await materialsService.importMaterialStock({ warehouse_id: warehouseId, items: preview.rows.map((row) => ({ code: row.code, description: row.description, unit: row.unit, quantity: row.quantity })), idempotency_key: crypto.randomUUID() }); setMessage('Importación completada.'); } catch (err) { setError(formErrorMessage(err, 'No se ha podido importar el archivo.')); } };
+  const transfer = async (event: FormEvent) => { event.preventDefault(); if (!materialId || !warehouseId || !destinationId || Number(transferQuantity) <= 0 || !reason.trim()) { setError('Completa material, almacenes, cantidad y motivo.'); return; } setError(''); try { await materialsService.transferStock({ material_id: materialId, source_warehouse_id: warehouseId, destination_warehouse_id: destinationId, quantity: Number(transferQuantity), reason: reason.trim(), idempotency_key: crypto.randomUUID() }); setMessage('Transferencia completada.'); } catch (err) { setError(formErrorMessage(err, 'No se ha podido transferir el stock.')); } };
+  if (!canImport && !canTransfer) return null;
+  return <section className="page material-migration-panel"><div className="grid half"><Card title="Importar materiales y stock"><p className="large-note">CSV UTF-8: codigo, descripcion, unidad, cantidad. La operación es atómica y deja trazabilidad en el ledger.</p><input type="file" accept=".csv,text/csv" onChange={(event) => readFile(event.target.files?.[0] ?? null)} disabled={!canImport} />{source && <p>{source.name} · {preview?.rows.length ?? 0} filas válidas</p>}{preview?.issues.map((issue) => <p className="error-text" key={`${issue.line}-${issue.message}`}>Línea {issue.line}: {issue.message}</p>)}{canImport && <><FormSelect label="Almacén destino" value={warehouseId} onChange={setWarehouseId} options={[{ value: '', label: 'Selecciona almacén' }, ...warehouses.data.map((item: any) => ({ value: item.id, label: `${item.code} · ${item.name}` }))]} /><button type="button" className="primary" onClick={() => void importStock()} disabled={!preview || !!preview.issues.length}>Importar archivo</button></>}</Card>{canTransfer && <Card title="Transferir entre almacenes"><form onSubmit={transfer}><FormSelect label="Material" value={materialId} onChange={setMaterialId} options={[{ value: '', label: 'Selecciona material' }, ...materials.data.map((item: any) => ({ value: item.id, label: `${item.code} · ${item.description}` }))]} /><FormSelect label="Almacén origen" value={warehouseId} onChange={setWarehouseId} options={[{ value: '', label: 'Selecciona almacén' }, ...warehouses.data.map((item: any) => ({ value: item.id, label: `${item.code} · ${item.name}` }))]} /><FormSelect label="Almacén destino" value={destinationId} onChange={setDestinationId} options={[{ value: '', label: 'Selecciona almacén' }, ...warehouses.data.filter((item: any) => item.id !== warehouseId).map((item: any) => ({ value: item.id, label: `${item.code} · ${item.name}` }))]} /><label>Cantidad<input type="number" min="0.01" step="0.01" value={transferQuantity} onChange={(event) => setTransferQuantity(event.target.value)} /></label><label>Motivo<textarea value={reason} onChange={(event) => setReason(event.target.value)} /></label><button type="submit" className="primary">Transferir stock</button></form></Card>}</div>{message && <p className="success-text">{message}</p>}{error && <p className="error-text">{error}</p>}</section>;
+}
+
+function MaterialsModule() { return <><MaterialMigrationPanel /><MaterialsUxModule /></>; }
 
 function LegacyMaterialsUxModule() {
   const { profile, companyId } = useAuth();

@@ -36,9 +36,51 @@ export type TreasuryTransaction = {
   concept?: string | null;
   notes?: string | null;
   source_type?: string | null;
+  source_id?: string | null;
+  transfer_group_id?: string | null;
+  method?: string | null;
+  reference?: string | null;
   reversed_at?: string | null;
   created_at?: string | null;
+  customer_payment?: TreasuryCustomerPayment | null;
+  supplier_payment?: TreasurySupplierPayment | null;
 };
+
+export type TreasuryCustomerPayment = {
+  id: string;
+  invoice_id: string;
+  paid_at: string;
+  amount: number;
+  method?: string | null;
+  reference?: string | null;
+  notes?: string | null;
+  invoices?: { id: string; code: string; client_id: string; clients?: { id: string; code?: string | null; legal_name?: string | null } | null } | null;
+};
+
+export type TreasurySupplierPayment = {
+  id: string;
+  supplier_invoice_id: string;
+  payment_date: string;
+  amount: number;
+  payment_method?: string | null;
+  reference?: string | null;
+  notes?: string | null;
+  supplier_invoices?: { id: string; code: string; supplier_invoice_number?: string | null; supplier_id: string; suppliers?: { id: string; name?: string | null } | null } | null;
+};
+
+async function enrichTransactions(rows: TreasuryTransaction[]) {
+  const customerIds = [...new Set(rows.filter((row) => row.source_type === 'customer_payment' && row.source_id).map((row) => row.source_id as string))];
+  const supplierIds = [...new Set(rows.filter((row) => row.source_type === 'supplier_payment' && row.source_id).map((row) => row.source_id as string))];
+  const [customerRows, supplierRows] = await Promise.all([
+    customerIds.length ? expectData<any[]>(supabase.from('invoice_payments').select('id,invoice_id,paid_at,amount,method,reference,notes,invoices(id,code,client_id,clients(id,code,legal_name))').in('id', customerIds), context('resolve treasury customer payments')) : [],
+    supplierIds.length ? expectData<any[]>(supabase.from('supplier_invoice_payments').select('id,supplier_invoice_id,payment_date,amount,payment_method,reference,notes,supplier_invoices(id,code,supplier_invoice_number,supplier_id,suppliers(id,name))').in('id', supplierIds), context('resolve treasury supplier payments')) : [],
+  ]);
+  const customerPayments: TreasuryCustomerPayment[] = customerRows.map((payment: any) => ({ ...payment, invoices: Array.isArray(payment.invoices) ? { ...payment.invoices[0], clients: Array.isArray(payment.invoices[0]?.clients) ? payment.invoices[0].clients[0] ?? null : payment.invoices[0]?.clients ?? null } : payment.invoices ?? null }));
+  const supplierPayments: TreasurySupplierPayment[] = supplierRows.map((payment: any) => ({ ...payment, supplier_invoices: Array.isArray(payment.supplier_invoices) ? { ...payment.supplier_invoices[0], suppliers: Array.isArray(payment.supplier_invoices[0]?.suppliers) ? payment.supplier_invoices[0].suppliers[0] ?? null : payment.supplier_invoices[0]?.suppliers ?? null } : payment.supplier_invoices ?? null }));
+  const customerById = new Map<string, TreasuryCustomerPayment>(customerPayments.map((payment) => [payment.id, payment]));
+  const supplierById = new Map<string, TreasurySupplierPayment>(supplierPayments.map((payment) => [payment.id, payment]));
+  return rows.map((row) => ({ ...row, customer_payment: row.source_type === 'customer_payment' ? customerById.get(row.source_id ?? '') ?? null : null, supplier_payment: row.source_type === 'supplier_payment' ? supplierById.get(row.source_id ?? '') ?? null : null }));
+}
 
 export const treasuryService = {
   accounts() {
@@ -47,7 +89,7 @@ export const treasuryService = {
   transactions(accountId?: string, page = 0, pageSize = 50) {
     let query = supabase.from('treasury_transactions').select('*', { count: 'exact' }).order('transaction_date', { ascending: false }).order('created_at', { ascending: false }).range(page * pageSize, (page + 1) * pageSize - 1);
     if (accountId) query = query.eq('treasury_account_id', accountId);
-    return expectData<TreasuryTransaction[]>(query, context('list treasury transactions'));
+    return expectData<TreasuryTransaction[]>(query, context('list treasury transactions')).then(enrichTransactions);
   },
   createAccount(payload: { name: string; account_type: string; iban?: string; currency_code: string; opening_balance: number; opening_balance_date: string; notes?: string }) {
     return expectData<string>(supabase.rpc('dmp_create_treasury_account', { p_name: payload.name, p_account_type: payload.account_type, p_iban: payload.iban || null, p_currency_code: payload.currency_code, p_opening_balance: payload.opening_balance, p_opening_balance_date: payload.opening_balance_date, p_notes: payload.notes || null }), context('create treasury account'));

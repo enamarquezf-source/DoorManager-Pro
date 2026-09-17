@@ -3,6 +3,29 @@ import { expectData } from './query';
 
 const context = (operation: string, resource?: string) => ({ service: 'treasuryService', operation, resource });
 
+export type TreasuryHistoricalBackfillPreview = {
+  treasury_account_id: string;
+  currency_code: string;
+  customer_pending: number;
+  customer_pending_total: number;
+  supplier_pending: number;
+  supplier_pending_total: number;
+  historical_before_opening_count: number;
+  balance_affecting_count: number;
+  currency_conflict_count: number;
+  earliest_transaction_date: string | null;
+  latest_transaction_date: string | null;
+};
+
+export type TreasuryHistoricalBackfillResult = {
+  customer_inserted: number;
+  supplier_inserted: number;
+  customer_skipped: number;
+  supplier_skipped: number;
+  historical_before_opening_count: number;
+  balance_affecting_count: number;
+};
+
 export const treasuryService = {
   accounts() {
     return expectData<any[]>(supabase.from('treasury_account_balances').select('*').order('name'), context('list treasury accounts'));
@@ -29,5 +52,11 @@ export const treasuryService = {
   },
   reverseTransfer(groupId: string, reason: string) {
     return expectData<string>(supabase.rpc('dmp_reverse_treasury_transfer', { p_transfer_group_id: groupId, p_reason: reason }), context('reverse treasury transfer', groupId));
+  },
+  historicalBackfillPreview(accountId: string) {
+    return expectData<TreasuryHistoricalBackfillPreview[]>(supabase.rpc('dmp_preview_treasury_historical_backfill', { p_treasury_account_id: accountId }), context('preview treasury historical backfill', accountId));
+  },
+  applyHistoricalBackfill(accountId: string) {
+    return expectData<TreasuryHistoricalBackfillResult[]>(supabase.rpc('dmp_apply_treasury_historical_backfill', { p_treasury_account_id: accountId }), context('apply treasury historical backfill', accountId));
   },
 };

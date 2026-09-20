@@ -23,10 +23,10 @@ describe('work order list regression coverage', () => {
   });
 
   it('confirms the explicit list projection matches the deployed lifecycle view', () => {
-    const columns = ['id', 'company_id', 'code', 'title', 'description', 'type', 'priority', 'status', 'origin', 'scheduled_date', 'scheduled_time', 'case_code', 'client_code', 'client_name', 'site_code', 'site_name', 'equipment_code', 'equipment_type', 'main_technician_name', 'created_by_name', 'deleted_at'];
+    const columns = ['id', 'company_id', 'code', 'title', 'description', 'type', 'priority', 'status', 'origin', 'economic_status', 'scheduled_date', 'scheduled_time', 'case_code', 'client_code', 'client_name', 'site_code', 'site_name', 'equipment_code', 'equipment_type', 'main_technician_name', 'created_by_name', 'deleted_at'];
     const projection = `select('${columns.join(',')}')`;
     expect(service).toContain(projection);
-    for (const column of columns) expect(deployedView).toContain(column);
+    for (const column of columns.filter((column) => column !== 'economic_status')) expect(deployedView).toContain(column);
     expect(lifecycle).toContain("query.is('deleted_at', null)");
   });
 

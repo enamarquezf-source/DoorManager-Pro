@@ -103,7 +103,7 @@ export const workOrdersService = {
   },
   async list(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active', dateFilters: DateRangeFilters = {}) {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
-    let query = applyArchiveFilter(supabase.from('v_work_order_full_detail').select('id,company_id,code,title,description,type,priority,status,origin,scheduled_date,scheduled_time,case_code,client_code,client_name,site_code,site_name,equipment_code,equipment_type,main_technician_name,created_by_name,deleted_at'), archiveFilter).order('scheduled_date', { ascending: false });
+    let query = applyArchiveFilter(supabase.from('v_work_order_full_detail').select('id,company_id,code,title,description,type,priority,status,origin,economic_status,scheduled_date,scheduled_time,case_code,client_code,client_name,site_code,site_name,equipment_code,equipment_type,main_technician_name,created_by_name,deleted_at'), archiveFilter).order('scheduled_date', { ascending: false });
     if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'title', 'description', 'client_name', 'site_name', 'equipment_code', 'status'], search));
     query = applyDateRangeFilters(query, dateFilters);

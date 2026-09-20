@@ -5,6 +5,7 @@ import { isValidMaterialId } from '../services/materialsService';
 const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
 const materialsService = readFileSync(new URL('../services/materialsService.ts', import.meta.url), 'utf8');
 const suppliersService = readFileSync(new URL('../services/suppliersService.ts', import.meta.url), 'utf8');
+const routes = readFileSync(new URL('../routing/appRoutes.ts', import.meta.url), 'utf8');
 
 const materialId = '11111111-1111-4111-8111-111111111111';
 
@@ -18,7 +19,8 @@ describe('MATERIAL-DETAIL-RUNTIME-006', () => {
   it('passes the URL-resolved UUID into the page and never queries an invalid id', () => {
     expect(app).toContain('function MaterialDetailPage({ forcedId }: { forcedId?: string } = {})');
     expect(app).toContain("const { id: routeId = '' } = useParams(); const id = forcedId ?? routeId;");
-    expect(app).toContain('return <MaterialDetailPage forcedId={materialMatch[1]} />;');
+    expect(app).toContain("route?.kind === 'material'");
+    expect(routes).toContain("kind: 'material', id: match[1]");
     expect(app).toContain('validId ? materialsService.get(id) : Promise.resolve(null)');
     expect(app).toContain('validId ? suppliersService.listMaterialSuppliers(id) : Promise.resolve([])');
     expect(materialsService).toContain('if (!isValidMaterialId(id)) throw invalidMaterialIdError();');

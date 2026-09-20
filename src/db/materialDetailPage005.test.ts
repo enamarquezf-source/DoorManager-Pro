@@ -4,10 +4,11 @@ import { readFileSync } from 'node:fs';
 const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
 const materialsService = readFileSync(new URL('../services/materialsService.ts', import.meta.url), 'utf8');
+const routes = readFileSync(new URL('../routing/appRoutes.ts', import.meta.url), 'utf8');
 
 describe('MATERIAL-DETAIL-PAGE-005', () => {
   it('defines a dedicated material route and opens the material from the old actions', () => {
-    expect(app).toContain("location.pathname.match(/^\\/app\\/modulos\\/materiales\\/([^/]+)$/)");
+    expect(routes).toContain('/^\\/app\\/modulos\\/materiales\\/([^/]+)$/');
     expect(app).toContain('function MaterialDetailPage');
     expect(app).toContain('tab=movimientos');
     expect(app).toContain('editar=1');

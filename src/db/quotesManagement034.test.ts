@@ -57,7 +57,7 @@ describe('quotes management 034', () => {
   it('lets superadmin reach shared quote routes instead of redirecting home', () => {
     expect(app).toContain('superadminSharedRoutes');
     expect(app).toContain("'/app/modulos/presupuestos'");
-    expect(app).toContain("location.pathname.startsWith(route)");
+    expect(app).toContain('matchesRouteOrChild(location.pathname, route)');
   });
 
   it('implements create edit line crud totals and sent state in service', () => {

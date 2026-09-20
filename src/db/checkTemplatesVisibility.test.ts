@@ -15,7 +15,7 @@ describe('check template visibility regression', () => {
   });
 
   it('permite a SAT ver plantillas de su empresa y no convierte undefined en global', () => {
-    expect(app).toContain("if (location.pathname === '/app/plantillas') return <SuperadminTemplates />");
+    expect(app).toContain("route?.kind === 'templates'");
     expect(app).toContain("[(isPlatformScope ? 'Propietario DMP' : 'SAT'), 'Plantillas de checks']");
     expect(superadminService).not.toContain('templates(companyId: string | null = null)');
   });

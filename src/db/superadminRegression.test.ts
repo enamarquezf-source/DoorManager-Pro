@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
 const superadminService = readFileSync(new URL('../services/superadminService.ts', import.meta.url), 'utf8');
 const permissions = readFileSync(new URL('../auth/permissions.ts', import.meta.url), 'utf8');
+const routes = readFileSync(new URL('../routing/appRoutes.ts', import.meta.url), 'utf8');
 
 describe('superadmin regression coverage', () => {
   it('protege la edición administrativa de checks con permisos centralizados', () => {
@@ -13,10 +14,10 @@ describe('superadmin regression coverage', () => {
   });
 
   it('mantiene rutas reales de detalles y bloques dentro de superadmin', () => {
-    expect(app).toContain('/^\\/app\\/superadmin\\/checks\\/([^/]+)\\/bloque\\/([^/]+)$/');
+    expect(routes).toContain("kind: 'superadmin-check-block', id: match[1], blockId: match[2]");
     expect(app).toContain('`/app/superadmin/checks/${id}/bloque/${zoneId}`');
     expect(app).toContain('/app/superadmin/expedientes');
-    expect(app).toContain('CaseDetailPage forcedId={superadminCaseMatch[1]}');
+    expect(app).toContain('CaseDetailPage forcedId={route.id}');
   });
 
   it('no deja enlaces superadmin conocidos apuntando a rutas ausentes', () => {

@@ -9,7 +9,7 @@ describe('management navigation', () => {
   it('routes management KPIs to their source lists', () => {
     expect(app).toContain("'/app/modulos/presupuestos?estado=aceptado'");
     expect(app).toContain("'/app/modulos/oportunidades'");
-    expect(app).toContain('workOrderFilterFromParams');
+    expect(app).toContain('workOrderFilterFromUrl');
     expect(app).toContain('deficiencyFiltersFromParams');
   });
 

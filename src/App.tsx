@@ -1,6 +1,6 @@
-import { Component, createContext, useContext, useEffect, useMemo, useRef, useState, type ErrorInfo, type FormEvent, type PointerEvent, type ReactNode } from 'react';
+import { Component, createContext, useContext, useEffect, useMemo, useRef, useState, type ComponentProps, type ErrorInfo, type FormEvent, type PointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { BrowserRouter, Link as RouterLink, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Bell, BriefcaseBusiness, Building2, CalendarClock, CheckCircle2, ChevronLeft, ClipboardCheck, ClipboardList, Eye, EyeOff, Factory, FileText, FileUp, Gauge, Home, LogOut, Menu, PackageCheck, PanelLeftClose, PanelLeftOpen, PieChart, RefreshCw, Search, Settings, ShieldAlert, Truck, UserRound, UsersRound, Warehouse, Wrench, X } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 import { authService } from './services/authService';
@@ -38,7 +38,8 @@ import { EconomicReviewPanel } from './components/EconomicReviewPanel';
 import { loadInitialAuthSnapshot, loginAuthState, protectedAuthState } from './auth/sessionBootstrap';
 import { displayOfficeValidationStatus, displayStatus, formatDate, fullName, initials, nextWorkOrderStatus, previousWorkOrderStatus, severityForPriority, severityForStatus, visibleLabel, workOrderStatuses, workspaceTitles, workspaceToRole } from './shared/labels';
 import { userFacingErrorMessage } from './shared/errorMessages';
-import { checkTabFromParams, deficiencyFiltersFromParams, isOpenDeficiencyStatus, normalizeParam, workOrderFilterFromParams } from './shared/filters';
+import { checkTabFromParams, deficiencyFiltersFromParams, isOpenDeficiencyStatus, normalizeParam } from './shared/filters';
+import { alertFilterFromUrl, workOrderFilterFromUrl } from './shared/urlContracts';
 import { canvasHasInk, fileToLocalPhoto } from './shared/offlineMedia';
 import { activityTimeline, interventionSummary, maskDocument } from './shared/workOrderPresentation';
 import { ActivityTimeline, Timeline } from './shared/timelineViews';
@@ -58,6 +59,8 @@ import { resolvePurchaseOrderPrice } from './shared/purchaseOrderPrice';
 import { useEquipmentTypes, useManagedCheckTemplates, useMaterialsCatalog, useOfficeValidationCapability, useProfiles, useWorkOrderDetail, useWorkOrderList, useWorkOrderSummary } from './query/hooks';
 import { queryClient } from './query/queryClient';
 import { queryKeys } from './query/queryKeys';
+import { useLoad } from './query/useLoad';
+import { homeRouteForWorkspace, matchesRouteOrChild, parseManualRoute, superadminSharedRoutes } from './routing/appRoutes';
 import type { Profile, RoleName, Severity, Workspace } from './shared/types';
 import { entityLabels, entityLifecycleService, isArchivedRecord, type ArchiveFilter, type LifecycleEntity, type LifecycleSummary } from './services/entityLifecycleService';
 import { quotePurgeBlocks, quotePurgeCanShowButton, quotePurgeExpectedConfirmation, quotePurgePlanMatchesScope, quotePurgeResultOk, quotePurgeScope, quotePurgeScopeKey, type QuotePurgeScopeKey } from './services/quotePurgeFlow';
@@ -75,13 +78,10 @@ import type { DateRangeFilters } from './shared/dateRange';
 import { UserAccessPanel } from './components/UserAccessPanel';
 
 type AuthContextValue = { initialized: boolean; session: Session | null; profile: Profile | null; profileError: string | null; userId: string | null; companyId: string | null; profileId: string | null; workspace: Workspace; setWorkspace: (workspace: Workspace) => void; refreshProfile: () => Promise<void>; signOut: () => Promise<void> };
-type LoadState<T> = { data: T; loading: boolean; refreshing: boolean; error: string };
-
 const AuthContext = createContext<AuthContextValue | null>(null);
 const sidebarKey = 'dmp-sidebar-collapsed';
 const workspaceKey = 'dmp-workspace';
 const iconProps = { size: 18, strokeWidth: 2 };
-const superadminSharedRoutes = ['/app/modulos/presupuestos', '/app/modulos/materiales', '/app/modulos/administracion', '/app/modulos/facturacion', '/app/modulos/cobros', '/app/modulos/compras', '/app/modulos/facturas-proveedor', '/app/modulos/rentabilidad', '/app/modulos/tarifas-horas', '/app/modulos/tipos-equipo', '/app/modulos/tesoreria'];
 const satReviewFlags = [
   ['materials_entered', 'Se han introducido materiales'],
   ['work_completed', 'El trabajo está terminado'],
@@ -89,6 +89,12 @@ const satReviewFlags = [
 ] as const;
 function normalizedSatReviewFlags(value: unknown) { const source = value && typeof value === 'object' ? value as Record<string, unknown> : {}; return Object.fromEntries(satReviewFlags.map(([key]) => [key, source[key] === true])); }
 function satReviewFlagLabels(value: unknown) { const flags = normalizedSatReviewFlags(value); return satReviewFlags.filter(([key]) => flags[key]).map(([, label]) => label); }
+
+function Link(props: ComponentProps<typeof RouterLink>) {
+  const auth = useContext(AuthContext);
+  const to = props.className === 'brand' && auth ? homeRouteForWorkspace(auth.workspace) : props.to;
+  return <RouterLink {...props} to={to} />;
+}
 
 function App() {
   return <AppErrorBoundary scope="Aplicación"><BrowserRouter><AuthProvider><Routes><Route path="/" element={<LoginPage />} /><Route element={<ProtectedLayout />}><Route path="/app/inicio" element={<HomePage />} /><Route path="/app/superadmin" element={<SuperadminGuard><SuperadminHome /></SuperadminGuard>} /><Route path="/app/superadmin/usuarios" element={<SuperadminGuard><SuperadminUsers /></SuperadminGuard>} /><Route path="/app/superadmin/roles" element={<SuperadminGuard><SuperadminRoles /></SuperadminGuard>} /><Route path="/app/superadmin/plantillas" element={<SuperadminGuard><SuperadminTemplates /></SuperadminGuard>} /><Route path="/app/superadmin/sincronizacion" element={<SuperadminGuard><SuperadminSync /></SuperadminGuard>} /><Route path="/app/superadmin/auditoria" element={<SuperadminGuard><SuperadminAudit /></SuperadminGuard>} /><Route path="/app/clientes" element={<ClientsPage />} /><Route path="/app/clientes/:id" element={<ErrorBoundaryScreen scope="Ficha de cliente"><ClientDetailPage /></ErrorBoundaryScreen>} /><Route path="/app/centros" element={<SitesPage />} /><Route path="/app/centros/:id" element={<ErrorBoundaryScreen scope="Ficha de centro"><SiteDetailPage /></ErrorBoundaryScreen>} /><Route path="/app/equipos" element={<EquipmentPage />} /><Route path="/app/equipos/:id" element={<ErrorBoundaryScreen scope="Ficha de equipo"><EquipmentDetailPage /></ErrorBoundaryScreen>} /><Route path="/app/expedientes" element={<CasesPage />} /><Route path="/app/expedientes/:id" element={<ErrorBoundaryScreen scope="Ficha de expediente"><CaseDetailPage /></ErrorBoundaryScreen>} /><Route path="/app/partes" element={<WorkOrdersPage />} /><Route path="/app/trabajos" element={<Navigate to="/app/partes" replace />} /><Route path="/app/trabajos/:id" element={<ErrorBoundaryScreen scope="Detalle de parte"><WorkOrderDetailPageV2 /></ErrorBoundaryScreen>} /><Route path="/app/partes/:id" element={<ErrorBoundaryScreen scope="Detalle de parte"><WorkOrderDetailPageV2 /></ErrorBoundaryScreen>} /><Route path="/app/tecnico" element={<TechnicianDayPage />} /><Route path="/app/tecnico/trabajo/:id" element={<TechnicianWorkPage />} /><Route path="/app/pendientes" element={<PendingSyncPage />} /><Route path="/app/checks" element={<ChecksPage />} /><Route path="/app/checks/:id" element={<ErrorBoundaryScreen scope="Detalle de check"><CheckDetailPage /></ErrorBoundaryScreen>} /><Route path="/app/checks/:id/bloque/:blockId" element={<ErrorBoundaryScreen scope="Bloque de check"><CheckBlockPageV2 /></ErrorBoundaryScreen>} /><Route path="/app/deficiencias" element={<DeficienciesPage />} /><Route path="/app/deficiencias/:id" element={<DeficiencyDetailPage />} /><Route path="/app/avisos" element={<AlertsPage />} /><Route path="/app/documentos" element={<DocumentsPage />} /><Route path="/app/documentos/:id" element={<DocumentDetailPage />} /><Route path="/app/gerencia" element={<ManagementPage />} /><Route path="/app/modulos/tecnicos/:profileId" element={<ErrorBoundaryScreen scope="Ficha operativa"><OperationalProfileRoute role="Tecnico" /></ErrorBoundaryScreen>} /><Route path="/app/modulos/comerciales/:profileId" element={<ErrorBoundaryScreen scope="Ficha operativa"><OperationalProfileRoute role="Comercial" /></ErrorBoundaryScreen>} /><Route path="/app/modulos/presupuestos/:id" element={<ErrorBoundaryScreen scope="Ficha de presupuesto"><QuoteDetailPage /></ErrorBoundaryScreen>} /><Route path="/app/modulos/:moduleId" element={<ModulePage />} /><Route path="/app/*" element={<NotFound />} /></Route><Route path="*" element={<NotFound />} /></Routes></AuthProvider></BrowserRouter></AppErrorBoundary>;
@@ -234,7 +240,7 @@ class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorBoundary
 function ErrorBoundaryScreen({ scope, children }: AppErrorBoundaryProps) {
   const location = useLocation();
   const { workspace, signOut } = useAuth();
-  return <AppErrorBoundary scope={scope} route={`${location.pathname}${location.search}`} homeRoute={homeForWorkspace(workspace)} onSignOut={signOut}>{children}</AppErrorBoundary>;
+  return <AppErrorBoundary scope={scope} route={`${location.pathname}${location.search}`} homeRoute={homeRouteForWorkspace(workspace)} onSignOut={signOut}>{children}</AppErrorBoundary>;
 }
 
 function LoginPage() {
@@ -290,7 +296,7 @@ function ProtectedLayout() {
   if (authState === 'profile-error') return <main className="page"><Card title="Perfil no enlazado"><p className="form-error">{profileError ?? 'La sesión existe, pero no hay perfil activo enlazado a este usuario.'}</p><button className="primary" onClick={() => signOut()}>Cerrar sesión</button></Card></main>;
   if (!profile) return <main className="page"><Card title="Perfil no enlazado"><p className="form-error">La sesión existe, pero no hay perfil activo enlazado a este usuario.</p><button className="primary" onClick={() => signOut()}>Cerrar sesión</button></Card></main>;
   if (!allowedWorkspaces.length) return <main className="page"><Card title="Perfil sin rol válido"><p className="form-error">Tu perfil no tiene un rol válido. Contacta con el administrador.</p><button className="primary" onClick={() => signOut()}>Cerrar sesión</button></Card></main>;
-  if (isSuperadmin(profile) && !location.pathname.startsWith('/app/superadmin') && !superadminSharedRoutes.some((route) => location.pathname.startsWith(route))) return <Navigate to="/app/superadmin" replace />;
+   if (isSuperadmin(profile) && !matchesRouteOrChild(location.pathname, '/app/superadmin') && !superadminSharedRoutes.some((route) => matchesRouteOrChild(location.pathname, route))) return <Navigate to="/app/superadmin" replace />;
   if (!canAccessRoute(profile, location.pathname)) return <main><AccessDeniedZone /></main>;
 
   const toggleSidebar = () => { localStorage.setItem(sidebarKey, String(!collapsed)); setCollapsed(!collapsed); };
@@ -769,7 +775,7 @@ function WorkOrdersPage() {
   const [params, setParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>('active');
-  const [filter, setFilter] = useState(() => workOrderFilterFromParams(params));
+  const [filter, setFilter] = useState<string>(() => workOrderFilterFromUrl(params));
    const [person, setPerson] = useState(params.get('tecnico') ?? '');
    const dateFilters: DateRangeFilters = { createdFrom: params.get('creado_desde') ?? undefined, createdTo: params.get('creado_hasta') ?? undefined, updatedFrom: params.get('actualizado_desde') ?? undefined, updatedTo: params.get('actualizado_hasta') ?? undefined };
    const debouncedSearch = useDebouncedValue(search, 300);
@@ -780,7 +786,7 @@ function WorkOrdersPage() {
    const reload = () => listQuery.refetch();
   const [creating, setCreating] = useState(false);
   const [purgeTarget, setPurgeTarget] = useState<any | null>(null);
-  useEffect(() => { const next = workOrderFilterFromParams(params); setFilter((current) => current === next ? current : next); }, [params]);
+   useEffect(() => { const next = workOrderFilterFromUrl(params); setFilter((current) => current === next ? current : next); }, [params]);
   const changeFilter = (next: string) => { setFilter(next); const updated = new URLSearchParams(params); ['estado', 'prioridad', 'filtro', 'fecha'].forEach((key) => updated.delete(key)); if (['sin-asignar','checks-pendientes','pendientes-validacion','material','no-terminados'].includes(next)) updated.set('filtro', next); else if (next === 'en-curso') updated.set('estado', 'en-curso'); else if (next === 'finalizados') updated.set('estado', 'realizado'); else if (next === 'pendientes') updated.set('estado', 'pendiente'); else if (next === 'urgentes') updated.set('prioridad', 'critica'); else if (next === 'hoy') updated.set('fecha', 'hoy'); setParams(updated, { replace: true }); };
    const clearFilters = () => { setFilter('todos'); setPerson(''); const updated = new URLSearchParams(params); ['estado', 'prioridad', 'filtro', 'fecha', 'tecnico', 'vista', 'creado_desde', 'creado_hasta', 'actualizado_desde', 'actualizado_hasta'].forEach((key) => updated.delete(key)); setParams(updated, { replace: true }); };
   const people = Array.from(new Set(data.flatMap((work: any) => [...(work.assignments ?? []).map((item: any) => fullName(item.profiles)), work.commercial_name, work.creator_name].filter(Boolean)))).sort();
@@ -2113,8 +2119,9 @@ function AlertsPage() {
 
 function AlertsPanel({ onClose, showFilters = false }: { onClose?: () => void; showFilters?: boolean }) {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const { data, loading, error, reload } = useLoad(() => alertsService.list(), [], [] as any[]);
-  const [filter, setFilter] = useState('todos');
+  const [filter, setFilter] = useState(() => alertFilterFromUrl(params));
   const [actionError, setActionError] = useState('');
   const notify = () => window.dispatchEvent(new Event('dmp-alerts-changed'));
   const runAlertAction = async (operation: () => Promise<any>) => { try { setActionError(''); await operation(); notify(); await reload(); } catch (err) { console.error(err); setActionError(err instanceof Error ? err.message : 'No se ha podido actualizar el aviso.'); } };
@@ -2552,7 +2559,9 @@ function RateCatalogModuleV2() { const { profile } = useAuth(); const canManage 
 
 function ManagementPage060() { return <CanonicalManagementPage />; }
 
-function ModulePage() { const { moduleId = '' } = useParams(); const { profile } = useAuth(); const canDeleteDraft = canDeleteInvoiceDraft(profile); if (moduleId === 'tipos-equipo') return <EquipmentTypesPage />; if (moduleId === 'planificacion') return <PlanningModule />; if (moduleId === 'tecnicos') return <TechniciansModule />; if (moduleId === 'comerciales') return <CommercialProfilesModule />; if (moduleId === 'ventas') return <SalesModule mode="ventas" />; if (moduleId === 'oportunidades') return <SalesModule mode="oportunidades" />; if (moduleId === 'presupuestos') return <QuotesModule />; if (moduleId === 'materiales') return <MaterialsModule />; if (moduleId === 'proveedores') return <SuppliersModule />; if (moduleId === 'compras') return <PurchaseOrdersModule />; if (moduleId === 'tarifas-horas') return <RateCatalogModuleV2 />; if (moduleId === 'operaciones') return <OperationsModule />; if (moduleId === 'informes') return <ManagementPage060 />; if (moduleId === 'personal') return <TechniciansModule />; if (moduleId === 'rentabilidad') return <ProfitabilityModule />; if (moduleId === 'administracion') return <CompanySettingsModule />; if (moduleId === 'facturacion') return <BillingModule mode="invoices" canDeleteDraft={canDeleteDraft} />; if (moduleId === 'cobros') return <BillingModule mode="collections" canDeleteDraft={false} />; return <OperationalModule moduleId={moduleId} />; }
+function ModulePage() { const { moduleId = '' } = useParams(); const { profile } = useAuth(); const canDeleteDraft = canDeleteInvoiceDraft(profile); if (moduleId === 'tipos-equipo') return <EquipmentTypesPage />; if (moduleId === 'planificacion') return <PlanningModule />; if (moduleId === 'tecnicos') return <TechniciansModule />; if (moduleId === 'comerciales') return <CommercialProfilesModule />; if (moduleId === 'ventas') return <SalesModule mode="ventas" />; if (moduleId === 'oportunidades') return <SalesModule mode="oportunidades" />; if (moduleId === 'presupuestos') return <QuotesModule />; if (moduleId === 'materiales') return <MaterialsModule />; if (moduleId === 'proveedores') return <SuppliersModule />; if (moduleId === 'compras') return <PurchaseOrdersModule />; if (moduleId === 'tarifas-horas') return <RateCatalogModuleV2 />; if (moduleId === 'operaciones') return <OperationsModule />; if (moduleId === 'informes') return <ManagementPage060 />; if (moduleId === 'personal') return <TechniciansModule />; if (moduleId === 'rentabilidad') return <ProfitabilityModule />; if (moduleId === 'administracion') return <CompanySettingsModule />; if (moduleId === 'facturacion') return <BillingModule mode="invoices" canDeleteDraft={canDeleteDraft} />; if (moduleId === 'cobros') return <BillingModule mode="collections" canDeleteDraft={false} />; if (!Object.prototype.hasOwnProperty.call(moduleMeta, moduleId)) return <ModuleNotFound />; return <OperationalModule moduleId={moduleId} />; }
+
+function ModuleNotFound() { const { workspace } = useAuth(); return <section className="page"><Card title="Módulo no encontrado"><p className="large-note">El módulo solicitado no pertenece al catálogo disponible.</p><Link className="primary" to={homeRouteForWorkspace(workspace)}>Volver al inicio</Link></Card></section>; }
 
 function CompanySettingsModule() {
   const { profile } = useAuth();
@@ -2653,30 +2662,21 @@ const moduleMeta: Record<string, { title: string; description: string; links: { 
 
 function NotFound() {
   const location = useLocation();
-  const technicianProfileMatch = location.pathname.match(/^\/app\/modulos\/tecnicos\/([^/]+)$/);
-  if (technicianProfileMatch) return <OperationalProfilePage profileId={technicianProfileMatch[1]} role="Tecnico" />;
-  const commercialProfileMatch = location.pathname.match(/^\/app\/modulos\/comerciales\/([^/]+)$/);
-  if (commercialProfileMatch) return <OperationalProfilePage profileId={commercialProfileMatch[1]} role="Comercial" />;
-  const materialMatch = location.pathname.match(/^\/app\/modulos\/materiales\/([^/]+)$/);
-  if (materialMatch) return <MaterialDetailPage forcedId={materialMatch[1]} />;
-  const quoteMatch = location.pathname.match(/^\/app\/modulos\/presupuestos\/([^/]+)$/);
-  if (quoteMatch) return <QuoteDetailPage />;
-  if (location.pathname === '/app/plantillas') return <SuperadminTemplates />;
-  if (location.pathname === '/app/modulos/tipos-equipo') return <EquipmentTypesPage />;
-  const superadminClientMatch = location.pathname.match(/^\/app\/superadmin\/clientes\/([^/]+)$/);
-  if (superadminClientMatch) return <SuperadminGuard><ClientDetailPage forcedId={superadminClientMatch[1]} /></SuperadminGuard>;
-  const superadminSiteMatch = location.pathname.match(/^\/app\/superadmin\/centros\/([^/]+)$/);
-  if (superadminSiteMatch) return <SuperadminGuard><SuperadminSiteDetail id={superadminSiteMatch[1]} /></SuperadminGuard>;
-  const superadminEquipmentMatch = location.pathname.match(/^\/app\/superadmin\/equipos\/([^/]+)$/);
-  if (superadminEquipmentMatch) return <SuperadminGuard><SuperadminEquipmentDetail id={superadminEquipmentMatch[1]} /></SuperadminGuard>;
-  const superadminWorkOrderMatch = location.pathname.match(/^\/app\/superadmin\/partes\/([^/]+)$/);
-  if (superadminWorkOrderMatch) return <SuperadminGuard><WorkOrderDetailPageV2 forcedId={superadminWorkOrderMatch[1]} /></SuperadminGuard>;
-  const superadminCaseMatch = location.pathname.match(/^\/app\/superadmin\/expedientes\/([^/]+)$/);
-  if (superadminCaseMatch) return <SuperadminGuard><CaseDetailPage forcedId={superadminCaseMatch[1]} /></SuperadminGuard>;
-  const superadminCheckBlockMatch = location.pathname.match(/^\/app\/superadmin\/checks\/([^/]+)\/bloque\/([^/]+)$/);
-  if (superadminCheckBlockMatch) return <SuperadminGuard><CheckBlockPageV2 forcedId={superadminCheckBlockMatch[1]} forcedBlockId={superadminCheckBlockMatch[2]} /></SuperadminGuard>;
-  const superadminCheckMatch = location.pathname.match(/^\/app\/superadmin\/checks\/([^/]+)$/);
-  if (superadminCheckMatch) return <SuperadminGuard><CheckDetailPage forcedId={superadminCheckMatch[1]} /></SuperadminGuard>;
+  const { workspace } = useAuth();
+  const route = parseManualRoute(location.pathname);
+  if (route?.kind === 'technician-profile') return <OperationalProfilePage profileId={route.id} role="Tecnico" />;
+  if (route?.kind === 'commercial-profile') return <OperationalProfilePage profileId={route.id} role="Comercial" />;
+  if (route?.kind === 'material') return <MaterialDetailPage forcedId={route.id} />;
+  if (route?.kind === 'quote') return <QuoteDetailPage />;
+  if (route?.kind === 'templates') return <SuperadminTemplates />;
+  if (route?.kind === 'equipment-types') return <EquipmentTypesPage />;
+  if (route?.kind === 'superadmin-client') return <SuperadminGuard><ClientDetailPage forcedId={route.id} /></SuperadminGuard>;
+  if (route?.kind === 'superadmin-site') return <SuperadminGuard><SuperadminSiteDetail id={route.id} /></SuperadminGuard>;
+  if (route?.kind === 'superadmin-equipment') return <SuperadminGuard><SuperadminEquipmentDetail id={route.id} /></SuperadminGuard>;
+  if (route?.kind === 'superadmin-work-order') return <SuperadminGuard><WorkOrderDetailPageV2 forcedId={route.id} /></SuperadminGuard>;
+  if (route?.kind === 'superadmin-case') return <SuperadminGuard><CaseDetailPage forcedId={route.id} /></SuperadminGuard>;
+  if (route?.kind === 'superadmin-check-block') return <SuperadminGuard><CheckBlockPageV2 forcedId={route.id} forcedBlockId={route.blockId} /></SuperadminGuard>;
+  if (route?.kind === 'superadmin-check') return <SuperadminGuard><CheckDetailPage forcedId={route.id} /></SuperadminGuard>;
   const superadminRoutes: Record<string, ReactNode> = {
     '/app/superadmin/usuarios': <SuperadminUsers />,
     '/app/superadmin/usuarios/nuevo': <SuperadminUserCreate />,
@@ -2706,7 +2706,7 @@ function NotFound() {
   };
   const page = superadminRoutes[location.pathname];
   if (page) return <SuperadminGuard>{page}</SuperadminGuard>;
-  return <section className="page"><Card title="Página no encontrada"><p className="large-note">La ruta no existe o no está disponible para este perfil.</p><Link className="primary" to="/app/inicio">Volver al inicio</Link></Card></section>;
+  return <section className="page"><Card title="Página no encontrada"><p className="large-note">La ruta no existe o no está disponible para este perfil.</p><Link className="primary" to={homeRouteForWorkspace(workspace)}>Volver al inicio</Link></Card></section>;
 }
 
 function OperationalProfileRoute({ role }: { role: 'Tecnico' | 'Comercial' }) {
@@ -3562,7 +3562,7 @@ function EquipmentCheckImage({ equipmentId, template, templateImage, className =
 function EquipmentOperationalTitle({ equipment }: { equipment: any }) { const label = equipmentOperationalLabel(equipment); return <div className="equipment-operational-title"><strong>{label.primary}</strong><small>{label.secondary}</small></div>; }
 function EquipmentOperationalMeta({ equipment }: { equipment: any }) { const label = equipmentOperationalLabel(equipment); return <RecordMeta items={[[ 'Tipo · código', label.secondary ], [ 'Cliente · centro', label.context ], [ 'Marca/modelo', label.detail ]]} />; }
 function CompactRows({ rows, empty }: { rows: [string, string, Severity, string?][]; empty: string }) { if (!rows.length) return <p className="large-note">{empty}</p>; return <div className="compact-list">{rows.map(([title, text, tone, route]) => <article key={`${title}-${text}`}><Badge tone={tone}>{title}</Badge><p>{text}</p>{route && <Link to={route}>Abrir</Link>}</article>)}</div>; }
-function dependencyRoute(name: string) { const routes: Record<string, string> = { contactos: '/app/clientes', centros: '/app/centros', equipos: '/app/equipos', expedientes: '/app/expedientes', partes: '/app/partes', checks: '/app/checks', documentos: '/app/documentos', deficiencias: '/app/deficiencias', asignaciones: '/app/partes', historial: '/app/superadmin/auditoria', historial_estados: '/app/superadmin/auditoria', eventos: '/app/expedientes', vinculos: '/app/expedientes', oportunidades: '/app/modulos/comerciales', presupuestos: '/app/modulos/comerciales' }; return routes[name] ?? null; }
+function dependencyRoute(name: string) { const routes: Record<string, string> = { contactos: '/app/clientes', centros: '/app/centros', equipos: '/app/equipos', expedientes: '/app/expedientes', partes: '/app/partes', checks: '/app/checks', documentos: '/app/documentos', deficiencias: '/app/deficiencias', asignaciones: '/app/partes', historial: '/app/superadmin/auditoria', historial_estados: '/app/superadmin/auditoria', eventos: '/app/expedientes', vinculos: '/app/expedientes', oportunidades: '/app/modulos/oportunidades', presupuestos: '/app/modulos/presupuestos' }; return routes[name] ?? null; }
 function DependencyRows({ dependencies }: { dependencies: Record<string, number> }) { const rows = Object.entries(dependencies); if (!rows.length) return <p className="large-note">Sin dependencias.</p>; return <div className="compact-list">{rows.map(([name, count]) => { const route = Number(count) > 0 ? dependencyRoute(name) : null; return <article key={name}><Badge tone={Number(count) > 0 ? 'warn' : 'ok'}>{displayStatus(name)}</Badge><p>{count} registro(s)</p>{route && <Link to={route}>Abrir listado</Link>}</article>; })}</div>; }
 function WorkTable({ rows, columns, route, lifecycleEntity, onLifecycleChanged }: { rows: any[]; columns: string[]; route: string; lifecycleEntity?: LifecycleEntity; onLifecycleChanged?: () => void }) { return <div className="table-card"><table><thead><tr>{columns.map((column) => <th key={column}>{column.split('.').at(-1)}</th>)}<th>Acción</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id} className={lifecycleEntity && isArchivedRecord(lifecycleEntity, row) ? 'archived-row' : ''}>{columns.map((column) => <td key={column}>{formatEntityTableValue(row, column)}</td>)}<td><div className="row-actions"><Link to={`${route}/${row.id}`}>Abrir</Link>{lifecycleEntity && onLifecycleChanged && <LifecycleActionPanel entity={lifecycleEntity} record={row} onChanged={onLifecycleChanged} />}</div></td></tr>)}</tbody></table></div>; }
 function RecordCard({ title, status, meta, to, actions, archived }: { title: ReactNode; status?: [string, Severity]; meta?: ReactNode; to?: string; actions?: ReactNode; archived?: boolean }) { return <article className={`record-card${archived ? ' archived-record' : ''}`}><header><div className="record-title">{title}</div>{status && <Badge tone={status[1]}>{status[0]}</Badge>}</header>{meta && <div className="record-meta">{meta}</div>}<footer><div className="row-actions">{actions}{to && <Link className="primary record-open" to={to}>Abrir</Link>}</div></footer></article>; }

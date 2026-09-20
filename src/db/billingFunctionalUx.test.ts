@@ -31,4 +31,10 @@ describe('billing functional and UX flow', () => {
     expect(moduleSource).not.toContain('unit_cost');
     expect(moduleSource).not.toContain('margen');
   });
+
+  it('ignores stale reload responses and only clears loading for the latest request', () => {
+    expect(moduleSource).toContain('const reloadRequestRef = useRef(0)');
+    expect(moduleSource).toContain('if (requestId !== reloadRequestRef.current) return');
+    expect(moduleSource).toContain('if (requestId === reloadRequestRef.current) setLoading(false)');
+  });
 });

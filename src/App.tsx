@@ -403,33 +403,6 @@ function homeForWorkspace(workspace: Workspace) {
   return '/app/inicio';
 }
 
-function useLoad<T>(loader: (signal: AbortSignal) => Promise<T>, deps: unknown[] = [], empty: T) {
-  const [state, setState] = useState<LoadState<T>>({ data: empty, loading: true, refreshing: false, error: '' });
-  const requestRef = useRef(0);
-  const abortRef = useRef<AbortController | null>(null);
-  const mountedRef = useRef(true);
-  const loadedRef = useRef(false);
-  const reload = async () => {
-    const requestId = ++requestRef.current;
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    const refreshing = loadedRef.current;
-    setState((prev) => ({ ...prev, loading: !refreshing, refreshing, error: '' }));
-    try {
-      const next = await loader(controller.signal);
-      if (!mountedRef.current || requestId !== requestRef.current) return;
-      loadedRef.current = true;
-      setState({ data: next, loading: false, refreshing: false, error: '' });
-    } catch (err) {
-      if (!mountedRef.current || requestId !== requestRef.current) return;
-      setState((prev) => ({ data: prev.data, loading: false, refreshing: false, error: err instanceof Error ? err.message : 'Error inesperado' }));
-    }
-  };
-  useEffect(() => { mountedRef.current = true; void reload(); return () => { mountedRef.current = false; requestRef.current += 1; abortRef.current?.abort(); }; }, deps);
-  return { ...state, reload };
-}
-
 function HomePage() {
   const { workspace } = useAuth();
   if (workspace === 'superadmin') return <Navigate to="/app/superadmin" replace />;

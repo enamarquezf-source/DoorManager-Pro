@@ -10,6 +10,7 @@ function queryFor(table: string) {
       return query;
     },
     gte: () => query,
+    in: () => query,
     is: () => query,
     order: () => query,
     then: (resolve: (value: { data: any[]; error: null }) => unknown) => Promise.resolve(resolve({ data: [], error: null })),
@@ -21,7 +22,7 @@ function queryFor(table: string) {
 vi.mock('../lib/supabase/client', () => ({
   supabase: {
     from: (table: string) => queryFor(table),
-    rpc: vi.fn(),
+    rpc: vi.fn((name: string) => name === 'dmp_operating_company_id' ? Promise.resolve({ data: 'company-a', error: null }) : Promise.resolve({ data: null, error: null })),
   },
 }));
 
@@ -59,13 +60,16 @@ describe('dashboard tenant scope', () => {
     expect(queryCalls.find((item) => item.table === 'v_pending_checks')?.filters).toContainEqual(['eq', 'technician_id', expect.anything()]);
   });
 
-  it('keeps the Superadmin overview global instead of applying profile scope', async () => {
+  it('loads the Superadmin overview from the current company without platform scope', async () => {
     const client = await import('../lib/supabase/client');
-    vi.mocked(client.supabase.rpc).mockResolvedValue({ data: { companies: [] }, error: null } as any);
     const { superadminService } = await import('./superadminService');
 
     await superadminService.overview();
 
-    expect(client.supabase.rpc).toHaveBeenCalledWith('superadmin_global_overview', { p_company_id: null });
+    expect(client.supabase.rpc).not.toHaveBeenCalledWith('superadmin_global_overview', { p_company_id: null });
+    for (const table of ['profiles', 'clients', 'sites', 'equipment', 'work_orders', 'checks', 'activity_log', 'audit_log']) {
+      expect(queryCalls.find((item) => item.table === table)?.filters).toContainEqual(['eq', 'company_id', 'company-a']);
+    }
+    expect(queryCalls.find((item) => item.table === 'companies')?.filters).toContainEqual(['eq', 'id', 'company-a']);
   });
 });

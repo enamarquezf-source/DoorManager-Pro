@@ -1,6 +1,7 @@
 import type { Profile, RoleName } from '../shared/types';
 
 export const permissionLabels: Record<string, string> = {
+  'users.create': 'Crear usuarios',
   'purchase_orders.read': 'Ver pedidos de compra',
   'purchase_orders.create': 'Crear pedidos de compra',
   'purchase_orders.update': 'Editar pedidos de compra',
@@ -11,6 +12,7 @@ export const permissionLabels: Record<string, string> = {
   'purchase_receipts.update': 'Editar borradores',
   'purchase_receipts.confirm': 'Confirmar recepciones',
   'purchase_receipts.cancel': 'Cancelar borradores',
+  'materials.archive': 'Archivar materiales',
   'supplier_invoices.read': 'Ver facturas de proveedor',
   'supplier_invoices.create': 'Crear facturas de proveedor',
   'supplier_invoices.update': 'Editar borradores de proveedor',
@@ -25,6 +27,14 @@ export const permissionLabels: Record<string, string> = {
   'treasury.transactions.create': 'Registrar movimientos de tesorería',
   'treasury.transactions.reverse': 'Revertir movimientos de tesorería',
   'treasury.transfers.create': 'Transferir entre cuentas',
+  'sat.read': 'Ver operaciones SAT',
+  'sat.write': 'Gestionar operaciones SAT',
+  'sat.assign': 'Asignar operaciones SAT',
+  'sat.checks.manage': 'Gestionar checks SAT',
+  'commercial.read': 'Ver actividad comercial',
+  'commercial.write': 'Gestionar actividad comercial',
+  'billing.read': 'Ver facturación y cobros',
+  'billing.write': 'Gestionar facturación y cobros',
   'materials.read': 'Ver materiales',
   'materials.create': 'Crear materiales',
   'materials.update': 'Editar materiales',
@@ -40,6 +50,7 @@ export const permissionLabels: Record<string, string> = {
   'admin.users.update': 'Administrar usuarios y permisos',
   'admin.roles.manage': 'Gestionar permisos',
   'admin.modules.manage': 'Configurar visibilidad del menú',
+  'admin.audit.read': 'Consultar auditoría',
 };
 
 export const permissionCatalog = Object.keys(permissionLabels);
@@ -47,7 +58,7 @@ export const permissionCatalog = Object.keys(permissionLabels);
 export const moduleLabels: Record<string, string> = {
   users: 'Usuarios y permisos', suppliers: 'Proveedores', purchase_orders: 'Compras', supplier_invoices: 'Facturas de proveedor',
   purchase_receipts: 'Recepciones', materials: 'Materiales', stock: 'Stock / Almacenes',
-  sat: 'SAT', commercial: 'Comercial', documents: 'Documentos', billing: 'Facturación', admin: 'Administración',
+  sat: 'SAT', commercial: 'Comercial', documents: 'Documentos', billing: 'Facturación', treasury: 'Tesorería', admin: 'Administración',
 };
 
 const roleDefaults: Record<RoleName, string[]> = {
@@ -65,8 +76,8 @@ export function rolePermissionKeys(role: string | null | undefined) {
 
 export function effectivePermissionKeys(profile: (Profile & { permission_grants?: string[] }) | null | undefined) {
   if (!profile || !profile.active || profile.deleted_at) return new Set<string>();
-  if (profile.primary_area === 'superadmin' || profile.roles?.includes('superadmin')) return new Set(permissionCatalog);
-  const result = new Set([profile.primary_area, ...profile.roles].flatMap(rolePermissionKeys));
+  if (profile.roles?.includes('superadmin')) return new Set(permissionCatalog);
+  const result = new Set((profile.roles ?? []).flatMap(rolePermissionKeys));
   result.forEach((key) => { if (profile.permission_grants?.includes(`-${key}`)) result.delete(key); });
   (profile.permission_grants ?? []).filter((key) => !key.startsWith('-')).forEach((key) => result.add(key));
   return result;
@@ -79,6 +90,6 @@ export function hasPermission(profile: (Profile & { permission_grants?: string[]
 export function moduleVisible(profile: (Profile & { visible_modules?: string[]; hidden_modules?: string[] }) | null | undefined, module: string) {
   if (!profile || !profile.active || profile.deleted_at) return false;
   if (profile.hidden_modules?.includes(module)) return false;
-  if (profile.primary_area === 'superadmin' || profile.roles?.includes('superadmin')) return true;
+  if (profile.roles?.includes('superadmin')) return true;
   return !profile.visible_modules || profile.visible_modules.includes(module);
 }

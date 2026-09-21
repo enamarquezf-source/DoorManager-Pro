@@ -32,17 +32,17 @@ export function canRole(permissionRole: string, permission: string) {
 }
 
 function rolesOf(profile?: Profile | null) {
-  return [...new Set([profile?.primary_area, ...(profile?.roles ?? [])].filter(Boolean))] as RoleName[];
+  return [...new Set((profile?.roles ?? []).filter(Boolean))] as RoleName[];
 }
 
-export function normalizedRoleNames(primaryArea: RoleName, roles: RoleName[] = []) {
-  const normalized = [...new Set([primaryArea, ...roles])];
+export function normalizedRoleNames(primaryArea?: RoleName | null, roles: RoleName[] = []) {
+  const normalized = [...new Set([primaryArea, ...roles].filter(Boolean) as RoleName[])];
   return normalized.includes('SAT') ? normalized.filter((role) => role !== 'Comercial') : normalized;
 }
 
 export function profileWorkspaces(profile: Profile | null | undefined): Workspace[] {
   if (!profile) return [];
-  const roles = normalizedRoleNames(profile.primary_area, profile.roles);
+  const roles = normalizedRoleNames(undefined, rolesOf(profile));
   if (roles.includes('superadmin')) return ['superadmin'];
   if (roles.includes('SAT')) return ['sat'];
   return roles.map((role) => workspaceByRole[role]).filter(Boolean);

@@ -11,21 +11,38 @@ export const superadminService = {
     return expectData<any>(supabase.from('companies').update(companyPayload(payload)).eq('id', payload.id).select().single());
   },
   async overview() {
-    const overview = await expectData<any>(supabase.rpc('superadmin_global_overview', { p_company_id: null }));
-    const roles = await expectData<any[]>(supabase.from('roles').select('*').order('name'));
+    const companyId = await currentCompanyId();
+    const [companies, profiles, roles, clients, sites, equipment, workOrders, checks, activity, audit] = await Promise.all([
+      expectData<any[]>(supabase.from('companies').select('*').eq('id', companyId)),
+      expectData<any[]>(supabase.from('profiles').select('*').eq('company_id', companyId)),
+      expectData<any[]>(supabase.from('roles').select('*').order('name')),
+      expectData<any[]>(supabase.from('clients').select('*').eq('company_id', companyId)),
+      expectData<any[]>(supabase.from('sites').select('*').eq('company_id', companyId)),
+      expectData<any[]>(supabase.from('equipment').select('*').eq('company_id', companyId)),
+      expectData<any[]>(supabase.from('work_orders').select('*').eq('company_id', companyId)),
+      expectData<any[]>(supabase.from('checks').select('*').eq('company_id', companyId)),
+      expectData<any[]>(supabase.from('activity_log').select('*').eq('company_id', companyId).order('created_at', { ascending: false })),
+      expectData<any[]>(supabase.from('audit_log').select('*').eq('company_id', companyId).order('changed_at', { ascending: false })),
+    ]);
+    const profileRoles = profiles.length
+      ? await expectData<any[]>(supabase.from('profile_roles').select('profile_id,roles!profile_roles_role_id_fkey(name)').in('profile_id', profiles.map((profile) => profile.id)))
+      : [];
+    const scopedProfiles = profiles.map((profile) => ({
+      ...profile,
+      profile_roles: profileRoles.filter((item) => item.profile_id === profile.id),
+    }));
     return {
-      ...overview,
       roles,
       templates: [],
-      companies: overview.companies ?? [],
-      profiles: overview.profiles ?? [],
-      clients: overview.clients ?? [],
-      sites: overview.sites ?? [],
-      equipment: overview.equipment ?? [],
-      workOrders: overview.work_orders ?? [],
-      checks: overview.checks ?? [],
-      activity: overview.activity ?? [],
-      audit: overview.audit ?? [],
+      companies,
+      profiles: scopedProfiles,
+      clients,
+      sites,
+      equipment,
+      workOrders,
+      checks,
+      activity,
+      audit,
     };
   },
   async users() {
@@ -42,24 +59,21 @@ export const superadminService = {
     return expectData<any[]>(supabase.from('roles').select('*').order('name'));
   },
   async createProfile(payload: Record<string, any>) {
-    return expectData<any>(supabase.rpc('superadmin_create_profile', { p_profile: payload }).single());
+    return this.saveProfileWithRoles(null, payload, payload.roles ?? []);
   },
   async saveProfileWithRoles(profileId: string | null, payload: Record<string, any>, roleNames: string[]) {
-    const roles = normalizedRoleNames(payload.primary_area, roleNames as any);
-    const normalizedPayload = { ...payload, primary_area: roles.includes('SAT') ? 'SAT' : payload.primary_area };
+    const roles = normalizedRoleNames(undefined, roleNames as any);
+    const normalizedPayload = Object.fromEntries(Object.entries(payload).filter(([key]) => key !== 'primary_area' && key !== 'roles'));
     return expectData<any>(supabase.rpc('superadmin_save_profile_with_roles', { p_profile_id: profileId, p_profile: normalizedPayload, p_role_names: roles }).single());
   },
   async updateProfile(profileId: string, payload: Record<string, any>) {
-    return expectData<any>(supabase.rpc('superadmin_update_profile', { p_profile_id: profileId, p_profile: payload }).single());
+    return this.saveProfileWithRoles(profileId, payload, payload.roles ?? []);
   },
   async setRoles(profileId: string, roleNames: string[]) {
-    return expectData<void>(supabase.rpc('superadmin_set_profile_roles', { p_profile_id: profileId, p_role_names: normalizedRoleNames(roleNames.includes('SAT') ? 'SAT' : roleNames[0] as any, roleNames as any) }));
+    return this.saveProfileWithRoles(profileId, {}, roleNames);
   },
   async setActive(profileId: string, active: boolean) {
-    return expectData<any>(supabase.rpc('superadmin_update_profile', { p_profile_id: profileId, p_profile: { active } }).single());
-  },
-  async softDeleteProfile(profileId: string) {
-    return expectData<any>(supabase.rpc('superadmin_update_profile', { p_profile_id: profileId, p_profile: { deleted_at: new Date().toISOString(), active: false } }).single());
+    return this.saveProfileWithRoles(profileId, { active }, []);
   },
   async templates(companyScope?: string | null) {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;

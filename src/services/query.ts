@@ -59,6 +59,10 @@ export function toSpanishSupabaseError(error: any) {
   if (error?.code === 'PGRST200') return 'No se han podido cargar algunos datos relacionados. Revisa el diagnóstico o inténtalo de nuevo.';
   if (message.includes('No se ha encontrado')) return message;
   if (message.includes('audit_log_operation_check')) return 'No se ha podido registrar la operación. Reinténtalo o avisa a administración.';
+  if (/no puedes dejar la empresa sin|ultimo superadmin|último superadmin|degradar ni desactivar tu propio/i.test(message)) return 'No se puede dejar la empresa sin un Superadmin activo ni quitar el último acceso de administración.';
+  if (/usuario fuera de la empresa|no pertenec.*empresa/i.test(message)) return 'El usuario seleccionado no pertenece a tu empresa.';
+  if (/auth y empresa no se gestionan|auth_user_id/i.test(message)) return 'La cuenta de acceso se gestiona mediante el canal seguro de Auth y no puede cambiarse desde esta ficha.';
+  if (/sat y comercial son incompatibles/i.test(message)) return 'SAT y Comercial no pueden asignarse simultáneamente al mismo usuario.';
   if (message.includes('violates check constraint')) return 'Los datos no cumplen una regla de validación. Revisa la información introducida.';
   if (/^respuesta de Supabase:/i.test(message)) return message.replace(/^respuesta de Supabase:\s*/i, '');
   if (/^(validacion del formulario|purga|permiso|perfil activo|empresa|asignacion|parte|estado editable|insercion|adicional|tarifa):/i.test(message)) return message;

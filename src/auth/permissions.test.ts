@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { canAccessRoute, canArchiveEntity, canCorrectWorkOrderOperationalFields, canCreateAlert, canCreateCheck, canExecuteCheck, canManageCheck, canManageEquipmentTypes, canManageHourRates, canManageQuotes, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canPermanentlyDeleteEntity, canRestoreEntity, canRole, canViewCheck, canViewSalesEconomics, canViewWorkOrderCosts, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './permissions';
 import type { Profile, RoleName } from '../shared/types';
 
-function profile(primary_area: RoleName, roles: RoleName[] = []): Profile {
+function profile(primary_area: RoleName, roles: RoleName[] = [primary_area]): Profile {
   return { id: `${primary_area}-id`, company_id: 'company-id', auth_user_id: `${primary_area}-auth`, first_name: primary_area, last_name: 'Test', email: `${primary_area}@test.local`, phone: null, primary_area, active: true, roles };
 }
 
@@ -67,6 +67,12 @@ describe('canAccessRoute', () => {
     for (const route of ['/app/clientes', '/app/partes', '/app/partes/90ad219b-f5d0-4489-a834-eac040469be6', '/app/trabajos/90ad219b-f5d0-4489-a834-eac040469be6', '/app/checks', '/app/checks/check-1', '/app/expedientes']) {
       expect(canAccessRoute(satByRole, route)).toBe(true);
     }
+  });
+
+  it('ignora primary_area como autoridad cuando no existe el rol canónico', () => {
+    const inconsistent = profile('superadmin', []);
+    expect(isSuperadmin(inconsistent)).toBe(false);
+    expect(canAccessRoute(inconsistent, '/app/superadmin')).toBe(false);
   });
 
   it('limita la administración de tipos de equipo a superadmin y SAT', () => {

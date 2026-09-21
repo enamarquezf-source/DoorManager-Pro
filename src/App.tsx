@@ -2625,6 +2625,7 @@ const moduleMeta: Record<string, { title: string; description: string; links: { 
   compras: { title: 'Compras', description: 'Pedidos de compra a proveedores.', links: [{ label: 'Proveedores', to: '/app/modulos/proveedores' }, { label: 'Materiales', to: '/app/modulos/materiales' }] },
   proveedores: { title: 'Proveedores', description: 'Gestión de proveedores y documentación asociada.', links: [{ label: 'Documentos', to: '/app/documentos' }] },
   prl: { title: 'PRL y personal', description: 'Prevención, documentación laboral y formación.', links: [{ label: 'Documentos', to: '/app/documentos' }] },
+  tesoreria: { title: 'Tesoreria', description: 'Cuentas, movimientos y transferencias de la empresa.', links: [] },
   vehiculos: { title: 'Vehículos', description: 'Flota, revisiones y documentación de vehículos.', links: [{ label: 'Documentos', to: '/app/documentos' }] },
   ventas: { title: 'Ventas', description: 'Indicadores de ventas y presupuestos aceptados.', links: [{ label: 'Gerencia', to: '/app/gerencia' }] },
   operaciones: { title: 'Operaciones', description: 'Visión ejecutiva de operaciones.', links: [{ label: 'Partes', to: '/app/partes' }] },

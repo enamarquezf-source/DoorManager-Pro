@@ -21,6 +21,13 @@ describe('NAV-VISIBILITY-001', () => {
     expect(permissions).toContain("'purchase_orders.read'");
   });
 
+  it('renderiza Tesorería desde la ruta de módulo canónica', () => {
+    expect(app).toContain("tesoreria: { title: 'Tesoreria'");
+    expect(app).toContain("if (moduleId === 'tesoreria') return <TreasuryModule profile={profile} />");
+    expect(app).toContain("id: 'tesoreria'");
+    expect(app).toContain("path: '/app/modulos/tesoreria'");
+  });
+
   it('expone configuración de menú por usuario mediante RPC', () => {
     expect(app).toContain('UserAccessPanel');
     expect(app).toContain('Usuarios y permisos');

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessRoute, canArchiveEntity, canCorrectWorkOrderOperationalFields, canCreateAlert, canCreateCheck, canExecuteCheck, canManageCheck, canManageEquipmentTypes, canManageHourRates, canManageQuotes, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canPermanentlyDeleteEntity, canRestoreEntity, canRole, canViewCheck, canViewSalesEconomics, canViewWorkOrderCosts, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './permissions';
+import { canAccessModule, canAccessRoute, canArchiveEntity, canCorrectWorkOrderOperationalFields, canCreateAlert, canCreateCheck, canExecuteCheck, canManageCheck, canManageEquipmentTypes, canManageHourRates, canManageQuotes, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canPermanentlyDeleteEntity, canRestoreEntity, canRole, canViewCheck, canViewSalesEconomics, canViewWorkOrderCosts, hasPermission, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './permissions';
 import type { Profile, RoleName } from '../shared/types';
 
 function profile(primary_area: RoleName, roles: RoleName[] = [primary_area]): Profile {
@@ -67,6 +67,29 @@ describe('canAccessRoute', () => {
     for (const route of ['/app/clientes', '/app/partes', '/app/partes/90ad219b-f5d0-4489-a834-eac040469be6', '/app/trabajos/90ad219b-f5d0-4489-a834-eac040469be6', '/app/checks', '/app/checks/check-1', '/app/expedientes']) {
       expect(canAccessRoute(satByRole, route)).toBe(true);
     }
+  });
+
+  it('mantiene Tesorería visible por permiso y respeta el override explícito', () => {
+    for (const [role, workspace] of [['superadmin', 'superadmin'], ['Gerencia', 'gerencia'], ['Oficina', 'oficina']] as const) {
+      const current = profile(role);
+      expect(hasPermission(current, 'treasury.read')).toBe(true);
+      expect(canAccessModule(current, workspace, 'tesoreria')).toBe(true);
+      expect(canAccessRoute(current, '/app/modulos/tesoreria')).toBe(true);
+    }
+    for (const role of ['SAT', 'Comercial', 'Tecnico'] as RoleName[]) {
+      const current = profile(role);
+      expect(hasPermission(current, 'treasury.read')).toBe(false);
+      expect(canAccessRoute(current, '/app/modulos/tesoreria')).toBe(false);
+    }
+    expect(canAccessModule(profile('superadmin'), 'superadmin', 'tesoreria')).toBe(true);
+    expect(canAccessModule({ ...profile('superadmin'), hidden_modules: ['treasury'] }, 'superadmin', 'tesoreria')).toBe(false);
+  });
+
+  it('mantiene Partes dentro del alcance tenant de Superadmin', () => {
+    const owner = profile('superadmin');
+    expect(canAccessRoute(owner, '/app/superadmin/partes')).toBe(true);
+    expect(canAccessRoute(owner, '/app/superadmin/partes/work-1')).toBe(true);
+    expect(canAccessRoute(profile('Gerencia'), '/app/superadmin/partes')).toBe(false);
   });
 
   it('ignora primary_area como autoridad cuando no existe el rol canónico', () => {

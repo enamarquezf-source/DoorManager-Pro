@@ -1,13 +1,14 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { accessService } from '../services/accessService';
 import { superadminService } from '../services/superadminService';
+import { authAdminService } from '../services/authAdminService';
 import { effectivePermissionKeys, moduleLabels, permissionCatalog, permissionLabels } from '../auth/rbac';
 
-type Props = { user: any; onSaved?: () => void };
+type Props = { user: any; actor?: any; onSaved?: () => void };
 
 const roleOptions = ['superadmin', 'Gerencia', 'SAT', 'Comercial', 'Oficina', 'Tecnico'];
 
-export function UserAccessPanel({ user, onSaved }: Props) {
+export function UserAccessPanel({ user, actor, onSaved }: Props) {
   const [access, setAccess] = useState<any>(null);
   const [values, setValues] = useState({ first_name: user.first_name ?? '', last_name: user.last_name ?? '', email: user.email ?? '', phone: user.phone ?? '', active: user.active !== false });
   const [roles, setRoles] = useState<string[]>([]);
@@ -16,6 +17,8 @@ export function UserAccessPanel({ user, onSaved }: Props) {
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [inviteState, setInviteState] = useState<'idle' | 'loading' | 'success'>('idle');
+  const canInvite = actor?.active === true && !actor.deleted_at && actor.company_id === user.company_id && (actor.roles ?? []).includes('superadmin') && !user.auth_user_id;
 
   useEffect(() => {
     let mounted = true;
@@ -51,11 +54,22 @@ export function UserAccessPanel({ user, onSaved }: Props) {
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se han podido guardar los cambios de la ficha.'); }
     finally { setSaving(false); }
   };
+  const invite = async () => {
+    setInviteState('loading'); setError('');
+    try {
+      await authAdminService.inviteProfile(user.id);
+      setInviteState('success');
+      onSaved?.();
+    } catch (reason) {
+      setInviteState('idle');
+      setError(reason instanceof Error ? reason.message : 'No se ha podido enviar la invitacion Auth.');
+    }
+  };
 
   return <Card title={`Ficha completa · ${user.first_name} ${user.last_name}`}>
     <p className="large-note">Una ficha administra datos, roles, visibilidad y permisos adicionales. Auth se muestra sólo como estado y no se modifica desde el navegador.</p>
     <section><h4>General</h4><div className="form-grid"><label>Nombre<input value={values.first_name} onChange={(event) => setValue('first_name', event.target.value)} /></label><label>Apellidos<input value={values.last_name} onChange={(event) => setValue('last_name', event.target.value)} /></label><label>Email de perfil<input type="email" value={values.email} onChange={(event) => setValue('email', event.target.value)} /></label><label>Teléfono<input value={values.phone} onChange={(event) => setValue('phone', event.target.value)} /></label><label>Estado<select value={String(values.active)} disabled={isSelf} onChange={(event) => setValue('active', event.target.value === 'true')}><option value="true">Activo</option><option value="false">Inactivo</option></select></label></div></section>
-    <section><h4>Seguridad</h4><p className="large-note">Cuenta Auth: {user.auth_user_id ? 'Enlazada' : 'Pendiente de enlace'}.</p><p className="large-note">El alta, invitación, restablecimiento y contraseña requieren backend seguro; no se exponen credenciales ni service role.</p></section>
+     <section><h4>Seguridad</h4><p className="large-note">Cuenta Auth: {user.auth_user_id ? 'Enlazada' : 'No vinculada'}.</p>{!user.auth_user_id && <p className="large-note">El perfil DMP existe, pero todavía no tiene cuenta Auth.</p>}{canInvite && <div className="actions"><button type="button" className="primary" onClick={invite} disabled={inviteState === 'loading'}>{inviteState === 'loading' ? 'Enviando invitacion...' : 'Enviar invitacion'}</button></div>}{inviteState === 'success' && <p className="success-note">Invitacion enviada y cuenta Auth vinculada.</p>}<p className="large-note">El restablecimiento y la contraseña requieren un flujo posterior; no se exponen credenciales ni service role.</p></section>
     <section><h4>Acceso y roles</h4><div className="component-select permission-grid">{roleOptions.map((role) => <label key={role}><input type="checkbox" checked={roles.includes(role)} disabled={isSelf} onChange={() => toggleRole(role)} /> {role === 'superadmin' ? 'Superadmin de tenant' : role}</label>)}</div>{isSelf && <p className="large-note">Tu propio Superadmin no puede degradarse ni desactivarse desde esta ficha.</p>}</section>
     <section><h4>Permisos efectivos</h4><p className="large-note">{roles.includes('superadmin') ? 'Acceso funcional completo dentro del tenant por rol Superadmin.' : `${inherited.size + permissionCatalog.filter((code) => !inherited.has(code) && selected[code] === true).length} permisos efectivos: rol + grants individuales positivos.`}</p><div className="component-select permission-grid">{permissionCatalog.map((code) => { const inheritedByRole = inherited.has(code); const checked = inheritedByRole || selected[code] === true; return <label key={code}><input type="checkbox" checked={checked} disabled={inheritedByRole} onChange={(event) => { setDirty(true); setSelected((current) => ({ ...current, [code]: event.target.checked })); }} /> {permissionLabels[code] ?? code} <small>{inheritedByRole ? 'Concedido por rol' : checked ? 'Grant individual' : 'No concedido'}</small></label>; })}</div></section>
     <section><h4>Módulos visibles</h4><div className="component-select permission-grid">{Object.keys(modules).map((code) => <label key={code}><input type="checkbox" checked={modules[code] !== false} onChange={(event) => { setDirty(true); setModules((current) => ({ ...current, [code]: event.target.checked })); }} /> {moduleLabels[code] ?? code}</label>)}</div></section>

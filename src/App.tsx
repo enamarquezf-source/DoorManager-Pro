@@ -2791,7 +2791,7 @@ function GlobalSearch({ query, setQuery }: { query: string; setQuery: (value: st
 
 function SuperadminUserForm({ initial, onClose, onSaved }: any) {
   const roleOptions = ['superadmin','Gerencia','SAT','Comercial','Oficina','Tecnico'];
-  const [values, setValues] = useState<Record<string, any>>({ first_name: '', last_name: '', email: '', phone: '', primary_area: 'SAT', active: true, roles: initial ? rolesList(initial) : ['SAT'], invitation_mode: 'invite', ...initial });
+  const [values, setValues] = useState<Record<string, any>>({ first_name: '', last_name: '', email: '', phone: '', primary_area: 'SAT', active: true, roles: initial ? rolesList(initial) : ['SAT'], ...initial });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const set = (key: string, value: any) => setValues((current) => ({ ...current, [key]: value }));
@@ -2801,7 +2801,7 @@ function SuperadminUserForm({ initial, onClose, onSaved }: any) {
     event.preventDefault();
     setSaving(true); setError('');
     try {
-      const profilePayload = { first_name: values.first_name, last_name: values.last_name, email: values.email, phone: values.phone || null, primary_area: values.primary_area, active: values.active === true || values.active === 'true', auth_user_id: values.auth_user_id || null };
+      const profilePayload = { first_name: values.first_name, last_name: values.last_name, email: values.email, phone: values.phone || null, primary_area: values.primary_area, active: values.active === true || values.active === 'true' };
       await superadminService.saveProfileWithRoles(initial?.id ?? null, profilePayload, values.roles?.length ? values.roles : [values.primary_area]);
       onSaved?.();
     } catch (err) { setError(err instanceof Error ? err.message : 'No se ha podido guardar el usuario.'); }
@@ -2918,9 +2918,10 @@ function MaterialMovementsView({ material, onClose }: { material: any; onClose: 
 }
 
 function SuperadminUsers() {
+  const { profile } = useAuth();
   const { data, loading, error, reload } = useLoad(() => superadminService.users(), [], [] as any[]);
   const [selected, setSelected] = useState<any | null>(null);
-  return <section className="page"><Breadcrumb items={['Administración', 'Usuarios y permisos']} /><Hero title="Usuarios y permisos" subtitle="Gestiona la ficha completa de cada usuario de tu empresa." tone="info" /><StateBlock loading={loading} error={error} retry={reload} empty={!data.length}><div className="table-card"><table><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Empresa</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>{data.map((user: any) => <tr key={user.id}><td>{fullName(user)}</td><td>{user.email}</td><td>{rolesText(user)}</td><td>{user.companies?.name ?? user.company_id}</td><td>{user.active ? 'Activo' : 'Inactivo'}</td><td><div className="row-actions"><button onClick={() => setSelected(user)}>Editar ficha completa · Gestionar permisos</button></div></td></tr>)}</tbody></table></div></StateBlock>{selected && <UserAccessPanel user={selected} onSaved={() => { setSelected(null); reload(); }} />}</section>;
+   return <section className="page"><Breadcrumb items={['Administración', 'Usuarios y permisos']} /><Hero title="Usuarios y permisos" subtitle="Gestiona la ficha completa de cada usuario de tu empresa." tone="info" /><StateBlock loading={loading} error={error} retry={reload} empty={!data.length}><div className="table-card"><table><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Empresa</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>{data.map((user: any) => <tr key={user.id}><td>{fullName(user)}</td><td>{user.email}</td><td>{rolesText(user)}</td><td>{user.companies?.name ?? user.company_id}</td><td>{user.active ? 'Activo' : 'Inactivo'}</td><td><div className="row-actions"><button onClick={() => setSelected(user)}>Editar ficha completa · Gestionar permisos</button></div></td></tr>)}</tbody></table></div></StateBlock>{selected && <UserAccessPanel user={selected} actor={profile} onSaved={() => { setSelected(null); reload(); }} />}</section>;
 }
 
 function PurchaseOrderForm({ initial, suppliers, warehouses, onClose, onSaved }: any) {

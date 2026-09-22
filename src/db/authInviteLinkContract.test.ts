@@ -10,6 +10,12 @@ const verification144 = readFileSync(new URL('../../supabase/verification/verify
 const service = readFileSync(new URL('../services/authAdminService.ts', import.meta.url), 'utf8');
 const panel = readFileSync(new URL('../components/UserAccessPanel.tsx', import.meta.url), 'utf8');
 
+function loadSanitizer() {
+  const source = edge.match(/function sanitizeLogMessage\(message: string\) \{[\s\S]*?\n\}/)?.[0];
+  expect(source).toBeDefined();
+  return new Function(`return (${source!.replace('message: string', 'message')})`)() as (message: string) => string;
+}
+
 describe('AUTH-1 secure invite and link contract', () => {
   it('keeps Auth Admin and service role server-side', () => {
     expect(edge).toContain('SUPABASE_SERVICE_ROLE_KEY');
@@ -54,7 +60,7 @@ describe('AUTH-1 secure invite and link contract', () => {
     expect(edge).toContain('dmp_admin_record_auth_invite');
     expect(edge).toContain('dmp_admin_release_auth_invite');
     expect(edge).toContain('dmp_admin_finalize_auth_invite');
-    expect(edge).toContain('marker update deferred');
+    expect(edge).toContain("logAuthFailure('marker_update'");
     expect(migration).toContain('auth_invite_intents');
     expect(migration).toContain('auth_user_id is null');
     expect(migration).toContain('pg_advisory_xact_lock');
@@ -110,8 +116,28 @@ describe('AUTH-1 secure invite and link contract', () => {
   it('does not expose full identity errors or credentials', () => {
     expect(edge).toContain('Origen no permitido.');
     expect(edge).toContain('No se puede verificar de forma segura la cuenta Auth existente.');
+    expect(edge).toContain("console.error('[AUTH-1]'");
+    expect(edge).toContain("logAuthFailure('invite_user'");
+    expect(edge).toContain("logAuthFailure('finalize'");
+    expect(edge).not.toContain('console.error(error)');
+    expect(edge).not.toContain('console.error(request');
     expect(edge).not.toContain('return serviceRoleKey');
     expect(edge).not.toContain('SUPABASE_SERVICE_ROLE_KEY:');
+  });
+
+  it('sanitizes dynamic Auth error messages before logging', () => {
+    const sanitizeLogMessage = loadSanitizer();
+    const emailMessage = sanitizeLogMessage('Error inviting ivan.mora@dmp-demo.test');
+    const tokenMessage = sanitizeLogMessage('Authorization Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.signature');
+    const urlMessage = sanitizeLogMessage('Failed callback https://example.test/invite?token=secret-value');
+    const normalMessage = sanitizeLogMessage('Email rate limit exceeded');
+
+    expect(emailMessage).not.toContain('ivan.mora@dmp-demo.test');
+    expect(tokenMessage).not.toContain('eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.signature');
+    expect(urlMessage).not.toContain('https://example.test/invite?token=secret-value');
+    expect(normalMessage).toContain('Email rate limit exceeded');
+    expect(edge).toContain('message: typeof value.message === \'string\'');
+    expect(edge).toContain('sanitizeLogMessage(');
   });
 
   it('keeps migration 144 limited to the internal actor helper ACL hotfix', async () => {

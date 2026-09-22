@@ -50,6 +50,29 @@ function hasInviteMarker(user: JsonRecord, intentId: string, intentCreatedAt: st
   return metadata.dmp_invite_intent_id === intentId || (createdAfterIntent && userMetadata.dmp_invite_intent_id === intentId);
 }
 
+function sanitizeLogMessage(message: string) {
+  return message
+    .slice(0, 1000)
+    .replace(/https?:\/\/[^\s)]+/gi, '[REDACTED_URL]')
+    .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [REDACTED_TOKEN]')
+    .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, '[REDACTED_JWT]')
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[REDACTED_EMAIL]');
+}
+
+function logAuthFailure(phase: string, context: Record<string, string | undefined>, error: unknown) {
+  const value = error && typeof error === 'object' ? error as JsonRecord : {};
+  console.error('[AUTH-1]', {
+    phase,
+    ...context,
+    name: typeof value.name === 'string' ? value.name : undefined,
+    code: typeof value.code === 'string' ? value.code : undefined,
+    status: typeof value.status === 'number' ? value.status : undefined,
+    message: typeof value.message === 'string'
+      ? sanitizeLogMessage(value.message)
+      : error instanceof Error ? sanitizeLogMessage(error.message) : undefined,
+  });
+}
+
 async function findAuthUser(admin: ReturnType<typeof createClient>, email: string) {
   for (let page = 1; page <= 100; page += 1) {
     const result = await admin.auth.admin.listUsers({ page, perPage: 1000 });
@@ -89,7 +112,10 @@ Deno.serve(async (request) => {
     if (!body || body.action !== 'invite_profile' || typeof body.profile_id !== 'string' || !uuidPattern.test(body.profile_id)) return safeError('Solicitud no valida.', 400, origin);
     const operationId = crypto.randomUUID();
     const reserved = await admin.rpc('dmp_admin_reserve_auth_invite', { p_profile_id: body.profile_id, p_actor_profile_id: actor.id, p_operation_id: operationId });
-    if (reserved.error || !reserved.data) return safeError('No se ha podido preparar la invitacion de forma segura.', 409, origin);
+    if (reserved.error || !reserved.data) {
+      logAuthFailure('reserve', { profile_id: body.profile_id, operation_id: operationId }, reserved.error ?? new Error('missing response data'));
+      return safeError('No se ha podido preparar la invitacion de forma segura.', 409, origin);
+    }
     const intent = reserved.data as { intent_id?: string; profile_id: string; company_id: string; email: string; created_at?: string; operation_id?: string; state: 'pending' | 'invited' | 'linked' | 'busy'; auth_user_id?: string | null };
     if ((intent as any).state === 'busy') return safeError('Ya hay una invitacion en curso para este perfil. Reintenta en unos instantes.', 409, origin);
     if (intent.state === 'linked') return json({ status: 'already_linked', profile_id: intent.profile_id }, 200, origin);
@@ -97,10 +123,18 @@ Deno.serve(async (request) => {
     let authUser;
     if (intent.state === 'invited' && intent.auth_user_id) {
       const existing = await admin.auth.admin.getUserById(intent.auth_user_id);
-      if (existing.error || !existing.data.user || normalizedEmail(existing.data.user.email) !== intent.email) return safeError('La invitacion existe, pero no se puede reconciliar de forma segura. Reintenta.', 409, origin);
+      if (existing.error || !existing.data.user || normalizedEmail(existing.data.user.email) !== intent.email) {
+        logAuthFailure('reconcile_get_user', { profile_id: intent.profile_id, intent_id: intent.intent_id, operation_id: operationId }, existing.error ?? new Error('Auth user reconciliation failed'));
+        return safeError('La invitacion existe, pero no se puede reconciliar de forma segura. Reintenta.', 409, origin);
+      }
       authUser = existing.data.user;
     } else {
-      authUser = await findAuthUser(admin, intent.email);
+      try {
+        authUser = await findAuthUser(admin, intent.email);
+      } catch (error) {
+        logAuthFailure('reconcile_lookup_email', { profile_id: intent.profile_id, intent_id: intent.intent_id, operation_id: operationId }, error);
+        throw error;
+      }
       if (authUser) {
         const { data: linkedProfile } = await admin.from('profiles').select('id').eq('auth_user_id', authUser.id).maybeSingle();
         if (linkedProfile && linkedProfile.id !== intent.profile_id) return safeError('No se puede completar la invitacion para este perfil.', 409, origin);
@@ -114,7 +148,9 @@ Deno.serve(async (request) => {
         data: { dmp_invite_intent_id: intent.intent_id },
       });
       if (invited.error || !invited.data.user) {
-        await admin.rpc('dmp_admin_release_auth_invite', { p_intent_id: intent.intent_id, p_operation_id: operationId, p_actor_profile_id: actor.id });
+        logAuthFailure('invite_user', { profile_id: intent.profile_id, intent_id: intent.intent_id, operation_id: operationId }, invited.error ?? new Error('missing invited user'));
+        const released = await admin.rpc('dmp_admin_release_auth_invite', { p_intent_id: intent.intent_id, p_operation_id: operationId, p_actor_profile_id: actor.id });
+        if (released.error) logAuthFailure('release', { profile_id: intent.profile_id, intent_id: intent.intent_id, operation_id: operationId }, released.error);
         return safeError('No se ha podido enviar la invitacion.', 502, origin);
       }
       authUser = invited.data.user;
@@ -122,11 +158,14 @@ Deno.serve(async (request) => {
 
     if (!intent.auth_user_id && authUser) {
       const recorded = await admin.rpc('dmp_admin_record_auth_invite', { p_intent_id: intent.intent_id, p_auth_user_id: authUser.id, p_actor_profile_id: actor.id, p_operation_id: operationId });
-      if (recorded.error && !String(recorded.error.message ?? '').includes('already_recorded')) return safeError('La invitacion existe, pero no se pudo persistir su estado. Reintenta.', 409, origin);
+      if (recorded.error && !String(recorded.error.message ?? '').includes('already_recorded')) {
+        logAuthFailure('record_invite', { profile_id: intent.profile_id, intent_id: intent.intent_id, operation_id: operationId }, recorded.error);
+        return safeError('La invitacion existe, pero no se pudo persistir su estado. Reintenta.', 409, origin);
+      }
     }
     const appMetadata = { ...(authUser.app_metadata ?? {}), ...inviteMarker(intent.intent_id ?? '') };
     const marked = await admin.auth.admin.updateUserById(authUser.id, { app_metadata: appMetadata });
-    if (marked.error) console.error('[admin-user-lifecycle] marker update deferred');
+    if (marked.error) logAuthFailure('marker_update', { profile_id: intent.profile_id, intent_id: intent.intent_id, operation_id: operationId }, marked.error);
 
     const { data: linked, error: linkError } = await admin.rpc('dmp_admin_finalize_auth_invite', {
       p_intent_id: intent.intent_id,
@@ -134,10 +173,13 @@ Deno.serve(async (request) => {
       p_actor_profile_id: actor.id,
       p_operation_id: operationId,
     });
-    if (linkError || !linked) return safeError('La invitacion existe, pero el perfil no se pudo vincular. Reintenta.', 409, origin);
+    if (linkError || !linked) {
+      logAuthFailure('finalize', { profile_id: intent.profile_id, intent_id: intent.intent_id, operation_id: operationId }, linkError ?? new Error('missing response data'));
+      return safeError('La invitacion existe, pero el perfil no se pudo vincular. Reintenta.', 409, origin);
+    }
     return json(linked as JsonRecord, 200, origin);
   } catch (error) {
-    console.error('[admin-user-lifecycle]', error instanceof Error ? error.message : 'operation failed');
+    logAuthFailure('unhandled', {}, error);
     return safeError('No se ha podido completar la operacion Auth.', 500, origin);
   }
 });

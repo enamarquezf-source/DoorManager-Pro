@@ -5,7 +5,7 @@ const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const inviteRedirectUrl = Deno.env.get('DMP_AUTH_INVITE_REDIRECT_URL') ?? '';
 const allowedOrigins = new Set((Deno.env.get('DMP_ALLOWED_ORIGINS') ?? '').split(',').map((value) => value.trim()).filter(Boolean));
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type JsonRecord = Record<string, unknown>;
 

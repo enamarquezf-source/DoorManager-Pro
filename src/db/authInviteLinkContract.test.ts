@@ -35,6 +35,17 @@ describe('AUTH-1 secure invite and link contract', () => {
     expect(edge).not.toContain('workspace');
   });
 
+  it('accepts canonical PostgreSQL UUIDs without requiring RFC version bits', () => {
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const isProfileId = (value: unknown) => typeof value === 'string' && uuidPattern.test(value);
+    expect(edge).toContain('const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;');
+    expect(isProfileId('10000000-0000-0000-0000-000000000008')).toBe(true);
+    expect(isProfileId('550e8400-e29b-41d4-a716-446655440000')).toBe(true);
+    expect(isProfileId('abc')).toBe(false);
+    expect(isProfileId('10000000-0000-0000-0000-00000000000')).toBe(false);
+    expect(isProfileId(null)).toBe(false);
+  });
+
   it('handles idempotency, marker-based reconciliation and conditional linking', () => {
     expect(edge).toContain("status: 'already_linked'");
     expect(edge).toContain('dmp_invite_intent_id');

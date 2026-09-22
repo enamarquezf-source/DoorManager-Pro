@@ -196,7 +196,8 @@ export function canReopenWorkOrder(profile: Profile | null | undefined) { return
 export function canAccessModule(profile: Profile | null | undefined, workspace: Workspace, moduleId: string) {
   if (!profile) return false;
   const moduleMap: Record<string, string> = { compras: 'purchase_orders', 'facturas-proveedor': 'supplier_invoices', proveedores: 'suppliers', materiales: 'materials', 'tipos-equipo': 'sat', facturacion: 'billing', cobros: 'billing', tesoreria: 'treasury', documentos: 'documents', comerciales: 'commercial' };
-  if (moduleMap[moduleId] && !moduleVisible(profile as any, moduleMap[moduleId])) return false;
+  const moduleCode = moduleMap[moduleId];
+  if (moduleCode && (!hasPermission(profile, `${moduleCode}.read`) || !moduleVisible(profile as any, moduleCode))) return false;
   if (workspace === 'superadmin') return hasAny(profile, ['superadmin']);
   if (workspace === 'tecnico') return ['jornada', 'checks', 'avisos'].includes(moduleId);
   if (workspace === 'sat') return hasAny(profile, ['SAT', 'Gerencia']) && !['comerciales'].includes(moduleId);

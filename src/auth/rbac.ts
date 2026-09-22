@@ -90,6 +90,5 @@ export function hasPermission(profile: (Profile & { permission_grants?: string[]
 export function moduleVisible(profile: (Profile & { visible_modules?: string[]; hidden_modules?: string[] }) | null | undefined, module: string) {
   if (!profile || !profile.active || profile.deleted_at) return false;
   if (profile.hidden_modules?.includes(module)) return false;
-  if (profile.roles?.includes('superadmin')) return true;
-  return !profile.visible_modules || profile.visible_modules.includes(module);
+  return true;
 }

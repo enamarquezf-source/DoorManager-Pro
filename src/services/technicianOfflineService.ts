@@ -28,14 +28,26 @@ export type OfflineQueueSummary = ReturnType<typeof summarizeChanges>;
 
 const dbName = 'doormanager-pro-tecnico';
 const storeName = 'offline_changes';
-const dbVersion = 2;
+const dbVersion = 3;
 const currentSyncSessionId = crypto.randomUUID();
+
+const replaceStateTypes = new Set<OfflineChangeType>(['check-block']);
+
+function isReplaceStateType(type: OfflineChangeType) {
+  return replaceStateTypes.has(type);
+}
+
+function payloadOperationId(change: Pick<OfflineChange, 'payload'>) {
+  const value = change.payload?.localChangeId ?? change.payload?.id;
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(dbName, dbVersion);
-    request.onupgradeneeded = () => {
+    request.onupgradeneeded = (event) => {
       const db = request.result;
+      const oldVersion = (event as IDBVersionChangeEvent).oldVersion;
       if (!db.objectStoreNames.contains(storeName)) {
         const store = db.createObjectStore(storeName, { keyPath: 'id' });
         store.createIndex('status', 'status');
@@ -46,6 +58,7 @@ function openDb(): Promise<IDBDatabase> {
         const tx = request.transaction;
         const store = tx?.objectStore(storeName);
         if (store && !store.indexNames.contains('type')) store.createIndex('type', 'type');
+        if (store && oldVersion < 3) migrateStoreToAppendOnlyIds(store);
       }
     };
     request.onerror = () => reject(request.error);
@@ -72,14 +85,51 @@ function changeId(type: OfflineChangeType, workOrderId: string | undefined, chec
   return [type, workOrderId ?? 'sin-parte', checkId ?? 'sin-check', blockId ?? 'general'].join(':');
 }
 
-function changeKey(change: Omit<OfflineChange, 'id' | 'createdAt' | 'updatedAt' | 'status'>) {
-  const localId = change.payload?.localChangeId ?? change.payload?.id;
-  if (['photo', 'signature', 'deficiency'].includes(change.type) && localId) return [change.type, change.workOrderId ?? 'sin-parte', change.checkId ?? 'sin-check', change.blockId ?? 'general', localId].join(':');
-  return changeId(change.type, change.workOrderId, change.checkId, change.blockId);
+type NewOfflineChange = Omit<OfflineChange, 'id' | 'createdAt' | 'updatedAt' | 'status'>;
+
+function changeKey(change: NewOfflineChange, idFactory: () => string = () => crypto.randomUUID()) {
+  if (isReplaceStateType(change.type)) return changeId(change.type, change.workOrderId, change.checkId, change.blockId);
+  return payloadOperationId(change) ?? idFactory();
 }
 
-export function offlineChangeKeyForTest(change: Omit<OfflineChange, 'id' | 'createdAt' | 'updatedAt' | 'status'>) {
-  return changeKey(change);
+export function offlineChangeKeyForTest(change: NewOfflineChange, idFactory = () => 'generated-operation-id') {
+  return changeKey(change, idFactory);
+}
+
+function migrateLegacyChanges(changes: OfflineChange[], idFactory: () => string = () => crypto.randomUUID()) {
+  const usedIds = new Set(changes.map((change) => change.id));
+  return changes.map((change) => {
+    if (isReplaceStateType(change.type)) return change;
+
+    const legacyId = changeId(change.type, change.workOrderId, change.checkId, change.blockId);
+    const payloadId = payloadOperationId(change);
+    const targetId = payloadId ?? (change.id === legacyId ? idFactory() : change.id);
+    if (targetId === change.id) return change;
+
+    let nextId = targetId;
+    while (usedIds.has(nextId) && nextId !== change.id) nextId = idFactory();
+    usedIds.add(nextId);
+    return { ...change, id: nextId };
+  });
+}
+
+function migrateStoreToAppendOnlyIds(store: IDBObjectStore) {
+  const request = store.getAll();
+  request.onsuccess = () => {
+    const changes = migrateLegacyChanges(request.result as OfflineChange[]);
+    (request.result as OfflineChange[]).forEach((change, index) => {
+      const migrated = changes[index];
+      if (migrated.id !== change.id) {
+        store.put(migrated);
+        store.delete(change.id);
+      }
+    });
+  };
+}
+
+export function migrateLegacyChangesForTest(changes: OfflineChange[], ids: string[]) {
+  let index = 0;
+  return migrateLegacyChanges(changes, () => ids[index++] ?? `generated-operation-${index}`);
 }
 
 function syncPriority(item: OfflineChange) {
@@ -186,8 +236,12 @@ async function syncChange(item: OfflineChange) {
   else throw new Error('Faltan datos para sincronizar este cambio.');
 }
 
+export function syncOfflineChangeForTest(item: OfflineChange) {
+  return syncChange(item);
+}
+
 export const technicianOfflineService = {
-  async upsert(change: Omit<OfflineChange, 'id' | 'createdAt' | 'updatedAt' | 'status'>) {
+  async upsert(change: NewOfflineChange) {
     const id = changeKey(change);
     const current = (await withStore<OfflineChange | undefined>('readonly', (store) => store.get(id))) as OfflineChange | undefined;
     const now = new Date().toISOString();

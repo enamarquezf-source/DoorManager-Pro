@@ -5,9 +5,9 @@ import { filesBucket, withSignedFileUrl } from '../shared/signedFiles';
 import { applyArchiveFilter, type ArchiveFilter } from './entityLifecycleService';
 import { applyDateRangeFilters, type DateRangeFilters } from '../shared/dateRange';
 
-const workOrderColumns = ['case_id', 'quote_id', 'client_id', 'site_id', 'main_equipment_id', 'contact_id', 'access_requirement_id', 'title', 'description', 'type', 'priority', 'status', 'origin', 'scheduled_date', 'scheduled_time', 'estimated_duration_minutes', 'planned_material', 'technical_team', 'diagnosis', 'work_performed', 'result'];
+const workOrderEditableColumns = ['case_id', 'quote_id', 'client_id', 'site_id', 'main_equipment_id', 'contact_id', 'access_requirement_id', 'title', 'description', 'type', 'priority', 'origin', 'scheduled_date', 'scheduled_time', 'estimated_duration_minutes', 'planned_material', 'technical_team', 'diagnosis', 'work_performed', 'result'];
 function workOrderPayload(payload: Record<string, any>) {
-  return Object.fromEntries(workOrderColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
+  return Object.fromEntries(workOrderEditableColumns.filter((key) => key in payload).map((key) => [key, payload[key] === '' ? null : payload[key]]));
 }
 const workOrderOperationalColumns = ['description', 'diagnosis', 'work_performed', 'result', 'observations', 'planned_material'];
 function workOrderOperationalPayload(payload: Record<string, any>) {

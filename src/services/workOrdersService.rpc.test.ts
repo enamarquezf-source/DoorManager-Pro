@@ -118,6 +118,32 @@ describe('workOrdersService operational RPCs', () => {
     expect(from).not.toHaveBeenCalledWith('work_orders');
   });
 
+  it('descarta status y campos server-managed al guardar un formulario stale', async () => {
+    const { workOrdersService } = await import('./workOrdersService');
+    const maybeSingle = vi.fn().mockResolvedValue({ data: { id: 'wo-1', title: 'Titulo nuevo', status: 'En intervencion' }, error: null });
+    const select = vi.fn(() => ({ maybeSingle }));
+    const eq = vi.fn(() => ({ select }));
+    const update = vi.fn(() => ({ eq }));
+    from.mockReturnValue({ update });
+
+    await expect(workOrdersService.update('wo-1', {
+      title: 'Titulo nuevo',
+      description: 'Descripcion nueva',
+      status: 'Pendiente',
+      finished_at: 'stale-finished-at',
+      updated_by: 'stale-profile',
+      economic_status: 'facturado',
+      unknown_field: 'ignored',
+    })).resolves.toMatchObject({ status: 'En intervencion' });
+
+    expect(update).toHaveBeenCalledWith({ title: 'Titulo nuevo', description: 'Descripcion nueva' });
+    expect(update.mock.calls[0][0]).not.toHaveProperty('status');
+    expect(update.mock.calls[0][0]).not.toHaveProperty('finished_at');
+    expect(update.mock.calls[0][0]).not.toHaveProperty('updated_by');
+    expect(update.mock.calls[0][0]).not.toHaveProperty('economic_status');
+    expect(update.mock.calls[0][0]).not.toHaveProperty('unknown_field');
+  });
+
   it('envia el payload operativo completo con la firma RPC esperada', async () => {
     const { workOrdersService } = await import('./workOrdersService');
     const payload = { description: 'Problema corregido', diagnosis: 'Diagnostico SAT', work_performed: 'Trabajo revisado', result: 'Operativa', planned_material: 'Bisagra', observations: 'no-debe-salir', status: 'Cerrado' };

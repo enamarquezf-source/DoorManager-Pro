@@ -1,4 +1,5 @@
 export type MaterialStockFilter = 'all' | 'in_stock' | 'low_stock' | 'out_of_stock' | 'inactive';
+export type MaterialCatalogType = 'standard' | 'custom' | 'single_use';
 
 export type MaterialDashboardStats = {
   total: number;
@@ -20,8 +21,18 @@ export function materialStockState(material: any, quantity: number): Exclude<Mat
   return 'in_stock';
 }
 
+export function materialCatalogType(material: any): MaterialCatalogType {
+  if (material.single_use === true) return 'single_use';
+  if (material.made_to_measure === true || material.is_specific === true) return 'custom';
+  return 'standard';
+}
+
+export function visibleMaterialCatalog(materials: any[]) {
+  return materials.filter((material) => !material.deleted_at);
+}
+
 export function materialDashboardStats(materials: any[], stockRows: any[]): MaterialDashboardStats {
-  const visible = materials.filter((material) => !material.deleted_at);
+  const visible = visibleMaterialCatalog(materials);
   const states = visible.map((material) => materialStockState(material, canonicalQuantity(material.id, stockRows)));
   return {
     total: visible.length,

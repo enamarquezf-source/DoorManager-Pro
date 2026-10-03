@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { filterMaterials, materialDashboardStats } from './materialsDashboard';
+import { filterMaterials, materialCatalogType, materialDashboardStats, visibleMaterialCatalog } from './materialsDashboard';
 
 const materials = [
   { id: 'A', active: true, minimum_stock: 3, cost: 2 },
@@ -20,6 +20,19 @@ describe('canonical materials dashboard', () => {
     expect(filterMaterials(materials, stock, 'out_of_stock').map((item) => item.id)).toEqual(['C']);
     expect(filterMaterials(materials, stock, 'inactive').map((item) => item.id)).toEqual(['D']);
     expect(filterMaterials(materials, stock, 'all')).toHaveLength(4);
+  });
+
+  it('keeps every non-archived material visible by default and distinguishes its type', () => {
+    const catalog = [
+      { id: 'standard', active: true, deleted_at: null },
+      { id: 'custom', active: true, made_to_measure: true, deleted_at: null },
+      { id: 'single-use', active: false, single_use: true, deleted_at: null },
+      { id: 'archived', active: true, deleted_at: '2026-01-01T00:00:00Z' },
+    ];
+    expect(visibleMaterialCatalog(catalog).map((item) => item.id)).toEqual(['standard', 'custom', 'single-use']);
+    expect(materialCatalogType(catalog[0])).toBe('standard');
+    expect(materialCatalogType(catalog[1])).toBe('custom');
+    expect(materialCatalogType(catalog[2])).toBe('single_use');
   });
 
   it('keeps the active module canonical and exposes authorized mass import', () => {

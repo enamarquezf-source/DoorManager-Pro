@@ -1,4 +1,4 @@
-import { Component, createContext, useContext, useEffect, useMemo, useRef, useState, type ComponentProps, type ErrorInfo, type FormEvent, type PointerEvent, type ReactNode } from 'react';
+import { Component, createContext, useContext, useEffect, useId, useMemo, useRef, useState, type ComponentProps, type ErrorInfo, type FormEvent, type PointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { BrowserRouter, Link as RouterLink, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Bell, BriefcaseBusiness, Building2, CalendarClock, CheckCircle2, ChevronLeft, ClipboardCheck, ClipboardList, Eye, EyeOff, Factory, FileText, FileUp, Gauge, Home, LogOut, Menu, PackageCheck, PanelLeftClose, PanelLeftOpen, PieChart, RefreshCw, Search, Settings, ShieldAlert, Truck, UserRound, UsersRound, Warehouse, Wrench, X } from 'lucide-react';
@@ -61,6 +61,8 @@ import { queryClient } from './query/queryClient';
 import { queryKeys } from './query/queryKeys';
 import { useLoad } from './query/useLoad';
 import { homeRouteForWorkspace, matchesRouteOrChild, parseManualRoute, superadminSharedRoutes } from './routing/appRoutes';
+import { alertRouteFallbackReason, isSupportedAlertRoute, routeForAlert } from './routing/alertRoutes';
+import { moduleRegistry } from './routing/moduleCatalog';
 import type { Profile, RoleName, Severity, Workspace } from './shared/types';
 import { entityLabels, entityLifecycleService, isArchivedRecord, type ArchiveFilter, type LifecycleEntity, type LifecycleSummary } from './services/entityLifecycleService';
 import { quotePurgeBlocks, quotePurgeCanShowButton, quotePurgeExpectedConfirmation, quotePurgePlanMatchesScope, quotePurgeResultOk, quotePurgeScope, quotePurgeScopeKey, type QuotePurgeScopeKey } from './services/quotePurgeFlow';
@@ -76,6 +78,11 @@ import { SupplierInvoicesModule } from './modules/SupplierInvoicesModule';
 import { TreasuryModule } from './modules/TreasuryModule';
 import type { DateRangeFilters } from './shared/dateRange';
 import { UserAccessPanel } from './components/UserAccessPanel';
+import { KpiBlock, type KpiPriority } from './components/KpiBlock';
+import { DetailHeader, PageHeader, Toolbar } from './components/PageHeader';
+import { DataTable } from './components/DataTable';
+import { FilterBar } from './components/FilterBar';
+import { FormSection, ModalShell, useDialogFocus } from './components/FormPrimitives';
 
 type AuthContextValue = { initialized: boolean; session: Session | null; profile: Profile | null; profileError: string | null; userId: string | null; companyId: string | null; profileId: string | null; workspace: Workspace; setWorkspace: (workspace: Workspace) => void; refreshProfile: () => Promise<void>; signOut: () => Promise<void> };
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -252,7 +259,7 @@ function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { if (loginAuthState({ initialized, session, profile, profileError: null }) === 'redirect-app' && profile) navigate(isSuperadmin(profile) ? '/app/superadmin' : profile.primary_area === 'Tecnico' ? '/app/tecnico' : '/app/inicio', { replace: true }); }, [initialized, session, profile, navigate]);
+  useEffect(() => { if (loginAuthState({ initialized, session, profile, profileError: null }) === 'redirect-app' && profile) { const workspace = profileWorkspaces(profile)[0] ?? 'oficina'; navigate(homeRouteForWorkspace(workspace), { replace: true }); } }, [initialized, session, profile, navigate]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -280,6 +287,14 @@ function ProtectedLayout() {
   const active = nav.find((item) => location.pathname.startsWith(item.path)) ?? nav[0];
 
   useEffect(() => { setAlertsOpen(false); setUserOpen(false); setQuery(''); if (window.innerWidth <= 760) setCollapsed(true); }, [location.pathname, workspace]);
+  useEffect(() => {
+    const mobileOpen = window.innerWidth <= 760 && !collapsed;
+    const previousOverflow = document.body.style.overflow;
+    if (mobileOpen) document.body.style.overflow = 'hidden';
+    const onKey = (event: KeyboardEvent) => { if (mobileOpen && event.key === 'Escape') setCollapsed(true); };
+    window.addEventListener('keydown', onKey);
+    return () => { document.body.style.overflow = previousOverflow; window.removeEventListener('keydown', onKey); };
+  }, [collapsed]);
   useEffect(() => {
     const loadUnread = () => { if (profile) alertsService.unread().then((rows) => setUnread(rows.length)).catch(() => setUnread(0)); };
     loadUnread();
@@ -487,7 +502,9 @@ function ManagementDashboard() {
 
 function RoleDashboard({ title, subtitle, kpis, quickActions, children }: { title: string; subtitle: string; kpis: any[]; quickActions: ReactNode; children: ReactNode }) {
   const queue = title === 'Inicio SAT' ? 'sat' : title === 'Inicio Comercial' ? 'commercial' : title === 'Inicio Oficina' ? 'billing' : null;
-  return <section className="page dashboard-page"><Breadcrumb items={['Inicio', title]} /><div className="page-head"><div><h2>{title}</h2><p>{subtitle}</p><small>Última actualización: {new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</small></div></div><div className="stats-grid dashboard-kpis">{kpis.map((item) => <Link key={item.label} className={`metric ${item.tone}`} to={item.route}><div>{item.icon}<span>{item.label}</span></div><strong>{item.value}</strong><small>{item.period} · {item.help}</small></Link>)}</div><Card title="Acciones rápidas"><div className="actions quick-actions">{quickActions}</div></Card>{queue && <DepartmentRoutingPanel queue={queue} />}<div className="dashboard-grid">{children}</div></section>;
+  const kpiLimit = title === 'Inicio SAT' ? 6 : title === 'Inicio Comercial' ? 5 : title === 'Inicio Oficina' ? 5 : title === 'Panel Superadmin / Propietario DMP' ? 6 : 6;
+  const visibleKpis = kpis.slice(0, kpiLimit);
+  return <section className="page dashboard-page"><Breadcrumb items={['Inicio', title]} /><div className="page-head"><div><h2>{title}</h2><p>{subtitle}</p><small>Última actualización: {new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</small></div></div>{queue && <DepartmentRoutingPanel queue={queue} />}<section className="dashboard-kpis" aria-label="Indicadores operativos">{visibleKpis.map((item, index) => <KpiBlock key={item.label} label={item.label} value={item.value} context={`${item.period} · ${item.help}`} status={item.tone} priority={item.priority ?? (index < 3 ? 'primary' : 'secondary')} action={item.route} />)}</section><section className="dashboard-actions" aria-labelledby="dashboard-actions-title"><header><h3 id="dashboard-actions-title">Acciones rápidas</h3><p>Operaciones frecuentes para este espacio de trabajo.</p></header><div className="actions quick-actions">{quickActions}</div></section><div className="dashboard-grid">{children}</div></section>;
 }
 
 function DepartmentRoutingPanelContent({ queue }: { queue: 'sat' | 'commercial' | 'billing' }) {
@@ -501,8 +518,9 @@ function DepartmentRoutingPanel({ queue }: { queue: 'sat' | 'commercial' | 'bill
   return <><PendingMaterialValidationPanel /><DepartmentRoutingPanelContent queue={queue} /></>;
 }
 
-function kpiCard(label: string, value: any, period: string, help: string, route: string, tone: Severity = 'info') {
-  return { label, value, period, help, route, tone, icon: <Gauge {...iconProps} /> };
+function kpiCard(label: string, value: any, period: string, help: string, route: string, tone: Severity = 'info', priority?: KpiPriority) {
+  const canonicalRoute = route === '/app/gerencia?vista=presupuestos' || route === '/app/gerencia?vista=presupuestos&estado=enviado' ? route.replace('/app/gerencia', '/app/modulos/presupuestos') : route === '/app/gerencia?vista=ventas' || route === '/app/gerencia?indicador=ventas' ? '/app/modulos/ventas' : route;
+  return { label, value, period, help, route: canonicalRoute, tone, priority };
 }
 
 function DashboardList({ title, rows, empty, allRoute }: { title: string; rows: [string, string, Severity, string][]; empty: string; allRoute?: string }) {
@@ -565,7 +583,7 @@ function SuperadminProfileForm({ initial, onClose, onSaved }: any) {
     event.preventDefault();
     setSaving(true); setError('');
     try {
-      const roles = normalizedRoleNames(values.primary_area, values.roles?.length ? values.roles : [values.primary_area]);
+      const roles = normalizedRoleNames(values.roles ?? []);
       const payload = { first_name: values.first_name, last_name: values.last_name, email: values.email, phone: values.phone || null, primary_area: roles.includes('SAT') ? 'SAT' : values.primary_area, active: values.active === true || values.active === 'true' };
       await superadminService.saveProfileWithRoles(initial?.id ?? null, payload, roles);
       onSaved?.();
@@ -718,7 +736,7 @@ function CaseDetailPage({ forcedId }: { forcedId?: string } = {}) { const { id: 
 
 function PendingMaterialValidationPanel() {
   const { profile } = useAuth();
-  const roles = profile ? normalizedRoleNames(profile.primary_area, profile.roles ?? []) : [];
+  const roles = profile?.roles ?? [];
   const canValidate = roles.some((role) => ['superadmin', 'SAT', 'Gerencia', 'Oficina'].includes(role));
   const [search, setSearch] = useState('');
   const [warehouseByUsage, setWarehouseByUsage] = useState<Record<string, string>>({});
@@ -830,8 +848,8 @@ function plannedQuoteLineDecision(workOrder: any, lineId: string) { return (work
 function operationalQuoteLines(workOrder: any) { return plannedQuoteLines(workOrder).filter((line: any) => !['fee','discount'].includes(line.line_type)); }
 function pendingOperationalQuoteLines(workOrder: any) { return operationalQuoteLines(workOrder).filter((line: any) => line.line_type === 'material' || line.material_id ? !plannedMaterialDecision(workOrder, line.id) : line.line_type === 'labor' ? false : !plannedQuoteLineDecision(workOrder, line.id)); }
 function pendingPlannedMaterials(workOrder: any) { return plannedMaterialRows(workOrder).filter((line: any) => !plannedMaterialDecision(workOrder, line.id)); }
-function canFinalizeWorkOrderTechnical(profile: any, workOrder: any) { const roles = profile ? normalizedRoleNames(profile.primary_area, profile.roles ?? []) : []; const allowedRole = roles.some((role) => ['superadmin','SAT','Gerencia'].includes(role)) || (roles.includes('Tecnico') && canManageWorkOrderStatus(profile, workOrder)); return allowedRole && !['Finalizado tecnicamente','Enviado','Cerrado','Cancelado'].includes(workOrder?.status); }
-function canResolvePlannedConcept(profile: any, workOrder: any) { return canManageWorkOrderCosts(profile, workOrder) || normalizedRoleNames(profile?.primary_area, profile?.roles ?? []).includes('Tecnico'); }
+function canFinalizeWorkOrderTechnical(profile: any, workOrder: any) { const roles = profile?.roles ?? []; const allowedRole = roles.some((role) => ['superadmin','SAT','Gerencia'].includes(role)) || (roles.includes('Tecnico') && canManageWorkOrderStatus(profile, workOrder)); return allowedRole && !['Finalizado tecnicamente','Enviado','Cerrado','Cancelado'].includes(workOrder?.status); }
+function canResolvePlannedConcept(profile: any, workOrder: any) { return canManageWorkOrderCosts(profile, workOrder) || (profile?.roles ?? []).includes('Tecnico'); }
 function economicStatusLabel(workOrder: any) { return workOrder?.economic_status === 'garantia' ? 'GARANTÍA' : workOrder?.economic_status === 'no_facturable' ? 'NO FACTURABLE' : workOrder?.economic_status === 'pendiente_validacion' ? 'PENDIENTE DE VALIDACIÓN DE OFICINA' : workOrder?.economic_status === 'pendiente_facturar' ? 'PENDIENTE DE FACTURACIÓN' : displayStatus(workOrder?.economic_status ?? 'pendiente'); }
 function quoteLineCategory(line: any) { const type = line.line_type ?? 'other'; if (type === 'material' || line.material_id) return 'MATERIALES PREVISTOS'; if (type === 'labor') return 'MANO DE OBRA PREVISTA'; if (['transport','travel'].includes(type)) return 'DESPLAZAMIENTOS'; if (type === 'mobile_workshop') return 'TALLER MÓVIL'; if (['lifting_platform','auxiliary_equipment'].includes(type)) return 'PLATAFORMA / MEDIOS AUXILIARES'; if (['external_cost','other'].includes(type)) return 'COSTES EXTERNOS / OTROS'; return 'CONCEPTOS COMERCIALES'; }
 function realHoursMinutes(workOrder: any) { return (workOrder.time_entries ?? []).reduce((sum: number, row: any) => sum + Number(row.duration_minutes ?? 0), 0); }
@@ -899,7 +917,7 @@ function WorkOrderSatReviewCard({ workOrder, onChanged, onError }: { workOrder: 
   const commercialsQuery = useProfiles(companyId, 'commercials');
   const commercials = { data: commercialsQuery.data ?? [], loading: commercialsQuery.isPending };
   const status = workOrder.sat_review_status ?? 'not_started';
-  const canDecideWarranty = profile ? normalizedRoleNames(profile.primary_area, profile.roles ?? []).some((role) => ['superadmin', 'SAT', 'Gerencia', 'Oficina'].includes(role)) : false;
+  const canDecideWarranty = profile ? (profile.roles ?? []).some((role) => ['superadmin', 'SAT', 'Gerencia', 'Oficina'].includes(role)) : false;
   if (!['pending', 'returned', 'approved'].includes(status)) return null;
   const submit = async () => {
     if (!decision || saving) return;
@@ -920,7 +938,7 @@ function WorkOrderCommercialReviewCard({ workOrder, onChanged, onError }: { work
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
   if (!isPendingCommercialReview(workOrder, profile)) return null;
-  const roles = profile ? normalizedRoleNames(profile.primary_area, profile.roles ?? []) : [];
+  const roles = profile?.roles ?? [];
   const assignedReviewer = roles.includes('Comercial') && !roles.some((role) => ['superadmin', 'Gerencia'].includes(role)) ? workOrder.current_responsible_id === profile?.id : true;
   const canApprove = canReviewWorkOrderCommercial(profile) && assignedReviewer;
   const approve = async () => { if (!reason.trim() || saving || !canApprove) return; setSaving(true); onError(''); try { await workOrdersService.reviewWorkOrderCommercial(workOrder.id, reason); setReason(''); onChanged(); } catch (err) { onError(formErrorMessage(err, 'No se ha podido enviar el parte a Facturación.')); } finally { setSaving(false); } };
@@ -938,7 +956,7 @@ function WorkOrderOfficeValidationCard({ workOrder, onChanged, onError }: { work
   const satApproved = workOrder.sat_review_status === 'approved';
   const commercialApproved = workOrder.sat_review_destination !== 'comercial' || workOrder.commercial_review_status === 'approved';
   const readyForOffice = satApproved && commercialApproved;
-  const canDecideWarranty = profile ? normalizedRoleNames(profile.primary_area, profile.roles ?? []).some((role) => ['superadmin', 'SAT', 'Gerencia', 'Oficina'].includes(role)) : false;
+  const canDecideWarranty = profile ? (profile.roles ?? []).some((role) => ['superadmin', 'SAT', 'Gerencia', 'Oficina'].includes(role)) : false;
   if (isModernBillingRouting(workOrder)) return null;
   if (!readyForOffice || (status === 'not_started' && workOrder.economic_status !== 'pendiente_validacion')) return null;
   if (capability.loading) return null;
@@ -977,7 +995,7 @@ function WorkOrderFinalizeModal({ workOrder, onClose, onDone, onError }: { workO
   const { profile } = useAuth();
   const [saving, setSaving] = useState(false);
   const showCosts = canViewWorkOrderCosts(profile);
-  const canDecideWarranty = profile ? normalizedRoleNames(profile.primary_area, profile.roles ?? []).some((role) => ['superadmin', 'SAT', 'Gerencia', 'Oficina'].includes(role)) : false;
+  const canDecideWarranty = profile ? (profile.roles ?? []).some((role) => ['superadmin', 'SAT', 'Gerencia', 'Oficina'].includes(role)) : false;
   const summary = interventionSummary(workOrder);
   const pending = pendingOperationalQuoteLines(workOrder);
   const pendingChecks = pendingWorkOrderCheckCount(workOrder);
@@ -1192,9 +1210,12 @@ function SyncButton({ workOrderId, checkId, remoteLocalChangeIds: remoteIds, onS
   const sync = async () => {
     if (!pending.length || syncing) return;
     setSyncing(true); setMessage(`Pendientes: ${summary.pending}. Fallidos reintentables: ${summary.failed}. Bloques: ${summary.blocks}. Incidencias: ${summary.incidences}. Fotos: ${summary.photos}. Materiales: ${summary.materials}. Firmas: ${summary.signatures}.`);
-    const result = await technicianOfflineService.sync(setMessage, { workOrderId, checkId });
-    setMessage(`Sincronizados: ${result.synced}. Fallidos: ${result.failed}. Pendientes: ${result.pending}.`);
-    setSyncing(false); reload(); onSynced?.();
+    try {
+      const result = await technicianOfflineService.sync(setMessage, { workOrderId, checkId });
+      setMessage(`Sincronizados: ${result.synced}. Fallidos: ${result.failed}. Pendientes: ${result.pending}.`);
+      await reload(); onSynced?.();
+    } catch (error) { setMessage(error instanceof Error ? `No se ha podido sincronizar: ${error.message}` : 'No se ha podido sincronizar. Revisa la conexión e inténtalo de nuevo.'); }
+    finally { setSyncing(false); }
   };
   return <div className="sync-box"><button className="primary" disabled={!pending.length || syncing} onClick={sync}>{syncing ? 'Sincronizando...' : `Sincronizar (${pending.length})`}</button>{pending.length > 0 && <Link to="/app/pendientes">Ver pendientes</Link>}{message && <p>{message}</p>}</div>;
 }
@@ -2110,10 +2131,11 @@ function AlertsPanel({ onClose, showFilters = false }: { onClose?: () => void; s
     if (filter === 'abiertos') return !row.closed_at;
     if (filter === 'cerrados') return Boolean(row.closed_at);
     if (filter === 'alta') return ['Alta', 'Critica'].includes(alert.priority);
-    if (filter === 'criticos') return alert.priority === 'Critica' || alert.type === 'Critico';
+     if (filter === 'criticos') return alert.priority === 'Critica' || alert.type === 'Critico';
+    if (filter === 'administrativos') return normalizeParam(alert.type) === 'administrativo';
     return true;
   });
-  return <StateBlock loading={loading} error={error} retry={reload} empty={false}>{actionError && <p className="form-error">{actionError}</p>}{showFilters && <div className="alert-filters"><div className="tabs">{[['todos','Todos'],['sin-leer','Sin leer'],['leidos','Leídos'],['abiertos','Abiertos'],['cerrados','Cerrados'],['alta','Alta prioridad'],['criticos','Críticos']].map(([key, label]) => <button key={key} className={filter === key ? 'active' : ''} onClick={() => setFilter(key)}>{label}</button>)}</div><p className="large-note">Filtro activo: {filter.replace('-', ' ')} · {filtered.length} resultado(s)</p><button className="link-button" onClick={() => setFilter('todos')}>Restablecer filtros</button></div>}{!filtered.length ? <Card title="Sin avisos para este filtro"><p className="large-note">No hay avisos que cumplan el filtro seleccionado. Puedes restablecer filtros o crear un aviso nuevo si tu rol lo permite.</p></Card> : <div className="alerts-panel compact-list">{filtered.map((row) => { const alert = row.alerts; const relatedRoute = routeForAlert(alert); return <article key={row.id} className={row.is_read ? 'read' : ''}><Badge tone={severityForPriority(alert.priority)}>{alert.title}</Badge><p>{alert.description}<br /><small>{formatDate(alert.alert_date)} · Aviso {displayStatus(alert.status)} · {row.closed_at ? 'Cerrado por destinatario' : row.is_read ? 'Leído' : 'Sin leer'}</small></p><div className="row-actions"><button onClick={() => markRead(row)} disabled={row.is_read}>Marcar como leído</button><button onClick={() => open(row)}>Abrir aviso</button>{relatedRoute !== '/app/avisos' && <button onClick={() => goRelated(row)}>Ir al registro</button>}{row.closed_at ? <button onClick={() => reopen(row)}>Reabrir</button> : <button onClick={() => close(row)}>Cerrar</button>}</div></article>; })}</div>}</StateBlock>;
+  return <StateBlock loading={loading} error={error} retry={reload} empty={false}>{actionError && <p className="form-error">{actionError}</p>}{showFilters && <div className="alert-filters"><div className="tabs">{[['todos','Todos'],['sin-leer','Sin leer'],['leidos','Leídos'],['abiertos','Abiertos'],['cerrados','Cerrados'],['alta','Alta prioridad'],['criticos','Críticos'],['administrativos','Administrativos']].map(([key, label]) => <button key={key} className={filter === key ? 'active' : ''} onClick={() => setFilter(key)}>{label}</button>)}</div><p className="large-note">Filtro activo: {filter.replace('-', ' ')} · {filtered.length} resultado(s)</p><button className="link-button" onClick={() => setFilter('todos')}>Restablecer filtros</button></div>}{!filtered.length ? <Card title="Sin avisos para este filtro"><p className="large-note">No hay avisos que cumplan el filtro seleccionado. Puedes restablecer filtros o crear un aviso nuevo si tu rol lo permite.</p></Card> : <div className="alerts-panel compact-list">{filtered.map((row) => { const alert = row.alerts; const relatedRoute = routeForAlert(alert); const relatedSupported = isSupportedAlertRoute(alert); return <article key={row.id} className={row.is_read ? 'read' : ''}><Badge tone={severityForPriority(alert.priority)}>{alert.title}</Badge><p>{alert.description}<br /><small>{formatDate(alert.alert_date)} · Aviso {displayStatus(alert.status)} · {row.closed_at ? 'Cerrado por destinatario' : row.is_read ? 'Leído' : 'Sin leer'}</small></p><div className="row-actions"><button onClick={() => markRead(row)} disabled={row.is_read}>Marcar como leído</button><button onClick={() => open(row)}>Abrir aviso</button>{relatedSupported && <button onClick={() => goRelated(row)}>Ir al registro</button>}{!relatedSupported && alertRouteFallbackReason(alert) && <small className="form-error">{alertRouteFallbackReason(alert)} Se mantiene en Avisos.</small>}{row.closed_at ? <button onClick={() => reopen(row)}>Reabrir</button> : <button onClick={() => close(row)}>Cerrar</button>}</div></article>; })}</div>}</StateBlock>;
 }
 
 function DocumentsPage() { const [search, setSearch] = useState(''); const { data, loading, error, reload } = useLoad(() => documentsService.list(search), [search], [] as any[]); const [creating, setCreating] = useState(false); return <ListPage title="Documentación" summary="Documentos y vínculos relacionados." search={search} setSearch={setSearch} action={<button className="primary" onClick={() => setCreating(true)}>Crear documento</button>} loading={loading} error={error} retry={reload} empty={!data.length}><div className="doc-list">{data.map((doc) => <article key={doc.id}><FileText size={17} /><div><strong>{doc.title}</strong><span>{doc.type} · {doc.origin ?? 'Sin origen'}</span></div><Link to={`/app/documentos/${doc.id}`}>Abrir</Link></article>)}</div>{creating && <DocumentForm onClose={() => setCreating(false)} onSaved={() => { setCreating(false); reload(); }} />}</ListPage>; }
@@ -2532,7 +2554,12 @@ function RateCatalogModuleV2() { const { profile } = useAuth(); const canManage 
 
 function ManagementPage060() { return <CanonicalManagementPage />; }
 
-function ModulePage() { const { moduleId = '' } = useParams(); const { profile } = useAuth(); const canDeleteDraft = canDeleteInvoiceDraft(profile); if (moduleId === 'tipos-equipo') return <EquipmentTypesPage />; if (moduleId === 'planificacion') return <PlanningModule />; if (moduleId === 'tecnicos') return <TechniciansModule />; if (moduleId === 'comerciales') return <CommercialProfilesModule />; if (moduleId === 'ventas') return <SalesModule mode="ventas" />; if (moduleId === 'oportunidades') return <SalesModule mode="oportunidades" />; if (moduleId === 'presupuestos') return <QuotesModule />; if (moduleId === 'materiales') return <MaterialsModule />; if (moduleId === 'proveedores') return <SuppliersModule />; if (moduleId === 'compras') return <PurchaseOrdersModule />; if (moduleId === 'tarifas-horas') return <RateCatalogModuleV2 />; if (moduleId === 'operaciones') return <OperationsModule />; if (moduleId === 'informes') return <ManagementPage060 />; if (moduleId === 'personal') return <TechniciansModule />; if (moduleId === 'rentabilidad') return <ProfitabilityModule />; if (moduleId === 'administracion') return <CompanySettingsModule />; if (moduleId === 'facturacion') return <BillingModule mode="invoices" canDeleteDraft={canDeleteDraft} />; if (moduleId === 'cobros') return <BillingModule mode="collections" canDeleteDraft={false} />; if (!Object.prototype.hasOwnProperty.call(moduleMeta, moduleId)) return <ModuleNotFound />; return <OperationalModule moduleId={moduleId} />; }
+type ModuleRenderContext = { profile: Profile | null; canDeleteDraft: boolean };
+type ModuleRenderer = (context: ModuleRenderContext) => ReactNode;
+const moduleRenderers: Record<string, ModuleRenderer> = {
+  'tipos-equipo': () => <EquipmentTypesPage />, planificacion: () => <PlanningModule />, tecnicos: () => <TechniciansModule />, comerciales: () => <CommercialProfilesModule />, ventas: () => <SalesModule mode="ventas" />, oportunidades: () => <SalesModule mode="oportunidades" />, presupuestos: () => <QuotesModule />, materiales: () => <MaterialsModule />, proveedores: () => <SuppliersModule />, compras: () => <PurchaseOrdersModule />, 'tarifas-horas': () => <RateCatalogModuleV2 />, operaciones: () => <OperationsModule />, informes: () => <ManagementPage060 />, personal: () => <TechniciansModule />, rentabilidad: () => <ProfitabilityModule />, administracion: () => <CompanySettingsModule />, facturacion: ({ profile, canDeleteDraft }) => <BillingModule mode="invoices" profile={profile} canDeleteDraft={canDeleteDraft} />, cobros: ({ profile }) => <BillingModule mode="collections" profile={profile} canDeleteDraft={false} />, 'facturas-proveedor': ({ profile }) => <SupplierInvoicesModule profile={profile} />, tesoreria: ({ profile }) => <TreasuryModule profile={profile} />, operational: () => <OperationalModule />,
+};
+function ModulePage() { const { moduleId = '' } = useParams(); const { profile } = useAuth(); const definition = moduleRegistry[moduleId]; if (!definition) return <ModuleNotFound />; const render = moduleRenderers[definition.renderer]; if (!render) return <ModuleNotFound />; return <>{render({ profile, canDeleteDraft: canDeleteInvoiceDraft(profile) })}</>; }
 
 function ModuleNotFound() { const { workspace } = useAuth(); return <section className="page"><Card title="Módulo no encontrado"><p className="large-note">El módulo solicitado no pertenece al catálogo disponible.</p><Link className="primary" to={homeRouteForWorkspace(workspace)}>Volver al inicio</Link></Card></section>; }
 
@@ -2540,7 +2567,7 @@ function CompanySettingsModule() {
   const { profile } = useAuth();
   const company = useLoad(() => superadminService.operatingCompany(), [], null as any);
   const [editing, setEditing] = useState(false);
-  const canEdit = canRole(profile?.primary_area ?? '', 'gestionar usuarios') || canManageHourRates(profile);
+  const canEdit = hasPermission(profile, 'admin.users.update') || canManageHourRates(profile);
   if (company.loading || company.error || !company.data) return <StateBlock loading={company.loading} error={company.error} retry={company.reload} empty={!company.data} />;
   return <section className="page"><Breadcrumb items={['Administración', 'Datos de empresa']} /><Hero title="Datos de empresa" subtitle="Empresa operadora emisora para futura facturación." tone="info" /><Card title="Ficha fiscal" action={canEdit ? <button className="primary" onClick={() => setEditing(true)}>Editar datos</button> : null}><InfoGrid items={[[ 'Razón social', company.data.name ], [ 'Nombre comercial', company.data.trade_name ?? '-' ], [ 'NIF/CIF', company.data.tax_id ?? '-' ], [ 'Dirección', company.data.address ?? '-' ], [ 'CP', company.data.postal_code ?? '-' ], [ 'Localidad', company.data.city ?? '-' ], [ 'Provincia', company.data.province ?? '-' ], [ 'País', company.data.country ?? '-' ], [ 'Teléfono', company.data.phone ?? '-' ], [ 'Email', company.data.email ?? '-' ], [ 'Web', company.data.website ?? '-' ], [ 'Logo', company.data.logo_url ? 'Configurado' : '-' ], [ 'Notas fiscales', company.data.fiscal_notes ?? '-' ]]} /></Card>{editing && <CompanySettingsForm initial={company.data} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); company.reload(); }} />}</section>;
 }
@@ -2554,25 +2581,26 @@ function CompanySettingsForm({ initial, onClose, onSaved }: { initial: any; onCl
   return <ModalForm title="Editar datos de empresa" onClose={onClose} onSubmit={submit} saving={saving} error={error}><div className="form-grid"><label>Razón social *<input value={values.name ?? ''} onChange={(event) => set('name', event.target.value)} required /></label><label>Nombre comercial<input value={values.trade_name ?? ''} onChange={(event) => set('trade_name', event.target.value)} /></label><label>NIF/CIF<input value={values.tax_id ?? ''} onChange={(event) => set('tax_id', event.target.value)} /></label><label>Teléfono<input value={values.phone ?? ''} onChange={(event) => set('phone', event.target.value)} /></label><label>Email<input type="email" value={values.email ?? ''} onChange={(event) => set('email', event.target.value)} /></label><label>Web<input value={values.website ?? ''} onChange={(event) => set('website', event.target.value)} /></label><label>Dirección<input value={values.address ?? ''} onChange={(event) => set('address', event.target.value)} /></label><label>CP<input value={values.postal_code ?? ''} onChange={(event) => set('postal_code', event.target.value)} /></label><label>Localidad<input value={values.city ?? ''} onChange={(event) => set('city', event.target.value)} /></label><label>Provincia<input value={values.province ?? ''} onChange={(event) => set('province', event.target.value)} /></label><label>País<input value={values.country ?? ''} onChange={(event) => set('country', event.target.value)} /></label><label>Logo URL<input value={values.logo_url ?? ''} onChange={(event) => set('logo_url', event.target.value)} /></label></div><label>Notas fiscales<textarea value={values.fiscal_notes ?? ''} onChange={(event) => set('fiscal_notes', event.target.value)} /></label></ModalForm>;
 }
 
-function OperationalModule({ moduleId }: { moduleId: string }) {
+function OperationalModule() {
   const { workspace, profile } = useAuth();
+  const { moduleId = '' } = useParams();
   if (moduleId === 'facturas-proveedor') return <SupplierInvoicesModule profile={profile} />;
   if (moduleId === 'tesoreria') return <TreasuryModule profile={profile} />;
-  const meta = moduleMeta[moduleId] ?? { title: 'Módulo operativo', description: 'Registros relacionados disponibles.', links: [] };
+  const meta = moduleRegistry[moduleId] ?? { title: 'Módulo operativo', description: 'Registros relacionados disponibles.', links: [] };
   const { data, loading, error, reload } = useLoad(() => loadModuleRows(moduleId), [moduleId], [] as [string, string, Severity, string][]);
   return <section className="page"><Breadcrumb items={[workspaceTitles[workspace], meta.title]} /><Hero title={meta.title} subtitle={meta.description} tone="info" /><Card title="Registros relacionados"><div className="actions">{meta.links.map((link: any) => <Link key={link.to} to={link.to}>{link.label}</Link>)}</div></Card><StateBlock loading={loading} error={error} retry={reload} empty={!data.length}><CompactRows rows={data} empty="Sin registros relacionados." /></StateBlock></section>;
 }
 
 async function loadModuleRows(moduleId: string): Promise<[string, string, Severity, string][]> {
   if (['contratos','administracion','facturacion','cobros','compras','proveedores','prl','vehiculos','informes-comerciales'].includes(moduleId)) {
-    const documents = await documentsService.list(moduleMeta[moduleId]?.title ?? '');
+    const documents = await documentsService.list(moduleRegistry[moduleId]?.title ?? '');
     return documents.map((item: any) => [item.title, `${displayStatus(item.type)} · ${item.origin ?? '-'} · ${formatDate(item.updated_at)}`, 'info', `/app/documentos/${item.id}`]);
   }
   if (moduleId === 'visitas') {
     const works = await workOrdersService.list('Visita');
     return works.map((work: any) => [work.code, `${work.title} · ${work.client_name ?? '-'} · ${displayStatus(work.status)}`, severityForStatus(work.status), `/app/partes/${work.id}`]);
   }
-  const alerts = await alertsService.list(moduleMeta[moduleId]?.title ?? '');
+  const alerts = await alertsService.list(moduleRegistry[moduleId]?.title ?? '');
   return alerts.map((row: any) => [row.alerts?.code ?? row.alerts?.title ?? 'Aviso', `${row.alerts?.description ?? '-'} · ${displayStatus(row.alerts?.status)}`, severityForStatus(row.alerts?.priority), '/app/avisos']);
 }
 
@@ -2609,30 +2637,6 @@ function CommercialProfilesModule() {
   const workOrders = useLoad(() => workOrdersService.list(), [], [] as any[]);
   return <section className="page"><Breadcrumb items={['Comercial', 'Comerciales']} /><Hero title="Fichas comerciales" subtitle="Visitas, partes comerciales, clientes relacionados y carga de trabajo." tone="commercial" /><StateBlock loading={commercials.loading || workOrders.loading} error={commercials.error || workOrders.error} retry={() => { commercials.reload(); workOrders.reload(); }} empty={!commercials.data.length}><div className="grid half">{commercials.data.map((person) => { const assigned = workOrders.data.filter((work: any) => work.current_responsible_id === person.id || work.created_by === person.id || work.created_by_name === fullName(person)); const visits = assigned.filter((work: any) => work.type === 'Visita comercial'); return <Card key={person.id} title={fullName(person)} action={<Link to={`/app/modulos/comerciales/${person.id}`}>Abrir ficha</Link>}><InfoGrid items={[[ 'Email', person.email ?? '-' ], [ 'Teléfono', person.phone ?? '-' ], [ 'Visitas', String(visits.length) ], [ 'Partes comerciales', String(assigned.length) ], [ 'Carga abierta', String(assigned.filter((work: any) => !['Enviado','Cerrado','Cancelado'].includes(work.status)).length) ]]} /></Card>; })}</div></StateBlock></section>;
 }
-
-const moduleMeta: Record<string, { title: string; description: string; links: { label: string; to: string }[] }> = {
-  planificacion: { title: 'Planificación', description: '', links: [{ label: 'Ver partes', to: '/app/partes' }] },
-  tecnicos: { title: 'Técnicos', description: '', links: [{ label: 'Partes sin asignar', to: '/app/partes?filtro=sin-asignar' }] },
-  oportunidades: { title: 'Oportunidades', description: '', links: [{ label: 'Clientes', to: '/app/clientes' }] },
-  presupuestos: { title: 'Presupuestos', description: '', links: [{ label: 'Deficiencias valorables', to: '/app/deficiencias' }] },
-  materiales: { title: 'Materiales', description: '', links: [{ label: 'Partes con material', to: '/app/partes?filtro=material' }] },
-  contratos: { title: 'Contratos', description: 'Contratos de mantenimiento y renovaciones.', links: [{ label: 'Clientes', to: '/app/clientes' }] },
-  visitas: { title: 'Visitas', description: 'Visitas comerciales y técnicas planificadas.', links: [{ label: 'Calendario SAT', to: '/app/modulos/planificacion' }] },
-  'informes-comerciales': { title: 'Informes comerciales', description: 'Indicadores comerciales específicos.', links: [{ label: 'Inicio comercial', to: '/app/inicio' }] },
-  administracion: { title: 'Administración', description: 'Gestión administrativa interna.', links: [{ label: 'Documentos', to: '/app/documentos' }] },
-  facturacion: { title: 'Facturación', description: 'Facturación y seguimiento administrativo de partes cerrados.', links: [{ label: 'Documentación', to: '/app/documentos' }] },
-  cobros: { title: 'Cobros', description: 'Seguimiento de cobros y avisos administrativos.', links: [{ label: 'Avisos', to: '/app/avisos' }] },
-  compras: { title: 'Compras', description: 'Pedidos de compra a proveedores.', links: [{ label: 'Proveedores', to: '/app/modulos/proveedores' }, { label: 'Materiales', to: '/app/modulos/materiales' }] },
-  proveedores: { title: 'Proveedores', description: 'Gestión de proveedores y documentación asociada.', links: [{ label: 'Documentos', to: '/app/documentos' }] },
-  prl: { title: 'PRL y personal', description: 'Prevención, documentación laboral y formación.', links: [{ label: 'Documentos', to: '/app/documentos' }] },
-  tesoreria: { title: 'Tesoreria', description: 'Cuentas, movimientos y transferencias de la empresa.', links: [] },
-  vehiculos: { title: 'Vehículos', description: 'Flota, revisiones y documentación de vehículos.', links: [{ label: 'Documentos', to: '/app/documentos' }] },
-  ventas: { title: 'Ventas', description: 'Indicadores de ventas y presupuestos aceptados.', links: [{ label: 'Gerencia', to: '/app/gerencia' }] },
-  operaciones: { title: 'Operaciones', description: 'Visión ejecutiva de operaciones.', links: [{ label: 'Partes', to: '/app/partes' }] },
-  rentabilidad: { title: 'Rentabilidad', description: 'Análisis de rentabilidad y desviaciones.', links: [{ label: 'Gerencia', to: '/app/gerencia' }] },
-  personal: { title: 'Personal', description: 'Equipo humano, roles y carga de trabajo.', links: [{ label: 'Técnicos', to: '/app/modulos/tecnicos' }] },
-  informes: { title: 'Informes', description: 'Informes de dirección e indicadores agregados.', links: [{ label: 'Métricas', to: '/app/gerencia' }] },
-};
 
 function NotFound() {
   const location = useLocation();
@@ -2895,7 +2899,7 @@ function CanonicalMaterialsModule() {
   const archiveVisible = data.filter((material: any) => archiveFilter === 'archived' ? Boolean(material.deleted_at) || material.active === false : archiveFilter === 'inactive' ? !material.deleted_at && material.active === false && material.is_specific !== true : archiveFilter === 'consumed' ? !material.deleted_at && material.active === false && material.is_specific === true : archiveFilter === 'all' ? !material.deleted_at : !material.deleted_at && material.active !== false);
   const visible = filterMaterials(archiveVisible, stock.data, stockFilter);
   const cards = [{ key: 'all' as const, label: 'Materiales totales', value: stats.total, tone: 'info' as Severity, help: 'Catálogo no archivado' }, { key: 'in_stock' as const, label: 'Con stock', value: stats.inStock, tone: 'ok' as Severity, help: 'Activos con saldo positivo' }, { key: 'low_stock' as const, label: 'Bajo stock', value: stats.lowStock, tone: 'warn' as Severity, help: 'Activos hasta el mínimo' }, { key: 'out_of_stock' as const, label: 'Sin stock', value: stats.outOfStock, tone: 'danger' as Severity, help: 'Activos con saldo cero o menor' }, { key: 'inactive' as const, label: 'Inactivos', value: stats.inactive, tone: 'muted' as Severity, help: 'Catálogo no activo' }];
-  const canImport = profile ? normalizedRoleNames(profile.primary_area, profile.roles ?? []).some((role) => ['superadmin', 'SAT', 'Gerencia', 'Oficina'].includes(role)) : false;
+  const canImport = profile ? (profile.roles ?? []).some((role) => ['superadmin', 'SAT', 'Gerencia', 'Oficina'].includes(role)) : false;
   const setStockCard = (next: MaterialStockFilter) => setStockFilter((current) => current === next && next !== 'all' ? 'all' : next);
   return <><ListPage title="Materiales" summary="Catálogo, disponibilidad y movimientos por almacén." search={search} setSearch={setSearch} archiveFilter={archiveFilter} setArchiveFilter={setArchiveFilter} action={<div className="actions"><button onClick={() => setEditing({})}>Crear material</button>{canImport && <button className="primary" onClick={() => document.getElementById('material-bulk-import')?.scrollIntoView({ behavior: 'smooth' })}><FileUp {...iconProps} />Importar materiales</button>}</div>} loading={loading || stock.loading} error={error || stock.error} retry={() => { reload(); stock.reload(); }} empty={!data.length}><div className="stats-grid materials-dashboard" aria-label="Resumen de materiales">{cards.map((card) => <button type="button" key={card.key} className={`metric ${card.tone}${stockFilter === card.key ? ' selected' : ''}`} aria-pressed={stockFilter === card.key} onClick={() => setStockCard(card.key)}><span>{card.label}</span><strong>{card.value}</strong><small>{card.help}</small></button>)}<button type="button" className={`metric ok${stockFilter === 'all' ? ' selected' : ''}`} aria-pressed={stockFilter === 'all'} onClick={() => setStockCard('all')}><span>Valor inventario</span><strong>{stats.inventoryValue.toLocaleString('es-ES')} €</strong><small>Stock canónico x coste</small></button></div><div className="material-filter-context"><strong>Filtro: {stockFilter === 'all' ? 'Todos' : stockFilter === 'in_stock' ? 'Con stock' : stockFilter === 'low_stock' ? 'Bajo stock' : stockFilter === 'out_of_stock' ? 'Sin stock' : 'Inactivos'}</strong><span>{visible.length} resultado(s) · búsqueda y filtros combinados</span>{stockFilter !== 'all' && <button type="button" className="link-button" onClick={() => setStockFilter('all')}>Mostrar todos</button>}</div><div className="record-list">{visible.map((material: any) => { const quantity = canonicalQuantity(material.id, stock.data); const state = materialStockState(material, quantity); const label = state === 'inactive' ? 'Inactivo' : state === 'low_stock' ? 'Bajo stock' : state === 'out_of_stock' ? 'Sin stock' : 'Con stock'; const tone = state === 'inactive' ? 'muted' : state === 'low_stock' ? 'warn' : state === 'out_of_stock' ? 'danger' : 'ok'; return <RecordCard key={material.id} archived={Boolean(material.deleted_at)} title={<strong>{material.code} · {material.description}</strong>} status={[label, tone]} actions={<><button onClick={() => setEditing(material)}>Editar material</button><button onClick={() => setAdjusting(material)}>Ajustar stock</button><button onClick={() => setMovementItem(material)}>Ver movimientos</button><LifecycleActionPanel entity="materials" record={material} onChanged={reload} /></>} meta={<RecordMeta items={[[ 'Unidad', material.unit ?? 'ud' ], [ 'Coste', `${Number(material.cost ?? 0).toLocaleString('es-ES')} €` ], [ 'Precio venta', `${Number(material.price ?? 0).toLocaleString('es-ES')} €` ], [ 'Stock canónico', `${quantity.toLocaleString('es-ES')} ${material.unit ?? 'ud'}` ], [ 'Stock mínimo', `${Number(material.minimum_stock ?? 0).toLocaleString('es-ES')} ${material.unit ?? 'ud'}` ]]} />} />; })}</div>{!visible.length && <p className="large-note">No hay materiales para el filtro actual.</p>}</ListPage>{canImport && <div id="material-bulk-import"><MaterialBulkImportPanel /></div>}{editing && <CanonicalMaterialForm initial={editing.id ? editing : undefined} warehouses={warehouses.data} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); stock.reload(); }} />}{adjusting && <CanonicalStockAdjustForm material={adjusting} warehouses={warehouses.data} onClose={() => setAdjusting(null)} onSaved={() => { setAdjusting(null); stock.reload(); }} />}{movementItem && <CanonicalStockMovementsModal material={movementItem} onClose={() => setMovementItem(null)} />}</>;
 }
@@ -3212,7 +3216,7 @@ function SuppliersModule() {
   const [editing, setEditing] = useState<any | null>(null);
   const suppliers = useLoad(() => suppliersService.list(search, active), [search, active], [] as any[]);
   const canManage = canManageSuppliers(profile);
-  const canManageBanking = profile ? normalizedRoleNames(profile.primary_area, profile.roles ?? []).some((role) => ['superadmin', 'Gerencia', 'Oficina'].includes(role)) : false;
+  const canManageBanking = profile ? (profile.roles ?? []).some((role) => ['superadmin', 'Gerencia', 'Oficina'].includes(role)) : false;
   if (!canViewSuppliers(profile)) return <section className="page"><Card title="Proveedores"><p className="large-note">No tienes permisos para consultar proveedores.</p></Card></section>;
   return <ListPage title="Proveedores" summary="Catálogo de proveedores y sus datos de contacto." search={search} setSearch={setSearch} loading={suppliers.loading} error={suppliers.error} retry={suppliers.reload} empty={!suppliers.data.length} action={canManage ? <button className="primary" onClick={() => setEditing({})}>Crear proveedor</button> : null}><div className="filters local-filters"><FormSelect label="Estado" value={active} onChange={(value) => setActive(value as typeof active)} options={[{ value: 'active', label: 'Activos' }, { value: 'inactive', label: 'Inactivos' }, { value: 'all', label: 'Todos' }]} /></div><div className="grid half">{suppliers.data.map((supplier: any) => <Card key={supplier.id} title={supplier.name} action={<Badge tone={supplier.active ? 'ok' : 'muted'}>{supplier.active ? 'Activo' : 'Inactivo'}</Badge>}><InfoGrid items={[[ 'NIF/CIF', supplier.tax_id ?? '-' ], [ 'Correo', supplier.email ?? '-' ], [ 'Teléfono', supplier.phone ?? '-' ], [ 'Materiales asociados', String((supplier.material_suppliers ?? []).filter((row: any) => row.active).length) ]]} />{canManage && <div className="row-actions"><button type="button" onClick={async () => setEditing(await suppliersService.get(supplier.id, canManageBanking))}>Editar</button>{supplier.active && <button type="button" onClick={async () => { await suppliersService.setActive(supplier.id, false); suppliers.reload(); }}>Desactivar</button>}{!supplier.active && <button type="button" onClick={async () => { await suppliersService.setActive(supplier.id, true); suppliers.reload(); }}>Activar</button>}</div>}</Card>)}</div>{editing && <SupplierForm initial={editing} canManageBanking={canManageBanking} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); suppliers.reload(); }} />}</ListPage>;
 }
@@ -3333,7 +3337,7 @@ function assignmentRows(workOrder: any) {
 }
 
 function isCommercialProfile(profile: any) {
-  return profile?.primary_area === 'Comercial' || profile?.profile_roles?.some((item: any) => item.roles?.name === 'Comercial') || profile?.roles?.includes?.('Comercial');
+  return profile?.profile_roles?.some((item: any) => item.roles?.name === 'Comercial') || profile?.roles?.includes?.('Comercial');
 }
 
 function AssignmentsCard({ workOrder, canManage, onManage, onChanged }: { workOrder: any; canManage: boolean; onManage: () => void; onChanged: () => void }) {
@@ -3466,8 +3470,8 @@ function useOverlayScrollLock() {
 }
 
 function ModalForm({ title, onClose, onSubmit, saving, error, children, submitLabel }: any) {
-  useOverlayScrollLock();
-  return <div className="mini-modal" role="dialog" aria-modal="true" onWheel={(event) => event.stopPropagation()} onTouchMove={(event) => event.stopPropagation()}><form onSubmit={onSubmit}><h3>{title}</h3>{children}{error && <p className="form-error"><AlertTriangle size={16} />{error}</p>}<div className="modal-footer"><button type="button" onClick={onClose} disabled={saving}>Cancelar</button><button className="primary" disabled={saving}>{saving ? 'Guardando...' : (submitLabel ?? (title === 'Nuevo pedido de compra' ? 'Crear pedido' : title))}</button></div></form></div>;
+  useOverlayScrollLock(); const errorId = useId().replace(/:/g, '');
+  return <ModalShell title={title} onClose={onClose} canClose={!saving}><form onSubmit={onSubmit} aria-describedby={error ? errorId : undefined}>{children}{error && <p id={errorId} className="form-error" role="alert"><AlertTriangle size={16} />{error}</p>}<div className="modal-footer"><button type="button" onClick={onClose} disabled={saving}>Cancelar</button><button className="primary" disabled={saving}>{saving ? 'Guardando...' : (submitLabel ?? (title === 'Nuevo pedido de compra' ? 'Crear pedido' : title))}</button></div></form></ModalShell>;
 }
 
 function FormSelect({ label, value, onChange, options, required, loading, disabled, emptyLabel = 'Seleccionar' }: { label: string; value?: string; onChange: (value: string) => void; options: { value: string; label: string }[]; required?: boolean; loading?: boolean; disabled?: boolean; emptyLabel?: string }) {
@@ -3475,7 +3479,7 @@ function FormSelect({ label, value, onChange, options, required, loading, disabl
   return <label>{label}{required ? ' *' : ''}<select value={value ?? ''} onChange={(event) => onChange(event.target.value)} required={required} disabled={disabled || loading}>{!explicitEmpty && <option value="">{loading ? 'Cargando...' : emptyLabel}</option>}{options.map((option) => <option key={option.value} value={option.value}>{option.value === '' && option.label === 'Selecciona proveedor' ? 'Selecciona un proveedor' : normalizeEntityOptionLabel(option.label)}</option>)}</select></label>;
 }
 
-function EntityForm({ title, fields, initial = {}, selects = {}, help, errorMessage, onClose, onSubmit, onSaved }: any) { useOverlayScrollLock(); const [values, setValues] = useState<Record<string, any>>(initial); const [error, setError] = useState(''); const [saving, setSaving] = useState(false); const submit = async (event: FormEvent) => { event.preventDefault(); setSaving(true); setError(''); try { const result = await onSubmit(values); onSaved?.(result?.id ?? result); } catch (err) { console.error(err); setError(formErrorMessage(err, errorMessage)); } finally { setSaving(false); } }; return <div className="mini-modal" role="dialog" aria-modal="true" onWheel={(event) => event.stopPropagation()} onTouchMove={(event) => event.stopPropagation()}><form onSubmit={submit}><h3>{title}</h3>{help && <p className="large-note">{help}</p>}{fields.map(([key, label, required]: any[]) => selects[key] ? <FormSelect key={key} label={label} value={values[key]} onChange={(value) => setValues({ ...values, [key]: value })} required={Boolean(required)} options={selects[key]} /> : <label key={key}>{label}{required ? ' *' : ''}<input value={values[key] ?? ''} onChange={(event) => setValues({ ...values, [key]: event.target.value })} required={Boolean(required)} /></label>)}{error && <p className="form-error">{error}</p>}<div className="modal-footer"><button type="button" onClick={onClose} disabled={saving}>Cancelar</button><button className="primary" disabled={saving}>{saving ? 'Guardando...' : title}</button></div></form></div>; }
+function EntityForm({ title, fields, initial = {}, selects = {}, help, errorMessage, onClose, onSubmit, onSaved }: any) { useOverlayScrollLock(); const errorId = useId().replace(/:/g, ''); const [values, setValues] = useState<Record<string, any>>(initial); const [error, setError] = useState(''); const [saving, setSaving] = useState(false); const submit = async (event: FormEvent) => { event.preventDefault(); setSaving(true); setError(''); try { const result = await onSubmit(values); onSaved?.(result?.id ?? result); } catch (err) { console.error(err); setError(formErrorMessage(err, errorMessage)); } finally { setSaving(false); } }; return <ModalShell title={title} onClose={onClose} canClose={!saving}><form onSubmit={submit} aria-describedby={error ? errorId : undefined}><FormSection>{help && <p className="large-note">{help}</p>}{fields.map(([key, label, required]: any[]) => selects[key] ? <FormSelect key={key} label={label} value={values[key]} onChange={(value) => setValues({ ...values, [key]: value })} required={Boolean(required)} options={selects[key]} /> : <label key={key}>{label}{required ? ' *' : ''}<input value={values[key] ?? ''} onChange={(event) => setValues({ ...values, [key]: event.target.value })} required /></label>)}</FormSection>{error && <p id={errorId} className="form-error" role="alert">{error}</p>}<div className="modal-footer"><button type="button" onClick={onClose} disabled={saving}>Cancelar</button><button className="primary" disabled={saving}>{saving ? 'Guardando...' : title}</button></div></form></ModalShell>; }
 
 function LifecycleActionPanel({ entity, record, onChanged }: { entity: LifecycleEntity; record: any; onChanged: () => void }) { const { profile, workspace } = useAuth(); const [action, setAction] = useState<'archive' | 'restore' | 'delete' | 'dependencies' | null>(null); const permissionRecord = { ...record, lifecycle_entity: entity }; const permissionScope = { platformScope: workspace === 'superadmin' }; const archived = isArchivedRecord(entity, record); const quoteArchiveOnly = entity === 'quotes'; const allowedArchive = canArchiveEntity(profile, permissionRecord, permissionScope); const allowedRestore = !quoteArchiveOnly && canRestoreEntity(profile, permissionRecord, permissionScope); const allowedDelete = !quoteArchiveOnly && canPermanentlyDeleteEntity(profile, permissionRecord, permissionScope); if (!allowedArchive && !allowedRestore && !allowedDelete) return null; return <div className="lifecycle-panel"><div className="actions">{!quoteArchiveOnly && <button type="button" onClick={() => setAction('dependencies')}>Gestionar registro</button>}{!archived && allowedArchive && <button type="button" onClick={() => setAction('archive')}>Archivar/desactivar</button>}{archived && allowedRestore && <button type="button" onClick={() => setAction('restore')}>Restaurar</button>}</div>{action && <LifecycleConfirmModal entity={entity} record={record} action={action} onClose={() => setAction(null)} onChanged={() => { setAction(null); onChanged(); }} skipDependencyLoad={quoteArchiveOnly} />}</div>; }
 
@@ -3487,14 +3491,14 @@ function DateRangeFiltersPanel({ params, setParams }: { params: URLSearchParams;
   return <div className="filters date-range-filters"><span className="filter-label">Fecha de creación</span><label>Desde<input type="date" value={params.get('creado_desde') ?? ''} onChange={(event) => update('creado_desde', event.target.value)} /></label><label>Hasta<input type="date" value={params.get('creado_hasta') ?? ''} onChange={(event) => update('creado_hasta', event.target.value)} /></label><span className="filter-label">Última actualización</span><label>Desde<input type="date" value={params.get('actualizado_desde') ?? ''} onChange={(event) => update('actualizado_desde', event.target.value)} /></label><label>Hasta<input type="date" value={params.get('actualizado_hasta') ?? ''} onChange={(event) => update('actualizado_hasta', event.target.value)} /></label></div>;
 }
 
-function ListPage({ title, summary, search, setSearch, action, loading, error, retry, empty, children, archiveFilter, setArchiveFilter }: any) { const [listParams, setListParams] = useSearchParams(); return <section className="page"><Breadcrumb items={['Listado', title]} /><div className="page-head"><div><h2>{title}</h2><p>{summary}</p></div>{action}</div><div className="filters local-filters"><label><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`Buscar en ${title.toLowerCase()}...`} /></label>{archiveFilter && setArchiveFilter && <ArchiveFilterTabs value={archiveFilter} onChange={setArchiveFilter} material={title === 'Materiales'} />}</div>{(title === 'Partes' || title === 'Presupuestos') && <DateRangeFiltersPanel params={listParams} setParams={setListParams} />}<StateBlock loading={loading} error={error} retry={retry} empty={empty}>{children}</StateBlock></section>; }
+function ListPage({ title, summary, search, setSearch, action, loading, error, retry, empty, children, archiveFilter, setArchiveFilter }: any) { const [listParams, setListParams] = useSearchParams(); const resetFilters = () => { setSearch(''); if (setArchiveFilter) setArchiveFilter('active'); const next = new URLSearchParams(listParams); ['creado_desde', 'creado_hasta', 'actualizado_desde', 'actualizado_hasta'].forEach((key) => next.delete(key)); setListParams(next, { replace: true }); }; return <section className="page"><Breadcrumb items={['Listado', title]} /><PageHeader title={title} subtitle={summary} actions={action} /><FilterBar className="filters local-filters" onReset={resetFilters}><label htmlFor={`search-${title}`}><Search size={16} aria-hidden="true" /><span className="sr-only">Buscar en {title}</span><input id={`search-${title}`} aria-label={`Buscar en ${title}`} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`Buscar en ${title.toLowerCase()}...`} /></label>{archiveFilter && setArchiveFilter && <ArchiveFilterTabs value={archiveFilter} onChange={setArchiveFilter} material={title === 'Materiales'} />}</FilterBar>{(title === 'Partes' || title === 'Presupuestos') && <DateRangeFiltersPanel params={listParams} setParams={setListParams} />}<StateBlock loading={loading} error={error} retry={retry} empty={empty}>{children}</StateBlock></section>; }
 
 function ArchiveFilterTabs({ value, onChange, material = false }: { value: ArchiveFilter | MaterialFilter; onChange: (value: any) => void; material?: boolean }) { return <div className="tabs archive-tabs" aria-label={material ? 'Filtro de materiales' : 'Filtro de archivo'}><button className={value === 'active' ? 'active' : ''} onClick={() => onChange('active')}>Activos</button>{material && <button className={value === 'inactive' ? 'active' : ''} onClick={() => onChange('inactive')}>Inactivos</button>}{material && <button className={value === 'consumed' ? 'active' : ''} onClick={() => onChange('consumed')}>Equipos a medida consumidos</button>}<button className={value === 'archived' ? 'active' : ''} onClick={() => onChange('archived')}>{material ? 'Archivados' : 'Archivados'}</button><button className={value === 'all' ? 'active' : ''} onClick={() => onChange('all')}>Todos</button></div>; }
 function StateBlock({ loading, error, retry, empty, children }: any) { if (loading) return <Card title="Cargando"><p className="large-note">Cargando datos...</p></Card>; if (error && empty) return <Card title="Error"><p className="form-error">{error}</p><button className="primary" onClick={retry}>Reintentar</button></Card>; if (empty) return <Card title="Sin registros"><p className="large-note">No hay datos para este filtro.</p>{retry && <button onClick={retry}>Reintentar</button>}</Card>; return <>{error && <p className="form-error" role="status">{error} <button onClick={retry}>Reintentar</button></p>}{children}</>; }
 function Card({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) { const equipmentId = title === 'Identificación' && typeof window !== 'undefined' ? window.location.pathname.match(/^\/app\/(?:superadmin\/)?equipos\/([^/]+)$/)?.[1] : undefined; return <section className="card">{equipmentId && <EquipmentPhotoPanel equipmentId={equipmentId} canManage /> }<header><h3>{title}</h3>{action}</header>{children}</section>; }
 function Badge({ tone, children }: { tone: Severity; children: ReactNode }) { return <span className={`badge ${tone}`}>{typeof children === 'string' ? visibleLabel(children) : children}</span>; }
 function InfoGrid({ items }: { items: [string, any][] }) { return <dl className="info-grid">{items.map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value ?? '-'}</dd></div>)}</dl>; }
-function canManageEquipmentPhotoUi(profile: any) { return normalizedRoleNames(profile?.primary_area, profile?.roles ?? []).some((role) => ['superadmin', 'SAT', 'Gerencia', 'Oficina'].includes(role)); }
+function canManageEquipmentPhotoUi(profile: any) { return (profile?.roles ?? []).some((role: string) => ['superadmin', 'SAT', 'Gerencia', 'Oficina'].includes(role)); }
 function EquipmentPhotoPanel({ equipmentId, canManage, contextWorkOrderId, onChanged, compact = false }: { equipmentId?: string; canManage: boolean; contextWorkOrderId?: string; onChanged?: () => void; compact?: boolean }) {
   const photos = useLoad(() => equipmentId ? equipmentPhotosService.list(equipmentId) : Promise.resolve([]), [equipmentId], [] as any[]);
   const [message, setMessage] = useState('');
@@ -3538,12 +3542,14 @@ function EquipmentOperationalMeta({ equipment }: { equipment: any }) { const lab
 function CompactRows({ rows, empty }: { rows: [string, string, Severity, string?][]; empty: string }) { if (!rows.length) return <p className="large-note">{empty}</p>; return <div className="compact-list">{rows.map(([title, text, tone, route]) => <article key={`${title}-${text}`}><Badge tone={tone}>{title}</Badge><p>{text}</p>{route && <Link to={route}>Abrir</Link>}</article>)}</div>; }
 function dependencyRoute(name: string) { const routes: Record<string, string> = { contactos: '/app/clientes', centros: '/app/centros', equipos: '/app/equipos', expedientes: '/app/expedientes', partes: '/app/partes', checks: '/app/checks', documentos: '/app/documentos', deficiencias: '/app/deficiencias', asignaciones: '/app/partes', historial: '/app/superadmin/auditoria', historial_estados: '/app/superadmin/auditoria', eventos: '/app/expedientes', vinculos: '/app/expedientes', oportunidades: '/app/modulos/oportunidades', presupuestos: '/app/modulos/presupuestos' }; return routes[name] ?? null; }
 function DependencyRows({ dependencies }: { dependencies: Record<string, number> }) { const rows = Object.entries(dependencies); if (!rows.length) return <p className="large-note">Sin dependencias.</p>; return <div className="compact-list">{rows.map(([name, count]) => { const route = Number(count) > 0 ? dependencyRoute(name) : null; return <article key={name}><Badge tone={Number(count) > 0 ? 'warn' : 'ok'}>{displayStatus(name)}</Badge><p>{count} registro(s)</p>{route && <Link to={route}>Abrir listado</Link>}</article>; })}</div>; }
-function WorkTable({ rows, columns, route, lifecycleEntity, onLifecycleChanged }: { rows: any[]; columns: string[]; route: string; lifecycleEntity?: LifecycleEntity; onLifecycleChanged?: () => void }) { return <div className="table-card"><table><thead><tr>{columns.map((column) => <th key={column}>{column.split('.').at(-1)}</th>)}<th>Acción</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id} className={lifecycleEntity && isArchivedRecord(lifecycleEntity, row) ? 'archived-row' : ''}>{columns.map((column) => <td key={column}>{formatEntityTableValue(row, column)}</td>)}<td><div className="row-actions"><Link to={`${route}/${row.id}`}>Abrir</Link>{lifecycleEntity && onLifecycleChanged && <LifecycleActionPanel entity={lifecycleEntity} record={row} onChanged={onLifecycleChanged} />}</div></td></tr>)}</tbody></table></div>; }
+const tableColumnLabels: Record<string, string> = { code: 'Código', name: 'Nombre', title: 'Título', first_name: 'Nombre', last_name: 'Apellidos', email: 'Email', equipment_code: 'Equipo', work_order_code: 'Parte', status: 'Estado', priority: 'Prioridad', global_result: 'Resultado', client_name: 'Cliente', 'clients.legal_name': 'Cliente', site_name: 'Centro', created_at: 'Creado', updated_at: 'Actualizado' };
+function humanizeTableColumn(column: string) { const label = column.split('.').at(-1)?.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()); return label || 'Columna'; }
+function WorkTable({ rows, columns, route, lifecycleEntity, onLifecycleChanged }: { rows: any[]; columns: string[]; route: string; lifecycleEntity?: LifecycleEntity; onLifecycleChanged?: () => void }) { return <DataTable rows={rows} columns={columns.map((column) => ({ key: column, header: tableColumnLabels[column] ?? humanizeTableColumn(column), render: (row: any) => formatEntityTableValue(row, column) }))} getRowKey={(row) => row.id} rowActions={(row) => <><Link to={`${route}/${row.id}`}>Abrir</Link>{lifecycleEntity && onLifecycleChanged && <LifecycleActionPanel entity={lifecycleEntity} record={row} onChanged={onLifecycleChanged} />}</>} />; }
 function RecordCard({ title, status, meta, to, actions, archived }: { title: ReactNode; status?: [string, Severity]; meta?: ReactNode; to?: string; actions?: ReactNode; archived?: boolean }) { return <article className={`record-card${archived ? ' archived-record' : ''}`}><header><div className="record-title">{title}</div>{status && <Badge tone={status[1]}>{status[0]}</Badge>}</header>{meta && <div className="record-meta">{meta}</div>}<footer><div className="row-actions">{actions}{to && <Link className="primary record-open" to={to}>Abrir</Link>}</div></footer></article>; }
 function RecordMeta({ items }: { items: [string, string][] }) { return items.map(([key, value]) => <span key={key}><b>{key === 'Stock actual' ? 'Stock legacy' : key}</b> {value}</span>); }
-function Breadcrumb({ items }: { items: string[] }) { return <div className="breadcrumb">{items.map((item, index) => <span key={item}>{index > 0 && '/'} {item}</span>)}</div>; }
+function Breadcrumb({ items }: { items: string[] }) { return <nav className="breadcrumb" aria-label="Ruta de navegación"><ol>{items.map((item, index) => <li key={item} aria-current={index === items.length - 1 ? 'page' : undefined}>{item}</li>)}</ol></nav>; }
 function BackButton() { const navigate = useNavigate(); return <button className="link-button" onClick={() => navigate(-1)}><ChevronLeft size={16} /> Volver</button>; }
-function Hero({ title, subtitle, tone }: { title: string; subtitle: string; tone: Severity }) { return <div className="detail-hero"><div><p className="eyebrow">Ficha</p><h2>{normalizeEntityOptionLabel(title)}</h2><p>{subtitle}</p></div><Badge tone={tone}>{tone}</Badge></div>; }
+function Hero({ title, subtitle, tone }: { title: string; subtitle: string; tone: Severity }) { return <DetailHeader title={normalizeEntityOptionLabel(title)} subtitle={subtitle} actions={<Badge tone={tone}>{tone}</Badge>} />; }
 function relatedRoute(row: any, base: string) {
   if (row?.related_type && row?.related_id) {
     const relationBases: Record<string, string> = {
@@ -3582,7 +3588,6 @@ function permissionForRole(role: string, permission: string) {
 }
 function normalize(value: string) { return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
 function normalizeCheckStatus(value?: string | null) { return value === 'Favorable tras intervencion' ? 'Favorable tras intervención' : value || 'Sin revisar'; }
-function routeForAlert(alert: any) { if (!alert?.related_entity || !alert?.related_id) return '/app/avisos'; const map: Record<string, string> = { work_orders: '/app/partes', deficiencies: '/app/deficiencias', equipment: '/app/equipos', checks: '/app/checks', clients: '/app/clientes', sites: '/app/centros', cases: '/app/expedientes' }; return `${map[alert.related_entity] ?? '/app/avisos'}/${alert.related_id}`; }
 function routeForOperationalItem(item: any) {
   if (item?.related_entity && item?.related_id) return routeForAlert(item);
   if (item?.code?.startsWith('DEF-') || item?.work_order_id || item?.check_id) return `/app/deficiencias/${item.id}`;

@@ -7,6 +7,7 @@ const initial = readFileSync(new URL('../../supabase/migrations/001_initial_dmp_
 const lifecycle023 = readFileSync(new URL('../../supabase/migrations/023_work_order_operations_and_controlled_delete.sql', import.meta.url), 'utf8');
 const material052 = readFileSync(new URL('../../supabase/migrations/052_material_lifecycle_rate_traceability.sql', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
+const alertRoutes = readFileSync(new URL('../routing/alertRoutes.ts', import.meta.url), 'utf8');
 const workOrdersService = readFileSync(new URL('../services/workOrdersService.ts', import.meta.url), 'utf8');
 
 const CASELINK_RELATED_TYPES = ['Equipo', 'Parte', 'Check', 'Aviso', 'Documento', 'Presupuesto', 'Incidencia', 'Oportunidad'];
@@ -180,7 +181,7 @@ describe('purga datos de prueba 055', () => {
 
   it('14. alerts usa los valores reales de related_entity del proyecto', () => {
     expect(ALERT_RELATED_ENTITY_VALUES).toContain('work_orders');
-    expect(app).toMatch(/work_orders: '\/app\/partes'/);
+    expect(alertRoutes).toMatch(/work_orders: \(id\) => `\/app\/partes\/\$\{id\}`/);
     expect(workOrdersService).toMatch(/eq\('related_entity', 'work_orders'\)/);
     const usedIn055 = [...migration.matchAll(/related_entity = '([a-z_]+)'/g)].map((m) => m[1]);
     expect(usedIn055.length).toBeGreaterThan(0);

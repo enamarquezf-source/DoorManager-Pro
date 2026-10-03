@@ -35,4 +35,11 @@ describe('dashboard route declarations', () => {
     expect(officeDashboard).toContain('<Link to="/app/modulos/proveedores">Abrir proveedor</Link>');
     expect(officeDashboard).toContain('<Link to="/app/modulos/facturacion">Abrir facturación</Link>');
   });
+
+  it('uses the shared operational KPI block with explicit hierarchy', () => {
+    expect(app).toContain("import { KpiBlock, type KpiPriority } from './components/KpiBlock';");
+    expect(app).toContain('aria-label="Indicadores operativos"');
+    expect(app).toContain("priority={item.priority ?? (index < 3 ? 'primary' : 'secondary')}");
+    expect(app).toContain('Acciones rápidas');
+  });
 });

@@ -25,7 +25,7 @@ export const dashboardService = {
       expectStep('Inicio SAT / avisos', () => expectData<any[]>(supabase.from('alerts').select('*').eq('company_id', companyId).is('deleted_at', null).order('created_at', { ascending: false }), { service: 'dashboardService', operation: 'Inicio SAT / avisos', resource: 'alerts' })),
       expectStep('Inicio SAT / materiales', () => expectData<any[]>(supabase.from('work_order_materials').select('*, work_orders!work_order_materials_work_order_id_fkey(code,title,status), materials!work_order_materials_material_id_fkey(code,description)').eq('company_id', companyId).order('created_at', { ascending: false }), { service: 'dashboardService', operation: 'Inicio SAT / materiales', resource: 'work_order_materials' })),
     ]);
-    return { day, prevDay, workOrders, assignments, technicians: technicians.filter((row) => row.primary_area === 'Tecnico' || row.profile_roles?.some((item: any) => item.roles?.name === 'Tecnico')), pendingChecks, completedChecks, deficiencies, alerts, materials };
+    return { day, prevDay, workOrders, assignments, technicians: technicians.filter((row) => row.profile_roles?.some((item: any) => item.roles?.name === 'Tecnico')), pendingChecks, completedChecks, deficiencies, alerts, materials };
   },
 
   async getCommercialDashboardData() {

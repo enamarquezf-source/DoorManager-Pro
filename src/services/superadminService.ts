@@ -62,7 +62,7 @@ export const superadminService = {
     return this.saveProfileWithRoles(null, payload, payload.roles ?? []);
   },
   async saveProfileWithRoles(profileId: string | null, payload: Record<string, any>, roleNames: string[]) {
-    const roles = normalizedRoleNames(undefined, roleNames as any);
+    const roles = normalizedRoleNames(roleNames as any);
     const normalizedPayload = Object.fromEntries(Object.entries(payload).filter(([key]) => key !== 'primary_area' && key !== 'roles'));
     return expectData<any>(supabase.rpc('superadmin_save_profile_with_roles', { p_profile_id: profileId, p_profile: normalizedPayload, p_role_names: roles }).single());
   },

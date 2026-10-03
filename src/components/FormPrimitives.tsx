@@ -1,0 +1,39 @@
+import { useEffect, useId, useRef, type ReactNode } from 'react';
+
+export function FormSection({ title, description, children, className = '' }: { title?: ReactNode; description?: ReactNode; children: ReactNode; className?: string }) {
+  return <section className={`form-section ${className}`.trim()}>{(title || description) && <header>{title && <h3>{title}</h3>}{description && <p>{description}</p>}</header>}{children}</section>;
+}
+
+export function useDialogFocus<T extends HTMLElement = HTMLElement>(onClose: () => void, canClose = true) {
+  const panelRef = useRef<T>(null);
+  const closeRef = useRef(onClose);
+  const canCloseRef = useRef(canClose);
+  closeRef.current = onClose;
+  canCloseRef.current = canClose;
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    const panel = panelRef.current;
+    const focusables = () => Array.from(panel?.querySelectorAll<HTMLElement>('input, select, textarea, button, a[href], [tabindex]:not([tabindex="-1"])') ?? []).filter((item) => !item.hasAttribute('disabled'));
+    focusables()[0]?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { if (canCloseRef.current) closeRef.current(); return; }
+      if (event.key !== 'Tab') return;
+      const items = focusables();
+      if (!items.length) { event.preventDefault(); return; }
+      const first = items[0]; const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => { window.removeEventListener('keydown', onKey); if (opener?.isConnected) opener.focus(); };
+  }, []);
+  return panelRef;
+}
+
+export function ModalShell({ title, onClose, children, labelledBy, describedBy, className = '', canClose = true, closeOnBackdrop = false }: { title: ReactNode; onClose: () => void; children: ReactNode; labelledBy?: string; describedBy?: string; className?: string; canClose?: boolean; closeOnBackdrop?: boolean }) {
+  const panelRef = useDialogFocus<HTMLDivElement>(onClose, canClose);
+  const generatedId = useId().replace(/:/g, '');
+  const titleId = labelledBy ?? `modal-title-${generatedId}`;
+  const close = () => { if (canClose) onClose(); };
+  return <div className="mini-modal" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={describedBy} onMouseDown={(event) => { if (closeOnBackdrop && event.target === event.currentTarget) close(); }} onWheel={(event) => event.stopPropagation()} onTouchMove={(event) => event.stopPropagation()}><div ref={panelRef} className={`modal-panel ${className}`.trim()}><header className="modal-header"><h3 id={titleId}>{title}</h3><button type="button" className="modal-close" onClick={close} disabled={!canClose} aria-label="Cerrar">×</button></header>{children}</div></div>;
+}

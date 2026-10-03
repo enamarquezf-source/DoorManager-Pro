@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 
-const migration = readFileSync(new URL('../../supabase/migrations/117_suppliers_material_relations.sql', import.meta.url), 'utf8');
-const verification = readFileSync(new URL('../../supabase/verification/verify_117_suppliers_material_relations.sql', import.meta.url), 'utf8');
-const hardeningMigration = readFileSync(new URL('../../supabase/migrations/118_harden_supplier_permissions.sql', import.meta.url), 'utf8');
-const hardeningVerification = readFileSync(new URL('../../supabase/verification/verify_118_harden_supplier_permissions.sql', import.meta.url), 'utf8');
+const readText = (url: URL) => readFileSync(url, 'utf8').replace(/\r\n/g, '\n');
+const migration = readText(new URL('../../supabase/migrations/117_suppliers_material_relations.sql', import.meta.url));
+const verification = readText(new URL('../../supabase/verification/verify_117_suppliers_material_relations.sql', import.meta.url));
+const hardeningMigration = readText(new URL('../../supabase/migrations/118_harden_supplier_permissions.sql', import.meta.url));
+const hardeningVerification = readText(new URL('../../supabase/verification/verify_118_harden_supplier_permissions.sql', import.meta.url));
 const service = readFileSync(new URL('../services/suppliersService.ts', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
 const permissions = readFileSync(new URL('../auth/permissions.ts', import.meta.url), 'utf8');
@@ -38,7 +39,7 @@ describe('SUPPLIERS-STOCK-001A', () => {
     expect(app).toContain('function SuppliersModule');
     expect(app).toContain('function SupplierForm');
     expect(app).toContain('function MaterialSuppliersEditor');
-    expect(app).toContain("moduleId === 'proveedores'");
+     expect(app).toContain("proveedores: () => <SuppliersModule />");
     expect(permissions).toContain("path.startsWith('/app/modulos/proveedores')");
     expect(materials).not.toContain('stock_quantity');
   });

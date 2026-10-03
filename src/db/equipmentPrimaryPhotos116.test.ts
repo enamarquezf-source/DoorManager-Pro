@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const migration = readFileSync(new URL('../../supabase/migrations/116_equipment_primary_photos.sql', import.meta.url), 'utf8');
-const postflight = readFileSync(new URL('../../supabase/verification/verify_116_equipment_primary_photos.sql', import.meta.url), 'utf8');
+const readText = (url: URL) => readFileSync(url, 'utf8').replace(/\r\n/g, '\n');
+const migration = readText(new URL('../../supabase/migrations/116_equipment_primary_photos.sql', import.meta.url));
+const postflight = readText(new URL('../../supabase/verification/verify_116_equipment_primary_photos.sql', import.meta.url));
 const app = readFileSync(new URL('../../src/App.tsx', import.meta.url), 'utf8');
 
 describe('116 equipment primary photos', () => {

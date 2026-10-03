@@ -10,13 +10,13 @@ describe('canAccessRoute', () => {
   it('normaliza SAT con Comercial a un unico workspace SAT', () => {
     const sat = profile('SAT', ['SAT', 'Comercial']);
     expect(profileWorkspaces(sat)).toEqual(['sat']);
-    expect(normalizedRoleNames('SAT', ['Comercial'])).toEqual(['SAT']);
+    expect(normalizedRoleNames(['SAT', 'Comercial'])).toEqual(['SAT']);
   });
 
   it('mantiene Comercial puro en workspace comercial', () => {
     const comercial = profile('Comercial', ['Comercial']);
     expect(profileWorkspaces(comercial)).toEqual(['comercial']);
-    expect(normalizedRoleNames('Comercial', [])).toEqual(['Comercial']);
+    expect(normalizedRoleNames(['Comercial'])).toEqual(['Comercial']);
   });
 
   it('permite al tecnico acceder a checks y avisos', () => {
@@ -96,6 +96,18 @@ describe('canAccessRoute', () => {
     const inconsistent = profile('superadmin', []);
     expect(isSuperadmin(inconsistent)).toBe(false);
     expect(canAccessRoute(inconsistent, '/app/superadmin')).toBe(false);
+  });
+
+  it('usa roles canónicos aunque primary_area sea discordante', () => {
+    const satWithLegacyArea = { ...profile('Oficina', ['SAT']), primary_area: 'Oficina' } as Profile;
+    const officeWithoutRole = { ...profile('Oficina', []), primary_area: 'Oficina' } as Profile;
+    expect(canAccessRoute(satWithLegacyArea, '/app/modulos/tipos-equipo')).toBe(true);
+    expect(canAccessRoute(officeWithoutRole, '/app/modulos/tipos-equipo')).toBe(false);
+  });
+
+  it('mantiene grants explícitos independientes de primary_area', () => {
+    const granted = { ...profile('SAT', []), primary_area: 'Oficina', permission_grants: ['billing.read'] } as any as Profile;
+    expect(hasPermission(granted, 'billing.read')).toBe(true);
   });
 
   it('limita la administración de tipos de equipo a superadmin y SAT', () => {

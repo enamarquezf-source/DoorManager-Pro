@@ -45,7 +45,7 @@ describe('commercial review detail UX', () => {
   });
 
   it('matches the real pending review data and profile identity', () => {
-    const actor = { id: 'profile-laura', auth_user_id: 'auth-laura', primary_area: 'Comercial' };
+    const actor = { id: 'profile-laura', auth_user_id: 'auth-laura', primary_area: 'Oficina', active: true, deleted_at: null, roles: ['Comercial'], permission_grants: ['commercial.write'] };
     const workOrder = { sat_review_status: 'approved', sat_review_destination: 'comercial', commercial_review_status: 'pending', current_responsible_id: 'profile-laura' };
     expect(isPendingCommercialReview(workOrder, actor)).toBe(true);
     expect(isPendingCommercialReview({ ...workOrder, current_responsible_id: 'auth-laura' }, actor)).toBe(false);

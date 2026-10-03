@@ -3,9 +3,10 @@ import { readFileSync } from 'node:fs';
 import pgQuery from 'pg-query-emscripten';
 import { createHash } from 'node:crypto';
 
-const migration = readFileSync(new URL('../../supabase/migrations/145_guard_work_order_status_transitions.sql', import.meta.url), 'utf8');
-const preflight = readFileSync(new URL('../../supabase/verification/preflight_145_work_order_acl.sql', import.meta.url), 'utf8');
-const verification = readFileSync(new URL('../../supabase/verification/verify_145_guard_work_order_status_transitions.sql', import.meta.url), 'utf8');
+const readText = (url: URL) => readFileSync(url, 'utf8').replace(/\r\n/g, '\n');
+const migration = readText(new URL('../../supabase/migrations/145_guard_work_order_status_transitions.sql', import.meta.url));
+const preflight = readText(new URL('../../supabase/verification/preflight_145_work_order_acl.sql', import.meta.url));
+const verification = readText(new URL('../../supabase/verification/verify_145_guard_work_order_status_transitions.sql', import.meta.url));
 const service = readFileSync(new URL('../services/workOrdersService.ts', import.meta.url), 'utf8');
 
 const editableColumns = [

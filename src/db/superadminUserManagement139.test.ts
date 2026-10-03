@@ -82,7 +82,7 @@ describe('SUPERADMIN-USER-MANAGEMENT-029', () => {
     expect(migration).toContain("if p_role_names is null or cardinality(p_role_names) = 0 then");
     expect(migration).not.toContain("p_profile->>'primary_area'");
     expect(verification).toContain("p_profile->>''primary_area''");
-    expect(service).toContain('normalizedRoleNames(undefined, roleNames');
+    expect(service).toContain('normalizedRoleNames(roleNames');
     expect(service).toContain("key !== 'primary_area'");
   });
 

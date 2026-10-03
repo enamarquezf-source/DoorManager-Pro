@@ -29,7 +29,7 @@ describe('042 hour rates and archiving', () => {
 
   it('exposes a management module for hour rates', () => {
     expect(app).toContain('function HourRatesModule');
-    expect(app).toContain("moduleId === 'tarifas-horas'");
+     expect(app).toContain("'tarifas-horas': () => <RateCatalogModuleV2 />");
     expect(app).toContain("path: '/app/modulos/tarifas-horas'");
     expect(service).toContain("supabase.from('technician_hour_rates')");
   });

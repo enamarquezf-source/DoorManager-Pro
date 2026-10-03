@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
 const managementService = readFileSync(new URL('../services/managementService.ts', import.meta.url), 'utf8');
 const permissionMigration = readFileSync(new URL('../../supabase/migrations/016_align_management_permissions.sql', import.meta.url), 'utf8');
+const alertRoutes = readFileSync(new URL('../routing/alertRoutes.ts', import.meta.url), 'utf8');
 
 describe('management navigation', () => {
   it('routes management KPIs to their source lists', () => {
@@ -21,7 +22,7 @@ describe('management navigation', () => {
 
   it('does not send unrelated alerts to deficiencies by default', () => {
     expect(app).toContain("item.related_entity ? routeForAlert(item) : item.code ? `/app/deficiencias/${item.id}` : '/app/avisos'");
-    expect(app).toContain("if (!alert?.related_entity || !alert?.related_id) return '/app/avisos'");
+     expect(alertRoutes).toContain("if (!isSupportedAlertRoute(alert)) return alert?.related_entity ?");
   });
 
   it('aligns management RLS with the documented least-privilege matrix', () => {

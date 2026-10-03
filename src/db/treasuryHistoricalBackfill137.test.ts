@@ -31,6 +31,8 @@ describe('treasury historical backfill 137', () => {
     expect(panel).toContain("hasPermission(profile, 'supplier_payments.create')");
     expect(panel).toContain('onApplied');
     expect(panel).toContain('Histórico anterior al saldo inicial');
+    expect(panel).toContain("import { ModalShell } from '../components/FormPrimitives';");
+    expect(panel).not.toContain('className="mini-modal"');
     expect(service).toContain("dmp_preview_treasury_historical_backfill");
     expect(service).toContain("dmp_apply_treasury_historical_backfill");
     expect(service).toContain('TreasuryHistoricalBackfillPreview');

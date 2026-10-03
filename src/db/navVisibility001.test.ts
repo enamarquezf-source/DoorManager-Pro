@@ -5,6 +5,7 @@ const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
 const rbac = readFileSync(new URL('../auth/rbac.ts', import.meta.url), 'utf8');
 const permissions = readFileSync(new URL('../auth/permissions.ts', import.meta.url), 'utf8');
 const service = readFileSync(new URL('../services/accessService.ts', import.meta.url), 'utf8');
+const catalog = readFileSync(new URL('../routing/moduleCatalog.ts', import.meta.url), 'utf8');
 
 describe('NAV-VISIBILITY-001', () => {
   it('centraliza items y no confunde visibilidad con permiso', () => {
@@ -22,8 +23,8 @@ describe('NAV-VISIBILITY-001', () => {
   });
 
   it('renderiza Tesorería desde la ruta de módulo canónica', () => {
-    expect(app).toContain("tesoreria: { title: 'Tesoreria'");
-    expect(app).toContain("if (moduleId === 'tesoreria') return <TreasuryModule profile={profile} />");
+    expect(catalog).toContain("tesoreria: { title: 'Tesorería'");
+    expect(app).toContain("tesoreria: ({ profile }) => <TreasuryModule profile={profile} />");
     expect(app).toContain("id: 'tesoreria'");
     expect(app).toContain("path: '/app/modulos/tesoreria'");
   });

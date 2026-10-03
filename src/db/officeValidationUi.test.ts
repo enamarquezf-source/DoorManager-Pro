@@ -11,7 +11,7 @@ const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf
 const app = read('../App.tsx');
 const labels = read('../shared/labels.ts');
 const filters = read('../shared/filters.ts');
-const profile = (primary_area: string) => ({ active: true, deleted_at: null, primary_area, roles: [], company_id: 'company' } as any);
+const profile = (primary_area: string) => ({ active: true, deleted_at: null, primary_area, roles: [primary_area], company_id: 'company' } as any);
 const id = '11111111-1111-4111-8111-111111111111';
 
 describe('office validation 073 runtime UI', () => {

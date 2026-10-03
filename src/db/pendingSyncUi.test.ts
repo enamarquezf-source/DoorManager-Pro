@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
 const offlineService = readFileSync(new URL('../services/technicianOfflineService.ts', import.meta.url), 'utf8');
+const styles = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
 
 describe('pending sync UI wiring', () => {
   it('loads the visible queue from the real IndexedDB queue service', () => {
@@ -35,5 +36,19 @@ describe('pending sync UI wiring', () => {
     expect(app).toContain('hint: error?.hint');
     expect(app).toContain('code: error?.code');
     expect(app).not.toContain('service' + '_role');
+  });
+
+  it('keeps mobile technical actions touch-safe and preserves offline status presentation', () => {
+    expect(app).toContain('Sincronizando...');
+    expect(app).toContain("item.status === 'failed'");
+    expect(app).toContain('failedIds');
+    expect(styles).toContain('.technician-page .row-actions button, .technician-page .row-actions a');
+    expect(styles).toContain('.signature-pad { height: min(180px, 42vw); min-height: 140px; }');
+  });
+
+  it('keeps the mobile shell from scrolling behind the open navigation', () => {
+    expect(app).toContain("document.body.style.overflow = 'hidden'");
+    expect(app).toContain("if (mobileOpen && event.key === 'Escape') setCollapsed(true)");
+    expect(styles).toContain('.sidebar { z-index: 50;');
   });
 });

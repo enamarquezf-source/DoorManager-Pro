@@ -18,7 +18,7 @@ describe('SAT operational workspace', () => {
   });
 
   it('expone rutas SAT reales para planificación, técnicos y plantillas', () => {
-    expect(app).toContain("if (moduleId === 'planificacion') return <PlanningModule />");
+    expect(app).toContain("planificacion: () => <PlanningModule />");
     expect(app).toContain("function PlanningModule()");
     expect(app).toContain("route?.kind === 'templates'");
     expect(permissions).toContain("if (path.startsWith('/app/plantillas')) return hasAny(profile, ['SAT', 'Gerencia'])");

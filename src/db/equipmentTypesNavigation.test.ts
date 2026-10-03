@@ -6,7 +6,7 @@ const permissions = readFileSync(new URL('../auth/permissions.ts', import.meta.u
 
 describe('equipment types navigation', () => {
   it('dispatches the dynamic module route to the equipment type administration page', () => {
-    expect(app).toContain("if (moduleId === 'tipos-equipo') return <EquipmentTypesPage />;");
+    expect(app).toContain("'tipos-equipo': () => <EquipmentTypesPage />");
     expect(app).toContain("path: '/app/modulos/tipos-equipo'");
     expect(app).toContain("path: '/app/avisos'");
     expect(app).not.toContain("id: 'tipos-equipo', label: 'Tipos de equipo', path: '/app/avisos'");

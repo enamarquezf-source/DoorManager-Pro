@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { workOrdersService } from '../services/workOrdersService';
-import { normalizedRoleNames, canReviewWorkOrderEconomic } from '../auth/permissions';
+import { canReviewWorkOrderEconomic } from '../auth/permissions';
 import { economicDecisionFor, economicEntryRows, economicReviewSummary, reconcileEconomicDecisions, type EconomicEntryDecision } from '../shared/economicReview';
 
 function money(value: unknown) { return `${Number(value ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`; }
 function economicValue(value: unknown, configured: boolean, missing: string) { return configured ? money(value) : missing; }
-function roleOf(profile: any) { return normalizedRoleNames(profile?.primary_area, profile?.roles ?? []); }
+function roleOf(profile: any) { return profile?.roles ?? []; }
 function entryLabel(row: any) { return row.kind === 'time' ? 'HORAS' : row.kind === 'material' ? 'MATERIALES' : 'DESPLAZAMIENTOS / RECURSOS'; }
 function workerLabel(row: any) { return [row.profiles?.first_name, row.profiles?.last_name].filter(Boolean).join(' ') || 'Técnico no informado'; }
 

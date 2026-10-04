@@ -25,7 +25,8 @@
 .sidebar nav a.active { background: #25494f; box-shadow: inset 2px 0 #86e0cf; color: #fff; }
 .sidebar nav a.active > svg { color: #a3f1e2; opacity: 1; }
 .sidebar-update { background: #ffffff06; border: 1px solid #ffffff12; border-radius: 9px; font-size: 11px; padding: 0 11px; color: #afc6cb; }
-.sidebar-update span { font-weight: 500; }
+.sidebar-update span { font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+.sidebar-update > svg { flex-shrink: 0; }
 .sidebar.collapsed .nav-caption { display: none; }
 .sidebar.collapsed .brand-edition { display: none; }
 .sidebar.collapsed .brand-row { flex-direction: column; gap: 8px; }
@@ -70,11 +71,14 @@
 .dashboard-kpis .kpi-block strong { font-size: 33px; line-height: 1.2; letter-spacing: -1px; font-weight: 600; color: #183b43; font-variant-numeric: tabular-nums; }
 .dashboard-kpis .kpi-block small { font-size: 10px; line-height: 1.5; font-weight: 400; color: #587078; margin-top: auto; }
 .dashboard-kpis a.kpi-block:hover { border-color: #70aca8; background: #fbfefd; box-shadow: 0 5px 14px #173c4309; }
-.dashboard-actions { border-radius: 13px; padding: 18px 20px; border-color: #dce5e7; }
+.dashboard-actions { border-radius: 13px; padding: 18px 20px; border-color: #dce5e7; margin: 0; }
 .dashboard-actions h3 { font-size: 12px; letter-spacing: .1px; font-weight: 650; margin: 0; }
 .quick-actions { gap: 8px; }
 .quick-actions button, .quick-actions a { font-size: 11px; border-radius: 8px; min-height: 36px; padding: 8px 12px; font-weight: 600; }
 .quick-actions > :first-child { background: #173f47; color: #fff; border-color: #173f47; }
+.quick-actions > :first-child:hover:not(:disabled) { background: #215863; border-color: #215863; color: white; }
+.dashboard-page .card input:not([type="checkbox"]):not([type="radio"]) { min-width: 0; max-width: 100%; border: 1px solid #dce5e7; border-radius: 8px; padding: 9px 11px; background: #f7fafa; font-size: 12px; color: #253f46; }
+.dashboard-page .card .actions button { min-height: 36px; border-radius: 8px; font-size: 12px; }
 .card { border-color: #dce5e7; border-radius: 13px; box-shadow: 0 2px 7px #122e3503; }
 .card > header { gap: 12px; flex-wrap: wrap; }
 .card > header h3 { font-size: 13px; font-weight: 650; color: #253f46; }

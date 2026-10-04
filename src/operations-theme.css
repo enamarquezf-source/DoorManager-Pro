@@ -90,6 +90,22 @@
 .primary, button.primary, a.primary { background: #173f47; border-color: #173f47; }
 .primary:hover, button.primary:hover, a.primary:hover { background: #215863; border-color: #215863; }
 .record-link:hover, .material-row-link:hover, .check-record-link:hover { background: #f6fbfa; border-color: #70aca8; }
+/* Compact working header; explicit foregrounds override legacy action styles. */
+.operations-hero { padding: 17px 22px; gap: 18px; border-radius: 12px; }
+.operations-eyebrow { margin: 0; letter-spacing: 1.4px; font-size: 10px; color: #def2ef; }
+.operations-description { margin: 6px 0 0; max-width: 540px; color: #d2e7e8; }
+.operations-hero-side { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 12px; flex-shrink: 1; }
+.operations-role { display: none; }
+.operations-review { margin: 0; padding: 9px 12px; white-space: nowrap; }
+.shell .primary.primary { background: #173f47; border-color: #173f47; color: #ffffff; }
+.shell .primary.primary:hover:not(:disabled) { background: #215863; border-color: #215863; color: #ffffff; }
+.shell .primary.primary:active:not(:disabled) { background: #12343b; border-color: #12343b; color: #ffffff; }
+.shell .primary.primary:disabled { background: #dce5e7; border-color: #c5d2d5; color: #40585f; opacity: 1; }
+@media (max-width: 760px) {
+  .operations-hero { padding: 16px 18px; gap: 12px; }
+  .operations-hero-side { justify-content: space-between; }
+  .operations-description { font-size: 11px; }
+}
 #department-pending { scroll-margin-top: 100px; min-width: 0; }
 :is(button, a, input, select, textarea):focus-visible { outline: 3px solid #15857d70; outline-offset: 3px; }
 @media (min-width: 761px) and (max-width: 1050px) {
@@ -118,4 +134,12 @@
 }
 @media (prefers-reduced-motion: no-preference) {
   .kpi-block, .quick-actions > *, .operations-review, .sidebar nav a { transition: background .18s ease, border-color .18s ease, box-shadow .18s ease; }
+}
+@media (max-width: 1050px) {
+  .operations-hero { padding: 16px 18px; gap: 12px; }
+  .operations-hero-side { max-width: none; }
+}
+@media (max-width: 760px) {
+  .operations-eyebrow { margin: 0; }
+  .operations-description { margin-top: 6px; }
 }

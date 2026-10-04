@@ -2,6 +2,9 @@
 -- Conserva rol, empresa, estado, importes, auditoría y código interno.
 begin;
 
+-- La tabla también exigía número externo al salir de borrador.
+alter table public.supplier_invoices drop constraint if exists supplier_invoices_number_check;
+
 create or replace function public.dmp_register_supplier_invoice(p_supplier_invoice_id uuid)
 returns uuid language plpgsql security definer set search_path = public as $$
 declare v_invoice public.supplier_invoices; v_actor public.profiles := public.dmp024_active_profile(); v_line_count integer; v_subtotal numeric; v_tax numeric; v_total numeric;

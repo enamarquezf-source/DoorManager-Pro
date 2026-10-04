@@ -19,4 +19,15 @@ describe('optional external supplier invoice number', () => {
       '  -- El número externo es opcional; el código interno FPR identifica la factura.',
     ));
   });
+
+  it('removes the table-level requirement as well as the RPC requirement', async () => {
+    const parser = await pgQuery();
+    const tree = parser.parse(sql).parse_tree;
+    const alteration = tree.stmts.find((entry: any) => entry.stmt.AlterTableStmt)?.stmt.AlterTableStmt;
+    expect(alteration.relation.relname).toBe('supplier_invoices');
+    expect(alteration.cmds).toHaveLength(1);
+    expect(alteration.cmds[0].AlterTableCmd.name).toBe('supplier_invoices_number_check');
+    expect(alteration.cmds[0].AlterTableCmd.subtype).toBe('AT_DropConstraint');
+    expect(alteration.cmds[0].AlterTableCmd.missing_ok).toBe(true);
+  });
 });

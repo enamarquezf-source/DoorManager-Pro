@@ -24,6 +24,10 @@ describe('economic review detail loading', () => {
   it('keeps the existing full-detail behavior for any non-summary tab', () => {
     expect(shouldLoadEconomicReviewDetail({ workspace: 'sat', canReview: false, status: 'En intervencion', tab: 'materiales' })).toBe(true);
   });
+  it('loads real concepts for Office validation before showing the summary', () => {
+    expect(shouldLoadEconomicReviewDetail({ workspace: 'oficina', canReview: true, status: 'Finalizado tecnicamente', tab: 'resumen' })).toBe(true);
+    expect(shouldLoadEconomicReviewDetail({ workspace: 'oficina', canReview: true, status: 'Pendiente', tab: 'resumen' })).toBe(false);
+  });
 
   it('preserves economic presence metadata while keeping numeric fallbacks for calculations', () => {
     const rows = economicEntryRows({ time_entries: [{ id: 't', duration_minutes: 60, hourly_cost: null, hourly_price: null }], materials: [{ id: 'm', used_quantity: 2, unit_cost: null, unit_price: null }], cost_entries: [{ id: 'c', quantity: 1, unit_cost: 0, unit_price: 0, total_cost: 0, total_price: 0 }] });

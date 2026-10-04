@@ -9,6 +9,12 @@ const work = { id: 'w', code: 'PAR-NOVA-001', status: 'Finalizado tecnicamente',
 const render = (part: any) => renderToStaticMarkup(<EconomicReviewPanel workOrder={part} profile={profile} onChanged={() => {}} />);
 
 describe('economic review display', () => {
+  it('lets Office review existing concepts and correct classification', () => {
+    const html = renderToStaticMarkup(<EconomicReviewPanel workOrder={work} profile={{ active: true, roles: ['Oficina'] }} onChanged={() => {}} />);
+    expect(html).toContain('APROBAR REVISIÓN ECONÓMICA');
+    expect(html).toContain('Corregir facturabilidad / garantía');
+    expect(html).not.toContain('Comprobar tarifas históricas');
+  });
   it('shows pending figures and a partial cost for the legacy zero-hour fixture', () => {
     const html = render(work);
     expect(html).toContain('Coste parcial');

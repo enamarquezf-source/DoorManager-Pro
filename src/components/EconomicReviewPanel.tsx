@@ -17,9 +17,13 @@ export function EconomicReviewPanel({ workOrder, profile, onChanged }: { workOrd
   const [zeroSaleConfirmed, setZeroSaleConfirmed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [editingFlags, setEditingFlags] = useState(false);
+  const [billable, setBillable] = useState(workOrder.billable !== false);
+  const [warranty, setWarranty] = useState(workOrder.warranty === true);
+  const [flagsReason, setFlagsReason] = useState('');
   const roles = roleOf(profile);
   const canReview = canReviewWorkOrderEconomic(profile);
-  const assignedCommercial = roles.includes('Comercial') && !roles.some((role) => ['superadmin', 'Gerencia'].includes(role)) && workOrder.current_responsible_id !== profile?.id;
+  const assignedCommercial = roles.includes('Comercial') && !roles.some((role) => ['superadmin', 'SAT', 'Gerencia', 'Oficina'].includes(role)) && workOrder.current_responsible_id !== profile?.id;
   const approved = workOrder.economic_review_status === 'approved';
   const decisionsComplete = decisions.length > 0 && decisions.every((decision) => typeof decision.contributes_to_sale === 'boolean');
   const mergedRows = rows.map((row) => ({ ...row, ...decisions.find((decision) => decision.kind === row.kind && decision.entry_id === row.id) }));
@@ -29,6 +33,7 @@ export function EconomicReviewPanel({ workOrder, profile, onChanged }: { workOrd
   const zeroLaborRates = rows.filter((row) => row.kind === 'time' && row.cost_unit === 0 && row.unit_price === 0 && !needsTimeRateRepair(row));
   const [ratePreview, setRatePreview] = useState<any>(null);
   const canRepair = roles.some((role) => ['SAT', 'Gerencia', 'superadmin'].includes(role));
+  const canCorrectFlags = roles.some((role) => ['SAT', 'Gerencia', 'superadmin', 'Oficina'].includes(role));
   const needsZeroConfirmation = decisionsComplete && workOrder.billable !== false && workOrder.warranty !== true && summary.proposedSale === 0;
   const economicInputFingerprint = JSON.stringify({ id: workOrder?.id, billable: workOrder?.billable, warranty: workOrder?.warranty, quote_id: workOrder?.quote_id, quoted_sale_amount: workOrder?.quoted_sale_amount, rows: rows.map((row) => ({ kind: row.kind, id: row.id, quantity: row.quantity, unit_price: row.unit_price, source: row.source, contributes_to_sale: row.contributes_to_sale, sale_total: row.sale_total, cost_total: row.cost_total })) });
   useEffect(() => { setRatePreview(null); }, [economicInputFingerprint]);
@@ -36,6 +41,13 @@ export function EconomicReviewPanel({ workOrder, profile, onChanged }: { workOrd
   if (!canReview || !['Finalizado tecnicamente', 'Enviado', 'Cerrado', 'Devuelto por SAT'].includes(workOrder?.status)) return null;
 
   const updateDecision = (kind: EconomicEntryDecision['kind'], entryId: string, patch: Partial<EconomicEntryDecision>) => { setZeroSaleConfirmed(false); setDecisions((current) => current.map((decision) => decision.kind === kind && decision.entry_id === entryId ? { ...decision, ...patch } : decision)); };
+  const saveFlags = async () => {
+    if (saving || !flagsReason.trim()) return;
+    setSaving(true); setError('');
+    try { await workOrdersService.updateBillingFlags(workOrder.id, billable, warranty, flagsReason); setEditingFlags(false); setFlagsReason(''); onChanged(); }
+    catch (err) { setError(err instanceof Error ? err.message : 'No se ha podido corregir la facturabilidad.'); }
+    finally { setSaving(false); }
+  };
   const repairRates = async (apply: boolean) => {
     setSaving(true); setError('');
     try {
@@ -73,6 +85,8 @@ export function EconomicReviewPanel({ workOrder, profile, onChanged }: { workOrd
     {unlinkedHours.length > 0 && <div className="economic-rate-warning"><p><strong>{unlinkedHours.length} registro(s) de horas con importes a cero y sin tarifa vinculada.</strong> El coste de esas horas está pendiente de comprobar.</p>{canRepair && !approved && <button type="button" onClick={() => repairRates(false)} disabled={saving}>Comprobar tarifas históricas</button>}{ratePreview && <><p>Se buscan tarifas del técnico vigentes en la fecha trabajada.</p>{ratePreview.lines.map((line: any) => <p key={line.entry_id}>{line.work_date} · {line.quantity} h · {line.error || `Coste: ${money(line.cost_amount)}/h · Venta: ${money(line.sale_amount)}/h`}</p>)}{ratePreview.can_apply && <button type="button" className="primary" onClick={() => repairRates(true)} disabled={saving}>Aplicar tarifas comprobadas</button>}</>}</div>}
     {zeroLaborRates.length > 0 && <p className="large-note">Hay {zeroLaborRates.length} registro(s) con coste y venta a cero en sus importes guardados. Comprueba su tarifa antes de validar.</p>}
     <p className="large-note">Presupuesto: {workOrder.quotes?.code ?? workOrder.quote_id ?? 'Sin presupuesto'} · Garantía: {workOrder.warranty ? 'Sí' : 'No'} · Parte facturable: {workOrder.billable === false ? 'No' : 'Sí'}</p>
+    {canCorrectFlags && <button type="button" disabled={saving} onClick={() => { setBillable(workOrder.billable !== false); setWarranty(workOrder.warranty === true); setEditingFlags(!editingFlags); }}>Corregir facturabilidad / garantía</button>}
+    {editingFlags && <section className="sat-review-summary"><h4>Corregir clasificación</h4><label>Parte facturable<select value={String(billable)} onChange={(event) => setBillable(event.target.value === 'true')}><option value="true">Sí</option><option value="false">No</option></select></label><label>Garantía<select value={String(warranty)} onChange={(event) => setWarranty(event.target.value === 'true')}><option value="false">No</option><option value="true">Sí</option></select></label><label>Motivo de corrección<textarea value={flagsReason} onChange={(event) => setFlagsReason(event.target.value)} /></label><p>Esta corrección deja la revisión económica pendiente para comprobar de nuevo los conceptos y aprobar la venta.</p><div className="actions"><button type="button" disabled={saving} onClick={() => setEditingFlags(false)}>Cancelar corrección</button><button type="button" className="primary" disabled={saving || !flagsReason.trim()} onClick={saveFlags}>Guardar clasificación</button></div></section>}
      <div className="economic-review-lines"><section><h4>MATERIALES</h4>{materialRows.length ? materialRows.map(renderRow) : <p className="large-note">Sin materiales reales registrados.</p>}</section><section><h4>MANO DE OBRA</h4>{laborRows.length ? laborRows.map(renderRow) : <p className="large-note">Sin horas técnicas registradas.</p>}</section><section><h4>OTROS COSTES</h4>{otherRows.length ? otherRows.map(renderRow) : <p className="large-note">Sin otros costes registrados.</p>}</section></div>
      {!rows.length && <p className="large-note">No hay conceptos económicos registrados. No se puede aprobar la revisión hasta que existan conceptos económicos.</p>}
      {approved ? <div className="actions"><button type="button" onClick={reopen} disabled={saving}>Reabrir revisión económica</button></div> : rows.length > 0 ? <><p className="large-note">Debes decidir explícitamente la facturabilidad de cada concepto antes de aprobar.</p>{needsZeroConfirmation && <label className="zero-sale-confirmation"><input type="checkbox" checked={zeroSaleConfirmed} onChange={(event) => setZeroSaleConfirmed(event.target.checked)} /> Confirmo que la venta aprobada es 0,00 € y que no hay líneas facturables.</label>}<label>Motivo de revisión<textarea value={reason} onChange={(event) => setReason(event.target.value)} /></label>{assignedCommercial && <p className="state-warning">Parte asignado a otro Comercial. Solo el responsable o un supervisor puede aprobarlo.</p>}<div className="modal-footer"><button type="button" className="primary" onClick={submit} disabled={saving || assignedCommercial}>{saving ? 'GUARDANDO...' : 'APROBAR REVISIÓN ECONÓMICA'}</button></div></> : null}

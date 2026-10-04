@@ -122,6 +122,10 @@ export const workOrdersService = {
     const byId = new Map(economics.map((work) => [work.id, work]));
     return rows.map((row) => ({ ...row, ...byId.get(row.id), billing_blockers: billingBlockers(byId.get(row.id)) }));
   },
+  updateBillingFlags(workOrderId: string, billable: boolean, warranty: boolean, reason: string) {
+    if (!isValidUuid(workOrderId) || !reason.trim()) throw new Error('Falta un parte válido y un motivo de corrección.');
+    return expectData<any>(supabase.rpc('dmp_update_work_order_billing_flags', { p_work_order_id: workOrderId, p_billable: billable, p_warranty: warranty, p_reason: reason.trim() }), { service: 'workOrdersService', operation: 'Corregir facturabilidad', resource: workOrderId });
+  },
   async listWithAssignments(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active', dateFilters: DateRangeFilters = {}) {
     const workOrders = await this.list(search, companyScope, archiveFilter, dateFilters);
     const ids = workOrders.map((item) => item.id).filter(Boolean);
@@ -156,7 +160,8 @@ export const workOrdersService = {
     const workOrder = await expectData<any>(supabase.from('work_orders').select(`
       id, company_id, code, title, description, type, priority, status, origin, scheduled_date, scheduled_time, current_responsible_id,
       diagnosis, work_performed, result, planned_material, main_equipment_id, client_id, site_id, case_id, quote_id,
-      economic_status, sale_amount, real_cost_amount, margin_amount, ${officeValidationColumns}
+      economic_status, sale_amount, real_cost_amount, margin_amount, economic_review_status, economic_review_reason, billable, warranty,
+      sat_review_status, sat_review_destination, sat_review_flags, sat_review_reason, commercial_review_status, ${officeValidationColumns}
       clients!work_orders_client_id_fkey(*), sites!work_orders_site_id_fkey(*), cases!work_orders_case_id_fkey(*),
       primary_equipment:equipment!work_orders_main_equipment_id_fkey(*, equipment_types!equipment_equipment_type_id_fkey(*)),
       access_requirement:access_requirements!work_orders_access_requirement_id_fkey(*),

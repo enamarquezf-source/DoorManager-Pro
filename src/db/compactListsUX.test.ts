@@ -41,7 +41,8 @@ describe('compact list design and sidebar updates', () => {
     expect(app).toContain('function RecordCard');
     expect(app).toContain('function RecordMeta');
     expect((app.match(/className="record-list"/g) ?? []).length).toBeGreaterThanOrEqual(5);
-    expect(app).toContain('className="sat-meta-row"');
+    expect(app).toContain('record-link');
+    expect(app).toContain('record-secondary-actions');
     expect(app).not.toContain('sat-assignment-grid');
     expect(app).not.toContain('Próxima revisión');
   });
@@ -55,9 +56,9 @@ describe('compact list design and sidebar updates', () => {
     expect(app).toContain("[ 'Total', `${Number(quote.total_amount ?? quote.total ?? 0)");
     expect(app).toContain('quote.clients?.legal_name ?? \'-\'');
     expect(app).toContain('client.code ?? \'-\'');
-    expect(app).toContain("work.main_technician_name ?? 'Sin asignar'");
-    expect(app).toContain("work.commercial_name ?? work.creator_name ?? 'No informado'");
-    expect(app).toContain('work.scheduled_date ?? \'Sin fecha\'');
+    expect(app).toContain("work.main_technician_name || 'Sin asignar'");
+    expect(app).toContain("work.commercial_name || work.creator_name || 'No informado'");
+    expect(app).toContain("work.scheduled_date ? formatDate(work.scheduled_date) : 'Sin fecha'");
   });
 
   it('does not move list data back onto the rows or break calculations', () => {

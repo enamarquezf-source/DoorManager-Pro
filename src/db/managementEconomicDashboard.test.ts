@@ -11,7 +11,8 @@ describe('management economic dashboard', () => {
     expect(economicService).toContain("supabase.from('v_client_economic_summary')");
     expect(economicService).toContain("supabase.from('v_management_metrics')");
     expect(economicService).not.toContain("supabase.from('quotes')");
-    expect(app).toContain('Panel de control económico');
+    expect(app).toContain('function CanonicalManagementPage');
+    expect(app).not.toContain('<Hero title="Panel de control económico"');
     expect(app).toContain('Coste real de trabajos');
     expect(app).toContain('Desglose de costes');
     expect(app).toContain('Clientes más rentables');

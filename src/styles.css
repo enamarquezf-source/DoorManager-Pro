@@ -947,3 +947,35 @@ body, button, input, select, textarea { font-family: Inter, ui-sans-serif, syste
 
 .material-ux-row:has(.material-ux-actions) { grid-template-columns: minmax(0, 1fr) minmax(120px, .35fr) minmax(0, .8fr); }
 @media (max-width: 1050px) { .material-ux-row:has(.material-ux-actions) { grid-template-columns: minmax(0, 1fr); } }
+
+/* One record interaction throughout operational lists. */
+.list-page-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.record-shell { min-width: 0; position: relative; }
+.record-link { color: var(--dark); text-decoration: none; transition: background .15s, border-color .15s; }
+.record-link:hover { background: #f9fbfb; border-color: #94a6ad; }
+.record-link:focus-visible { outline: 3px solid #c58a25; outline-offset: 2px; }
+.record-link header { align-items: flex-start; }
+.record-title { display: grid; gap: 4px; }
+.record-title strong { font-size: 15px; font-weight: 650; line-height: 1.4; }
+.record-title small { font-size: 12px; font-weight: 500; color: var(--text-soft); }
+.record-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 9px 16px; font-weight: 400; line-height: 1.4; }
+.record-meta-item { display: grid; gap: 2px; min-width: 0; }
+.record-meta-item b { font-size: 11px; color: var(--text-soft); font-weight: 600; }
+.record-meta-item > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.record-description { margin: 0; font-weight: 400; overflow-wrap: anywhere; }
+.record-secondary-actions { padding: 0 12px; font-size: 12px; }
+.record-secondary-actions > summary { cursor: pointer; padding: 7px 0; color: var(--text-soft); width: fit-content; }
+.record-secondary-actions[open] { padding-bottom: 12px; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 9px 9px; background: white; }
+.record-secondary-actions .row-actions { flex-wrap: wrap; justify-content: flex-start; gap: 6px; }
+.record-secondary-actions .lifecycle-panel { margin: 0; }
+.record-secondary-actions button { font-size: 12px; min-height: 34px; }
+.record-secondary-actions:has(> .row-actions:empty) { display: none; }
+.doc-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.doc-list > .record-shell { display: block; padding: 0; border: 0; background: transparent; }
+@media (max-width: 500px) { .record-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); } .record-link header { flex-wrap: wrap; } }
+@media (prefers-reduced-motion: reduce) { .record-link { transition: none; } }
+.record-table-row { cursor: pointer; }
+.record-table-row:hover > td { background: #f4f7f7; }
+.record-table-row:focus-within > td { background: #f4f7f7; }
+.record-title-button { border: 0; background: transparent; padding: 0; color: var(--dark); font: inherit; font-weight: 650; text-align: left; cursor: pointer; }
+.record-title-button:hover { text-decoration: underline; }

@@ -42,7 +42,7 @@ describe('049 single-company mode', () => {
     }
     expect(app).toContain('function CompanySettingsModule');
     expect(app).toContain('Datos de empresa');
-    expect(app).toContain('Empresa operadora emisora para futura facturación.');
+    expect(app).not.toContain('<Hero title="Datos de empresa"');
     expect(superadminService).toContain('operatingCompany()');
     expect(superadminService).toContain('updateOperatingCompany');
   });

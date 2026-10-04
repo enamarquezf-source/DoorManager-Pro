@@ -63,7 +63,8 @@ describe('SUPPLIER-MATERIAL-UX-001 / PURCHASE-ORDERS-UX-001', () => {
     expect(app).toContain('Todos activos');
     expect(app).toContain('Archivados');
     expect(app).toContain('<th>Acciones</th>');
-    expect(app).toContain('onClick={() => setSelectedId(order.id)}>Abrir</button>');
+    expect(app).toContain('onOpen={() => setSelectedId(order.id)}');
+    expect(app).toContain('className="record-title-button"');
     expect(app).toContain('Boolean(order.archived_at)');
   });
 

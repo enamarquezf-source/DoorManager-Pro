@@ -24,6 +24,31 @@ describe('workOrdersService operational RPCs', () => {
     expect(from).not.toHaveBeenCalledWith('work_order_time_entries');
   });
 
+  it('acepta UUID PostgreSQL validos en oficina, SAT, comercial y revision economica', async () => {
+    const { workOrdersService } = await import('./workOrdersService');
+    const workOrderId = '00000000-0000-0000-0000-000000000000';
+    const commercialId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+
+    await workOrdersService.reviewWorkOrderOffice(workOrderId, 'validated', 'Revisado');
+    await workOrdersService.reviewWorkOrderSat(workOrderId, 'returned', null, null, {}, 'Devuelto');
+    await workOrdersService.reviewWorkOrderCommercial(workOrderId, 'Aprobado');
+    await workOrdersService.reviewWorkOrderEconomic(workOrderId, [{ kind: 'time', entry_id: 'entry-1', contributes_to_sale: false }], 'Revisado');
+    await workOrdersService.reassignWorkOrderCommercial(workOrderId, commercialId);
+
+    expect(rpc).toHaveBeenCalledWith('dmp_review_work_order_office', expect.objectContaining({ p_work_order_id: workOrderId }));
+    expect(rpc).toHaveBeenCalledWith('dmp_review_work_order_sat', expect.objectContaining({ p_work_order_id: workOrderId }));
+    expect(rpc).toHaveBeenCalledWith('dmp_review_work_order_commercial', expect.objectContaining({ p_work_order_id: workOrderId }));
+    expect(rpc).toHaveBeenCalledWith('dmp_review_work_order_economic', expect.objectContaining({ p_work_order_id: workOrderId }));
+    expect(rpc).toHaveBeenCalledWith('dmp_reassign_work_order_commercial', { p_work_order_id: workOrderId, p_commercial_profile_id: commercialId });
+  });
+
+  it('rechaza IDs arbitrarios antes de invocar RPC de validacion', async () => {
+    const { workOrdersService } = await import('./workOrdersService');
+
+    expect(() => workOrdersService.reviewWorkOrderOffice('not-a-uuid', 'validated', 'Revisado')).toThrow('falta un parte valido');
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   it('registra horas sin descripcion cuando el campo llega vacio, nulo u omitido', async () => {
     const { workOrdersService } = await import('./workOrdersService');
     const base = { work_order_id: 'wo-1', profile_id: 'worker-1', work_date: '2026-08-10', duration_minutes: 60, hour_type: 'normal' };

@@ -4,6 +4,7 @@ import { isOfficeValidationUnavailable } from '../shared/officeValidation';
 import { filesBucket, withSignedFileUrl } from '../shared/signedFiles';
 import { applyArchiveFilter, type ArchiveFilter } from './entityLifecycleService';
 import { applyDateRangeFilters, type DateRangeFilters } from '../shared/dateRange';
+import { isValidUuid } from '../shared/uuid';
 
 const workOrderEditableColumns = ['case_id', 'quote_id', 'client_id', 'site_id', 'main_equipment_id', 'contact_id', 'access_requirement_id', 'title', 'description', 'type', 'priority', 'origin', 'scheduled_date', 'scheduled_time', 'estimated_duration_minutes', 'planned_material', 'technical_team', 'diagnosis', 'work_performed', 'result'];
 function workOrderPayload(payload: Record<string, any>) {
@@ -90,8 +91,6 @@ export type OfficeReviewDecision = 'validated' | 'rejected';
 export type SatReviewDecision = 'approved' | 'returned';
 export type SatReviewDestination = 'comercial' | 'facturacion';
 
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 export const workOrdersService = {
   async hasOfficeValidation() {
     const { data, error } = await supabase.from('work_orders').select('office_validation_status').limit(0);
@@ -150,7 +149,7 @@ export const workOrdersService = {
     const officeValidationAvailable = await this.hasOfficeValidation();
     const officeValidationColumns = officeValidationAvailable ? 'office_validation_status, office_validation_reason,' : '';
     const workOrder = await expectData<any>(supabase.from('work_orders').select(`
-      id, company_id, code, title, description, type, priority, status, origin, scheduled_date, scheduled_time,
+      id, company_id, code, title, description, type, priority, status, origin, scheduled_date, scheduled_time, current_responsible_id,
       diagnosis, work_performed, result, planned_material, main_equipment_id, client_id, site_id, case_id, quote_id,
       economic_status, sale_amount, real_cost_amount, margin_amount, ${officeValidationColumns}
       clients!work_orders_client_id_fkey(*), sites!work_orders_site_id_fkey(*), cases!work_orders_case_id_fkey(*),
@@ -333,13 +332,13 @@ export const workOrdersService = {
     return expectData<any>(Promise.resolve({ data, error }), { service: 'workOrdersService', operation: 'Finalizar parte tecnico', resource: 'dmp_finalize_work_order_technical' });
   },
   reviewWorkOrderOffice(workOrderId: string, decision: OfficeReviewDecision, reason: string) {
-    if (!uuidPattern.test(String(workOrderId ?? '').trim())) throw new Error('validacion del formulario: falta un parte valido');
+    if (!isValidUuid(workOrderId)) throw new Error('validacion del formulario: falta un parte valido');
     if (!['validated', 'rejected'].includes(decision)) throw new Error('validacion del formulario: decision de oficina no valida');
     if (!String(reason ?? '').trim()) throw new Error('validacion del formulario: el motivo o comentario es obligatorio');
     return expectData<any>(supabase.rpc('dmp_review_work_order_office', { p_work_order_id: workOrderId, p_decision: decision, p_reason: reason.trim() }), { service: 'workOrdersService', operation: 'Validar parte en oficina', resource: workOrderId });
   },
   reviewWorkOrderSat(workOrderId: string, decision: SatReviewDecision, destination: SatReviewDestination | null, commercialProfileId: string | null, flags: Record<string, boolean>, reason: string) {
-    if (!uuidPattern.test(String(workOrderId ?? '').trim())) throw new Error('validacion del formulario: falta un parte valido');
+    if (!isValidUuid(workOrderId)) throw new Error('validacion del formulario: falta un parte valido');
     if (!['approved', 'returned'].includes(decision)) throw new Error('revision SAT: decision no valida');
     if (decision === 'approved' && !destination) throw new Error('revision SAT: indica un destino');
     const normalizedReason = String(reason ?? '').trim() || 'Sin observaciones internas';
@@ -349,22 +348,22 @@ export const workOrdersService = {
     return expectData<any>(supabase.rpc('dmp_review_work_order_sat', { p_work_order_id: workOrderId, p_decision: decision, p_destination: destination, p_commercial_profile_id: commercialProfileId, p_flags: normalizedFlags, p_reason: normalizedReason }), { service: 'workOrdersService', operation: 'Revisar parte en SAT', resource: workOrderId });
   },
   reviewWorkOrderCommercial(workOrderId: string, reason: string) {
-    if (!uuidPattern.test(String(workOrderId ?? '').trim())) throw new Error('validacion del formulario: falta un parte valido');
+    if (!isValidUuid(workOrderId)) throw new Error('validacion del formulario: falta un parte valido');
     if (!String(reason ?? '').trim()) throw new Error('revision Comercial: el comentario o motivo es obligatorio');
     return expectData<any>(supabase.rpc('dmp_review_work_order_commercial', { p_work_order_id: workOrderId, p_reason: reason.trim() }), { service: 'workOrdersService', operation: 'Aprobar parte en Comercial', resource: workOrderId });
   },
   reviewWorkOrderEconomic(workOrderId: string, decisions: any[], reason: string, zeroSaleConfirmed = false) {
-    if (!uuidPattern.test(String(workOrderId ?? '').trim())) throw new Error('validacion del formulario: falta un parte valido');
+    if (!isValidUuid(workOrderId)) throw new Error('validacion del formulario: falta un parte valido');
     if (!decisions.length) throw new Error('validacion del formulario: el parte no tiene conceptos economicos');
     if (!String(reason ?? '').trim()) throw new Error('validacion del formulario: el motivo de revision es obligatorio');
     return expectData<any>(supabase.rpc('dmp_review_work_order_economic', { p_work_order_id: workOrderId, p_decisions: decisions, p_reason: reason.trim(), p_zero_sale_confirmed: zeroSaleConfirmed }), { service: 'workOrdersService', operation: 'Aprobar revision economica', resource: workOrderId });
   },
   reopenWorkOrderEconomic(workOrderId: string, reason: string) {
-    if (!uuidPattern.test(String(workOrderId ?? '').trim()) || !String(reason ?? '').trim()) throw new Error('validacion del formulario: parte y motivo son obligatorios');
+    if (!isValidUuid(workOrderId) || !String(reason ?? '').trim()) throw new Error('validacion del formulario: parte y motivo son obligatorios');
     return expectData<any>(supabase.rpc('dmp_reopen_work_order_economic', { p_work_order_id: workOrderId, p_reason: reason.trim() }), { service: 'workOrdersService', operation: 'Reabrir revision economica', resource: workOrderId });
   },
   reassignWorkOrderCommercial(workOrderId: string, commercialProfileId: string) {
-    if (!uuidPattern.test(String(workOrderId ?? '').trim()) || !uuidPattern.test(String(commercialProfileId ?? '').trim())) throw new Error('validacion del formulario: faltan identificadores validos');
+    if (!isValidUuid(workOrderId) || !isValidUuid(commercialProfileId)) throw new Error('validacion del formulario: faltan identificadores validos');
     return expectData<any>(supabase.rpc('dmp_reassign_work_order_commercial', { p_work_order_id: workOrderId, p_commercial_profile_id: commercialProfileId }), { service: 'workOrdersService', operation: 'Reasignar comercial del parte', resource: workOrderId });
   },
   async generatePendingInstallationCheck(workOrderId: string, equipmentId: string) {

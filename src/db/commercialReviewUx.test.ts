@@ -28,6 +28,7 @@ describe('commercial review detail UX', () => {
     expect(service).toContain('*,');
     expect(app).not.toContain('current_responsible_id === profile?.auth_user_id');
     expect(app).toContain('current_responsible_id === profile?.id');
+    expect(service).toContain('current_responsible_id');
   });
 
   it('hides unusable technical actions without changing permissions', () => {

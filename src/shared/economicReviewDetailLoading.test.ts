@@ -16,8 +16,8 @@ describe('economic review detail loading', () => {
     expect(shouldLoadEconomicReviewDetail({ workspace: 'sat', canReview: true, status: 'En intervencion', tab: 'resumen' })).toBe(false);
   });
 
-  it('does not add a SAT economic fetch to other summary contexts', () => {
-    expect(shouldLoadEconomicReviewDetail({ workspace: 'comercial', canReview: true, status: 'Finalizado tecnicamente', tab: 'resumen' })).toBe(false);
+  it('loads economic detail for an assigned commercial reviewer regardless of origin area', () => {
+    expect(shouldLoadEconomicReviewDetail({ workspace: 'comercial', canReview: true, status: 'Finalizado tecnicamente', tab: 'resumen' })).toBe(true);
     expect(shouldLoadEconomicReviewDetail({ workspace: 'tecnico', canReview: false, status: 'Finalizado tecnicamente', tab: 'resumen' })).toBe(false);
   });
 

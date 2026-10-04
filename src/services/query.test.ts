@@ -2,6 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { SupabaseOperationError, toSpanishSupabaseError } from './query';
 
 describe('query error mapping', () => {
+  it('distinguishes an internal SQL collision from invalid user data', () => {
+    const message = toSpanishSupabaseError({ code: '42702', message: 'column reference "kind" is ambiguous' });
+    expect(message).toContain('error interno');
+    expect(message).not.toContain('Revisa los datos');
+    expect(message).not.toContain('kind');
+  });
+
+  it('preserves actionable economic approval and assignment errors', () => {
+    for (const message of ['economia: la revision ya esta aprobada', 'economia: no se puede modificar un parte asociado a un borrador o factura', 'revision Comercial: el parte no esta pendiente de aprobacion']) {
+      expect(toSpanishSupabaseError({ code: 'P0001', message })).toBe(message);
+    }
+  });
   it('muestra errores de operación no disponible sin detalles técnicos en UI', () => {
     const message = 'Could not find the function public.dmp_update_work_order_operational_fields(p_payload, p_work_order_id) in the schema cache';
 

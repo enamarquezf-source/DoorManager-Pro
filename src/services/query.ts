@@ -47,6 +47,7 @@ export async function expectStep<T>(operation: string, loader: () => Promise<T>)
 
 export function toSpanishSupabaseError(error: any) {
   const message = error?.message ?? String(error ?? '');
+  if (error?.code === '42702') return 'La operación está bloqueada por un error interno. Avisa a administración.';
   if (message.includes('more than one relationship')) return 'No se han podido cargar los datos relacionados. Reinténtalo o avisa a administración.';
   if (message.includes('permission denied') || message.includes('insufficient privilege')) return 'No tienes permisos para realizar esta operación con tu rol actual.';
   if (message.includes('row-level security')) return 'La operación no cumple el alcance de empresa o los datos enviados.';
@@ -65,6 +66,7 @@ export function toSpanishSupabaseError(error: any) {
   if (/sat y comercial son incompatibles/i.test(message)) return 'SAT y Comercial no pueden asignarse simultáneamente al mismo usuario.';
   if (message.includes('violates check constraint')) return 'Los datos no cumplen una regla de validación. Revisa la información introducida.';
   if (/^respuesta de Supabase:/i.test(message)) return message.replace(/^respuesta de Supabase:\s*/i, '');
+  if (/^(economia|revision Comercial|revision SAT):/i.test(message)) return message;
   if (/^(validacion del formulario|purga|permiso|perfil activo|empresa|asignacion|parte|estado editable|insercion|adicional|tarifa):/i.test(message)) return message;
   if (message.includes('duplicate key')) return 'Ya existe un registro con esos datos.';
   if (message.includes('violates foreign key')) return 'El registro relacionado seleccionado no existe o no pertenece a tu empresa.';

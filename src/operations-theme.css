@@ -225,3 +225,47 @@ textarea { resize: none; }
   .supplier-payment-entry .actions > button { width: 100%; }
   :is(.shell, .mini-modal, .login-card) :is(form, .form-grid, .actions) :is(input, select, textarea) { font-size: 16px; }
 }
+
+/* Shared door identity and a focused private access screen. */
+.login-page { min-height: 100svh; grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr); background: #f5f8f7; }
+.login-visual { display: flex; flex-direction: column; justify-content: space-between; gap: 32px; padding: clamp(30px, 4vw, 64px); background: radial-gradient(ellipse at 80% 50%, #24535a 0, #153b42 45%, #102d33 100%); color: #a8e8df; }
+.login-visual::after { display: none; }
+.access-wordmark { display: flex; align-items: center; gap: 14px; color: #a8e8df; }
+.access-wordmark > span { color: #fff; font-size: 26px; font-weight: 750; letter-spacing: -.8px; }
+.access-wordmark small { display: block; margin-top: 4px; color: #a8e8df; font-size: 10px; letter-spacing: 3px; }
+.access-drawing { width: 100%; max-width: 620px; align-self: center; padding: 25px 0; }
+.drawing-caption { font-size: 10px; letter-spacing: 2px; color: #c3dfdf; }
+.access-drawing svg { display: block; width: 100%; height: auto; margin: 12px 0; filter: drop-shadow(0 12px 20px #061c3340); }
+.drawing-meta { display: flex; justify-content: space-between; gap: 12px; border-top: 1px solid #87b6b640; padding-top: 20px; font-size: 9px; letter-spacing: 1.6px; color: #c3dfdf; }
+.access-visual-footer { display: flex; justify-content: space-between; align-items: center; color: #c3dfdf; font-size: 12px; }
+.access-dot { width: 7px; height: 7px; border-radius: 50%; background: #92e4d7; box-shadow: 0 0 0 5px #92e4d711; }
+.access-form-area { min-width: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 32px; padding: clamp(24px, 4vw, 64px); }
+.access-form-area .login-card { width: 100%; max-width: 440px; border: 0; border-radius: 0; background: transparent; box-shadow: none; padding: 0; gap: 22px; }
+.login-brand { color: #16434a; gap: 12px; }
+.login-brand strong { font-size: 18px; font-weight: 750; letter-spacing: -.4px; }
+.login-brand span { font-size: 12px; margin-top: 3px; color: #52666d; }
+.access-heading { margin: 16px 0 6px; }
+.access-heading .eyebrow { font-size: 10px; letter-spacing: 1.8px; color: #466970; margin: 0 0 10px; }
+.access-heading h1 { font-size: clamp(28px, 3vw, 36px); line-height: 1.15; letter-spacing: -1.1px; color: #13343b; margin: 0 0 12px; }
+.access-heading > p:last-child { font-size: 14px; color: #52666d; margin: 0; }
+.login-card label { color: #29434b; font-weight: 600; font-size: 13px; gap: 9px; min-width: 0; }
+.access-form-area .login-card input { width: 100%; min-width: 0; height: 52px; background: white; border: 1px solid #ceddda; border-radius: 10px; padding: 0 14px; color: #193c43; font-size: 15px; }
+.access-form-area .password-field { display: flex; height: 52px; padding: 0; background: white; border: 1px solid #ceddda; border-radius: 10px; overflow: hidden; }
+.access-form-area .password-field input { flex: 1; width: 0; border: 0; border-radius: 0; height: 50px; }
+.access-form-area .password-field button { flex: 0 0 48px; min-width: 48px; border: 0; background: transparent; color: #44676f; padding: 0; display: grid; place-items: center; border-radius: 0; }
+.access-form-area .login-card input:focus-visible { outline: 2px solid #25776e; outline-offset: 2px; }
+.access-form-area .password-field:focus-within { outline: 2px solid #25776e; outline-offset: 2px; }
+.access-form-area .password-field input:focus-visible { outline: none; }
+.access-form-area .login-card > button.primary { min-height: 52px; margin-top: 4px; border-radius: 10px; background: #16434a; color: #fff; font-weight: 650; font-size: 14px; border: 1px solid #16434a; }
+.access-form-area .login-card > button.primary:hover { background: #205860; }
+.access-form-area .login-card footer { display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 12px; color: #52666d; }
+.access-signature { width: 100%; max-width: 440px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin: 20px 0 0; padding-top: 22px; border-top: 1px solid #d9e4e1; color: #52666d; font-size: 10px; }
+@media (max-width: 760px) {
+ .login-page { grid-template-columns: minmax(0, 1fr); padding: 0; }
+ .login-visual { display: none; }
+ .access-form-area { padding: 38px 24px; gap: 24px; }
+ .access-form-area .login-card input { font-size: 16px; }
+ .access-signature { margin-top: 8px; }
+}
+
+.access-form-area .password-field button { min-height: 50px; height: 50px; }

@@ -15,6 +15,12 @@ describe('economic review display', () => {
     expect(html).toContain('Corregir facturabilidad / garantía');
     expect(html).not.toContain('Comprobar tarifas históricas');
   });
+  it('shows persisted decisions for an approved review instead of pending inputs', () => {
+    const html = render({ ...work, economic_review_status: 'approved', sale_amount: 55, time_entries: [{ ...time, contributes_to_sale: false }], cost_entries: [{ id: 'van', quantity: 1, unit_cost: 35, total_cost: 35, unit_price: 55, total_price: 55, contributes_to_sale: true }] });
+    expect(html).toContain('ENTRA EN VENTA: 55,00');
+    expect(html).toContain('NO ENTRA EN VENTA');
+    expect(html).not.toContain('PENDIENTE DE DECISIÓN');
+  });
   it('shows pending figures and a partial cost for the legacy zero-hour fixture', () => {
     const html = render(work);
     expect(html).toContain('Coste parcial');

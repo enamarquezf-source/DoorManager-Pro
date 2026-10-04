@@ -591,6 +591,31 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
 .economic-review-controls { display: grid; gap: 8px; align-content: start; }
 .economic-review-controls input[type='number'] { width: 100%; }
 .economic-review-controls .check-consent { margin: 0; }
+.work-overview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 14px; }
+.work-overview-grid .info-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); }
+.work-overview-grid > *, .economic-review-lines article > *, .economic-review-panel .metric { min-width: 0; }
+.economic-review-lines article { grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); }
+.economic-review-lines article p, .economic-review-lines article small, .economic-review-lines article strong { overflow-wrap: break-word; }
+.economic-review-panel .metric strong { font-size: clamp(18px, 2vw, 27px); overflow-wrap: break-word; }
+.economic-review-panel .metric small { line-height: 1.5; }
+.economic-rate-warning { padding: 12px 14px; border: 1px solid #ead6a5; border-radius: 12px; background: #fff9ec; display: grid; gap: 8px; }
+.economic-rate-warning p { margin: 0; }
+.economic-rate-warning button { justify-self: start; }
+.economic-review-panel .modal-footer { position: static; bottom: auto; z-index: auto; }
+.economic-rate-warning button, .economic-review-panel input, .economic-review-panel textarea { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-height: 44px; background: white; color: var(--dark); max-width: 100%; }
+.economic-review-panel label { display: grid; gap: 6px; min-width: 0; }
+.economic-review-panel textarea { width: 100%; min-height: 84px; resize: vertical; }
+.economic-review-panel .zero-sale-confirmation { display: flex; align-items: flex-start; }
+.economic-review-panel .zero-sale-confirmation input { min-height: 0; margin-top: 4px; }
+.economic-rate-warning .primary { background: var(--dark); color: white; }
+.economic-review-lines section h4 { margin: 8px 0 12px; }
+.compact-list.work-time-entry-list article { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+.work-time-entry-list .time-meta { display: grid; gap: 5px; min-width: 0; }
+.work-time-entry-list .row-actions { grid-column: 2; justify-content: flex-start; }
+@media (max-width: 760px) {
+  .compact-list.work-time-entry-list article { grid-template-columns: minmax(0, 1fr); }
+  .work-time-entry-list .row-actions { grid-column: 1; }
+}
 
 @media (max-width: 760px) {
   .shell { display: block; }

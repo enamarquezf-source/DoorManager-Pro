@@ -86,7 +86,7 @@ describe('099 economic review and structured billing', () => {
 
   it('exposes structured economic review without granting technical permissions', () => {
     expect(component).toContain('Revisión económica del parte');
-    expect(component).toContain('Precio venta snapshot');
+    expect(component).toContain('Precio de venta por {row.unit}');
     expect(component).toContain('Facturable');
     expect(component).toContain('Precio snapshot obligatorio');
     expect(workOrdersService).toContain("dmp_review_work_order_economic");

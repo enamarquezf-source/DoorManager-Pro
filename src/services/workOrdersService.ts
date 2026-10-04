@@ -362,6 +362,10 @@ export const workOrdersService = {
     if (!isValidUuid(workOrderId) || !String(reason ?? '').trim()) throw new Error('validacion del formulario: parte y motivo son obligatorios');
     return expectData<any>(supabase.rpc('dmp_reopen_work_order_economic', { p_work_order_id: workOrderId, p_reason: reason.trim() }), { service: 'workOrdersService', operation: 'Reabrir revision economica', resource: workOrderId });
   },
+  repairLegacyTimeRates(workOrderId: string, apply = false, expectedLines: any[] | null = null) {
+    if (!isValidUuid(workOrderId)) throw new Error('validacion del formulario: falta un parte valido');
+    return expectData<any>(supabase.rpc('dmp_repair_legacy_time_rates', { p_work_order_id: workOrderId, p_apply: apply, p_expected_lines: expectedLines }), { service: 'workOrdersService', operation: 'Comprobar o recuperar tarifas historicas de horas', resource: workOrderId });
+  },
   reassignWorkOrderCommercial(workOrderId: string, commercialProfileId: string) {
     if (!isValidUuid(workOrderId) || !isValidUuid(commercialProfileId)) throw new Error('validacion del formulario: faltan identificadores validos');
     return expectData<any>(supabase.rpc('dmp_reassign_work_order_commercial', { p_work_order_id: workOrderId, p_commercial_profile_id: commercialProfileId }), { service: 'workOrdersService', operation: 'Reasignar comercial del parte', resource: workOrderId });

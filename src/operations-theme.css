@@ -269,3 +269,25 @@ textarea { resize: none; }
 }
 
 .access-form-area .password-field button { min-height: 50px; height: 50px; }
+
+.register-list { display: grid; gap: 12px; margin-top: 18px; }
+.register-card { display: grid; grid-template-columns: minmax(0,2fr) repeat(3,minmax(0,1fr)); align-items: center; gap: 20px; width: 100%; text-align: left; padding: 20px; background: #fff; border: 1px solid #d9e5e4; border-radius: 14px; color: #183b43; text-decoration: none; font-weight: 400; }
+.document-library .register-card { grid-template-columns: minmax(0,2fr) repeat(2,minmax(0,1fr)); }
+.register-card:hover { border-color: #45948b; background: #f8fcfb; }
+.register-card:focus-visible { outline: 2px solid #25776e; outline-offset: 3px; }
+.register-card > div { display: grid; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.register-card strong { font-size: 16px; }
+.register-card span { font-size: 13px; }
+.register-card small { font-size: 11px; color: #526b72; }
+.expiry-label { color: #476b64; font-size: 11px !important; }
+.expiry-label.danger { color: #a53232; }
+.register-detail { padding: 18px; }
+.register-detail dl, dl.register-detail { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; margin: 0 0 20px; }
+.register-detail dt { color: #526b72; font-size: 12px; margin-bottom: 6px; }
+.register-detail dd { margin: 0; overflow-wrap: anywhere; }
+.register-document { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; border-bottom: 1px solid #e1eae8; overflow-wrap: anywhere; }
+.document-detail-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+.document-detail-heading h2 { overflow-wrap: anywhere; }
+.alert-description { white-space: pre-wrap; overflow-wrap: anywhere; }
+.operational-registers .filters input,.document-library .filters input { flex: 1; min-width: 0; }
+@media (max-width: 760px) { .register-card,.document-library .register-card { grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 14px; padding: 16px; } .register-card > div:first-child { grid-column: 1/-1; } .register-detail dl,dl.register-detail { grid-template-columns: 1fr; } }

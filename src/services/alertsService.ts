@@ -4,8 +4,8 @@ import { codesService } from './codesService';
 
 export const alertsService = {
   list(search = '') {
-    let query = supabase.from('alert_recipients').select('*, alerts!alert_recipients_alert_id_fkey(*)').order('created_at', { ascending: false });
-    if (search) query = query.or(contains(['alerts.title', 'alerts.description', 'alerts.type'], search));
+    let query = supabase.from('alert_recipients').select('*, alerts!alert_recipients_alert_id_fkey!inner(*)').is('alerts.deleted_at', null).order('created_at', { ascending: false });
+    if (search) query = query.or(contains(['title', 'description', 'type'], search), { referencedTable: 'alerts' });
     return expectData<any[]>(query);
   },
   unread() {
@@ -24,10 +24,10 @@ export const alertsService = {
     return expectData<void>(supabase.rpc('mark_alert_as_read', { p_alert_recipient_id: recipientId, p_profile_id: profileId }));
   },
   close(recipientId: string) {
-    return expectData<any>(supabase.from('alert_recipients').update({ closed_at: new Date().toISOString(), is_read: true }).eq('id', recipientId).select().single());
+    return expectData<any>(supabase.rpc('dmp_update_alert_recipient', { p_recipient_id: recipientId, p_action: 'close' }));
   },
   reopen(recipientId: string) {
-    return expectData<any>(supabase.from('alert_recipients').update({ closed_at: null }).eq('id', recipientId).select().single());
+    return expectData<any>(supabase.rpc('dmp_update_alert_recipient', { p_recipient_id: recipientId, p_action: 'reopen' }));
   },
   update(id: string, payload: Record<string, any>) {
     return expectData<any>(supabase.from('alerts').update(payload).eq('id', id).select().single());

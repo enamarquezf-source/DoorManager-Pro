@@ -1,6 +1,9 @@
 import type { Profile, RoleName } from '../shared/types';
 
 export const permissionLabels: Record<string, string> = {
+  'documents.read': 'Ver documentación',
+  'documents.create': 'Crear documentación',
+  'documents.update': 'Editar documentación',
   'users.create': 'Crear usuarios',
   'purchase_orders.read': 'Ver pedidos de compra',
   'purchase_orders.create': 'Crear pedidos de compra',

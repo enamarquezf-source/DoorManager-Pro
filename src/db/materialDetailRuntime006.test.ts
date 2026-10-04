@@ -46,7 +46,7 @@ describe('MATERIAL-DETAIL-RUNTIME-006', () => {
     const page = app.slice(app.indexOf('function MaterialDetailPage'), app.indexOf('function MaterialDetailPanelLegacy'));
     expect(page).not.toMatch(/>\s*svg\s*</i);
     expect(page).toContain('← Volver a materiales');
-    expect(app).toContain('<Factory {...iconProps} />');
+    expect(app).toContain('<BrandMark size={28} />');
     expect(app).toContain('<Menu {...iconProps} />');
   });
 

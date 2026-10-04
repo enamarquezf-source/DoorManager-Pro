@@ -26,6 +26,6 @@ describe('technician scope migration', () => {
     expect(migration).toContain('drop policy if exists alerts_insert_authorized');
     expect(migration).toContain("public.has_any_role(array['superadmin','SAT','Gerencia','Comercial','Oficina'])");
     expect(migration).not.toContain("'Oficina','Tecnico'");
-    expect(app).toContain("const canCreate = ['sat', 'gerencia', 'comercial'].includes(workspace)");
+    expect(app).toContain("const canCreate = ['sat', 'gerencia', 'comercial', 'oficina', 'superadmin'].includes(workspace)");
   });
 });

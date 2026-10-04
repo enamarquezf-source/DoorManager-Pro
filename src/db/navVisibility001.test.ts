@@ -31,8 +31,8 @@ describe('NAV-VISIBILITY-001', () => {
 
   it('expone configuración de menú por usuario mediante RPC', () => {
     expect(app).toContain('UserAccessPanel');
-    expect(app).toContain('Usuarios y permisos');
-    expect(app).toContain('Gestionar permisos');
+    expect(app).toContain('function SuperadminUsers()');
+    expect(app).toContain('Gestionar permisos de un usuario');
     expect(service).toContain('dmp_admin_update_user_access');
     expect(service).toContain('p_module_visibility');
   });

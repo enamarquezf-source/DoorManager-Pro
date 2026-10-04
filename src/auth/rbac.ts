@@ -4,6 +4,9 @@ export const permissionLabels: Record<string, string> = {
   'documents.read': 'Ver documentación',
   'documents.create': 'Crear documentación',
   'documents.update': 'Editar documentación',
+  'documents.delete': 'Eliminar documentos',
+  'vehicles.delete': 'Eliminar vehículos',
+  'alerts.delete': 'Eliminar avisos',
   'users.create': 'Crear usuarios',
   'purchase_orders.read': 'Ver pedidos de compra',
   'purchase_orders.create': 'Crear pedidos de compra',
@@ -67,8 +70,8 @@ export const moduleLabels: Record<string, string> = {
 const roleDefaults: Record<RoleName, string[]> = {
   superadmin: permissionCatalog,
   Gerencia: permissionCatalog.filter((key) => !key.startsWith('admin.') && !['users.create', 'users.deactivate'].includes(key)),
-  Oficina: permissionCatalog.filter((key) => key.startsWith('purchase_') || key.startsWith('supplier_invoices.') || key.startsWith('supplier_payments.') || key.startsWith('treasury.') || key.startsWith('materials.') || key.startsWith('suppliers.') || key.startsWith('documents.') || key.startsWith('billing.') || key === 'stock.read'),
-  SAT: ['suppliers.read', 'purchase_orders.read', 'purchase_receipts.read', 'materials.read', 'stock.read', 'sat.read', 'sat.write', 'sat.assign', 'sat.checks.manage', 'documents.read'],
+  Oficina: permissionCatalog.filter((key) => key.startsWith('purchase_') || key.startsWith('supplier_invoices.') || key.startsWith('supplier_payments.') || key.startsWith('treasury.') || key.startsWith('materials.') || key.startsWith('suppliers.') || key.startsWith('documents.') || key.startsWith('billing.') || key === 'stock.read' || ['vehicles.delete', 'alerts.delete'].includes(key)),
+  SAT: ['suppliers.read', 'purchase_orders.read', 'purchase_receipts.read', 'materials.read', 'stock.read', 'sat.read', 'sat.write', 'sat.assign', 'sat.checks.manage', 'documents.read', 'documents.delete', 'vehicles.delete', 'alerts.delete'],
   Comercial: ['suppliers.read', 'materials.read', 'commercial.read', 'commercial.write', 'documents.read', 'documents.create', 'documents.update'],
   Tecnico: ['materials.read', 'stock.read', 'sat.read', 'sat.write', 'sat.checks.manage', 'documents.read'],
 };
@@ -92,6 +95,7 @@ export function hasPermission(profile: (Profile & { permission_grants?: string[]
 
 export function moduleVisible(profile: (Profile & { visible_modules?: string[]; hidden_modules?: string[] }) | null | undefined, module: string) {
   if (!profile || !profile.active || profile.deleted_at) return false;
+  if (profile.roles?.includes('superadmin')) return true;
   if (profile.hidden_modules?.includes(module)) return false;
   return true;
 }

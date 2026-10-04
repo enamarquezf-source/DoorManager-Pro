@@ -1,6 +1,12 @@
 import type { Workspace } from '../shared/types';
 
 export const superadminSharedRoutes = [
+  '/app/modulos',
+  '/app/avisos',
+  '/app/documentos',
+  '/app/expedientes',
+  '/app/deficiencias',
+  '/app/gerencia',
   '/app/modulos/presupuestos',
   '/app/modulos/materiales',
   '/app/modulos/administracion',

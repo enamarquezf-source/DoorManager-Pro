@@ -77,7 +77,8 @@ describe('AUTH-RBAC-002 runtime authorization and user administration', () => {
 
   it('keeps sidebar, route authorization and explicit visibility overrides aligned', () => {
     expect(app).toContain("const purchases = { id: 'compras'");
-    for (const workspace of ['superadmin', 'sat', 'oficina']) expect(app).toContain(`workspace === '${workspace}') return withPurchases`);
+    expect(app).toContain('return withPurchases(all)');
+    for (const workspace of ['sat', 'oficina']) expect(app).toContain(`workspace === '${workspace}') return withPurchases`);
     expect(app).toContain('return withPurchases(gerencia)');
     for (const role of ['superadmin', 'Oficina', 'Gerencia', 'SAT'] as RoleName[]) {
       expect(canAccessModule(profile(role), role === 'superadmin' ? 'superadmin' : role.toLowerCase() as any, 'compras')).toBe(true);

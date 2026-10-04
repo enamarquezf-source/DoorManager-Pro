@@ -82,7 +82,7 @@ describe('canAccessRoute', () => {
       expect(canAccessRoute(current, '/app/modulos/tesoreria')).toBe(false);
     }
     expect(canAccessModule(profile('superadmin'), 'superadmin', 'tesoreria')).toBe(true);
-    expect(canAccessModule({ ...profile('superadmin'), hidden_modules: ['treasury'] }, 'superadmin', 'tesoreria')).toBe(false);
+    expect(canAccessModule({ ...profile('superadmin'), hidden_modules: ['treasury'] }, 'superadmin', 'tesoreria')).toBe(true);
   });
 
   it('mantiene Partes dentro del alcance tenant de Superadmin', () => {

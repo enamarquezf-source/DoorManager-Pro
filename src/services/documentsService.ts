@@ -27,7 +27,7 @@ export const documentsService = {
     return expectData<any[]>(query);
   },
   async get(id: string) {
-    const row = await expectData<any>(supabase.from('documents').select('*, files!documents_file_id_fkey(*), document_links!document_links_document_id_fkey(*)').eq('id', id).maybeSingle());
+    const row = await expectData<any>(supabase.from('documents').select('*, files!documents_file_id_fkey(*), document_links!document_links_document_id_fkey(*)').eq('id', id).is('deleted_at', null).maybeSingle());
     if (!row) throw new Error('No se ha encontrado el documento solicitado.');
     return row.file_id ? withSignedFileUrl(row) : row;
   },

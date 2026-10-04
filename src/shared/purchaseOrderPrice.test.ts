@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolvePurchaseOrderPrice } from './purchaseOrderPrice';
+import { defaultPurchaseSupplier, resolvePurchaseOrderPrice } from './purchaseOrderPrice';
 
 describe('resolvePurchaseOrderPrice', () => {
   it('fixture A returns the active exact-supplier price', () => {
@@ -34,5 +34,20 @@ describe('resolvePurchaseOrderPrice', () => {
 
   it('fixture F reports duplicate active rows as ambiguous', () => {
     expect(resolvePurchaseOrderPrice([{ id: 'first', supplier_id: 'supplier-a', purchase_unit_price: 28, active: true }, { id: 'second', supplier_id: 'supplier-a', purchase_unit_price: 15.5, active: true }], 'supplier-a')).toEqual({ relation: null, unitPurchasePrice: '', ambiguous: true });
+  });
+});
+
+describe('defaultPurchaseSupplier', () => {
+  it('prefers the designated supplier among multiple associations', () => {
+    expect(defaultPurchaseSupplier([{ supplier_id: 'a', active: true }, { supplier_id: 'b', active: true, is_preferred: true }], ['a','b'])).toBe('b');
+  });
+  it('selects a sole assigned supplier without a preference', () => {
+    expect(defaultPurchaseSupplier([{ supplier_id: 'a', active: true }], ['a'])).toBe('a');
+  });
+  it('excludes inactive associations and suppliers absent from the usable catalog', () => {
+    expect(defaultPurchaseSupplier([{ supplier_id: 'a', active: false, is_preferred: true }, { supplier_id: 'b', active: true, is_preferred: true }], ['a'])).toBe('');
+  });
+  it('leaves an ambiguous choice to the user', () => {
+    expect(defaultPurchaseSupplier([{ supplier_id: 'a', active: true }, { supplier_id: 'b', active: true }], ['a','b'])).toBe('');
   });
 });

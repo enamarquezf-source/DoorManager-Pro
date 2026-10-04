@@ -291,6 +291,7 @@ function ProtectedLayout() {
   const [query, setQuery] = useState('');
   const [unread, setUnread] = useState(0);
   const [moduleSearch, setModuleSearch] = useState('');
+  useEffect(() => { if (collapsed) setModuleSearch(''); }, [collapsed]);
   const nav = navForWorkspace(workspace).filter((item) => canAccessModule(profile, workspace, item.id));
   const active = [...nav].sort((a,b)=>b.path.length-a.path.length).find((item) => matchesRouteOrChild(location.pathname,item.path));
   const moduleTitle = moduleRegistry[location.pathname.match(/^\/app\/modulos\/([^/]+)/)?.[1] ?? '']?.title;

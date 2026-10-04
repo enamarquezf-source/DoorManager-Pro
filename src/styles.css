@@ -20,7 +20,7 @@
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; background: var(--color-background); }
+body { margin: 0; min-width: 0; background: var(--color-background); }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 button, a { -webkit-tap-highlight-color: transparent; }

@@ -123,7 +123,7 @@ main { padding: 24px; }
 .work-actions button:disabled { display: none; }
 .commercial-review-sat { border: 1px solid #f1c27d; border-radius: 14px; padding: 12px; background: #fffaf0; margin: 12px 0; }
 .commercial-review-sat h4 { margin: 0 0 8px; color: #9a5b00; font-size: .78rem; letter-spacing: .06em; }
-.mini-modal textarea { padding: 10px; resize: vertical; }
+.mini-modal textarea { padding: 10px; resize: none; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .modal-footer { position: sticky; bottom: -18px; z-index: 2; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--line); padding: 12px 0 0; background: white; }
 .draft-delete-button { justify-self: start; margin-top: 2px; }
@@ -494,7 +494,7 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
 .tech-hero h1 { margin: 0; font-size: 28px; }
 .tech-hero p { margin: 0; color: #cbd5e1; }
 .tech-sections { display: grid; gap: 14px; }
-.tech-sections textarea { width: 100%; min-height: 96px; border: 1px solid var(--line); border-radius: 14px; padding: 12px; resize: vertical; }
+.tech-sections textarea { width: 100%; min-height: 96px; border: 1px solid var(--line); border-radius: 14px; padding: 12px; resize: none; }
 .photo-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .photo-strip span, .photo-strip button, .component-photo { min-height: 86px; border: 1px dashed #b8c4d6; border-radius: 16px; background: #f8fafc; display: grid; place-items: center; color: var(--text-soft); font-weight: 900; }
 .component-photo input { max-width: 160px; font-size: 12px; }
@@ -505,7 +505,7 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
 .journey-card > div:last-child { display: grid; gap: 6px; justify-items: end; }
 .sync-box { display: grid; gap: 6px; align-content: start; }
 .sync-box p { margin: 0; color: #334155; font-size: 12px; font-weight: 800; }
-.technician-page textarea { width: 100%; min-height: 92px; border: 1px solid var(--line); border-radius: 14px; padding: 10px; resize: vertical; }
+.technician-page textarea { width: 100%; min-height: 92px; border: 1px solid var(--line); border-radius: 14px; padding: 10px; resize: none; }
 .technician-page label { display: grid; gap: 7px; font-weight: 850; color: #334155; }
 .state-back { border: 1px solid rgba(255,255,255,.28); background: rgba(255,255,255,.08); color: white; border-radius: 14px; min-height: 46px; font-weight: 900; }
 .doc-list { display: grid; gap: 8px; }
@@ -572,7 +572,7 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
 .technician-progress-grid span { padding: 11px 12px; border: 1px solid var(--line); border-radius: 12px; background: #f8fafc; font-weight: 800; }
 .technician-progress-grid .progress-done { color: #166534; background: #f0fdf4; border-color: #bbf7d0; }
 .technician-progress-grid .progress-pending { color: #92400e; background: #fffbeb; border-color: #fde68a; }
-.technician-work-textarea { width: 100%; min-height: 150px; resize: vertical; border: 1px solid var(--line); border-radius: 14px; padding: 12px; color: var(--dark); }
+.technician-work-textarea { width: 100%; min-height: 150px; resize: none; border: 1px solid var(--line); border-radius: 14px; padding: 12px; color: var(--dark); }
 .technician-concepts { gap: 7px; }
 .technician-concept-row { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1px solid #e7edf5; border-radius: 13px; background: #fafcff; cursor: pointer; }
 .technician-concept-row input { flex: 0 0 auto; width: 20px; height: 20px; margin: 1px 0 0; }
@@ -604,7 +604,7 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
 .economic-review-panel .modal-footer { position: static; bottom: auto; z-index: auto; }
 .economic-rate-warning button, .economic-review-panel input, .economic-review-panel textarea { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-height: 44px; background: white; color: var(--dark); max-width: 100%; }
 .economic-review-panel label { display: grid; gap: 6px; min-width: 0; }
-.economic-review-panel textarea { width: 100%; min-height: 84px; resize: vertical; }
+.economic-review-panel textarea { width: 100%; min-height: 84px; resize: none; }
 .economic-review-panel .zero-sale-confirmation { display: flex; align-items: flex-start; }
 .economic-review-panel .zero-sale-confirmation input { min-height: 0; margin-top: 4px; }
 .economic-rate-warning .primary { background: var(--dark); color: white; }

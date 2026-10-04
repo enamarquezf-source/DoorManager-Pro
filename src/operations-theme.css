@@ -143,3 +143,71 @@
   .operations-eyebrow { margin: 0; }
   .operations-description { margin-top: 6px; }
 }
+
+/* Stable, shared form controls: text areas scroll internally instead of resizing. */
+textarea { resize: none; }
+:is(.shell, .mini-modal, .login-card) :is(form, .form-grid) label:has(> :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]), select, textarea)) {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 7px;
+  min-width: 0;
+  color: #40585f;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+:is(.shell, .mini-modal, .login-card) :is(form, .form-grid) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]):not([type="submit"]):not([type="button"]), select, textarea) {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+  border: 1px solid #b9cbce;
+  border-radius: 9px;
+  padding: 10px 12px;
+  background: #ffffff;
+  color: #17343b;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 450;
+  line-height: 1.5;
+}
+:is(.shell, .mini-modal, .login-card) textarea {
+  resize: none;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 112px;
+  height: 112px;
+  overflow-y: auto;
+}
+:is(.shell, .mini-modal, .login-card) :is(input, textarea)::placeholder { color: #657b81; opacity: 1; }
+:is(.shell, .mini-modal, .login-card) :is(form, .form-grid) :is(input, select, textarea):focus-visible {
+  border-color: #168179;
+  outline: 3px solid #16817930;
+  outline-offset: 2px;
+}
+:is(.shell, .mini-modal, .login-card) :is(form, .form-grid) :is(input, select, textarea):disabled {
+  background: #edf2f3;
+  color: #52676d;
+  cursor: not-allowed;
+}
+.supplier-payment-entry {
+  display: grid;
+  gap: 18px;
+  margin-top: 22px;
+  padding: 20px;
+  border: 1px solid #dce7e8;
+  border-radius: 12px;
+  background: #f5f9f9;
+}
+.supplier-payment-entry h4 { margin: 0; font-size: 15px; color: #17343b; }
+.supplier-payment-entry .form-grid { gap: 16px 20px; }
+.supplier-payment-entry .form-field-wide { grid-column: 1 / -1; }
+.supplier-payment-entry .actions { justify-content: flex-end; margin: 0; }
+@media (max-width: 760px) {
+  .supplier-payment-entry { padding: 15px; }
+  .supplier-payment-entry .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .supplier-payment-entry .actions > button { width: 100%; }
+  :is(.shell, .mini-modal, .login-card) :is(form, .form-grid) :is(input, select, textarea) { font-size: 16px; }
+}

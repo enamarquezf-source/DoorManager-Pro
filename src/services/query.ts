@@ -58,6 +58,7 @@ export function toSpanishSupabaseError(error: any) {
     return 'Esta operación no está disponible ahora mismo. Reinténtalo o avisa a administración.';
   }
   if (error?.code === 'PGRST200') return 'No se han podido cargar algunos datos relacionados. Revisa el diagnóstico o inténtalo de nuevo.';
+  if (error?.code === 'P0001' && /^factura proveedor:/i.test(message)) return message;
   if (message.includes('No se ha encontrado')) return message;
   if (message.includes('audit_log_operation_check')) return 'No se ha podido registrar la operación. Reinténtalo o avisa a administración.';
   if (/no puedes dejar la empresa sin|ultimo superadmin|último superadmin|degradar ni desactivar tu propio/i.test(message)) return 'No se puede dejar la empresa sin un Superadmin activo ni quitar el último acceso de administración.';

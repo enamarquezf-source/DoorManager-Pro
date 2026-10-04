@@ -9,6 +9,13 @@ const work = { id: 'w', code: 'PAR-NOVA-001', status: 'Finalizado tecnicamente',
 const render = (part: any) => renderToStaticMarkup(<EconomicReviewPanel workOrder={part} profile={profile} onChanged={() => {}} />);
 
 describe('economic review display', () => {
+  it('offers an explicit zero confirmation for an empty nonbillable test part', () => {
+    const html = render({ ...work, billable: false, time_entries: [], cost_entries: [] });
+    expect(html).toContain('No hay conceptos económicos registrados');
+    expect(html).toContain('Confirmo que la venta aprobada es 0,00');
+    expect(html).toContain('APROBAR REVISIÓN ECONÓMICA');
+    expect(html).toContain('Motivo de revisión');
+  });
   it('lets Office review existing concepts and correct classification', () => {
     const html = renderToStaticMarkup(<EconomicReviewPanel workOrder={work} profile={{ active: true, roles: ['Oficina'] }} onChanged={() => {}} />);
     expect(html).toContain('APROBAR REVISIÓN ECONÓMICA');

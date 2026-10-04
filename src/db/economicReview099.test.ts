@@ -142,9 +142,10 @@ describe('099 economic review and structured billing', () => {
     expect(economicReviewSummary(workOrder).approvedSale).toBe(0);
   });
 
-  it('does not request concept decisions when the panel has no concepts', () => {
-    expect(component).toContain('No se puede aprobar la revisión hasta que existan conceptos económicos.');
-    expect(component).toContain('rows.length > 0 ?');
+  it('requires explicit confirmation and reason to approve an empty zero-sale part', () => {
+    expect(component).toContain('aprobar una venta cero requiere confirmación expresa y motivo.');
+    expect(component).toContain('!rows.length ||');
+    expect(component).toContain('needsZeroConfirmation && !zeroSaleConfirmed');
   });
 
   it('preserves structured multiline associations and aggregate invoiced amount', () => {

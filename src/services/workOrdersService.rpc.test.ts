@@ -33,6 +33,13 @@ describe('workOrdersService operational RPCs', () => {
     for (const queue of ['sat', 'commercial'] as const) await expect(workOrdersService.routingQueue(queue)).resolves.toEqual([{ id: 'wo-1' }]);
     expect(from).not.toHaveBeenCalled();
   });
+  it('permite revisión vacía solo con confirmación expresa de venta cero', async () => {
+    const { workOrdersService } = await import('./workOrdersService');
+    const id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+    expect(() => workOrdersService.reviewWorkOrderEconomic(id, [], 'Prueba')).toThrow('confirma expresamente');
+    await expect(workOrdersService.reviewWorkOrderEconomic(id, [], 'Prueba autorizada a cero', true)).resolves.toBe('saved-id');
+    expect(rpc).toHaveBeenCalledWith('dmp_review_work_order_economic', expect.objectContaining({ p_decisions: [], p_zero_sale_confirmed: true }));
+  });
 
   it('registra horas mediante la RPC segura 024', async () => {
     const { workOrdersService } = await import('./workOrdersService');

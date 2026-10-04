@@ -294,6 +294,12 @@ function ProtectedLayout() {
 
   useEffect(() => { setAlertsOpen(false); setUserOpen(false); setQuery(''); if (window.innerWidth <= 760) setCollapsed(true); }, [location.pathname, workspace]);
   useEffect(() => {
+    const mobile = window.matchMedia('(max-width: 760px)');
+    const closeDrawer = (event: MediaQueryListEvent) => { if (event.matches) setCollapsed(true); };
+    mobile.addEventListener('change', closeDrawer);
+    return () => mobile.removeEventListener('change', closeDrawer);
+  }, []);
+  useEffect(() => {
     const mobileOpen = window.innerWidth <= 760 && !collapsed;
     const previousOverflow = document.body.style.overflow;
     if (mobileOpen) document.body.style.overflow = 'hidden';

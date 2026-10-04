@@ -291,3 +291,7 @@ textarea { resize: none; }
 .alert-description { white-space: pre-wrap; overflow-wrap: anywhere; }
 .operational-registers .filters input,.document-library .filters input { flex: 1; min-width: 0; }
 @media (max-width: 760px) { .register-card,.document-library .register-card { grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 14px; padding: 16px; } .register-card > div:first-child { grid-column: 1/-1; } .register-detail dl,dl.register-detail { grid-template-columns: 1fr; } }
+
+/* Dialogs always sit above the mobile navigation drawer. */
+.overlay { z-index: 80; }
+.mini-modal { z-index: 90; }

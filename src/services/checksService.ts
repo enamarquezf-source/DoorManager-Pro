@@ -47,33 +47,41 @@ async function uploadLocalFile(path: string, payload: Record<string, any>) {
   return { mime, size: blob.size };
 }
 
+async function withCheckContext(rows: any[]) {
+  const ids = [...new Set(rows.map((row) => row.work_order_id).filter(Boolean))];
+  if (!ids.length) return rows;
+  const orders = await expectData<any[]>(supabase.from('work_orders').select('id, clients!work_orders_client_id_fkey(legal_name), sites!work_orders_site_id_fkey(name)').in('id', ids));
+  const byId = new Map(orders.map((order) => [order.id, order]));
+  return rows.map((row) => { const order = byId.get(row.work_order_id); return { ...row, client_name: row.client_name || order?.clients?.legal_name, site_name: row.site_name || order?.sites?.name }; });
+}
+
 export const checksService = {
   async list(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active') {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
     let query = applyArchiveFilter(supabase.from('checks').select('*, companies!checks_company_id_fkey(name), equipment!checks_equipment_id_fkey(code), work_orders!checks_work_order_id_fkey(code), profiles!checks_technician_id_fkey(first_name,last_name)'), archiveFilter).order('created_at', { ascending: false });
     if (companyId) query = query.eq('company_id', companyId);
     if (search) query = query.or(contains(['code', 'status', 'global_result', 'observations'], search));
-    return expectData<any[]>(query);
+    return withCheckContext(await expectData<any[]>(query));
   },
   async pending(companyScope?: string | null) {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
     let query = supabase.from('v_pending_checks').select('*').order('created_at', { ascending: false });
     if (companyId) query = query.eq('company_id', companyId);
-    return expectData<any[]>(query);
+    return withCheckContext(await expectData<any[]>(query));
   },
   async pendingForCurrentTechnician() {
     const profileId = await currentProfileId();
-    return expectData<any[]>(supabase.from('v_pending_checks').select('*').eq('technician_id', profileId).order('created_at', { ascending: false }));
+    return withCheckContext(await expectData<any[]>(supabase.from('v_pending_checks').select('*').eq('technician_id', profileId).order('created_at', { ascending: false })));
   },
   async completed(companyScope?: string | null) {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
     let query = supabase.from('v_completed_checks').select('*').order('finished_at', { ascending: false });
     if (companyId) query = query.eq('company_id', companyId);
-    return expectData<any[]>(query);
+    return withCheckContext(await expectData<any[]>(query));
   },
   async completedForCurrentTechnician() {
     const profileId = await currentProfileId();
-    return expectData<any[]>(supabase.from('v_completed_checks').select('*').eq('technician_id', profileId).order('finished_at', { ascending: false }));
+    return withCheckContext(await expectData<any[]>(supabase.from('v_completed_checks').select('*').eq('technician_id', profileId).order('finished_at', { ascending: false })));
   },
   async get(id: string) {
     const row = await expectData<any>(supabase.from('checks').select('*, equipment!checks_equipment_id_fkey(*, equipment_types!equipment_equipment_type_id_fkey(*)), work_orders!checks_work_order_id_fkey(*), profiles!checks_technician_id_fkey(first_name,last_name), check_templates!checks_template_id_fkey(*, equipment_types!check_templates_equipment_type_id_fkey(*), check_template_sections!check_template_sections_template_id_fkey(*, check_template_items!check_template_items_section_id_fkey(*))), check_section_results!check_section_results_check_id_fkey(*, check_template_sections!check_section_results_section_id_fkey(*)), check_item_results!check_item_results_check_id_fkey(*, check_template_items!check_item_results_item_id_fkey(*)), check_photos!check_photos_check_id_fkey(*, files!check_photos_file_id_fkey(*)), deficiencies!deficiencies_check_id_fkey(*)').eq('id', id).maybeSingle());

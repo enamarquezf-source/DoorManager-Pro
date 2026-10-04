@@ -424,7 +424,7 @@ function navForWorkspace(workspace: Workspace) {
   const treasury = { id: 'tesoreria', label: 'Tesorería', path: '/app/modulos/tesoreria', icon: ClipboardList };
   superadmin.push(treasury);
   const withPurchases = (items: typeof oficina) => items.some((item) => item.id === purchases.id) ? items : [...items, purchases];
-  if (workspace === 'superadmin') { const all = [...superadmin]; for (const item of [...sat, ...comercial, ...oficina, ...gerencia]) if (!all.some(existing => existing.path === item.path)) all.push(item); return withPurchases(all); }
+  if (workspace === 'superadmin') { const all = [...superadmin]; for (const item of [...sat, ...comercial, ...oficina, ...gerencia]) if (!all.some(existing => existing.id === item.id || existing.path === item.path)) all.push(item); return withPurchases(all); }
   if (workspace === 'tecnico') return [{ id: 'jornada', label: 'Mi jornada', path: '/app/tecnico', icon: CalendarClock }, { id: 'checks', label: 'Checks', path: '/app/checks', icon: ClipboardCheck }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }];
   const records = oficina.filter(item => ['vehiculos', 'prl', 'documentos'].includes(item.id));
   for (const items of [sat, gerencia]) for (const item of records) if (!items.some(existing => existing.id === item.id)) items.push(item);

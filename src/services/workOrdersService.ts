@@ -5,6 +5,7 @@ import { filesBucket, withSignedFileUrl } from '../shared/signedFiles';
 import { applyArchiveFilter, type ArchiveFilter } from './entityLifecycleService';
 import { applyDateRangeFilters, type DateRangeFilters } from '../shared/dateRange';
 import { isValidUuid } from '../shared/uuid';
+import { billingBlockers } from '../shared/guidedBillingEligibility';
 
 const workOrderEditableColumns = ['case_id', 'quote_id', 'client_id', 'site_id', 'main_equipment_id', 'contact_id', 'access_requirement_id', 'title', 'description', 'type', 'priority', 'origin', 'scheduled_date', 'scheduled_time', 'estimated_duration_minutes', 'planned_material', 'technical_team', 'diagnosis', 'work_performed', 'result'];
 function workOrderPayload(payload: Record<string, any>) {
@@ -115,7 +116,11 @@ export const workOrdersService = {
     return workOrders.map((work) => ({ ...work, office_validation_status: validationById.get(work.id) ?? 'not_started' }));
   },
   async routingQueue(queue: 'sat' | 'commercial' | 'billing') {
-    return expectData<any[]>(supabase.rpc('dmp_department_routing_queue', { p_queue: queue }), { service: 'workOrdersService', operation: `Cola departamental ${queue}`, resource: 'dmp_department_routing_queue' });
+    const rows = await expectData<any[]>(supabase.rpc('dmp_department_routing_queue', { p_queue: queue }), { service: 'workOrdersService', operation: `Cola departamental ${queue}`, resource: 'dmp_department_routing_queue' });
+    if (queue !== 'billing' || !rows.length) return rows;
+    const economics = await expectData<any[]>(supabase.from('work_orders').select('id,sale_amount,billable,economic_status,economic_review_status,office_validation_status,sat_review_status,sat_review_destination,commercial_review_status').in('id', rows.map((row) => row.id)).is('deleted_at', null), { service: 'workOrdersService', operation: 'Comprobar bloqueos de facturación' });
+    const byId = new Map(economics.map((work) => [work.id, work]));
+    return rows.map((row) => ({ ...row, ...byId.get(row.id), billing_blockers: billingBlockers(byId.get(row.id)) }));
   },
   async listWithAssignments(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active', dateFilters: DateRangeFilters = {}) {
     const workOrders = await this.list(search, companyScope, archiveFilter, dateFilters);

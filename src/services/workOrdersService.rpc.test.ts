@@ -14,6 +14,26 @@ describe('workOrdersService operational RPCs', () => {
     rpc.mockResolvedValue({ data: 'saved-id', error: null });
   });
 
+  it('conserva los partes bloqueados de facturación y consulta sus requisitos en una sola lectura', async () => {
+    const { workOrdersService } = await import('./workOrdersService');
+    rpc.mockResolvedValue({ data: [{ id: 'wo-1', code: 'PAR-1' }, { id: 'wo-2', code: 'PAR-2' }], error: null });
+    const query: any = { select: vi.fn(() => query), in: vi.fn(() => query), is: vi.fn().mockResolvedValue({ data: [{ id: 'wo-1', sale_amount: 100, billable: false, economic_status: 'pendiente_facturar', economic_review_status: 'approved', sat_review_status: 'approved', sat_review_destination: 'facturacion' }], error: null }) };
+    from.mockReturnValue(query);
+    const rows = await workOrdersService.routingQueue('billing');
+    expect(rows).toHaveLength(2);
+    expect(rows[0].billing_blockers).toContain('Parte marcado como no facturable.');
+    expect(rows[1].billing_blockers).toEqual(['No se ha podido comprobar la situación del parte.']);
+    expect(query.in).toHaveBeenCalledWith('id', ['wo-1', 'wo-2']);
+    expect(from).toHaveBeenCalledTimes(1);
+  });
+
+  it('mantiene las colas SAT y Comercial sin lecturas económicas adicionales', async () => {
+    const { workOrdersService } = await import('./workOrdersService');
+    rpc.mockResolvedValue({ data: [{ id: 'wo-1' }], error: null });
+    for (const queue of ['sat', 'commercial'] as const) await expect(workOrdersService.routingQueue(queue)).resolves.toEqual([{ id: 'wo-1' }]);
+    expect(from).not.toHaveBeenCalled();
+  });
+
   it('registra horas mediante la RPC segura 024', async () => {
     const { workOrdersService } = await import('./workOrdersService');
     const payload = { work_order_id: 'wo-1', profile_id: 'worker-1', started_at: '08:00', ended_at: '10:00', break_minutes: 15, hour_type: 'normal', description: 'Ajuste de puerta' };

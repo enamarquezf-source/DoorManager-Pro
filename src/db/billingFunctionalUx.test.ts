@@ -7,8 +7,10 @@ const moduleSource = readFileSync(resolve(root, 'src/modules/BillingModule.tsx')
 const styles = readFileSync(resolve(root, 'src/styles.css'), 'utf8');
 
 describe('billing functional and UX flow', () => {
-  it('filters the operational queue with invoiceable eligibility and prepares directly', () => {
-    expect(moduleSource).toContain('nextRoutingRows.filter((row) => nextInvoiceable.some((work) => work.id === row.id))');
+  it('keeps blocked operational work visible with reasons and prevents preparation', () => {
+    expect(moduleSource).toContain('setRoutingRows(nextRoutingRows)');
+    expect(moduleSource).toContain('work.billing_blockers');
+    expect(moduleSource).toContain('disabled={isPreparing || blockers.length > 0}');
     expect(moduleSource).toContain('PREPARAR FACTURA');
     expect(moduleSource).toContain('Abrir parte');
     expect(moduleSource).toContain('work.source');

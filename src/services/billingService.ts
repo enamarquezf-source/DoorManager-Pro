@@ -6,6 +6,8 @@ function billingError(error: any, operation: string, resource?: string) {
   const raw = error?.originalError ?? error;
   console.error('DMP billing operation failed', { code: raw?.code, message: raw?.message ?? error?.message, details: raw?.details, hint: raw?.hint, operation, resource });
   const message = String(raw?.message ?? error?.message ?? '').toLowerCase();
+  if (message.includes('factura:') && message.includes('parte asociado') && message.includes('no valido')) return new Error('El parte asociado todavía no cumple los requisitos de facturación. Abre el parte y comprueba su revisión económica, facturabilidad y envío a Facturación.');
+  if (message.includes('factura:') && message.includes('obsoleto')) return new Error('Las líneas del borrador no coinciden con la venta aprobada. Corrige las líneas o indica un motivo explícito de excepción económica.');
   if (message.includes('borrador o factura activa') || message.includes('ya tiene un borrador')) return new Error('Este parte ya tiene un borrador de factura. Se abrirá el borrador existente.');
   if (message.includes('debe estar validado') || message.includes('validado por oficina')) return new Error('El parte debe estar validado por Oficina antes de preparar la factura.');
   if (message.includes('ya esta asociado') || message.includes('ya pertenece a una factura')) return new Error('Este parte ya está asociado a una factura.');

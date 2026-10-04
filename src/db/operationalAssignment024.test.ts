@@ -108,8 +108,6 @@ describe('operational assignment 024', () => {
     expect(migration).toContain('wo.company_id = v_profile.company_id');
     expect(migration).toContain("case when a.status = 'Cancelado' or a.deleted_at is not null then 'Desasignada'");
     expect(assignmentsService).toContain("supabase.rpc('technician_assignment_history')");
-    expect(app).toContain('assignmentsService.assignmentHistory');
-    expect(app).toContain('historial independiente');
   });
 
   it('finalizes technician assignments without deleting history and does not auto-reactivate on reopen', () => {

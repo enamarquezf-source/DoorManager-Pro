@@ -1,4 +1,4 @@
-export type TechnicianDayTab = 'todos' | 'hoy' | 'anteriores' | 'proximos' | 'urgentes' | 'curso' | 'checks' | 'sin-hora' | 'finalizados';
+export type TechnicianDayTab = 'todos' | 'hoy' | 'anteriores' | 'proximos' | 'urgentes' | 'curso' | 'checks' | 'sin-hora';
 
 export const technicianDayTabs: [TechnicianDayTab, string][] = [
   ['todos', 'Todos activos'],
@@ -9,14 +9,12 @@ export const technicianDayTabs: [TechnicianDayTab, string][] = [
   ['curso', 'En curso'],
   ['checks', 'Checks pendientes'],
   ['sin-hora', 'Sin hora'],
-  ['finalizados', 'Historial'],
 ];
 
 const activeStates = ['Pendiente', 'Trabajo descargado', 'En desplazamiento', 'En intervencion', 'Pausado', 'Pendiente de material'];
 
-export function technicianDayRows(tab: TechnicianDayTab, activeRows: any[], historyRows: any[], today: string) {
-  const source = tab === 'finalizados' ? historyRows : activeRows;
-  return source.filter((row) => {
+export function technicianDayRows(tab: TechnicianDayTab, activeRows: any[], today: string) {
+  return activeRows.filter((row) => {
     if (tab === 'todos') return true;
     if (tab === 'hoy') return row.assignment_date === today;
     if (tab === 'anteriores') return row.assignment_date < today && activeStates.includes(row.work_order_status);
@@ -29,8 +27,8 @@ export function technicianDayRows(tab: TechnicianDayTab, activeRows: any[], hist
   });
 }
 
-export function technicianDayCounts(activeRows: any[], historyRows: any[], today: string) {
-  return Object.fromEntries(technicianDayTabs.map(([tab]) => [tab, technicianDayRows(tab, activeRows, historyRows, today).length])) as Record<TechnicianDayTab, number>;
+export function technicianDayCounts(activeRows: any[], today: string) {
+  return Object.fromEntries(technicianDayTabs.map(([tab]) => [tab, technicianDayRows(tab, activeRows, today).length])) as Record<TechnicianDayTab, number>;
 }
 
 export function technicianDayEmptyMessage(tab: TechnicianDayTab, activeCount: number, filteredCount: number, error?: string | null) {

@@ -171,7 +171,7 @@ export const workOrdersService = {
     `).eq('id', workOrderId).maybeSingle(), { service: 'workOrdersService', operation: 'Resumen del parte', resource: workOrderId });
     if (!workOrder) throw new Error('No se ha encontrado el parte solicitado.');
     const [associated, assignments] = await Promise.all([
-      expectData<any[]>(supabase.from('work_order_equipment').select('work_order_id,equipment_id,is_primary,check_status,equipment!work_order_equipment_equipment_id_fkey(id,code,internal_location,brand,model,equipment_type_id,equipment_types!equipment_equipment_type_id_fkey(name))').eq('work_order_id', workOrderId).order('is_primary', { ascending: false }).order('created_at')),
+      expectData<any[]>(supabase.from('work_order_equipment').select('work_order_id,equipment_id,is_primary,check_status,equipment!work_order_equipment_equipment_id_fkey(id,code,internal_location,brand,model,equipment_type_id,clients!equipment_client_id_fkey(code,legal_name),sites!equipment_site_id_fkey(code,name),equipment_types!equipment_equipment_type_id_fkey(name))').eq('work_order_id', workOrderId).order('is_primary', { ascending: false }).order('created_at')),
       expectData<any[]>(supabase.from('work_order_assignments').select('id,work_order_id,technician_id,role,status,assignment_date,planned_start_time,planned_end_time,profiles!work_order_assignments_technician_id_fkey(id,first_name,last_name,primary_area)').eq('work_order_id', workOrderId).is('deleted_at', null).order('planned_start_time')),
     ]);
     const primaryAssignment = assignments.find((item) => item.role === 'Principal') ?? assignments[0];
@@ -213,7 +213,7 @@ export const workOrdersService = {
       `).eq('id', workOrderId).maybeSingle());
       if (!workOrder) throw new Error('No se ha encontrado el parte solicitado.');
 
-      const associated = await expectStep('Detalle parte / equipos asociados', () => expectData<any[]>(supabase.from('work_order_equipment').select('*, equipment!work_order_equipment_equipment_id_fkey(*, equipment_types!equipment_equipment_type_id_fkey(*))').eq('work_order_id', workOrderId).order('is_primary', { ascending: false }).order('created_at')));
+      const associated = await expectStep('Detalle parte / equipos asociados', () => expectData<any[]>(supabase.from('work_order_equipment').select('*, equipment!work_order_equipment_equipment_id_fkey(*, clients!equipment_client_id_fkey(code,legal_name), sites!equipment_site_id_fkey(code,name), equipment_types!equipment_equipment_type_id_fkey(*))').eq('work_order_id', workOrderId).order('is_primary', { ascending: false }).order('created_at')));
       const compatibleCheckTemplates = await expectStep('Detalle parte / plantillas compatibles', () => expectData<any[]>(supabase.from('check_templates').select('id, equipment_type_id, company_id, name').eq('active', true).or(`company_id.eq.${workOrder.company_id},company_id.is.null`)));
       const assignments = await expectStep('Detalle parte / asignaciones', () => expectData<any[]>(supabase.from('work_order_assignments').select('*, profiles!work_order_assignments_technician_id_fkey(*)').eq('work_order_id', workOrderId).is('deleted_at', null).order('planned_start_time')));
       const history = await expectStep('Detalle parte / historial estados', () => expectData<any[]>(supabase.from('work_order_status_history').select('*, profiles!work_order_status_history_changed_by_fkey(first_name,last_name)').eq('work_order_id', workOrderId).order('changed_at', { ascending: true })));

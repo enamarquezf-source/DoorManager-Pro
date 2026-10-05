@@ -31,7 +31,7 @@ Ambos archivos se pueden volver a ejecutar. No contienen modificaciones de parte
 
 ## Verificación
 
-- Suite completa: **1.557 pruebas superadas**, sin fallos.
+- Suite completa: **1.561 pruebas superadas**, sin fallos.
 - Compilación TypeScript y build de producción correctos. Permanece el aviso de tamaño del paquete principal; no es un fallo de compilación.
 - Pruebas de comportamiento nuevas para separación de cachés, cambio de sesión, URL firmadas tardías, cola persistente con IndexedDB real simulado, sincronización concurrente y edición durante el envío, clasificación de errores de conexión, destinatarios de avisos y recuperación de borradores.
 - Pruebas de permisos, asignaciones y sintaxis de las migraciones nuevas.
@@ -55,3 +55,13 @@ Ambos archivos se pueden volver a ejecutar. No contienen modificaciones de parte
 - Crear avisos vuelve a estar disponible para Superadmin y Oficina, de acuerdo con las políticas existentes del servidor.
 - La ejecución en Supabase de audit_operational_integrity.sql, confirmada mediante la tabla aportada por el usuario, devuelve cero en nueve comprobaciones y **24 consumos con datos de stock incoherentes**. Esto no prueba por sí solo un stock incorrecto: la migración 094 añadió el almacén canónico sin backfill histórico. Se ha preparado audit_material_consumption_details.sql para distinguir los casos, sin modificar saldos. El diagnóstico detallado sigue pendiente.
 - Suite completa tras esta revisión: 1.557 pruebas; build correcto.
+
+
+## Trazabilidad de los 24 consumos
+
+El detalle aportado por el usuario muestra 24 consumos creados en agosto de 2026: todos tienen estado validated, descuento positivo, almacén nulo y cero movimientos canónicos asociados. Son compatibles con datos anteriores al modelo por almacén; no se ha demostrado un descuento duplicado actual ni se ha inventado un almacén para ellos. La pantalla explicará «Descuento registrado sin trazabilidad por almacén» y conservará la cantidad registrada.
+
+La migración 164 añade una protección para nuevas inserciones o cambios de cantidades/descuentos incoherentes. Conserva los históricos existentes y permite cambiar sus notas o precios sin alterar la identidad y cantidades de stock. No ajusta saldos ni compensa consumos. Incluye pruebas transaccionales sobre una tabla temporal; el usuario ha confirmado su ejecución completa con «Success. No rows returned», lo que también verifica las pruebas temporales del trigger en el esquema real. Los 24 casos siguen siendo una revisión histórica pendiente, no incidencias borradas artificialmente del diagnóstico.
+
+
+Verificación final de esta entrega: 1.561 pruebas superadas, build correcto y migración 164 aplicada con sus pruebas temporales de aceptación/rechazo incluidas. No se han cambiado cantidades de los 24 históricos ni saldos para hacer desaparecer el contador.

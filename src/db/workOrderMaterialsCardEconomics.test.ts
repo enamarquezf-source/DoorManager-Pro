@@ -45,7 +45,7 @@ describe('WorkOrderMaterialsCard: presentacion economica de materiales', () => {
   });
 
   it('mantiene el stock descontado visible e independiente de lo economico', () => {
-    expect(cardBlock).toContain('Stock descontado: {Number(row.stock_deducted_quantity ?? 0).toLocaleString(\'es-ES\')} {row.unit ?? \'ud\'}');
+    expect(cardBlock).toContain('Descuento registrado: {Number(row.stock_deducted_quantity ?? 0).toLocaleString(\'es-ES\')} {row.unit ?? \'ud\'}');
     expect(cardBlock).toContain('Unidades: {units}');
   });
 

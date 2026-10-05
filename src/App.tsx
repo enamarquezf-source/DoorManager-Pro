@@ -96,6 +96,7 @@ import { DataTable } from './components/DataTable';
 import { FilterBar } from './components/FilterBar';
 import { FormSection, ModalShell, useDialogFocus } from './components/FormPrimitives';
 import { detailBackRoute } from './routing/detailBackRoute';
+import { completeConceptChanges } from './shared/conceptChanges';
 
 type AuthContextValue = { initialized: boolean; session: Session | null; profile: Profile | null; profileError: string | null; userId: string | null; companyId: string | null; profileId: string | null; workspace: Workspace; setWorkspace: (workspace: Workspace) => void; refreshProfile: () => Promise<void>; signOut: () => Promise<void> };
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -1372,7 +1373,7 @@ function TechnicianWorkPage() {
      <TechnicianMaterialsCard workOrder={data} onChanged={reload} />
     <TechnicianHoursCard workOrder={data} onChanged={reload} />
     <TechnicianTravelCard workOrder={data} onChanged={reload} />
-    <Card title="CHECKS DEL PARTE"><div className="compact-list">{(data.checks ?? []).filter((check: any) => !check.deleted_at).map((check: any) => <article key={check.id}><div><strong>{check.equipment?.code ?? 'Equipo'} · {check.code}</strong><p>{equipmentTypeName(check.equipment) ?? 'Tipo no informado'} · {displayStatus(check.global_result ?? check.status)}</p></div><Badge tone={check.status === 'Realizado' ? 'ok' : check.status === 'En curso' ? 'info' : 'warn'}>{check.status === 'Realizado' ? 'Finalizado' : check.status === 'En curso' ? 'En curso' : 'Pendiente'}</Badge><Link className="primary" to={`/app/checks/${check.id}`}>Abrir check</Link></article>)}</div>{!(data.checks ?? []).length && <p className="large-note">No hay checks asociados.</p>}</Card>
+    <Card title="CHECKS DEL PARTE"><div className="compact-list">{(data.checks ?? []).filter((check: any) => !check.deleted_at).map((check: any) => <article key={check.id} className="linked-equipment-record"><div><strong>{check.equipment?.code ?? 'Equipo'} · {check.code}</strong><p>{equipmentTypeName(check.equipment) ?? 'Tipo no informado'} · {displayStatus(check.global_result ?? check.status)}</p></div><Badge tone={check.status === 'Realizado' ? 'ok' : check.status === 'En curso' ? 'info' : 'warn'}>{check.status === 'Realizado' ? 'Finalizado' : check.status === 'En curso' ? 'En curso' : 'Pendiente'}</Badge><Link className="primary record-primary-link" to={`/app/checks/${check.id}`}>Abrir check</Link></article>)}</div>{!(data.checks ?? []).length && <p className="large-note">No hay checks asociados.</p>}</Card>
     <Card title="Fotos y firma"><div className="technician-media-summary"><strong>Fotos: {progress.photos}</strong><span>Firma: {progress.signature === 'complete' ? 'Registrada' : 'Pendiente'}</span></div><div className="grid half"><WorkOrderPhotoForm workOrderId={data.id} /><WorkOrderSignatureForm workOrderId={data.id} /></div><MediaGallery photos={data.photos ?? []} signatures={data.signatures ?? []} /></Card>
     <div className="technician-final-action"><button className="primary big" onClick={() => setFinalizing(true)} disabled={!canFinalizeWorkOrderTechnical(profile, data)}>FINALIZAR TRABAJO EN CAMPO</button><SyncButton workOrderId={data.id} onSynced={reload} hideWhenEmpty /></div>
     {finalizing && <WorkOrderFinalizeModal workOrder={data} onClose={() => setFinalizing(false)} onDone={() => { setFinalizing(false); setMessage('Trabajo finalizado en campo y enviado a la cola SAT.'); reload(); }} onError={setActionError} />}
@@ -1380,14 +1381,23 @@ function TechnicianWorkPage() {
 }
 
 function TechnicianConceptSelection({ workOrder, onChanged }: { workOrder: any; onChanged: () => void }) {
-  const { profile } = useAuth();
+  const busy = useRef(false);
+  const [error, setError] = useState('');
   const lines = technicianConceptLines(workOrder).filter((line: any) => line.line_type !== 'labor' && line.line_type !== 'material' && !line.material_id);
   const [saving, setSaving] = useState(false);
   const selected = lines.filter((line: any) => plannedQuoteLineDecision(workOrder, line.id)?.decision === 'confirmado').map((line: any) => line.id);
-  const update = async (line: any, checked: boolean) => { setSaving(true); try { await workOrdersService.setTechnicalPlannedQuoteLineDecision({ work_order_id: workOrder.id, quote_line_id: line.id, decision: checked ? 'confirmado' : 'no_realizado', actual_quantity: line.quantity, technical_notes: checked ? 'Ejecutado por técnico' : 'No ejecutado por técnico' }); onChanged(); } finally { setSaving(false); } };
-  const updateAll = async (checked: boolean) => { setSaving(true); try { await Promise.all(lines.map((line: any) => update(line, checked))); onChanged(); } finally { setSaving(false); } };
+  const save = (line: any, checked: boolean) => workOrdersService.setTechnicalPlannedQuoteLineDecision({ work_order_id: workOrder.id, quote_line_id: line.id, decision: checked ? 'confirmado' : 'no_realizado', actual_quantity: line.quantity, technical_notes: checked ? 'Ejecutado por técnico' : 'No ejecutado por técnico' });
+  const update = async (targets: any[], checked: boolean) => {
+    if (busy.current) return;
+    busy.current = true; setSaving(true); setError('');
+    try {
+      const failed = await completeConceptChanges(targets, (line) => save(line, checked));
+      if (failed.length) setError(failed.length === 1 && failed[0].reason instanceof Error ? failed[0].reason.message : 'No se han podido guardar ' + failed.length + ' conceptos. Revisa la selección e inténtalo de nuevo.');
+      onChanged();
+    } finally { busy.current = false; setSaving(false); }
+  };
   if (!lines.length) return null;
-  return <Card title="CONCEPTOS DEL TRABAJO"><div className="actions"><button onClick={() => updateAll(true)} disabled={saving}>Seleccionar todos</button><button onClick={() => updateAll(false)} disabled={saving}>Deseleccionar todos</button><span className="large-note">{selected.length}/{lines.length} ejecutados</span></div><div className="compact-list technician-concepts">{lines.map((line: any) => <label key={line.id} className="technician-concept-row"><input type="checkbox" checked={selected.includes(line.id)} onChange={(event) => update(line, event.target.checked)} disabled={saving} /><span><strong>{line.description}</strong><small>{Number(line.quantity ?? 0).toLocaleString('es-ES')} {line.unit ?? 'ud'}</small></span></label>)}</div></Card>;
+  return <Card title="CONCEPTOS DEL TRABAJO">{error && <p className="form-error" role="alert">{error}</p>}<div className="actions"><button onClick={() => update(lines, true)} disabled={saving}>Seleccionar todos</button><button onClick={() => update(lines, false)} disabled={saving}>Deseleccionar todos</button><span className="large-note">{selected.length}/{lines.length} ejecutados</span></div><div className="compact-list technician-concepts">{lines.map((line: any) => <label key={line.id} className="technician-concept-row"><input type="checkbox" checked={selected.includes(line.id)} onChange={(event) => update([line], event.target.checked)} disabled={saving} /><span><strong>{line.description}</strong><small>{Number(line.quantity ?? 0).toLocaleString('es-ES')} {line.unit ?? 'ud'}</small></span></label>)}</div></Card>;
 }
 
 function TechnicianHoursCard({ workOrder, onChanged }: { workOrder: any; onChanged: () => void }) { const { profile } = useAuth(); const [editing, setEditing] = useState<any | null>(null); const [removing, setRemoving] = useState<any | null>(null); const rows = workOrder.time_entries ?? []; const total = rows.reduce((sum: number, row: any) => sum + Number(row.duration_minutes ?? 0), 0); return <Card title="Horas" action={canManageWorkOrderTime(profile, workOrder) ? <button className="primary" onClick={() => setEditing({})}>Añadir horas</button> : null}><p className="large-note">Total: {formatMinutes(total)}</p><div className="compact-list">{rows.map((row: any) => <article key={row.id}><strong>{formatMinutes(Number(row.duration_minutes ?? 0))}</strong><span>{formatDate(row.work_date)} · {row.description || 'Sin observaciones'}</span>{canManageWorkOrderTime(profile, workOrder, row) && <div className="row-actions"><button onClick={() => setEditing(row)}>Editar</button><button onClick={() => setRemoving(row)}>Eliminar</button></div>}</article>)}</div>{!rows.length && <p className="large-note">Sin horas registradas.</p>}{editing && <WorkOrderTimeForm workOrder={workOrder} initial={editing.id ? editing : undefined} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); onChanged(); }} />}{removing && <ReasonConfirmModal title="Eliminar horas" text="Se eliminará este registro de horas." requiredLabel="Motivo de eliminación" onCancel={() => setRemoving(null)} onConfirm={async (reason) => { await workOrdersService.deleteTimeEntry(removing.id, reason); setRemoving(null); onChanged(); }} />}</Card>; }

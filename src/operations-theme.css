@@ -393,6 +393,7 @@ textarea { resize: none; }
 /* Historial móvil: jerarquía por equipo y lectura técnica cómoda. */
 .technician-work-details > summary { display: list-item; line-height: 1.45; overflow-wrap: anywhere; }
 .technician-work-details > summary::marker { color: #25776e; }
+.equipment-history-code { display: block; margin: 4px 0 0 18px; color: #526b72; font-size: 12px; font-weight: 500; }
 .technician-work-details > summary:hover { background: #f1f8f7; border-radius: inherit; }
 .technician-work-details > summary:focus-visible { outline: 3px solid #25776e; outline-offset: 2px; }
 .technician-work-details[open] > summary { border-bottom: 1px solid #d9e5e4; }

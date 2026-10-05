@@ -1410,7 +1410,7 @@ function TechnicianEquipmentHistory({ equipment, currentWorkOrderId }: { equipme
   const [expanded, setExpanded] = useState(false);
   const context = useLoad(() => expanded ? equipmentService.technicianContext(equipment.id) : Promise.resolve({ workOrders: [], deficiencies: [] }), [equipment.id, expanded], { workOrders: [], deficiencies: [] } as any);
   const interventions = context.data.workOrders.filter((work: any) => work.id !== currentWorkOrderId && (work.work_performed || work.result));
-  return <details className="technician-work-details" onToggle={(event) => setExpanded(event.currentTarget.open)}><summary>{equipment.code} · {equipment.internal_location || equipment.model || equipment.brand || 'Equipo'}</summary><Card title="Información técnica"><p>{equipment.brand} {equipment.model} · Serie {equipment.serial_number || 'no informada'} · {displayStatus(equipment.status)}</p><StateBlock loading={context.loading} error={context.error} retry={context.reload} empty={false}><h4>Intervenciones anteriores</h4><div className="compact-list">{interventions.map((work: any) => <article key={work.id}><span>{formatDate(work.updated_at ?? work.created_at)}</span><p>{work.work_performed}</p>{work.result && work.result !== work.work_performed && <p>{work.result}</p>}</article>)}</div>{!interventions.length && <p>Sin intervenciones técnicas registradas.</p>}<h4>Deficiencias</h4><div className="compact-list">{context.data.deficiencies.map((item: any) => <article key={item.id}><span>{displayStatus(item.severity)} · {displayStatus(item.status)}</span><p>{item.description}</p></article>)}</div>{!context.data.deficiencies.length && <p>Sin deficiencias registradas.</p>}</StateBlock></Card></details>;
+  return <details className="technician-work-details" onToggle={(event) => setExpanded(event.currentTarget.open)}><summary><span>{equipmentTypeName(equipment) || 'Equipo'} · {equipment.internal_location || equipment.model || equipment.brand || 'Sin ubicación'}</span><small className="equipment-history-code">{equipment.code}</small></summary><Card title="Información técnica"><p>{equipment.brand} {equipment.model} · Serie {equipment.serial_number || 'no informada'} · {displayStatus(equipment.status)}</p><StateBlock loading={context.loading} error={context.error} retry={context.reload} empty={false}><h4>Intervenciones anteriores</h4><div className="compact-list">{interventions.map((work: any) => <article key={work.id}><span>{formatDate(work.updated_at ?? work.created_at)}</span><p>{work.work_performed}</p>{work.result && work.result !== work.work_performed && <p>{work.result}</p>}</article>)}</div>{!interventions.length && <p>Sin intervenciones técnicas registradas.</p>}<h4>Deficiencias</h4><div className="compact-list">{context.data.deficiencies.map((item: any) => <article key={item.id}><span>{displayStatus(item.severity)} · {displayStatus(item.status)}</span><p>{item.description}</p></article>)}</div>{!context.data.deficiencies.length && <p>Sin deficiencias registradas.</p>}</StateBlock></Card></details>;
 }
 
 function TechnicianLegacyWorkPage() {
@@ -1436,17 +1436,20 @@ function TechnicianLocalForm({ workOrderId, type, title, fields }: any) {
 
 function WorkOrderPhotoForm({ workOrderId }: { workOrderId: string }) {
   const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+  const busy = useRef(false);
   const save = async (files: FileList | null) => {
-    if (!files?.length) return;
+    if (!files?.length || busy.current) return;
+    busy.current = true; setSaving(true); setMessage('');
     try {
       const photos = await Promise.all(Array.from(files).map(fileToLocalPhoto));
       await Promise.all(photos.map((photo) => technicianOfflineService.upsert({ type: 'photo', workOrderId, payload: photo })));
       setMessage(`${photos.length} foto(s) guardada(s) en el dispositivo.`);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'No se ha podido guardar la foto localmente.');
-    }
+    } finally { busy.current = false; setSaving(false); }
   };
-  return <Card title="Fotos del parte"><label className="component-photo">Añadir foto real<input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" multiple onChange={(event) => save(event.target.files)} /></label>{message && <p className={message.includes('guardada') ? 'success-note' : 'form-error'}>{message}</p>}</Card>;
+  return <Card title="Fotos del parte"><label className="component-photo">Añadir foto real<input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" multiple disabled={saving} onChange={(event) => { const input = event.currentTarget; void save(input.files).finally(() => { input.value = ''; }); }} /></label>{saving && <p role="status">Guardando fotos en el dispositivo...</p>}{message && <p role={message.includes('guardada') ? 'status' : 'alert'} className={message.includes('guardada') ? 'success-note' : 'form-error'}>{message}</p>}</Card>;
 }
 
 function WorkOrderDeficiencyForm({ workOrderId, checks }: { workOrderId: string; checks: any[] }) {
@@ -1473,22 +1476,29 @@ function WorkOrderSignatureForm({ workOrderId }: { workOrderId: string }) {
   const [signerDocument, setSignerDocument] = useState('');
   const [accepted, setAccepted] = useState(false);
   const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+  const busy = useRef(false);
   const point = (event: PointerEvent<HTMLCanvasElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     return { x: (event.clientX - rect.left) * (event.currentTarget.width / rect.width), y: (event.clientY - rect.top) * (event.currentTarget.height / rect.height) };
   };
-  const start = (event: PointerEvent<HTMLCanvasElement>) => { event.currentTarget.setPointerCapture(event.pointerId); drawing.current = true; const ctx = event.currentTarget.getContext('2d'); const p = point(event); ctx?.beginPath(); ctx?.moveTo(p.x, p.y); };
+  const start = (event: PointerEvent<HTMLCanvasElement>) => { if (busy.current) return; event.currentTarget.setPointerCapture(event.pointerId); drawing.current = true; const ctx = event.currentTarget.getContext('2d'); const p = point(event); ctx?.beginPath(); ctx?.moveTo(p.x, p.y); };
   const draw = (event: PointerEvent<HTMLCanvasElement>) => { if (!drawing.current) return; const ctx = event.currentTarget.getContext('2d'); const p = point(event); if (ctx) { ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#111827'; ctx.lineTo(p.x, p.y); ctx.stroke(); } };
   const clear = () => { const canvas = canvasRef.current; canvas?.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height); };
   const save = async () => {
+    if (busy.current) return;
     const canvas = canvasRef.current;
     if (!canvas || !signerName.trim()) { setMessage('Indica el nombre de la persona firmante.'); return; }
     if (!accepted) { setMessage('La aceptación expresa es obligatoria antes de guardar la firma.'); return; }
     if (!canvasHasInk(canvas)) { setMessage('Dibuja la firma en el recuadro antes de guardarla.'); return; }
-    await technicianOfflineService.upsert({ type: 'signature', workOrderId, payload: { localChangeId: crypto.randomUUID(), dataUrl: canvas.toDataURL('image/png'), signerName, signerDocument, signerRole: 'Cliente', acceptedTerms: accepted } });
-    setMessage('Firma guardada en dispositivo. Pendiente de sincronizar.');
+    busy.current = true; setSaving(true); setMessage('');
+    try {
+      await technicianOfflineService.upsert({ type: 'signature', workOrderId, payload: { localChangeId: crypto.randomUUID(), dataUrl: canvas.toDataURL('image/png'), signerName, signerDocument, signerRole: 'Cliente', acceptedTerms: accepted } });
+      setMessage('Firma guardada en dispositivo. Pendiente de sincronizar.');
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'No se ha podido guardar la firma. Inténtalo de nuevo.'); }
+    finally { busy.current = false; setSaving(false); }
   };
-  return <Card title="Firma del cliente"><label>Nombre firmante<input value={signerName} onChange={(event) => setSignerName(event.target.value)} /></label><label>Documento<input value={signerDocument} onChange={(event) => setSignerDocument(event.target.value)} /></label><canvas ref={canvasRef} width={520} height={180} className="signature-pad" onPointerDown={start} onPointerMove={draw} onPointerUp={() => { drawing.current = false; }} onPointerCancel={() => { drawing.current = false; }} onPointerLeave={() => { drawing.current = false; }} /><label className="check-consent"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} /> Acepto expresamente el contenido del parte y la firma capturada.</label><div className="actions"><button type="button" onClick={clear}>Limpiar firma</button><button type="button" className="primary" onClick={save}>Guardar firma local</button></div>{message && <p className={message.includes('guardada') ? 'success-note' : 'form-error'}>{message}</p>}</Card>;
+  return <Card title="Firma del cliente"><label>Nombre firmante<input disabled={saving} value={signerName} onChange={(event) => setSignerName(event.target.value)} /></label><label>Documento<input disabled={saving} value={signerDocument} onChange={(event) => setSignerDocument(event.target.value)} /></label><canvas ref={canvasRef} width={520} height={180} className="signature-pad" onPointerDown={start} onPointerMove={draw} onPointerUp={() => { drawing.current = false; }} onPointerCancel={() => { drawing.current = false; }} onPointerLeave={() => { drawing.current = false; }} /><label className="check-consent"><input type="checkbox" disabled={saving} checked={accepted} onChange={(event) => setAccepted(event.target.checked)} /> Acepto expresamente el contenido del parte y la firma capturada.</label><div className="actions"><button type="button" onClick={clear} disabled={saving}>Limpiar firma</button><button type="button" className="primary" onClick={save} disabled={saving}>{saving ? 'Guardando firma...' : 'Guardar firma local'}</button></div>{message && <p role={message.includes('guardada') ? 'status' : 'alert'} className={message.includes('guardada') ? 'success-note' : 'form-error'}>{message}</p>}</Card>;
 }
 
 function ChecksPage() { const { profile, workspace } = useAuth(); const [params] = useSearchParams(); const scope = undefined; const [tab, setTab] = useState<'pending' | 'done'>(() => checkTabFromParams(params)); const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>('active'); useEffect(() => { const next = checkTabFromParams(params); setTab((current) => current === next ? current : next); }, [params]); const loader = () => workspace === 'tecnico' ? (tab === 'pending' ? checksService.pendingForCurrentTechnician() : checksService.completedForCurrentTechnician()) : archiveFilter === 'active' ? (tab === 'pending' ? checksService.pending(scope) : checksService.completed(scope)) : checksService.list('', scope, archiveFilter); const { data, loading, error, reload } = useLoad(loader, [tab, workspace, scope, archiveFilter], [] as any[]); const [creating, setCreating] = useState(false); return <section className="page"><div className="page-head"><div><h2>Checks</h2><p>{workspace === 'tecnico' ? 'Checks asignados al técnico autenticado.' : 'Por realizar, realizados y archivados con datos reales.'}</p></div>{canCreateCheck(profile) && workspace !== 'tecnico' && <button className="primary" onClick={() => setCreating(true)}>Crear check</button>}</div>{workspace !== 'tecnico' && <ArchiveFilterTabs value={archiveFilter} onChange={setArchiveFilter} />}<div className="tabs"><button className={tab === 'pending' ? 'active' : ''} onClick={() => setTab('pending')}>Por realizar</button><button className={tab === 'done' ? 'active' : ''} onClick={() => setTab('done')}>Realizados</button></div><StateBlock loading={loading} error={error} retry={reload} empty={!data.length}><div className="check-record-list">{data.map((check: any) => <Link key={check.id} className="check-record-link" to={`${workspace === 'superadmin' ? '/app/superadmin/checks' : '/app/checks'}/${check.id}`}><div><strong>{check.client_name || 'Cliente no informado'}</strong><span>{check.site_name || 'Centro no informado'}</span><small>{check.equipment_name || check.equipment_code || check.equipment?.code || 'Equipo no informado'}</small></div><div><strong>{check.code}</strong><small>Parte: {check.work_order_code || check.work_orders?.code || 'Sin parte'}</small></div><div className="check-record-status"><Badge tone={severityForStatus(check.status)}>{check.status}</Badge><span>{check.global_result || 'Sin revisar'}</span></div></Link>)}</div></StateBlock>{creating && <CheckForm initial={{}} onClose={() => setCreating(false)} onSaved={() => { setCreating(false); reload(); }} />}</section>; }

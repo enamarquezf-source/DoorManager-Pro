@@ -1133,6 +1133,7 @@ function WorkOrderTimeForm({ workOrder, initial, onClose, onSaved }: { workOrder
   const [values, setValues] = useState<Record<string, string>>({ id: initial?.id ?? '', work_order_id: workOrder.id, profile_id: initial?.profile_id ?? '', work_date: initial?.work_date ?? localDateKey(), started_at: initial?.started_at ?? '', ended_at: initial?.ended_at ?? '', hour_type: initial?.hour_type ?? 'normal', break_minutes: String(initial?.break_minutes ?? 0), duration_minutes: initial?.duration_minutes ? String(initial.duration_minutes) : '', description: initial?.description ?? '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const submitting = useRef(false);
   const set = (key: string, value: string) => setValues((current) => ({ ...current, [key]: value }));
   useEffect(() => { if (options.loading || values.profile_id || !options.data.length) return; const current = options.data.find((item: any) => item.is_current_user) ?? (options.data.length === 1 ? options.data[0] : null); if (current) set('profile_id', current.profile_id); }, [options.loading, options.data.length, values.profile_id]);
   const selectedAllowed = !values.profile_id || options.data.some((item: any) => item.profile_id === values.profile_id);
@@ -1141,20 +1142,21 @@ function WorkOrderTimeForm({ workOrder, initial, onClose, onSaved }: { workOrder
   const calculated = hasRange && values.started_at && values.ended_at && values.ended_at > values.started_at ? Math.max(0, Math.floor((new Date('2000-01-01T' + values.ended_at).getTime() - new Date('2000-01-01T' + values.started_at).getTime()) / 60000) - Number(values.break_minutes || 0)) : Number(values.duration_minutes || 0);
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (submitting.current) return;
     if (!values.profile_id) { setError('validacion del formulario: selecciona el trabajador al que corresponden las horas.'); return; }
     if (!selectedAllowed) { setError('permiso: el trabajador seleccionado ya no es válido para este parte. Recarga el parte.'); return; }
     if (hasRange && (!values.started_at || !values.ended_at)) { setError('validacion del formulario: indica inicio y fin, o usa duración manual.'); return; }
     if (!hasRange && !values.duration_minutes) { setError('validacion del formulario: indica duración manual o tramo horario.'); return; }
+    submitting.current = true;
     setSaving(true); setError('');
     try {
       const id = await workOrdersService.upsertTimeEntry(Object.fromEntries(Object.entries(values).filter(([, value]) => value !== '')));
       if (workOrder.quote_id && canMarkAdditionalSale(profile) && (additional || initial?.source === 'additional')) await workOrdersService.setEntryBilling('time', id, additional);
       onSaved();
     } catch (err) { setError(err instanceof Error ? err.message : 'respuesta de Supabase: no se han podido registrar las horas.'); }
-    finally { setSaving(false); }
+    finally { submitting.current = false; setSaving(false); }
   };
-  return <div className="mini-modal" role="dialog" aria-modal="true"><form onSubmit={submit}>
-    <h3>{initial ? 'Editar horas' : 'Añadir horas'}</h3>
+  return <ModalShell title={initial ? 'Editar horas' : 'Añadir horas'} onClose={onClose} canClose={!saving}><form onSubmit={submit}>
     <p className="large-note">Las horas se valoran con la tarifa canónica del trabajador y la fecha.</p>
     {options.error && <p className="form-error">{options.error}</p>}
      <label>Trabajador al que corresponden las horas *<input value={workerSearch} onChange={(event) => setWorkerSearch(event.target.value)} placeholder="Buscar por nombre, área o rol" /><select value={values.profile_id} onChange={(event) => set('profile_id', event.target.value)} required disabled={options.loading}><option value="">{options.loading ? 'Cargando trabajadores...' : 'Seleccionar trabajador'}</option>{filteredOptions.map((item: any) => <option key={item.profile_id} value={item.profile_id}>{timeWorkerLabel({ id: item.profile_id, first_name: item.full_name, last_name: '', primary_area: item.primary_area }, profile?.id, item.assignment_role)}</option>)}</select></label>
@@ -1164,8 +1166,8 @@ function WorkOrderTimeForm({ workOrder, initial, onClose, onSaved }: { workOrder
     <label>Descripción del trabajo<textarea value={values.description ?? ''} onChange={(event) => set('description', event.target.value)} /></label>
     {workOrder.quote_id && canMarkAdditionalSale(profile) && <label className="check-consent"><input type="checkbox" checked={additional} onChange={(event) => setAdditional(event.target.checked)} /> Horas adicionales facturables fuera del presupuesto aceptado</label>}
     {error && <p className="form-error">{error}</p>}
-    <div className="modal-footer"><button type="button" onClick={onClose} disabled={saving}>Cancelar</button><button className="primary" disabled={saving || options.loading || !options.data.length}>{initial ? 'Guardar cambios' : 'Guardar horas'}</button></div>
-  </form></div>;
+    <div className="modal-footer"><button type="button" onClick={onClose} disabled={saving}>Cancelar</button><button className="primary" disabled={saving || options.loading || !options.data.length}>{saving ? 'Guardando...' : initial ? 'Guardar cambios' : 'Guardar horas'}</button></div>
+  </form></ModalShell>;
 }
 
 function WorkOrderMaterialForm({ workOrder, initial, onClose, onSaved }: { workOrder: any; initial?: any; onClose: () => void; onSaved: () => void }) {
@@ -1179,40 +1181,43 @@ function WorkOrderMaterialForm({ workOrder, initial, onClose, onSaved }: { workO
   const [values, setValues] = useState<Record<string, string>>({ id: initial?.id ?? '', work_order_id: workOrder.id, material_id: initial?.material_id ?? '', warehouse_id: initial?.stock_warehouse_id ?? '', description: initial?.description ?? '', quantity: String(initial?.used_quantity ?? initial?.quantity ?? 1), unit: initial?.unit ?? 'ud', used_at: (initial?.used_at ?? new Date().toISOString()).slice(0, 10), unit_price: initial?.unit_price ? String(initial.unit_price) : '', notes: initial?.notes ?? '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const submitting = useRef(false);
   const set = (key: string, value: string) => setValues((current) => ({ ...current, [key]: value }));
   const selectedMaterial = catalog.data.find((item: any) => item.id === values.material_id);
+  const requiresWarehouse = Boolean(values.material_id) && selectedMaterial?.stock_controlled !== false;
   const selectedStockRow = warehouseStock.data.find((item: any) => item.material_id === values.material_id && item.warehouse_id === values.warehouse_id);
   const selectedStock = Number(selectedStockRow?.quantity ?? 0);
   const stockBlocked = false;
   const selectMaterial = (value: string) => { const material = catalog.data.find((item: any) => item.id === value); setValues((current) => ({ ...current, material_id: value, description: material?.description ?? current.description, unit: material?.unit ?? current.unit, unit_price: material?.price != null ? String(material.price) : current.unit_price })); };
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (submitting.current) return;
     if (!values.material_id && !values.description?.trim()) { setError('validacion del formulario: elige catálogo o describe el material.'); return; }
     if (Number(values.quantity) <= 0) { setError('validacion del formulario: la cantidad debe ser mayor que cero.'); return; }
     if (!values.unit?.trim()) { setError('validacion del formulario: indica la unidad, por ejemplo ud, m o kg.'); return; }
-    if (selectedMaterial?.stock_controlled !== false && !values.warehouse_id) { setError('stock: selecciona el almacen de origen.'); return; }
+    if (requiresWarehouse && !values.warehouse_id) { setError('stock: selecciona el almacen de origen.'); return; }
+    submitting.current = true;
     setSaving(true); setError('');
     try {
       const id = await workOrdersService.upsertMaterial(Object.fromEntries(Object.entries(values).filter(([, value]) => value !== '')));
       if (workOrder.quote_id && canMarkAdditionalSale(profile) && (additional || initial?.source === 'additional')) await workOrdersService.setEntryBilling('material', id, additional);
       onSaved();
     } catch (err) { setError(err instanceof Error ? err.message : 'respuesta de Supabase: no se ha podido registrar el material.'); }
-    finally { setSaving(false); }
+    finally { submitting.current = false; setSaving(false); }
   };
-  return <div className="mini-modal" role="dialog" aria-modal="true"><form onSubmit={submit}>
-    <h3>{initial ? 'Editar material' : 'Añadir material'}</h3>
+  return <ModalShell title={initial ? 'Editar material' : 'Añadir material'} onClose={onClose} canClose={!saving}><form onSubmit={submit}>
     <p className="large-note">Selecciona un material del catálogo o describe uno no catalogado. Los materiales no catalogados no descuentan existencias.</p>
     <label>Buscar catálogo<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Código, descripción, fabricante o referencia" /></label>
     <FormSelect label="Material de catálogo" value={values.material_id ?? ''} onChange={selectMaterial} options={[{ value: '', label: 'Material no catalogado' }, ...catalog.data.map((item: any) => ({ value: item.id, label: `${item.code ?? '-'} · ${item.description}` }))]} loading={catalog.loading} />
-    {selectedMaterial?.stock_controlled !== false && <FormSelect label="Almacen de origen" value={values.warehouse_id ?? ''} onChange={(value) => set('warehouse_id', value)} options={[{ value: '', label: warehouses.loading ? 'Cargando almacenes...' : 'Selecciona almacen' }, ...warehouses.data.map((item: any) => ({ value: item.id, label: `${item.code} · ${item.name}` }))]} loading={warehouses.loading} />}
+    {requiresWarehouse && <FormSelect label="Almacén de origen" value={values.warehouse_id ?? ''} onChange={(value) => set('warehouse_id', value)} options={[{ value: '', label: warehouses.loading ? 'Cargando almacenes...' : 'Selecciona almacén' }, ...warehouses.data.map((item: any) => ({ value: item.id, label: `${item.code} · ${item.name}` }))]} loading={warehouses.loading} />}
     {selectedMaterial && <p className={stockBlocked ? 'form-error' : 'large-note'}>{values.warehouse_id ? selectedStockRow ? `Stock en el almacen seleccionado: ${selectedStock.toLocaleString('es-ES')} ${selectedMaterial.unit ?? 'ud'}` : 'Sin apertura en este almacen. Puedes registrar el consumo cuando exista apertura.' : 'Selecciona un almacen para consultar stock'} </p>}
     <label>Descripción alternativa<input value={values.description ?? ''} onChange={(event) => set('description', event.target.value)} placeholder="Obligatoria si no eliges catálogo" /></label>
     <div className="form-grid"><label>Cantidad<input type="number" step="0.01" min="0.01" value={values.quantity} onChange={(event) => set('quantity', event.target.value)} required /></label><label>Unidad<input value={values.unit} onChange={(event) => set('unit', event.target.value)} /></label><label>Fecha<input type="date" value={values.used_at} onChange={(event) => set('used_at', event.target.value)} /></label>{showCosts && <label>Precio unitario<input type="number" step="0.01" min="0" value={values.unit_price ?? ''} onChange={(event) => set('unit_price', event.target.value)} /></label>}</div>
     <label>Observaciones<textarea value={values.notes ?? ''} onChange={(event) => set('notes', event.target.value)} /></label>
     {workOrder.quote_id && canMarkAdditionalSale(profile) && <label className="check-consent"><input type="checkbox" checked={additional} onChange={(event) => setAdditional(event.target.checked)} /> Material adicional facturable fuera del presupuesto aceptado</label>}
     {error && <p className="form-error">{error}</p>}
-    <div className="modal-footer"><button type="button" onClick={onClose} disabled={saving}>Cancelar</button><button className="primary" disabled={saving || stockBlocked}>{initial ? 'Guardar cambios' : 'Guardar material'}</button></div>
-  </form></div>;
+    <div className="modal-footer"><button type="button" onClick={onClose} disabled={saving}>Cancelar</button><button className="primary" disabled={saving || stockBlocked}>{saving ? 'Guardando...' : initial ? 'Guardar cambios' : 'Guardar material'}</button></div>
+  </form></ModalShell>;
 }
 
 function WorkOrderCostsCard({ workOrder, onChanged }: { workOrder: any; onChanged: () => void }) { const { profile } = useAuth(); const [editing, setEditing] = useState<any | null>(null); const [removing, setRemoving] = useState<any | null>(null); const rows = workOrder.cost_entries ?? workOrder.work_order_cost_entries ?? []; const showCosts = canViewWorkOrderCosts(profile); const amount = rows.reduce((sum: number, row: any) => sum + Number(row.quantity ?? 0) * Number(row.unit_cost ?? 0), 0); return <Card title="Recursos y costes"><div className="actions"><span className="large-note">Registros: {rows.length}</span>{showCosts && <span className="large-note">Total auxiliar: {amount.toFixed(2)} €</span>}{canManageWorkOrderCosts(profile, workOrder) && <button className="primary" onClick={() => setEditing({})}>Añadir recurso/coste</button>}</div><div className="compact-list">{rows.map((row: any) => <article key={row.id}><Badge tone="info">{displayStatus(row.cost_type)}</Badge><p><strong>{row.description}</strong><br />{formatDate(row.incurred_at ?? row.created_at)} · {fullName(row.profiles)}</p><p>{row.quantity ?? 1} {row.unit ?? 'ud'}{showCosts ? ` · ${(Number(row.quantity ?? 0) * Number(row.unit_cost ?? 0)).toFixed(2)} €` : ''}</p>{canManageWorkOrderCosts(profile, workOrder, row) && <div className="row-actions"><button onClick={() => setEditing(row)}>Editar</button><button onClick={() => setRemoving(row)}>Eliminar</button></div>}</article>)}</div>{!rows.length && <p className="large-note">Sin recursos ni costes auxiliares registrados.</p>}{editing && <WorkOrderCostForm workOrder={workOrder} initial={editing.id ? editing : undefined} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); onChanged(); }} />}{removing && <ReasonConfirmModal title="Eliminar recurso/coste" text={`Eliminar ${removing.description ?? 'recurso o coste'}.`} requiredLabel="Motivo de eliminación" onCancel={() => setRemoving(null)} onConfirm={async (reason) => { await workOrdersService.deleteCostEntry(removing.id, reason); setRemoving(null); onChanged(); }} />}</Card>; }

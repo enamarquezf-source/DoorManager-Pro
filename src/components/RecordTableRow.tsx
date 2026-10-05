@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactNode } from 'react';
+import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
 
 /** Preserve table semantics and native controls while making empty row areas open the record. */
 export function RecordTableRow({ children, onOpen, className = '' }: { children: ReactNode; onOpen: () => void; className?: string }) {
@@ -8,5 +8,11 @@ export function RecordTableRow({ children, onOpen, className = '' }: { children:
     if (window.getSelection()?.toString()) return;
     onOpen();
   };
-  return <tr className={`record-table-row ${className}`.trim()} onClick={open}>{children}</tr>;
+  const openFromKeyboard = (event: KeyboardEvent<HTMLTableRowElement>) => {
+    if (event.target !== event.currentTarget || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    onOpen();
+  };
+  return <tr className={`record-table-row ${className}`.trim()} tabIndex={0} onKeyDown={openFromKeyboard} onClick={open}>{children}</tr>;
 }

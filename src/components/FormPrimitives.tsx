@@ -14,17 +14,19 @@ export function useDialogFocus<T extends HTMLElement = HTMLElement>(onClose: () 
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
     const panel = panelRef.current;
-    const focusables = () => Array.from(panel?.querySelectorAll<HTMLElement>('input, select, textarea, button, a[href], [tabindex]:not([tabindex="-1"])') ?? []).filter((item) => !item.hasAttribute('disabled'));
-    focusables()[0]?.focus();
+    const focusables = () => Array.from(panel?.querySelectorAll<HTMLElement>('input:not([type="hidden"]), select, textarea, button, a[href], [tabindex]:not([tabindex="-1"])') ?? []).filter((item) => !item.matches(':disabled') && !item.closest('[hidden], [inert], [aria-hidden="true"]') && item.getClientRects().length > 0);
+    const initial = focusables();
+    (initial.find((item) => item.matches('input, select, textarea') && !item.hasAttribute('readonly')) ?? initial[0] ?? panel)?.focus();
     const onKey = (event: KeyboardEvent) => {
       const dialogs = document.querySelectorAll('[role="dialog"]');
       if (panel?.closest('[role="dialog"]') !== dialogs[dialogs.length - 1]) return;
-      if (event.key === 'Escape') { if (canCloseRef.current) closeRef.current(); return; }
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); if (canCloseRef.current) closeRef.current(); return; }
       if (event.key !== 'Tab') return;
       const items = focusables();
       if (!items.length) { event.preventDefault(); return; }
       const first = items[0]; const last = items[items.length - 1];
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      if (!panel?.contains(document.activeElement)) { event.preventDefault(); (event.shiftKey ? last : first).focus(); }
+      else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     };
     window.addEventListener('keydown', onKey);
@@ -39,5 +41,5 @@ export function ModalShell({ title, onClose, children, labelledBy, describedBy, 
   const generatedId = useId().replace(/:/g, '');
   const titleId = labelledBy ?? `modal-title-${generatedId}`;
   const close = () => { if (canClose) onClose(); };
-  return <div className="mini-modal" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={describedBy} onMouseDown={(event) => { if (closeOnBackdrop && event.target === event.currentTarget) close(); }} onWheel={(event) => event.stopPropagation()} onTouchMove={(event) => event.stopPropagation()}><div ref={panelRef} className={`modal-panel ${className}`.trim()}><header className="modal-header"><h3 id={titleId}>{title}</h3><button type="button" className="modal-close" onClick={close} disabled={!canClose} aria-label="Cerrar">×</button></header>{children}</div></div>;
+  return <div className="mini-modal" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={describedBy} onMouseDown={(event) => { if (closeOnBackdrop && event.target === event.currentTarget) close(); }} onWheel={(event) => event.stopPropagation()} onTouchMove={(event) => event.stopPropagation()}><div ref={panelRef} tabIndex={-1} className={`modal-panel ${className}`.trim()}><header className="modal-header"><h3 id={titleId}>{title}</h3><button type="button" className="modal-close" onClick={close} disabled={!canClose} aria-label="Cerrar">×</button></header>{children}</div></div>;
 }

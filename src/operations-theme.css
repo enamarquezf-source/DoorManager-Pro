@@ -375,6 +375,7 @@ textarea { resize: none; }
 }
 
 .expiry-label.warning { color: #865800; }
+.record-table-row:focus-visible { outline: 2px solid #25776e; outline-offset: -2px; background: #f1f8f7; }
 .register-detail dd > .expiry-label { display: block; margin-top: 4px; }
 
 /* Registros con destino único: superficie pulsable y acciones independientes. */

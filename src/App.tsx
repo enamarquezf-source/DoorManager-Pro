@@ -1195,7 +1195,7 @@ function WorkOrderMaterialForm({ workOrder, initial, onClose, onSaved }: { workO
   };
   return <div className="mini-modal" role="dialog" aria-modal="true"><form onSubmit={submit}>
     <h3>{initial ? 'Editar material' : 'Añadir material'}</h3>
-    <p className="large-note">El material de catálogo queda pendiente de validacion y conserva coste/venta resueltos por el servidor. El material manual no afecta stock.</p>
+    <p className="large-note">Selecciona un material del catálogo o describe uno no catalogado. Los materiales no catalogados no descuentan existencias.</p>
     <label>Buscar catálogo<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Código, descripción, fabricante o referencia" /></label>
     <FormSelect label="Material de catálogo" value={values.material_id ?? ''} onChange={selectMaterial} options={[{ value: '', label: 'Material no catalogado' }, ...catalog.data.map((item: any) => ({ value: item.id, label: `${item.code ?? '-'} · ${item.description}` }))]} loading={catalog.loading} />
     {selectedMaterial?.stock_controlled !== false && <FormSelect label="Almacen de origen" value={values.warehouse_id ?? ''} onChange={(value) => set('warehouse_id', value)} options={[{ value: '', label: warehouses.loading ? 'Cargando almacenes...' : 'Selecciona almacen' }, ...warehouses.data.map((item: any) => ({ value: item.id, label: `${item.code} · ${item.name}` }))]} loading={warehouses.loading} />}

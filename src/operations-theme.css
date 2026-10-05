@@ -369,3 +369,7 @@ textarea { resize: none; }
   .technician-workstation .check-consent { display: flex; align-items: flex-start; gap: 10px; min-height: 44px; padding: 10px 0; font-size: 14px; line-height: 1.5; }
   .technician-workstation .check-consent input { flex: 0 0 20px; width: 20px; height: 20px; margin: 1px 0 0; }
 }
+
+@media (max-width: 760px) {
+  .technician-shell :is(form, .form-grid, .actions) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]):not([type="submit"]):not([type="button"]), select, textarea) { font-size: 16px; }
+}

@@ -40,4 +40,17 @@ describe('document upload retry with a retained path', () => {
     }
     expect(mocks.upload).not.toHaveBeenCalled(); expect(mocks.rpc).not.toHaveBeenCalled();
   });
+  it('retries a URL-only operation with the same server identifier and payload', async () => {
+    mocks.rpc.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValueOnce({ data: 'document', error: null });
+    const urlPayload = { title: 'PRUEBA', url: 'https://example.com/manual.pdf' };
+    await expect(documentsService.saveOnce('operation', urlPayload)).rejects.toThrow();
+    expect(await documentsService.saveOnce('operation', urlPayload)).toBe('document');
+    expect(mocks.rpc.mock.calls[0]).toEqual(mocks.rpc.mock.calls[1]);
+    expect(mocks.rpc.mock.calls[0]).toEqual(['dmp_save_document_once', { p_operation_id: 'operation', p_payload: urlPayload }]);
+    expect(mocks.upload).not.toHaveBeenCalled();
+  });
+  it('requires an operation identifier before attempting recovery', () => {
+    expect(() => documentsService.saveOnce('', payload, file, path)).toThrow('identificar');
+    expect(mocks.upload).not.toHaveBeenCalled(); expect(mocks.rpc).not.toHaveBeenCalled();
+  });
 });

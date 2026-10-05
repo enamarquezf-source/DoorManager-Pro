@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, expectData } from './query';
 
 export const documentsService = {
- async save(payload: Record<string, any>, file?: File | null, uploadPath?: string) {
+ async save(payload: Record<string, any>, file?: File | null, uploadPath?: string, operationId?: string) {
   const next = { ...payload };
   if (file) {
    const extension = invoiceDocumentExtension(file);
@@ -14,7 +14,13 @@ export const documentsService = {
    if (error && String(error.statusCode) !== '409' && !/already exists/i.test(error.message)) throw new Error('No se ha podido subir el archivo. Revisa la conexión y los permisos.');
    next.path = path; next.filename = file.name;
   }
-  return expectData<string>(supabase.rpc('dmp_save_document', { p_payload: next }));
+  return expectData<string>(operationId
+   ? supabase.rpc('dmp_save_document_once', { p_operation_id: operationId, p_payload: next })
+   : supabase.rpc('dmp_save_document', { p_payload: next }));
+ },
+ saveOnce(operationId: string, payload: Record<string, any>, file?: File | null, uploadPath?: string) {
+  if (!operationId) throw new Error('Falta identificar el envío del documento.');
+  return documentsService.save(payload, file, uploadPath, operationId);
  },
  async linked(type: string, id: string) {
   const rows = await expectData<any[]>(supabase.from('documents').select('*, files!documents_file_id_fkey(*), document_links!document_links_document_id_fkey!inner(*)')

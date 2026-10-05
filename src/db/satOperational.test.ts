@@ -48,7 +48,8 @@ describe('SAT operational workspace', () => {
 
   it('no ignora errores al crear destinatarios de avisos', () => {
     expect(alertsService).toContain('alert_recipients');
-    expect(alertsService).toContain('await expectData<any[]>');
+    expect(alertsService).toContain("supabase.rpc('dmp_create_alert_atomic'");
+    expect(alertsService).toContain('return expectData<any>');
     expect(app).toContain('runAlertAction');
   });
 });

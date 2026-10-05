@@ -80,6 +80,14 @@ export const supplierInvoicesService = {
     const code = await expectData<string>(supabase.rpc('next_dmp_code', { p_company_id: company_id, p_table_name: 'supplier_invoices', p_prefix: 'FPR', p_yearly: true, p_width: 6 }), context('generate supplier invoice code'));
     return expectData<any>(supabase.from('supplier_invoices').insert({ ...(operationId ? { id: operationId } : {}), company_id, code, supplier_id: payload.supplier_id, supplier_invoice_number: clean(payload.supplier_invoice_number), invoice_date: payload.invoice_date || localDateKey(), due_date: clean(payload.due_date), currency_code: payload.currency_code || 'EUR', notes: clean(payload.notes), created_by, updated_by: created_by }).select().single(), context('create supplier invoice'));
   },
+  createDraftAtomic(payload: Record<string, any>, lines: Record<string, any>[] = []) {
+    if (!payload.operation_id || !payload.supplier_id) throw new Error('Selecciona un proveedor e identifica el borrador.');
+    return expectData<any>(supabase.rpc('dmp_create_supplier_invoice_atomic', {
+      p_operation_id: payload.operation_id,
+      p_header: { supplier_id: payload.supplier_id, supplier_invoice_number: clean(payload.supplier_invoice_number), invoice_date: payload.invoice_date || localDateKey(), due_date: clean(payload.due_date), currency_code: payload.currency_code || 'EUR', notes: clean(payload.notes) },
+      p_lines: lines.map(line => ({ description: line.description, material_id: clean(line.material_id), quantity: Number(line.quantity), unit_price: Number(line.unit_price), tax_rate: Number(line.tax_rate ?? 21), allocation: line.allocation ?? null })),
+    }), context('create complete supplier invoice draft'));
+  },
   updateDraft(id: string, payload: Record<string, any>) {
     return currentProfileId().then((updated_by) => expectData<any>(supabase.from('supplier_invoices').update({ supplier_id: payload.supplier_id, supplier_invoice_number: clean(payload.supplier_invoice_number), invoice_date: payload.invoice_date, due_date: clean(payload.due_date), currency_code: payload.currency_code || 'EUR', notes: clean(payload.notes), updated_by }).eq('id', id).select().single(), context('update supplier invoice', id)));
   },

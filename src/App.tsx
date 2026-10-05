@@ -95,6 +95,7 @@ import { DetailHeader, PageHeader, Toolbar } from './components/PageHeader';
 import { DataTable } from './components/DataTable';
 import { FilterBar } from './components/FilterBar';
 import { FormSection, ModalShell, useDialogFocus } from './components/FormPrimitives';
+import { detailBackRoute } from './routing/detailBackRoute';
 
 type AuthContextValue = { initialized: boolean; session: Session | null; profile: Profile | null; profileError: string | null; userId: string | null; companyId: string | null; profileId: string | null; workspace: Workspace; setWorkspace: (workspace: Workspace) => void; refreshProfile: () => Promise<void>; signOut: () => Promise<void> };
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -3690,7 +3691,7 @@ function RecordCard({ title, status, meta, to, actions, archived }: { title: Rea
 
 function RecordMeta({ items }: { items: [string, string][] }) { return items.map(([key, value]) => <span className="record-meta-item" key={key}><b>{key === 'Stock actual' ? 'Stock legacy' : key}</b><span title={value}>{value}</span></span>); }
 function Breadcrumb(_props: { items: string[] }) { return null; }
-function BackButton() { const navigate = useNavigate(); return <button className="link-button" onClick={() => navigate(-1)}><ChevronLeft size={16} /> Volver</button>; }
+function BackButton() { const navigate = useNavigate(); const location = useLocation(); return <button type="button" className="link-button" onClick={() => location.key === 'default' ? navigate(detailBackRoute(location.pathname, location.search), { replace: true }) : navigate(-1)}><ChevronLeft size={16} /> Volver</button>; }
 function Hero({ title, subtitle, tone }: { title: string; subtitle: string; tone: Severity }) { return <DetailHeader title={normalizeEntityOptionLabel(title)} subtitle={subtitle} actions={<Badge tone={tone}>{tone}</Badge>} />; }
 function relatedRoute(row: any, base: string) {
   if (row?.related_type && row?.related_id) {

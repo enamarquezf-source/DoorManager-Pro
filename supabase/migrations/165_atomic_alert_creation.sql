@@ -58,7 +58,7 @@ begin
  end loop;
  insert into public.alerts(id,company_id,created_by,code,title,description,type,priority,status,
   alert_date,related_entity,related_id)
- values(p_operation_id,company,actor,'',btrim(p_payload->>'title'),p_payload->>'description',
+ values(p_operation_id,company,actor,public.next_dmp_code(company,'alerts','AVI',true,6),btrim(p_payload->>'title'),p_payload->>'description',
   coalesce(p_payload->>'type','Operativo'),coalesce(p_payload->>'priority','Normal'),
   coalesce(p_payload->>'status','Abierto'),coalesce(nullif(p_payload->>'alert_date','')::timestamptz,now()),
   nullif(p_payload->>'related_entity',''),nullif(p_payload->>'related_id','')::uuid)

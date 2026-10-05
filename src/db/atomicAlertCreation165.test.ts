@@ -14,6 +14,7 @@ describe('atomic alert creation migration', () => {
     expect(sql).toContain('pg_advisory_xact_lock');
     expect(sql).toContain('result.created_by is distinct from actor');
     expect(sql).toContain('select distinct company,result.id');
+    expect(sql).toContain("public.next_dmp_code(company,'alerts','AVI',true,6)");
     expect(sql).not.toMatch(/disable row level security|security definer|exception when/i);
     expect(sql).toMatch(/revoke all.*from public,anon/);
   });

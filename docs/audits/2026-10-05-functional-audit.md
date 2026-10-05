@@ -187,3 +187,9 @@ La versión pública 9d6efdb está desplegada. Con Diego y PAR-2026-000041 se co
 Se crea 2026-10-05-current-status.md para separar evidencia vigente y pendientes del historial de entregas. Se solicita el verificador de solo lectura de los ACL de la 162. Suite completa actual después de los ajustes de interfaz: 1.597/1.597 pruebas. El objetivo integral sigue abierto.
 
 El usuario aporta las dos filas de verify_162_internal_check_helpers.sql: function_exists=true, security_definer=true, configuration=[search_path=public], anon_can_execute=false, authenticated_can_execute=false y public_can_execute=false en ambas funciones. Queda comprobada la restricción efectiva de ejecución directa en producción; esto no sustituye probar todos los flujos públicos de checks.
+
+## Estados de seguro, ITV y PRL
+
+Se detectó que la columna Seguro mostraba su fecha seguida de Activo/Inactivo, que es el estado operativo del vehículo. Ahora ese estado se muestra junto a la identificación del vehículo y Seguro muestra su propia caducidad, igual que ITV y certificados PRL. Las fechas próximas a vencer tienen indicación ámbar y las caducadas roja, siempre con texto, tanto en lista como en detalle. Se reutiliza expiryState, cuyas pruebas cubren fecha vencida, día actual, umbral de 30 días y ausencia de caducidad.
+
+Un identificador de persona que no aparece en la lista de activos se muestra como «Persona no disponible», no «Sin responsable»; no se borra ni reasigna ese vínculo. No se modifican fechas, seguros, certificados ni personas. Suite completa 1.597/1.597, build correcto y diff sin errores. Pendiente comprobación visual con Oficina; la sesión disponible es la del técnico.

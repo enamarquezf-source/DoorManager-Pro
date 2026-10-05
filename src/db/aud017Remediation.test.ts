@@ -54,6 +54,6 @@ describe('AUD-017 remediation contracts', () => {
   it('locks all critical treasury submissions and restores the lock on failure', () => {
     expect((treasuryForms.match(/if \(saving\) return/g) ?? []).length).toBe(3);
     expect((treasuryForms.match(/finally \{ setSaving\(false\); \}/g) ?? []).length).toBe(3);
-    expect((treasuryForms.match(/disabled=\{saving\}/g) ?? []).length).toBeGreaterThanOrEqual(6);
+    expect((treasuryForms.match(/disabled=\{saving(?: \|\| [^}]+)?\}/g) ?? []).length).toBeGreaterThanOrEqual(6);
   });
 });

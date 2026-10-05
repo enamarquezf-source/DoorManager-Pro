@@ -61,7 +61,9 @@ describe('SUPPLIER-PAYMENTS-020', () => {
 
   it('exposes summary, payment history, record and reversal actions without customer collection coupling', () => {
     for (const label of ['Total factura', 'Pagado', 'Pendiente', 'Vencimiento', 'Estado de pago', 'Registrar pago', 'Revertir pago', 'Revertido']) expect(panel).toContain(label);
-    expect(service).toContain('dmp_record_supplier_payment');
+    expect(service).toContain("recordPaymentOperation(scope, 'supplier'");
+    expect(read('../services/paymentOperations.ts')).toContain('dmp_record_payment_once');
+    expect(read('../../supabase/migrations/166_payment_operation_recovery.sql')).toContain('dmp_record_supplier_payment');
     expect(service).toContain('dmp_reverse_supplier_payment');
     expect(panel).not.toContain('public.invoice_payments');
   });

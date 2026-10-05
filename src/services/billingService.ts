@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase/client';
+import { recordPaymentOperation, type PaymentScope } from './paymentOperations';
 import { currentCompanyId, expectData } from './query';
 import { isBillingEligibleWithoutOffice } from '../shared/guidedBillingEligibility';
 
@@ -71,8 +72,8 @@ export const billingService = {
   deleteDraft(invoiceId: string) {
     return billingRpc<void>(supabase.rpc('dmp_delete_invoice_draft', { p_invoice_id: invoiceId }), 'Eliminar borrador', invoiceId);
   },
-  recordPayment(invoiceId: string, payload: { amount: number; paid_at: string; method: string; reference?: string; notes?: string; treasury_account_id?: string }) {
-    return expectData<string>(supabase.rpc('dmp_record_invoice_payment', { p_invoice_id: invoiceId, p_amount: payload.amount, p_paid_at: payload.paid_at, p_method: payload.method, p_reference: payload.reference || null, p_notes: payload.notes || null, p_treasury_account_id: payload.treasury_account_id || null }), { service: 'billingService', operation: 'Registrar cobro', resource: invoiceId });
+  recordPayment(invoiceId: string, payload: { amount: number; paid_at: string; method: string; reference?: string; notes?: string; treasury_account_id?: string }, scope: PaymentScope) {
+    return recordPaymentOperation(scope, 'customer', { invoice_id: invoiceId, amount: payload.amount, date: payload.paid_at, method: payload.method, reference: payload.reference || null, notes: payload.notes || null, treasury_account_id: payload.treasury_account_id || null });
   },
   reversePayment(paymentId: string, reason: string) {
     return expectData<void>(supabase.rpc('dmp_reverse_invoice_payment', { p_payment_id: paymentId, p_reason: reason }), { service: 'billingService', operation: 'Anular cobro', resource: paymentId });

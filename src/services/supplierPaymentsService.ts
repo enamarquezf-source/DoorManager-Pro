@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase/client';
+import { recordPaymentOperation, type PaymentScope } from './paymentOperations';
 import { expectData } from './query';
 
 export const supplierPaymentMethods = ['transferencia', 'tarjeta', 'efectivo', 'domiciliacion', 'otro'] as const;
@@ -28,8 +29,8 @@ export const supplierPaymentsService = {
     const links = new Map(transactions.map((transaction) => [transaction.source_id, transaction.id]));
     return payments.map((payment) => ({ ...payment, treasury_transaction_id: links.get(payment.id) ?? null }));
   },
-  record(invoiceId: string, payload: { amount: number; payment_date: string; payment_method: SupplierPaymentMethod; reference?: string; notes?: string; treasury_account_id: string }) {
-    return expectData<string>(supabase.rpc('dmp_record_supplier_payment', { p_supplier_invoice_id: invoiceId, p_amount: payload.amount, p_payment_date: payload.payment_date, p_payment_method: payload.payment_method, p_reference: payload.reference || null, p_notes: payload.notes || null, p_treasury_account_id: payload.treasury_account_id }), context('record supplier invoice payment', invoiceId));
+  record(invoiceId: string, payload: { amount: number; payment_date: string; payment_method: SupplierPaymentMethod; reference?: string; notes?: string; treasury_account_id: string }, scope: PaymentScope) {
+    return recordPaymentOperation(scope, 'supplier', { invoice_id: invoiceId, amount: payload.amount, date: payload.payment_date, method: payload.payment_method, reference: payload.reference || null, notes: payload.notes || null, treasury_account_id: payload.treasury_account_id });
   },
   reverse(paymentId: string, reason: string) {
     return expectData<string>(supabase.rpc('dmp_reverse_supplier_payment', { p_payment_id: paymentId, p_reason: reason }), context('reverse supplier invoice payment', paymentId));

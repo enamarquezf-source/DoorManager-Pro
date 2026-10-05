@@ -108,5 +108,10 @@ export async function currentProfileId() {
 
 export function contains(columns: string[], value: string) {
   const term = `%${value.replaceAll('%', '')}%`;
-  return columns.map((column) => `${column}.ilike.${term}`).join(',');
+  // The SDK encodes URLs, but does not escape the raw PostgREST OR grammar.
+  // Quote values containing its delimiters so user text cannot add a filter.
+  const filterValue = /[,.:()"\\]/.test(term)
+    ? `"${term.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`
+    : term;
+  return columns.map((column) => `${column}.ilike.${filterValue}`).join(',');
 }

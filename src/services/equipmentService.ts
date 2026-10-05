@@ -69,11 +69,11 @@ export const equipmentService = {
     return expectData<any[]>(supabase.from('v_equipment_history').select('*').eq('equipment_id', id).order('event_at', { ascending: false }));
   },
   async technicianContext(id: string) {
-    const [checks, workOrders] = await Promise.all([
-      expectData<any[]>(supabase.from('checks').select('id, code, status, global_result, observations, created_at, finished_at, work_order_id').eq('equipment_id', id).is('deleted_at', null).order('created_at', { ascending: false }).limit(12)),
-      expectData<any[]>(supabase.from('work_orders').select('id, code, title, status, description, scheduled_date, created_at').eq('main_equipment_id', id).is('deleted_at', null).order('created_at', { ascending: false }).limit(12)),
+    const [workOrders, deficiencies] = await Promise.all([
+      expectData<any[]>(supabase.from('work_orders').select('id, status, description, work_performed, result, updated_at, created_at').eq('main_equipment_id', id).is('deleted_at', null).order('created_at', { ascending: false }).limit(12)),
+      expectData<any[]>(supabase.from('deficiencies').select('id, code, description, severity, status, created_at').eq('equipment_id', id).is('deleted_at', null).order('created_at', { ascending: false }).limit(12)),
     ]);
-    return { checks, workOrders };
+    return { workOrders, deficiencies };
   },
   async create(payload: Record<string, any>) {
     const company_id = payload.company_id || await currentCompanyId();

@@ -3,6 +3,7 @@ import { accessService } from '../services/accessService';
 import { superadminService } from '../services/superadminService';
 import { authAdminService } from '../services/authAdminService';
 import { effectivePermissionKeys, moduleLabels, permissionCatalog, permissionLabels } from '../auth/rbac';
+import { mustProtectOwnAccount } from '../auth/selfAccountProtection';
 
 type Props = { user: any; actor?: any; onSaved?: () => void };
 
@@ -34,12 +35,12 @@ export function UserAccessPanel({ user, actor, onSaved }: Props) {
     return () => { mounted = false; };
   }, [user.id]);
 
-  if (error) return <Card title="Ficha de usuario"><p className="form-error">{error}</p></Card>;
+  if (error && !access) return <Card title="Ficha de usuario"><p className="form-error" role="alert">{error}</p></Card>;
   if (!access) return <Card title="Ficha de usuario"><p className="large-note">Cargando ficha...</p></Card>;
 
   const inherited = effectivePermissionKeys({ ...access.profile, primary_area: null, roles: access.roles ?? [], permission_grants: [] } as any);
   const existingGrants = new Set<string>((access.permission_grants ?? []).filter((item: any) => item.granted).map((item: any) => item.code));
-  const isSelf = access.profile?.id === user.id;
+  const isSelf = mustProtectOwnAccount(actor?.id, user.id);
   const hasTechnicianRole = roles.includes('Tecnico');
   const setValue = (key: keyof typeof values, value: string | boolean) => { setDirty(true); setValues((current) => ({ ...current, [key]: value })); };
   const toggleRole = (role: string) => { if (isSelf) return; setDirty(true); setRoles((current) => current.includes(role) ? current.filter((item) => item !== role) : [...current, role]); };
@@ -74,7 +75,7 @@ export function UserAccessPanel({ user, actor, onSaved }: Props) {
     <section><h4>Permisos efectivos</h4><p className="large-note">{roles.includes('superadmin') ? 'Acceso funcional completo dentro del tenant por rol Superadmin.' : `${inherited.size + permissionCatalog.filter((code) => !inherited.has(code) && selected[code] === true).length} permisos efectivos: rol + grants individuales positivos.`}</p><div className="component-select permission-grid">{permissionCatalog.map((code) => { const inheritedByRole = inherited.has(code); const checked = inheritedByRole || selected[code] === true; return <label key={code}><input type="checkbox" checked={checked} disabled={inheritedByRole} onChange={(event) => { setDirty(true); setSelected((current) => ({ ...current, [code]: event.target.checked })); }} /> {permissionLabels[code] ?? code} <small>{inheritedByRole ? 'Concedido por rol' : checked ? 'Grant individual' : 'No concedido'}</small></label>; })}</div></section>
     <section><h4>Módulos visibles</h4><div className="component-select permission-grid">{Object.keys(modules).map((code) => <label key={code}><input type="checkbox" checked={modules[code] !== false} onChange={(event) => { setDirty(true); setModules((current) => ({ ...current, [code]: event.target.checked })); }} /> {moduleLabels[code] ?? code}</label>)}</div></section>
     <section><h4>Operativa</h4><p className="large-note">{hasTechnicianRole ? 'Este perfil puede actuar como Técnico. El enlace operativo usa profile.id en partes, asignaciones, horas y checks.' : 'Sin rol Técnico. No existe una entidad técnica separada que deba enlazarse desde esta ficha.'}</p></section>
-    {error && <p className="form-error">{error}</p>}<div className="actions"><button className="primary" onClick={save} disabled={saving || !dirty}>{saving ? 'Guardando...' : 'Guardar ficha'}</button></div>
+    {error && <p className="form-error" role="alert">{error}</p>}<div className="actions"><button type="button" className="primary" onClick={save} disabled={saving || !dirty}>{saving ? 'Guardando...' : 'Guardar ficha'}</button></div>
   </Card>;
 }
 

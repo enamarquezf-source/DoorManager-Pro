@@ -7,7 +7,7 @@ La auditoría integral sigue abierta. Un build correcto o una prueba simulada no
 | Requisito | Evidencia disponible | Trabajo pendiente |
 | --- | --- | --- |
 | Separación entre perfiles y empresas | Caché por ámbito de acceso, invalidación de URL privadas, reglas de perfiles activos, comprobaciones de empresa y pruebas automatizadas de identidad. | Matriz real de lectura y escritura de Técnico, SAT, Oficina, Gerencia y Superadmin. |
-| Funciones internas de checks protegidas | Migración 162 aplicada por el usuario y restricciones explícitas de ejecución. | Resultado independiente de verify_162_internal_check_helpers.sql solicitado al usuario. |
+| Funciones internas de checks protegidas | Migración 162 aplicada y resultado real del verificador: ambas funciones existen, son SECURITY DEFINER, search_path=public y los tres permisos de ejecución directa son false. | Comprobar flujos públicos autorizados; la protección de ejecución directa queda verificada. |
 | Trabajo técnico visible y asignable según estado | 161 y 163 aplicadas; pruebas de estados y asignaciones. Diego abre PAR-2026-000041 desde Mi jornada. | Ejecución real de devolución SAT, reasignación y sincronización en varios contextos autorizados. |
 | Avisos completos y recuperables | 165 actualizada aplicada. Prueba dirigida solo a Marta creada, abierta y cerrada; código AVI-2026-000002 comprobado. | Reintento concurrente y pérdida de respuesta reales; matriz de eliminación por rol. |
 | Stock consistente y sin descuentos duplicados | Nueve de diez contadores de integridad en cero. 164 aplicada con pruebas temporales de aceptación/rechazo. | Determinar almacén e historia de los 24 consumos antiguos sin trazabilidad; no inventar ni compensar saldos para ocultarlos. |

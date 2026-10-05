@@ -90,10 +90,14 @@ export const checksService = {
   },
   async getTechnicianAssigned(id: string) {
     const profileId = await currentProfileId();
+    const authUserId = (await supabase.auth.getUser()).data.user?.id ?? null;
+    const profileIds = [profileId, authUserId].filter(Boolean) as string[];
     const check = await expectData<any>(supabase.from('checks').select('id, technician_id, work_order_id').eq('id', id).is('deleted_at', null).maybeSingle());
     if (!check) throw new Error('No tienes permiso para acceder a este trabajo');
-    if (check.technician_id === profileId) return this.get(id);
-    const assignment = await expectData<any>(supabase.from('work_order_assignments').select('id').eq('work_order_id', check.work_order_id).eq('technician_id', profileId).is('deleted_at', null).maybeSingle());
+    // Un check ya creado conserva su responsable aunque el parte haya pasado a histórico.
+    // La asignación del parte se mantiene como alternativa para checks sin responsable directo.
+    if (check.technician_id && profileIds.includes(check.technician_id)) return this.get(id);
+    const assignment = await expectData<any>(supabase.from('work_order_assignments').select('id').eq('work_order_id', check.work_order_id).in('technician_id', profileIds).is('deleted_at', null).maybeSingle());
     if (!assignment) throw new Error('No tienes permiso para acceder a este trabajo');
     return this.get(id);
   },

@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useModalScrollLock } from '../shared/useModalScrollLock';
 
 export function FormSection({ title, description, children, className = '' }: { title?: ReactNode; description?: ReactNode; children: ReactNode; className?: string }) {
@@ -41,5 +42,5 @@ export function ModalShell({ title, onClose, children, labelledBy, describedBy, 
   const generatedId = useId().replace(/:/g, '');
   const titleId = labelledBy ?? `modal-title-${generatedId}`;
   const close = () => { if (canClose) onClose(); };
-  return <div className="mini-modal" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={describedBy} onMouseDown={(event) => { if (closeOnBackdrop && event.target === event.currentTarget) close(); }} onWheel={(event) => event.stopPropagation()} onTouchMove={(event) => event.stopPropagation()}><div ref={panelRef} tabIndex={-1} className={`modal-panel ${className}`.trim()}><header className="modal-header"><h3 id={titleId}>{title}</h3><button type="button" className="modal-close" onClick={close} disabled={!canClose} aria-label="Cerrar">×</button></header>{children}</div></div>;
+  return createPortal(<div className="mini-modal" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={describedBy} onClick={(event) => event.stopPropagation()} onMouseDown={(event) => { event.stopPropagation(); if (closeOnBackdrop && event.target === event.currentTarget) close(); }} onWheel={(event) => event.stopPropagation()} onTouchMove={(event) => event.stopPropagation()}><div ref={panelRef} tabIndex={-1} className={`modal-panel ${className}`.trim()}><header className="modal-header"><h3 id={titleId}>{title}</h3><button type="button" className="modal-close" onClick={close} disabled={!canClose} aria-label="Cerrar">×</button></header>{children}</div></div>, document.body);
 }

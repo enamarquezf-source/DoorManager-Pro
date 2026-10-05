@@ -3690,10 +3690,13 @@ function canManageEquipmentPhotoUi(profile: any) { return (profile?.roles ?? [])
 function EquipmentPhotoPanel({ equipmentId, canManage, contextWorkOrderId, onChanged, compact = false }: { equipmentId?: string; canManage: boolean; contextWorkOrderId?: string; onChanged?: () => void; compact?: boolean }) {
   const photos = useLoad(() => equipmentId ? equipmentPhotosService.list(equipmentId) : Promise.resolve([]), [equipmentId], [] as any[]);
   const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+  const busy = useRef(false);
   const primary = primaryEquipmentPhoto(photos.data);
   if (!equipmentId) return null;
   const upload = async (file: File | undefined) => {
-    if (!file) return;
+    if (!file || busy.current) return;
+    busy.current = true; setSaving(true); setMessage('');
     try {
       const photo = await equipmentPhotosService.prepare(file);
       await equipmentPhotosService.upload(equipmentId, photo);
@@ -3702,10 +3705,10 @@ function EquipmentPhotoPanel({ equipmentId, canManage, contextWorkOrderId, onCha
       onChanged?.();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'No se ha podido guardar la foto del equipo.');
-    }
+    } finally { busy.current = false; setSaving(false); }
   };
   const title = compact ? 'Foto del equipo' : 'Foto principal del equipo';
-  return <Card title={title}><div className="equipment-photo-panel">{primary?.signed_url ? <img className="equipment-primary-photo" src={primary.signed_url} alt="Foto principal del equipo" /> : <div className="equipment-photo-empty">Sin foto del equipo</div>}<div className="equipment-photo-actions">{canManage && <label className="component-photo">{primary ? 'Cambiar foto' : 'Añadir foto'}<input type="file" accept="image/*" capture="environment" onChange={(event) => { void upload(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>}{primary?.signed_url && <a href={primary.signed_url} target="_blank" rel="noreferrer">Ver imagen</a>}{contextWorkOrderId && canManage && <small>Se valida el acceso operativo al equipo antes de guardar.</small>}</div></div>{photos.data.length > 1 && <div className="equipment-photo-history" aria-label="Fotos históricas del equipo">{photos.data.filter((photo) => photo.id !== primary?.id).map((photo) => photo.signed_url ? <img key={photo.id} src={photo.signed_url} alt="Foto histórica del equipo" /> : null)}</div>}{message && <p className={message.includes('guardada') ? 'success-note' : 'form-error'}>{message}</p>}</Card>;
+  return <Card title={title}><div className="equipment-photo-panel">{primary?.signed_url ? <img className="equipment-primary-photo" src={primary.signed_url} alt="Foto principal del equipo" /> : <div className="equipment-photo-empty">{photos.loading ? 'Cargando foto...' : photos.error ? 'Foto no disponible' : 'Sin foto del equipo'}</div>}<div className="equipment-photo-actions">{canManage && <label className="component-photo">{primary ? 'Cambiar foto' : 'Añadir foto'}<input type="file" disabled={saving} accept="image/*" capture="environment" onChange={(event) => { void upload(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>}{primary?.signed_url && <a href={primary.signed_url} target="_blank" rel="noreferrer">Ver imagen</a>}{contextWorkOrderId && canManage && <small>Se valida el acceso operativo al equipo antes de guardar.</small>}</div></div>{photos.data.length > 1 && <div className="equipment-photo-history" aria-label="Fotos históricas del equipo">{photos.data.filter((photo) => photo.id !== primary?.id).map((photo) => photo.signed_url ? <img key={photo.id} src={photo.signed_url} alt="Foto histórica del equipo" /> : null)}</div>}{photos.error && <p className="form-error" role="alert">No se ha podido cargar la foto. <button type="button" onClick={photos.reload}>Volver a intentar</button></p>}{saving && <p role="status">Guardando foto del equipo...</p>}{message && <p role={message.includes('guardada') ? 'status' : 'alert'} className={message.includes('guardada') ? 'success-note' : 'form-error'}>{message}</p>}</Card>;
 }
 
 function normalizeEntityOptionLabel(value: string) {

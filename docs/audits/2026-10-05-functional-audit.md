@@ -41,9 +41,9 @@ Ambos archivos se pueden volver a ejecutar. No contienen modificaciones de parte
 ## Aspectos que siguen pendientes de auditoría
 
 - Comprobar los permisos efectivos tras 162 y la visibilidad real de una devolución con asignación activa tras 163.
-- Probar las correcciones desplegadas en móvil y escritorio con la sesión apropiada; la revisión de producción anterior al despliegue no verifica el código nuevo.
+- Completar las correcciones desplegadas en móvil con la sesión apropiada. En escritorio se ha verificado el nuevo diálogo de factura: sin desbordamiento horizontal, textarea no redimensionable, fondo bloqueado durante la apertura y desplazamiento restaurado al cancelar.
 - La preparación de factura y la creación de aviso todavía usan más de una petición. El borrador parcial ya se puede recuperar sin recrearlo, pero conviene convertir la operación completa en una transacción de base de datos.
 - La creación de pagos se protege frente a envíos concurrentes de la misma pantalla; falta estudiar una clave de operación persistente que cubra reintentos tras pérdida de respuesta o desde varias pestañas.
 - La recuperación de cambios locales antiguos sin autor exige un procedimiento asistido; no se atribuyen automáticamente a otro usuario ni se borran.
 - Completar la matriz de permisos con sesiones de Técnico, SAT, Oficina, Gerencia y Superadmin. Abrir una pantalla no demuestra que todas sus escrituras estén autorizadas correctamente.
-- Completar comprobaciones de integridad de stock, asignaciones e importes sobre la base de datos real, sin reparar cantidades o importes por suposición.
+- Ejecutar `supabase/verification/audit_operational_integrity.sql` sobre la base de datos real y revisar sus diez contadores. Es una transacción de solo lectura que comprueba stock, claves repetidas, consumos, vínculos previstos, importes, pagos, avisos y asignaciones invisibles; no repara datos por suposición.

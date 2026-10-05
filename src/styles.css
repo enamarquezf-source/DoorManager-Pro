@@ -516,7 +516,7 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
 .doc-list strong, .doc-list span { display: block; }
 .doc-list span { color: var(--text-soft); font-size: 12px; }
 .check-mobile { width: min(640px, 100%); margin: 0 auto; display: grid; gap: 14px; }
-.check-mobile header { background: white; border: 1px solid var(--line); border-radius: 20px; padding: 14px; }
+.check-mobile > header { background: white; border: 1px solid var(--line); border-radius: 20px; padding: 14px; }
 .check-mobile h2 { margin: 0 0 6px; }
 .progress { height: 10px; background: #dbe3ed; border-radius: 999px; overflow: hidden; }
 .progress span { display: block; height: 100%; background: var(--info); }
@@ -670,7 +670,7 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
   .invoice-totals { flex-direction: column; gap: 4px; }
   .modal-footer { flex-direction: column-reverse; }
   .check-mobile { gap: 10px; }
-  .check-mobile header { padding: 10px 12px; }
+  .check-mobile > header { padding: 10px 12px; }
   .check-mobile h2 { font-size: 18px; }
   .hotspot span { font-size: 10px; }
   .row-actions { justify-content: stretch; }

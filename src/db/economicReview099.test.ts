@@ -142,8 +142,8 @@ describe('099 economic review and structured billing', () => {
     expect(economicReviewSummary(workOrder).approvedSale).toBe(0);
   });
 
-  it('requires explicit confirmation and reason to approve an empty zero-sale part', () => {
-    expect(component).toContain('aprobar una venta cero requiere confirmación expresa y motivo.');
+  it('requires explicit confirmation to approve an empty zero-sale part', () => {
+    expect(component).toContain('aprobar una venta cero requiere confirmación expresa.');
     expect(component).toContain('!rows.length ||');
     expect(component).toContain('needsZeroConfirmation && !zeroSaleConfirmed');
   });

@@ -33,6 +33,7 @@ const dbVersion = 3;
 const currentSyncSessionId = crypto.randomUUID();
 type OfflineIdentity = { companyId: string; profileId: string };
 let offlineIdentity: OfflineIdentity | null = null;
+const inFlightChanges = new Set<string>();
 
 export function setOfflineIdentity(identity: OfflineIdentity | null) {
   const changed = identity?.companyId !== offlineIdentity?.companyId || identity?.profileId !== offlineIdentity?.profileId;
@@ -387,6 +388,8 @@ export const technicianOfflineService = {
     const result = { synced: 0, failed: 0, pending: 0, errors: [] as string[] };
     for (const item of pending) {
       if (!identityIsCurrent(identity)) break;
+      if (inFlightChanges.has(item.id)) continue;
+      inFlightChanges.add(item.id);
       try {
         onProgress?.(`Sincronizando ${item.type} ${item.blockId ?? item.workOrderId ?? ''}`.trim());
         const claimed = await updateQueuedRevision(item, identity, (current) => current.status === 'syncing' ? null : { ...current, status: 'syncing', syncSessionId: currentSyncSessionId, error: undefined });
@@ -401,6 +404,8 @@ export const technicianOfflineService = {
         await updateQueuedRevision(item, identity, (current) => ({ ...current, status, syncSessionId: undefined, error: message, attempts: (current.attempts ?? 0) + 1, updatedAt: new Date().toISOString() }));
         result.failed += 1;
         result.errors.push(message);
+      } finally {
+        inFlightChanges.delete(item.id);
       }
     }
     const remaining = await allChanges();

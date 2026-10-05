@@ -56,6 +56,9 @@ describe('offline identity and concurrency with persistent storage', () => {
     const latest = await technicianOfflineService.upsert({ type: 'check-block', checkId: 'check', blockId: 'block', payload: { status: 'New' } });
     expect(latest.id).toBe(first.id);
     expect(await technicianOfflineService.pendingForCheck('check', [first.revision!])).toEqual([latest]);
+    // A second click cannot send the edited revision before the older RPC finishes.
+    expect((await technicianOfflineService.sync()).pending).toBe(1);
+    expect(remote.block).toHaveBeenCalledOnce();
     finish(); await sending;
     expect(await technicianOfflineService.pending()).toEqual([latest]);
     await technicianOfflineService.sync();

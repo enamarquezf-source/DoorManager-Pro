@@ -20,14 +20,14 @@ Primera entrega de correcciones verificadas. Trabajo realizado en `main`, sin ra
 | Superadmin | La ruta de plantillas no incluía Superadmin en su regla. | Acceso añadido, conservando el bloqueo de perfiles inactivos o eliminados. |
 | Funciones internas SQL | Dos ayudantes de checks carecían de restricción explícita de ejecución directa por clientes. | Migración 162 retira la ejecución directa; las operaciones públicas autorizadas siguen llamándolos internamente. |
 
-## Aplicación pendiente en Supabase
+## Aplicación en Supabase
 
-El commit y el push no ejecutan migraciones. Deben aplicarse completos, en este orden:
+El commit y el push no ejecutan migraciones. El usuario ha confirmado la aplicación completa de ambos archivos, en este orden:
 
 1. `supabase/migrations/162_restrict_internal_check_helpers.sql`.
 2. `supabase/migrations/163_returned_technical_work_visibility.sql`.
 
-Ambos archivos se pueden volver a ejecutar. No contienen modificaciones de partes, facturas, pagos o stock. Para comprobar los permisos internos tras 162, usar `supabase/verification/verify_162_internal_check_helpers.sql`. Hasta recibir confirmación de ejecución, estas correcciones de base de datos siguen pendientes.
+Ambos archivos se pueden volver a ejecutar. No contienen modificaciones de partes, facturas, pagos o stock. Para comprobar los permisos internos tras 162, usar `supabase/verification/verify_162_internal_check_helpers.sql`. Aplicación de 162 y 163 confirmada por el usuario el 5 de octubre. La migración 161 ya se había confirmado anteriormente. La comprobación independiente de los permisos efectivos requiere ejecutar el archivo de verificación.
 
 ## Verificación
 
@@ -40,7 +40,7 @@ Ambos archivos se pueden volver a ejecutar. No contienen modificaciones de parte
 
 ## Aspectos que siguen pendientes de auditoría
 
-- Confirmar las migraciones 162 y 163 en Supabase y la visibilidad real de una devolución con asignación activa.
+- Comprobar los permisos efectivos tras 162 y la visibilidad real de una devolución con asignación activa tras 163.
 - Probar las correcciones desplegadas en móvil y escritorio con la sesión apropiada; la revisión de producción anterior al despliegue no verifica el código nuevo.
 - La preparación de factura y la creación de aviso todavía usan más de una petición. El borrador parcial ya se puede recuperar sin recrearlo, pero conviene convertir la operación completa en una transacción de base de datos.
 - La creación de pagos se protege frente a envíos concurrentes de la misma pantalla; falta estudiar una clave de operación persistente que cubra reintentos tras pérdida de respuesta o desde varias pestañas.

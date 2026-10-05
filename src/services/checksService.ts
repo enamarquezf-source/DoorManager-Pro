@@ -71,7 +71,12 @@ export const checksService = {
   },
   async pendingForCurrentTechnician() {
     const profileId = await currentProfileId();
-    return withCheckContext(await expectData<any[]>(supabase.from('v_pending_checks').select('*').eq('technician_id', profileId).order('created_at', { ascending: false })));
+    const assignments = await expectData<any[]>(supabase.from('work_order_assignments').select('work_order_id').eq('technician_id', profileId).is('deleted_at', null).not('status', 'in', '(Cancelado)'));
+    const workOrderIds = [...new Set(assignments.map((row) => row.work_order_id).filter(Boolean))];
+    let query = supabase.from('v_pending_checks').select('*');
+    if (workOrderIds.length) query = query.or(`technician_id.eq.${profileId},work_order_id.in.(${workOrderIds.join(',')})`);
+    else query = query.eq('technician_id', profileId);
+    return withCheckContext(await expectData<any[]>(query.order('created_at', { ascending: false })));
   },
   async completed(companyScope?: string | null) {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;

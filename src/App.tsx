@@ -325,7 +325,7 @@ function ProtectedLayout() {
     return () => { window.removeEventListener('keydown', onKey); };
   }, [collapsed]);
   useEffect(() => {
-    const loadUnread = () => { if (profile) alertsService.unread().then((rows) => setUnread(rows.length)).catch(() => setUnread(0)); };
+    const loadUnread = () => { if (profile) alertsService.unreadPersonal().then((rows) => setUnread(rows.length)).catch(() => setUnread(0)); };
     loadUnread();
     window.addEventListener('dmp-alerts-changed', loadUnread);
     return () => window.removeEventListener('dmp-alerts-changed', loadUnread);
@@ -901,9 +901,10 @@ function WorkOrderOperationalForm({ workOrder, onClose, onSaved }: { workOrder: 
 
 function AssociatedEquipmentCard({ workOrder, onChanged }: { workOrder: any; onChanged?: () => void }) {
   const [saving, setSaving] = useState('');
+  const [error, setError] = useState('');
   const rows = workOrder.associated_equipment ?? [];
-  const generate = async (equipmentId: string) => { if (saving) return; setSaving(equipmentId); try { await workOrdersService.generatePendingInstallationCheck(workOrder.id, equipmentId); onChanged?.(); } catch (error) { console.error(error); } finally { setSaving(''); } };
-  return <Card title="EQUIPOS ASOCIADOS"><div className="compact-list">{rows.map((row: any) => { const equipment = row.equipment ?? row; const label = equipmentOperationalLabel(equipment); const check = (workOrder.checks ?? []).find((item: any) => item.equipment_id === equipment.id); const hasCompatibleTemplate = (workOrder.compatible_check_templates ?? []).some((template: any) => template.equipment_type_id === equipment.equipment_type_id); return <article key={equipment.id} className="linked-equipment-record"><Badge tone={row.is_primary ? 'ok' : 'info'}>{row.is_primary ? 'PRINCIPAL' : 'ASOCIADO'}</Badge><Link className="equipment-operational-title record-primary-link" to={`/app/equipos/${equipment.id}`}><strong>{label.primary}</strong><small>{label.secondary}</small></Link><span>{label.context} · {label.detail}{equipment.serial_number ? ` · Serie ${equipment.serial_number}` : ''}</span><span>{check ? `✓ Check ${check.code} · ${displayStatus(check.status)}` : row.check_status === 'pending_template' && hasCompatibleTemplate ? 'Check pendiente de generar' : row.check_status === 'pending_template' ? '⚠ Sin plantilla compatible' : row.check_status === 'not_applicable' ? 'No aplica check de instalación' : 'Sin check'}</span>{row.check_status === 'pending_template' && <button type="button" onClick={() => generate(equipment.id)} disabled={saving === equipment.id}>{saving === equipment.id ? 'Generando...' : 'Generar check pendiente'}</button>}</article>; })}</div>{!rows.length && <p className="large-note">No hay equipos asociados.</p>}</Card>;
+  const generate = async (equipmentId: string) => { if (saving) return; setSaving(equipmentId); setError(''); try { await workOrdersService.generatePendingInstallationCheck(workOrder.id, equipmentId); onChanged?.(); } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se ha podido generar el check. Inténtalo de nuevo.'); } finally { setSaving(''); } };
+  return <Card title="EQUIPOS ASOCIADOS"><div className="compact-list">{rows.map((row: any) => { const equipment = row.equipment ?? row; const label = equipmentOperationalLabel(equipment); const check = (workOrder.checks ?? []).find((item: any) => item.equipment_id === equipment.id); const hasCompatibleTemplate = (workOrder.compatible_check_templates ?? []).some((template: any) => template.equipment_type_id === equipment.equipment_type_id); return <article key={equipment.id} className="linked-equipment-record"><Badge tone={row.is_primary ? 'ok' : 'info'}>{row.is_primary ? 'PRINCIPAL' : 'ASOCIADO'}</Badge><Link className="equipment-operational-title record-primary-link" to={`/app/equipos/${equipment.id}`}><strong>{label.primary}</strong><small>{label.secondary}</small></Link><span>{label.context} · {label.detail}{equipment.serial_number ? ` · Serie ${equipment.serial_number}` : ''}</span><span>{check ? `✓ Check ${check.code} · ${displayStatus(check.status)}` : row.check_status === 'pending_template' && hasCompatibleTemplate ? 'Check pendiente de generar' : row.check_status === 'pending_template' ? '⚠ Sin plantilla compatible' : row.check_status === 'not_applicable' ? 'No aplica check de instalación' : 'Sin check'}</span>{row.check_status === 'pending_template' && <button type="button" onClick={() => generate(equipment.id)} disabled={Boolean(saving)}>{saving === equipment.id ? 'Generando...' : 'Generar check pendiente'}</button>}</article>; })}</div>{error && <p className="form-error" role="alert">{error}</p>}{!rows.length && <p className="large-note">No hay equipos asociados.</p>}</Card>;
 }
 
 function WorkOrderStatusSelector({ workOrder, onChanged, onError }: { workOrder: any; onChanged: () => void; onError: (message: string) => void }) {
@@ -2205,7 +2206,7 @@ function AlertsPanel({ onClose, showFilters = false }: { onClose?: () => void; s
   const { profile } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { data, loading, error, reload } = useLoad(() => alertsService.list(), [], [] as any[]);
+  const { data, loading, error, reload } = useLoad(() => alertsService.listPersonal(), [], [] as any[]);
   const [filter, setFilter] = useState(() => alertFilterFromUrl(params));
   const [actionError, setActionError] = useState('');
   const [openedId, setOpenedId] = useState<string | null>(null);
@@ -2698,7 +2699,7 @@ async function loadModuleRows(moduleId: string): Promise<[string, string, Severi
     const works = await workOrdersService.list('Visita');
     return works.map((work: any) => [work.code, `${work.title} · ${work.client_name ?? '-'} · ${displayStatus(work.status)}`, severityForStatus(work.status), `/app/partes/${work.id}`]);
   }
-  const alerts = await alertsService.list(moduleRegistry[moduleId]?.title ?? '');
+  const alerts = await alertsService.listPersonal(moduleRegistry[moduleId]?.title ?? '');
   return alerts.map((row: any) => [row.alerts?.code ?? row.alerts?.title ?? 'Aviso', `${row.alerts?.description ?? '-'} · ${displayStatus(row.alerts?.status)}`, severityForStatus(row.alerts?.priority), '/app/avisos']);
 }
 

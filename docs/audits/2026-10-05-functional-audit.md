@@ -31,7 +31,7 @@ Ambos archivos se pueden volver a ejecutar. No contienen modificaciones de parte
 
 ## Verificación
 
-- Suite completa: **1.543 pruebas superadas**, sin fallos.
+- Suite completa: **1.557 pruebas superadas**, sin fallos.
 - Compilación TypeScript y build de producción correctos. Permanece el aviso de tamaño del paquete principal; no es un fallo de compilación.
 - Pruebas de comportamiento nuevas para separación de cachés, cambio de sesión, URL firmadas tardías, cola persistente con IndexedDB real simulado, sincronización concurrente y edición durante el envío, clasificación de errores de conexión, destinatarios de avisos y recuperación de borradores.
 - Pruebas de permisos, asignaciones y sintaxis de las migraciones nuevas.
@@ -47,3 +47,11 @@ Ambos archivos se pueden volver a ejecutar. No contienen modificaciones de parte
 - La recuperación de cambios locales antiguos sin autor exige un procedimiento asistido; no se atribuyen automáticamente a otro usuario ni se borran.
 - Completar la matriz de permisos con sesiones de Técnico, SAT, Oficina, Gerencia y Superadmin. Abrir una pantalla no demuestra que todas sus escrituras estén autorizadas correctamente.
 - Ejecutar `supabase/verification/audit_operational_integrity.sql` sobre la base de datos real y revisar sus diez contadores. Es una transacción de solo lectura que comprueba stock, claves repetidas, consumos, vínculos previstos, importes, pagos, avisos y asignaciones invisibles; no repara datos por suposición.
+
+
+## Segunda revisión de permisos y datos reales
+
+- Se bloquean las capacidades basadas en roles para perfiles inactivos o eliminados; también se bloquean sus workspaces y módulos. Partes y checks comprueban la empresa, con la excepción global de Superadmin activo. Asignaciones eliminadas o canceladas no conceden lectura al técnico.
+- Crear avisos vuelve a estar disponible para Superadmin y Oficina, de acuerdo con las políticas existentes del servidor.
+- La ejecución en Supabase de audit_operational_integrity.sql, confirmada mediante la tabla aportada por el usuario, devuelve cero en nueve comprobaciones y **24 consumos con datos de stock incoherentes**. Esto no prueba por sí solo un stock incorrecto: la migración 094 añadió el almacén canónico sin backfill histórico. Se ha preparado audit_material_consumption_details.sql para distinguir los casos, sin modificar saldos. El diagnóstico detallado sigue pendiente.
+- Suite completa tras esta revisión: 1.557 pruebas; build correcto.

@@ -42,7 +42,7 @@ export function normalizedRoleNames(roles: RoleName[] = []) {
 }
 
 export function profileWorkspaces(profile: Profile | null | undefined): Workspace[] {
-  if (!profile) return [];
+  if (!isActiveProfile(profile)) return [];
   const roles = normalizedRoleNames(rolesOf(profile));
   if (roles.includes('superadmin')) return ['superadmin'];
   if (roles.includes('SAT')) return ['sat'];
@@ -50,7 +50,7 @@ export function profileWorkspaces(profile: Profile | null | undefined): Workspac
 }
 
 function hasAny(profile: Profile | null | undefined, roles: RoleName[]) {
-  return rolesOf(profile).some((role) => roles.includes(role));
+  return isActiveProfile(profile) && rolesOf(profile).some((role) => roles.includes(role));
 }
 
 function isActiveProfile(profile: Profile | null | undefined) {
@@ -78,13 +78,13 @@ export function canPermanentlyDeleteEntity(profile: Profile | null | undefined, 
 }
 
 export function canViewWorkOrder(profile: Profile | null | undefined, workOrder?: any) {
-  if (!profile) return false;
+  if (!profile || !isActiveProfile(profile) || !canOperateCompanyWorkOrder(profile, workOrder)) return false;
   if (hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina', 'Comercial'])) return true;
   if (!hasAny(profile, ['Tecnico'])) return false;
   const profileIds = new Set([profile.id, profile.auth_user_id].filter(Boolean));
   if (profileIds.has(workOrder?.main_technician_id) || profileIds.has(workOrder?.technician_id) || profileIds.has(workOrder?.primary_technician?.id) || profileIds.has(workOrder?.primary_technician?.auth_user_id)) return true;
   const assignments = workOrder?.assignments ?? workOrder?.work_order_assignments ?? [];
-  return assignments.some((item: any) => [item.technician_id, item.technician_profile_id, item.profile_id, item.assigned_profile_id, item.profiles?.id, item.profiles?.auth_user_id, item.technician?.id, item.technician?.auth_user_id].some((value) => profileIds.has(value)));
+  return assignments.some((item: any) => !item.deleted_at && item.status !== 'Cancelado' && [item.technician_id, item.technician_profile_id, item.profile_id, item.assigned_profile_id, item.profiles?.id, item.profiles?.auth_user_id, item.technician?.id, item.technician?.auth_user_id].some((value) => profileIds.has(value)));
 }
 
 export function canEditWorkOrder(profile: Profile | null | undefined, workOrder?: any) {
@@ -182,20 +182,20 @@ export function canExecuteCheck(profile: Profile | null | undefined) { return ha
 export function canManageCheck(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT']); }
 export function canManageEquipmentTypes(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT']); }
 export function canViewCheck(profile: Profile | null | undefined, check?: any) {
-  if (!profile) return false;
+  if (!profile || !isActiveProfile(profile) || !canOperateCompanyWorkOrder(profile, check)) return false;
   if (hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina', 'Comercial'])) return true;
   if (!hasAny(profile, ['Tecnico'])) return false;
   const profileIds = new Set([profile.id, profile.auth_user_id].filter(Boolean));
   if (profileIds.has(check?.technician_id) || profileIds.has(check?.profiles?.id) || profileIds.has(check?.profiles?.auth_user_id)) return true;
   return canViewWorkOrder(profile, check?.work_orders ?? check?.work_order);
 }
-export function canCreateAlert(profile: Profile | null | undefined) { return hasAny(profile, ['SAT', 'Gerencia', 'Comercial']); }
+export function canCreateAlert(profile: Profile | null | undefined) { return hasAny(profile, [...backOfficeRoles, 'Comercial']); }
 export function canManageAlert(profile: Profile | null | undefined) { return hasAny(profile, [...backOfficeRoles, 'Comercial', 'Tecnico']); }
 export function canCloseWorkOrder(profile: Profile | null | undefined) { return hasAny(profile, adminRoles); }
 export function canReopenWorkOrder(profile: Profile | null | undefined) { return hasAny(profile, adminRoles); }
 
 export function canAccessModule(profile: Profile | null | undefined, workspace: Workspace, moduleId: string) {
-  if (!profile) return false;
+  if (!isActiveProfile(profile)) return false;
   const requirements = moduleReadRequirements(moduleId);
   if (requirements.length && (!requirements.some((permission) => hasPermission(profile, permission)) || !moduleVisible(profile as any, moduleVisibilityKey(moduleId)))) return false;
   if (moduleId === 'documentos' && (!hasPermission(profile, 'documents.read') || !moduleVisible(profile as any, 'documents'))) return false;

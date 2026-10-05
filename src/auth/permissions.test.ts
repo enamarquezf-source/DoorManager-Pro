@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessModule, canAccessRoute, canArchiveEntity, canCorrectWorkOrderOperationalFields, canCreateAlert, canCreateCheck, canExecuteCheck, canManageCheck, canManageEquipmentTypes, canManageHourRates, canManageQuotes, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canPermanentlyDeleteEntity, canRestoreEntity, canRole, canViewCheck, canViewSalesEconomics, canViewWorkOrderCosts, hasPermission, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './permissions';
+import { canAccessModule, canAccessRoute, canArchiveEntity, canCorrectWorkOrderOperationalFields, canCreateAlert, canCreateCheck, canExecuteCheck, canManageCheck, canManageEquipmentTypes, canManageHourRates, canManageQuotes, canManageWorkOrderAssignments, canManageWorkOrderCosts, canManageWorkOrderMaterials, canManageWorkOrderStatus, canManageWorkOrderTime, canPermanentlyDeleteEntity, canRestoreEntity, canRole, canViewCheck, canViewWorkOrder, canViewSalesEconomics, canViewWorkOrderCosts, hasPermission, isSuperadmin, normalizedRoleNames, profileWorkspaces } from './permissions';
 import type { Profile, RoleName } from '../shared/types';
 
 function profile(primary_area: RoleName, roles: RoleName[] = [primary_area]): Profile {
@@ -307,5 +307,35 @@ describe('canAccessRoute', () => {
     expect(canCorrectWorkOrderOperationalFields(profile('SAT'), closed)).toBe(true);
     expect(canCorrectWorkOrderOperationalFields(profile('Gerencia'), closed)).toBe(true);
     expect(canCorrectWorkOrderOperationalFields(profile('superadmin'), closed)).toBe(true);
+  });
+});
+
+
+describe('active identity and company boundaries', () => {
+  const roles: RoleName[] = ['superadmin', 'SAT', 'Oficina', 'Gerencia', 'Comercial', 'Tecnico'];
+  it.each(roles)('denies capabilities and workspaces for inactive or deleted %s', role => {
+    for (const actor of [{ ...profile(role), active: false }, { ...profile(role), deleted_at: '2026-10-05' }]) {
+      for (const capability of [canCreateAlert, canCreateCheck, canExecuteCheck, canManageCheck, canManageEquipmentTypes, canManageWorkOrderAssignments]) expect(capability(actor)).toBe(false);
+      expect(profileWorkspaces(actor)).toEqual([]);
+      expect(canViewWorkOrder(actor, { main_technician_id: actor.id })).toBe(false);
+      expect(canViewCheck(actor, { technician_id: actor.id })).toBe(false);
+      expect(canAccessModule(actor, 'tecnico', 'jornada')).toBe(false);
+    }
+  });
+  it.each(roles)('only platform Superadmin can view records from another company: %s', role => {
+    const actor = profile(role);
+    expect(canViewWorkOrder(actor, { company_id: 'other-company', main_technician_id: actor.id })).toBe(role === 'superadmin');
+    expect(canViewCheck(actor, { company_id: 'other-company', technician_id: actor.id })).toBe(role === 'superadmin');
+  });
+  it('does not grant access from a removed or cancelled technician assignment', () => {
+    const actor = profile('Tecnico');
+    expect(canViewWorkOrder(actor, { assignments: [{ technician_id: actor.id, deleted_at: '2026-10-05' }] })).toBe(false);
+    expect(canViewWorkOrder(actor, { assignments: [{ technician_id: actor.id, status: 'Cancelado' }] })).toBe(false);
+    expect(canViewWorkOrder(actor, { assignments: [{ technician_id: actor.id, status: 'Asignado' }] })).toBe(true);
+  });
+  it('allows active Superadmin and Oficina to create alerts, matching server policies', () => {
+    expect(canCreateAlert(profile('superadmin'))).toBe(true);
+    expect(canCreateAlert(profile('Oficina'))).toBe(true);
+    expect(canCreateAlert(profile('Tecnico'))).toBe(false);
   });
 });

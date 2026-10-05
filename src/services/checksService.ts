@@ -159,7 +159,7 @@ export const checksService = {
     }
     if (!sectionId) throw new Error('Falta la sección remota del bloque. El cambio queda guardado localmente.');
 
-    return expectData<any>(supabase.rpc('save_check_block_result', { p_payload: { local_change_id: change.id, check_id: change.checkId, section_id: sectionId, result: payload.persistedStatus, observations: payload.observations || null, intervention: payload.intervention || null, severity: payload.severity || null, components: payload.components ?? [], items } }));
+    return expectData<any>(supabase.rpc('save_check_block_result', { p_payload: { local_change_id: change.revision ?? change.id, check_id: change.checkId, section_id: sectionId, result: payload.persistedStatus, observations: payload.observations || null, intervention: payload.intervention || null, severity: payload.severity || null, components: payload.components ?? [], items } }));
   },
   async syncOfflinePhoto(change: OfflineChange) {
     if (!change.checkId) throw new Error('Falta el check asociado a la foto.');

@@ -21,6 +21,7 @@ export type OfflineChange = {
   error?: string;
   attempts?: number;
   syncSessionId?: string;
+  revision?: string;
 };
 
 export type OfflineSyncScope = { workOrderId?: string; checkId?: string; changeId?: string; remoteLocalChangeIds?: string[] };
@@ -30,6 +31,27 @@ const dbName = 'doormanager-pro-tecnico';
 const storeName = 'offline_changes';
 const dbVersion = 3;
 const currentSyncSessionId = crypto.randomUUID();
+type OfflineIdentity = { companyId: string; profileId: string };
+let offlineIdentity: OfflineIdentity | null = null;
+
+export function setOfflineIdentity(identity: OfflineIdentity | null) {
+  const changed = identity?.companyId !== offlineIdentity?.companyId || identity?.profileId !== offlineIdentity?.profileId;
+  offlineIdentity = identity;
+  if (changed && typeof window !== 'undefined') dispatchQueueChanged();
+}
+
+function requireOfflineIdentity() {
+  if (!offlineIdentity) throw new Error('Inicia sesión con tu perfil para acceder al trabajo guardado en este dispositivo.');
+  return { ...offlineIdentity };
+}
+
+function identityIsCurrent(identity: OfflineIdentity) {
+  return offlineIdentity?.profileId === identity.profileId && offlineIdentity?.companyId === identity.companyId;
+}
+
+function belongsToIdentity(change: OfflineChange, identity: OfflineIdentity) {
+  return change.profileId === identity.profileId && (!change.companyId || change.companyId === identity.companyId);
+}
 
 const replaceStateTypes = new Set<OfflineChangeType>(['check-block']);
 
@@ -74,11 +96,32 @@ async function withStore<T>(mode: IDBTransactionMode, action: (store: IDBObjectS
     const request = action(store);
     tx.oncomplete = () => { db.close(); resolve(request ? request.result : undefined); };
     tx.onerror = () => { db.close(); reject(tx.error); };
+    tx.onabort = () => { db.close(); reject(tx.error ?? new Error('No se ha podido guardar el cambio en el dispositivo.')); };
   });
 }
 
+async function updateQueuedRevision(item: OfflineChange, identity: OfflineIdentity, update: (current: OfflineChange) => OfflineChange | 'delete' | null) {
+  let updated = false;
+  await withStore('readwrite', (store) => {
+    const request = store.get(item.id);
+    request.onsuccess = () => {
+      const current = request.result as OfflineChange | undefined;
+      if (!identityIsCurrent(identity) || !current || !belongsToIdentity(current, identity)) return;
+      if (current.revision !== item.revision || current.updatedAt !== item.updatedAt) return;
+      if (!isQueueOpen(current) && current.status !== 'syncing') return;
+      const next = update(current);
+      if (!next) return;
+      if (next === 'delete') store.delete(item.id); else store.put(next); updated = true;
+    };
+  });
+  return updated;
+}
+
 async function allChanges(): Promise<OfflineChange[]> {
-  return (await withStore<OfflineChange[]>('readonly', (store) => store.getAll())) ?? [];
+  if (!offlineIdentity) return [];
+  const identity = requireOfflineIdentity();
+  const changes = (await withStore<OfflineChange[]>('readonly', (store) => store.getAll())) ?? [];
+  return identityIsCurrent(identity) ? changes.filter((change) => belongsToIdentity(change, identity)) : [];
 }
 
 function changeId(type: OfflineChangeType, workOrderId: string | undefined, checkId: string | undefined, blockId?: string) {
@@ -158,17 +201,19 @@ export function recoverInterruptedChangesForTest(changes: OfflineChange[], sessi
 }
 
 async function recoverInterruptedChanges() {
+  if (!offlineIdentity) return [];
+  const identity = requireOfflineIdentity();
   const changes = await allChanges();
   const recovered = recoverInterruptedChangesForTest(changes, currentSyncSessionId);
   const changed = recovered.filter((item, index) => item !== changes[index]);
-  for (const item of changed) await withStore('readwrite', (store) => { store.put({ ...item, updatedAt: new Date().toISOString() }); });
+  for (const item of changed) { const original = changes.find(change => change.id === item.id)!; await updateQueuedRevision(original, identity, () => ({ ...item, updatedAt: new Date().toISOString() })); }
   if (changed.length) dispatchQueueChanged();
-  return recovered;
+  return allChanges();
 }
 
 export function checkPendingChangesForTest(changes: OfflineChange[], checkId: string, remoteLocalChangeIds: string[] = []) {
   const reconciled = new Set(remoteLocalChangeIds);
-  return changes.filter((item) => item.checkId === checkId && isQueueOpen(item) && !reconciled.has(item.id));
+  return changes.filter((item) => item.checkId === checkId && isQueueOpen(item) && !reconciled.has(item.type === 'check-block' ? item.revision ?? item.id : item.id));
 }
 
 function dispatchQueueChanged() {
@@ -242,15 +287,25 @@ export function syncOfflineChangeForTest(item: OfflineChange) {
 
 export const technicianOfflineService = {
   async upsert(change: NewOfflineChange) {
-    const id = changeKey(change);
+    const identity = requireOfflineIdentity();
+    if ((change.profileId && change.profileId !== identity.profileId) || (change.companyId && change.companyId !== identity.companyId)) throw new Error('Este cambio pertenece a otro perfil o empresa.');
+    const baseId = changeKey(change);
+    const id = isReplaceStateType(change.type) ? `${identity.profileId}:${baseId}` : baseId;
     const current = (await withStore<OfflineChange | undefined>('readonly', (store) => store.get(id))) as OfflineChange | undefined;
+    if (!identityIsCurrent(identity)) throw new Error('La sesión ha cambiado. Vuelve a abrir el parte.');
+    if (current && !belongsToIdentity(current, identity)) throw new Error('La identidad del cambio ya pertenece a otro perfil.');
     const now = new Date().toISOString();
-    const next: OfflineChange = { ...current, ...change, id, createdAt: current?.createdAt ?? now, updatedAt: now, status: 'pending', error: undefined };
+    const next: OfflineChange = { ...current, ...change, ...identity, id, revision: crypto.randomUUID(), createdAt: current?.createdAt ?? now, updatedAt: now, status: 'pending', error: undefined };
     await withStore('readwrite', (store) => { store.put(next); });
     dispatchQueueChanged();
     return next;
   },
   list: allChanges,
+  async legacyPendingCount() {
+    if (!offlineIdentity) return 0;
+    const changes = (await withStore<OfflineChange[]>('readonly', (store) => store.getAll())) ?? [];
+    return changes.filter((item) => !item.profileId && isQueueOpen(item)).length;
+  },
   async pending() {
     return (await recoverInterruptedChanges()).filter(isQueueOpen).sort((a, b) => syncPriority(a) - syncPriority(b));
   },
@@ -261,10 +316,11 @@ export const technicianOfflineService = {
     return allChanges();
   },
   async reconcileActiveWork(activeWorkOrderIds: string[]) {
+    const identity = requireOfflineIdentity();
     const active = new Set(activeWorkOrderIds);
     const changes = await allChanges();
     const stale = changes.filter((item) => item.workOrderId && !active.has(item.workOrderId) && isQueueOpen(item));
-    for (const item of stale) await withStore('readwrite', (store) => { store.put({ ...item, status: 'blocked', error: 'El parte ya no está asignado o activo. No se pierde el cambio; requiere revisión SAT.', updatedAt: new Date().toISOString() }); });
+    for (const item of stale) await updateQueuedRevision(item, identity, current => isQueueOpen(current) ? { ...current, status: 'blocked', error: 'El parte ya no está asignado o activo. No se pierde el cambio; requiere revisión SAT.', updatedAt: new Date().toISOString() } : null);
     if (stale.length) dispatchQueueChanged();
     return { blocked: stale.length, active: active.size };
   },
@@ -285,27 +341,30 @@ export const technicianOfflineService = {
     return safeOfflineQueueDetailForTest(value);
   },
   async resetForRetry(changeIds: string[]) {
+    const identity = requireOfflineIdentity();
     const ids = new Set(changeIds);
     if (!ids.size) return 0;
     const changes = await allChanges();
     const selected = changes.filter((item) => ids.has(item.id) && isQueueOpen(item));
     const now = new Date().toISOString();
-    for (const item of selected) await withStore('readwrite', (store) => { store.put({ ...item, status: 'pending', error: undefined, updatedAt: now }); });
+    for (const item of selected) await updateQueuedRevision(item, identity, current => isQueueOpen(current) ? { ...current, status: 'pending', error: undefined, updatedAt: now } : null);
     if (selected.length) dispatchQueueChanged();
     return selected.length;
   },
   async deleteQueueItems(changeIds: string[]) {
+    const identity = requireOfflineIdentity();
     const ids = new Set(changeIds);
     if (!ids.size) return 0;
     const changes = await allChanges();
     const selected = changes.filter((item) => ids.has(item.id) && isQueueOpen(item));
-    for (const item of selected) await withStore('readwrite', (store) => { store.delete(item.id); });
+    for (const item of selected) await updateQueuedRevision(item, identity, current => isQueueOpen(current) ? 'delete' : null);
     if (selected.length) dispatchQueueChanged();
     return selected.length;
   },
   async deleteFailedQueueItems() {
+    const identity = requireOfflineIdentity();
     const failed = (await allChanges()).filter((item) => item.status === 'failed');
-    for (const item of failed) await withStore('readwrite', (store) => { store.delete(item.id); });
+    for (const item of failed) await updateQueuedRevision(item, identity, current => current.status === 'failed' ? 'delete' : null);
     if (failed.length) dispatchQueueChanged();
     return failed.length;
   },
@@ -323,19 +382,23 @@ export const technicianOfflineService = {
     return result;
   },
   async sync(onProgress?: (message: string) => void, scope: OfflineSyncScope = {}) {
+    const identity = requireOfflineIdentity();
     const pending = (await this.pending()).filter((item) => changeMatchesScope(item, scope));
     const result = { synced: 0, failed: 0, pending: 0, errors: [] as string[] };
     for (const item of pending) {
+      if (!identityIsCurrent(identity)) break;
       try {
         onProgress?.(`Sincronizando ${item.type} ${item.blockId ?? item.workOrderId ?? ''}`.trim());
-        await withStore('readwrite', (store) => { store.put({ ...item, status: 'syncing', syncSessionId: currentSyncSessionId, error: undefined, updatedAt: new Date().toISOString() }); });
+        const claimed = await updateQueuedRevision(item, identity, (current) => current.status === 'syncing' ? null : { ...current, status: 'syncing', syncSessionId: currentSyncSessionId, error: undefined });
+        if (!claimed || item.status === 'syncing') continue;
+        if (!identityIsCurrent(identity)) throw new Error('La sesión ha cambiado. Reintenta con el perfil que guardó el trabajo.');
         await syncChange(item);
-        await withStore('readwrite', (store) => { store.put({ ...item, status: 'synced', syncSessionId: undefined, error: undefined, updatedAt: new Date().toISOString() }); });
+        await updateQueuedRevision(item, identity, (current) => ({ ...current, status: 'synced', syncSessionId: undefined, error: undefined, updatedAt: new Date().toISOString() }));
         result.synced += 1;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'No se ha podido sincronizar el cambio.';
         const status = /sincronizar primero|seccion|sección|dependencia/i.test(message) ? 'blocked' : 'failed';
-        await withStore('readwrite', (store) => { store.put({ ...item, status, syncSessionId: undefined, error: message, attempts: (item.attempts ?? 0) + 1, updatedAt: new Date().toISOString() }); });
+        await updateQueuedRevision(item, identity, (current) => ({ ...current, status, syncSessionId: undefined, error: message, attempts: (current.attempts ?? 0) + 1, updatedAt: new Date().toISOString() }));
         result.failed += 1;
         result.errors.push(message);
       }

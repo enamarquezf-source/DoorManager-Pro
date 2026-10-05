@@ -1,11 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
+import { useQueryAccessScope } from './accessScope';
 
 export type LoadState<T> = { data: T; loading: boolean; refreshing: boolean; error: string };
 
 // Transitional adapter: legacy screens keep their API while all server state uses Query.
 export function useLoad<T>(loader: (signal: AbortSignal) => Promise<T>, deps: unknown[] = [], empty: T) {
+  const accessScope = useQueryAccessScope();
   const query = useQuery({
-    queryKey: ['legacy-load', loader.toString(), ...deps],
+    queryKey: ['legacy-load', loader.toString(), ...deps, accessScope],
     queryFn: ({ signal }) => loader(signal),
   });
   const state: LoadState<T> = {

@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useModalScrollLock } from '../shared/useModalScrollLock';
 
 export function FormSection({ title, description, children, className = '' }: { title?: ReactNode; description?: ReactNode; children: ReactNode; className?: string }) {
   return <section className={`form-section ${className}`.trim()}>{(title || description) && <header>{title && <h3>{title}</h3>}{description && <p>{description}</p>}</header>}{children}</section>;
@@ -16,6 +17,8 @@ export function useDialogFocus<T extends HTMLElement = HTMLElement>(onClose: () 
     const focusables = () => Array.from(panel?.querySelectorAll<HTMLElement>('input, select, textarea, button, a[href], [tabindex]:not([tabindex="-1"])') ?? []).filter((item) => !item.hasAttribute('disabled'));
     focusables()[0]?.focus();
     const onKey = (event: KeyboardEvent) => {
+      const dialogs = document.querySelectorAll('[role="dialog"]');
+      if (panel?.closest('[role="dialog"]') !== dialogs[dialogs.length - 1]) return;
       if (event.key === 'Escape') { if (canCloseRef.current) closeRef.current(); return; }
       if (event.key !== 'Tab') return;
       const items = focusables();
@@ -31,6 +34,7 @@ export function useDialogFocus<T extends HTMLElement = HTMLElement>(onClose: () 
 }
 
 export function ModalShell({ title, onClose, children, labelledBy, describedBy, className = '', canClose = true, closeOnBackdrop = false }: { title: ReactNode; onClose: () => void; children: ReactNode; labelledBy?: string; describedBy?: string; className?: string; canClose?: boolean; closeOnBackdrop?: boolean }) {
+  useModalScrollLock();
   const panelRef = useDialogFocus<HTMLDivElement>(onClose, canClose);
   const generatedId = useId().replace(/:/g, '');
   const titleId = labelledBy ?? `modal-title-${generatedId}`;

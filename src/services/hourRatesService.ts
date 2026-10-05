@@ -1,3 +1,4 @@
+import { localDateKey } from '../shared/localDate';
 import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, currentProfileId, expectData } from './query';
 
@@ -13,7 +14,7 @@ function normalizeRate(payload: Record<string, any>) {
   return next;
 }
 
-export function hasUsableRateVersion(row: any, today = new Date().toISOString().slice(0, 10)) {
+export function hasUsableRateVersion(row: any, today = localDateKey()) {
   return (row.rate_versions ?? []).some((version: any) => version.active !== false && !version.deleted_at && version.valid_from <= today && (!version.valid_to || version.valid_to >= today));
 }
 

@@ -1,11 +1,13 @@
+import { localDateBoundary } from '../shared/dateRange';
+import { localDateKey } from '../shared/localDate';
 import { supabase } from '../lib/supabase/client';
 import { currentProfileCompanyId, currentProfileId, expectData, expectStep } from './query';
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localDateKey();
 const yesterday = () => {
   const date = new Date();
   date.setDate(date.getDate() - 1);
-  return date.toISOString().slice(0, 10);
+  return localDateKey(date);
 };
 
 export const satDashboardAssignmentsSelect = '*, work_orders!work_order_assignments_work_order_id_fkey(code,title,status,scheduled_date,scheduled_time,priority,planned_material), profiles!work_order_assignments_technician_id_fkey(first_name,last_name)';
@@ -20,7 +22,7 @@ export const dashboardService = {
       expectStep('Inicio SAT / asignaciones', () => expectData<any[]>(supabase.from('work_order_assignments').select(satDashboardAssignmentsSelect).eq('company_id', companyId).gte('assignment_date', prevDay).order('assignment_date', { ascending: false }), { service: 'dashboardService', operation: 'Inicio SAT / asignaciones', resource: 'work_order_assignments' })),
       expectStep('Inicio SAT / tecnicos', () => expectData<any[]>(supabase.from('profiles').select('*, profile_roles!profile_roles_profile_id_fkey(roles!profile_roles_role_id_fkey(name))').eq('company_id', companyId).eq('active', true).is('deleted_at', null).order('first_name'), { service: 'dashboardService', operation: 'Inicio SAT / tecnicos', resource: 'profiles' })),
       expectStep('Inicio SAT / checks pendientes', () => expectData<any[]>(supabase.from('v_pending_checks').select('*').eq('company_id', companyId).order('created_at', { ascending: false }), { service: 'dashboardService', operation: 'Inicio SAT / checks pendientes', resource: 'v_pending_checks' })),
-      expectStep('Inicio SAT / checks realizados', () => expectData<any[]>(supabase.from('v_completed_checks').select('*').eq('company_id', companyId).gte('finished_at', `${day}T00:00:00`).order('finished_at', { ascending: false }), { service: 'dashboardService', operation: 'Inicio SAT / checks realizados', resource: 'v_completed_checks' })),
+      expectStep('Inicio SAT / checks realizados', () => expectData<any[]>(supabase.from('v_completed_checks').select('*').eq('company_id', companyId).gte('finished_at', localDateBoundary(day, false)).order('finished_at', { ascending: false }), { service: 'dashboardService', operation: 'Inicio SAT / checks realizados', resource: 'v_completed_checks' })),
       expectStep('Inicio SAT / deficiencias', () => expectData<any[]>(supabase.from('deficiencies').select('*, clients!deficiencies_client_id_fkey(code,legal_name), equipment!deficiencies_equipment_id_fkey(code), work_orders!deficiencies_work_order_id_fkey(code)').eq('company_id', companyId).is('deleted_at', null).order('created_at', { ascending: false }), { service: 'dashboardService', operation: 'Inicio SAT / deficiencias', resource: 'deficiencies' })),
       expectStep('Inicio SAT / avisos', () => expectData<any[]>(supabase.from('alerts').select('*').eq('company_id', companyId).is('deleted_at', null).order('created_at', { ascending: false }), { service: 'dashboardService', operation: 'Inicio SAT / avisos', resource: 'alerts' })),
       expectStep('Inicio SAT / materiales', () => expectData<any[]>(supabase.from('work_order_materials').select('*, work_orders!work_order_materials_work_order_id_fkey(code,title,status), materials!work_order_materials_material_id_fkey(code,description)').eq('company_id', companyId).order('created_at', { ascending: false }), { service: 'dashboardService', operation: 'Inicio SAT / materiales', resource: 'work_order_materials' })),

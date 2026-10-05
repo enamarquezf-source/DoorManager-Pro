@@ -209,7 +209,7 @@ export function canAccessModule(profile: Profile | null | undefined, workspace: 
 }
 
 export function canAccessRoute(profile: Profile | null | undefined, path: string) {
-  if (!profile) return false;
+  if (!isActiveProfile(profile)) return false;
   const roles = rolesOf(profile);
   if (!roles.length || !roles.some((role) => roleToWorkspaceSafe(role))) return false;
   if (path.startsWith('/app/modulos/')) {
@@ -223,7 +223,7 @@ export function canAccessRoute(profile: Profile | null | undefined, path: string
   if (hasAny(profile, ['Tecnico']) && !hasAny(profile, ['SAT', 'Gerencia', 'Comercial', 'Oficina'])) {
     return path === '/app/checks' || path.startsWith('/app/checks/') || path.startsWith('/app/avisos');
   }
-  if (path.startsWith('/app/plantillas')) return hasAny(profile, ['SAT', 'Gerencia']);
+  if (path.startsWith('/app/plantillas')) return hasAny(profile, ['superadmin', 'SAT', 'Gerencia']);
   if (path.startsWith('/app/clientes') || path.startsWith('/app/centros') || path.startsWith('/app/equipos') || path.startsWith('/app/expedientes') || path.startsWith('/app/partes') || path.startsWith('/app/trabajos') || path.startsWith('/app/checks') || path.startsWith('/app/deficiencias')) return hasAny(profile, ['SAT', 'Gerencia', 'Comercial', 'Oficina']);
   if (path.startsWith('/app/documentos')) return hasAny(profile, ['SAT', 'Gerencia', 'Oficina']);
   if (path.startsWith('/app/gerencia')) return hasAny(profile, ['superadmin', 'Gerencia', 'SAT', 'Comercial', 'Oficina']);

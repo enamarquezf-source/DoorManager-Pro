@@ -104,7 +104,7 @@ describe('technicianOfflineService scope helpers', () => {
       { id: 'material:wo-1:sin-check:general', type: 'material', workOrderId: 'wo-1', payload: { material: 'Tornillo', quantity: 2 }, status: 'blocked', attempts: 3, createdAt: 'created-material', updatedAt: 'updated-material' },
       { id: blockId, type: 'check-block', workOrderId: 'wo-1', checkId: 'check-1', blockId: 'block-1', payload: { status: 'Todo favorable' }, status: 'pending', attempts: 0, createdAt: 'created-block', updatedAt: 'updated-block' },
       { id: 'photo-existing', type: 'photo', workOrderId: 'wo-1', payload: { id: 'photo-existing', name: 'existing.jpg' }, status: 'synced', attempts: 1, createdAt: 'created-photo', updatedAt: 'updated-photo' },
-    ];
+    ].map((record) => ({ ...record, profileId: 'profile-migration', companyId: 'company-migration' }));
 
     await new Promise<void>((resolve, reject) => {
       const request = indexedDB.deleteDatabase(dbName);
@@ -143,6 +143,8 @@ describe('technicianOfflineService scope helpers', () => {
     }) as typeof indexedDB.open);
 
     const { technicianOfflineService } = await import('./technicianOfflineService');
+    const { setOfflineIdentity } = await import('./technicianOfflineService');
+    setOfflineIdentity({ companyId: 'company-migration', profileId: 'profile-migration' });
     const migrated = await technicianOfflineService.list();
     expect(upgradeVersions).toEqual([2]);
     expect(migrated).toHaveLength(records.length);

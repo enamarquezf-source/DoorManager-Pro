@@ -1,10 +1,11 @@
+import { localDateKey } from '../shared/localDate';
 import { useState, type FormEvent } from 'react';
 import { treasuryService } from '../services/treasuryService';
 import { ModalShell } from '../components/FormPrimitives';
 
 type Account = { treasury_account_id: string; name: string; currency_code: string; active: boolean };
 type FormProps = { onClose: () => void; onSaved: () => void };
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localDateKey();
 const message = (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback;
 
 export function SavingAccountForm({ onClose, onSaved }: FormProps) {

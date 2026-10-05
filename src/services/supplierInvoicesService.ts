@@ -1,3 +1,4 @@
+import { localDateKey } from '../shared/localDate';
 import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, currentProfileId, expectData } from './query';
 import { supplierPaymentSummary } from './supplierPaymentsService';
@@ -71,8 +72,13 @@ export const supplierInvoicesService = {
     const company_id = await currentCompanyId();
     const created_by = await currentProfileId();
     if (!company_id || !payload.supplier_id) throw new Error('Selecciona un proveedor.');
+    const operationId = payload.operation_id;
+    if (operationId) {
+      const existing = await expectData<any>(supabase.from('supplier_invoices').select('*').eq('id', operationId).eq('company_id', company_id).eq('created_by', created_by).maybeSingle(), context('recover supplier invoice draft'));
+      if (existing) return { ...existing, recovered: true };
+    }
     const code = await expectData<string>(supabase.rpc('next_dmp_code', { p_company_id: company_id, p_table_name: 'supplier_invoices', p_prefix: 'FPR', p_yearly: true, p_width: 6 }), context('generate supplier invoice code'));
-    return expectData<any>(supabase.from('supplier_invoices').insert({ company_id, code, supplier_id: payload.supplier_id, supplier_invoice_number: clean(payload.supplier_invoice_number), invoice_date: payload.invoice_date || new Date().toISOString().slice(0, 10), due_date: clean(payload.due_date), currency_code: payload.currency_code || 'EUR', notes: clean(payload.notes), created_by, updated_by: created_by }).select().single(), context('create supplier invoice'));
+    return expectData<any>(supabase.from('supplier_invoices').insert({ ...(operationId ? { id: operationId } : {}), company_id, code, supplier_id: payload.supplier_id, supplier_invoice_number: clean(payload.supplier_invoice_number), invoice_date: payload.invoice_date || localDateKey(), due_date: clean(payload.due_date), currency_code: payload.currency_code || 'EUR', notes: clean(payload.notes), created_by, updated_by: created_by }).select().single(), context('create supplier invoice'));
   },
   updateDraft(id: string, payload: Record<string, any>) {
     return currentProfileId().then((updated_by) => expectData<any>(supabase.from('supplier_invoices').update({ supplier_id: payload.supplier_id, supplier_invoice_number: clean(payload.supplier_invoice_number), invoice_date: payload.invoice_date, due_date: clean(payload.due_date), currency_code: payload.currency_code || 'EUR', notes: clean(payload.notes), updated_by }).eq('id', id).select().single(), context('update supplier invoice', id)));

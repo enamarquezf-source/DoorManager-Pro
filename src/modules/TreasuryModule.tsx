@@ -1,3 +1,4 @@
+import { localDateKey } from '../shared/localDate';
 import { useEffect, useState, type FormEvent, type MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
 import type { Profile } from '../shared/types';
@@ -8,7 +9,7 @@ import { SavingAccountForm, SavingMovementForm, SavingTransferForm } from './Tre
 
 const money = (value: unknown, currency = 'EUR') => `${Number(value ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency === 'EUR' ? '€' : currency}`;
 const date = (value: string | null | undefined) => value ? new Date(`${value}T00:00:00`).toLocaleDateString('es-ES') : 'Sin fecha';
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localDateKey();
 
 type Account = { treasury_account_id: string; name: string; account_type: string; currency_code: string; opening_balance_date: string; balance: number; active: boolean };
 type DisplayTransaction = TreasuryTransaction & { account_name: string; opening_balance_date: string; historical: boolean; counterpart_account_name?: string };

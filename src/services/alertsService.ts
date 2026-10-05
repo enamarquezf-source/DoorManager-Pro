@@ -1,3 +1,4 @@
+import { normalizeAlertRecipients } from '../shared/alertRecipients';
 import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, currentProfileId, expectData } from './query';
 import { codesService } from './codesService';
@@ -12,11 +13,12 @@ export const alertsService = {
     return expectData<any[]>(supabase.from('v_unread_alerts').select('*').order('alert_date', { ascending: false }), { service: 'alertsService', operation: 'Avisos no leidos', resource: 'v_unread_alerts' });
   },
   async create(payload: Record<string, any>, recipients: { role?: string; profile_id?: string }[]) {
+    const destinations = normalizeAlertRecipients(recipients);
     const company_id = await currentCompanyId();
     const created_by = await currentProfileId();
     const code = await codesService.next('alerts', 'AVI', true);
     const alert = await expectData<any>(supabase.from('alerts').insert({ ...payload, company_id, created_by, code }).select().single());
-    if (recipients.length) await expectData<any[]>(supabase.from('alert_recipients').insert(recipients.map((item) => ({ company_id, alert_id: alert.id, recipient_role: item.role, recipient_profile_id: item.profile_id }))).select());
+    if (destinations.length) await expectData<any[]>(supabase.from('alert_recipients').insert(destinations.map((item) => ({ company_id, alert_id: alert.id, recipient_role: item.role, recipient_profile_id: item.profile_id }))).select());
     return alert;
   },
   async markAsRead(recipientId: string) {

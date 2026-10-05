@@ -5,7 +5,7 @@ export type DateRangeFilters = {
   updatedTo?: string;
 };
 
-function localDateBoundary(value: string, end: boolean) {
+export function localDateBoundary(value: string, end: boolean) {
   const [year, month, day] = value.split('-').map(Number);
   return new Date(year, month - 1, day + (end ? 1 : 0)).toISOString();
 }

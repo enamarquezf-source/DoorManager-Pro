@@ -47,7 +47,7 @@ describe('pending sync UI wiring', () => {
   });
 
   it('keeps the mobile shell from scrolling behind the open navigation', () => {
-    expect(app).toContain("document.body.style.overflow = 'hidden'");
+    expect(app).toContain('useModalScrollLock(mobileViewport && !collapsed)');
     expect(app).toContain("if (mobileOpen && event.key === 'Escape') setCollapsed(true)");
     expect(styles).toContain('.sidebar { z-index: 50;');
   });

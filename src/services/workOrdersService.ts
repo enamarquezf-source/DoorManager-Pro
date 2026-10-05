@@ -1,3 +1,4 @@
+import { canAssignTechnicalWorkOrder } from '../shared/assignmentEligibility';
 import { supabase } from '../lib/supabase/client';
 import { contains, currentCompanyId, currentProfileId, expectData, expectStep, toSpanishSupabaseError } from './query';
 import { isOfficeValidationUnavailable } from '../shared/officeValidation';
@@ -153,7 +154,7 @@ export const workOrdersService = {
     if (technicianOnly) {
       const profileId = await currentProfileId();
       const assignment = await expectData<any>(supabase.from('work_order_assignments').select('id,status,work_orders!work_order_assignments_work_order_id_fkey(status,deleted_at)').eq('work_order_id', workOrderId).eq('technician_id', profileId).is('deleted_at', null).not('status', 'in', '(Finalizado,Cancelado)').maybeSingle(), { service: 'workOrdersService', operation: 'Permiso técnico / resumen del parte', resource: workOrderId });
-      if (!assignment || !['Pendiente','Trabajo descargado','En desplazamiento','En intervencion','Pausado','Pendiente de material'].includes(assignment.work_orders?.status)) throw new Error('No tienes permiso para acceder a este trabajo');
+      if (!assignment || !canAssignTechnicalWorkOrder(assignment.work_orders)) throw new Error('No tienes permiso para acceder a este trabajo');
     }
     const officeValidationAvailable = await this.hasOfficeValidation();
     const officeValidationColumns = officeValidationAvailable ? 'office_validation_status, office_validation_reason,' : '';
@@ -191,7 +192,7 @@ export const workOrdersService = {
       if (work?.status) throw new Error(`Parte bloqueado. Motivo: ${work.status === 'Finalizado tecnicamente' ? 'Finalizado técnicamente' : work.status === 'Cerrado' ? 'Cerrado por SAT' : work.status === 'Cancelado' ? 'Cancelado' : 'Usuario sin asignación activa'}.`);
       throw new Error('Parte bloqueado. Motivo: usuario sin permiso o parte no disponible.');
     }
-    if (!['Pendiente','Trabajo descargado','En desplazamiento','En intervencion','Pausado','Pendiente de material'].includes(assignment.work_orders?.status)) throw new Error(`Parte bloqueado. Motivo: ${assignment.work_orders?.status === 'Finalizado tecnicamente' ? 'Finalizado técnicamente' : assignment.work_orders?.status ?? 'no está en trabajo activo'}. Revísalo desde Historial.`);
+    if (!canAssignTechnicalWorkOrder(assignment.work_orders)) throw new Error(`Parte bloqueado. Motivo: ${assignment.work_orders?.status === 'Finalizado tecnicamente' ? 'Finalizado técnicamente' : assignment.work_orders?.status ?? 'no está en trabajo activo'}. Solicita su revisión a SAT.`);
     return this.getWorkOrderFullDetail(id);
   },
   async getWorkOrderFullDetail(workOrderId: string): Promise<WorkOrderFullDetail> {

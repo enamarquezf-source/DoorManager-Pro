@@ -7,6 +7,11 @@ function profile(primary_area: RoleName, roles: RoleName[] = [primary_area]): Pr
 }
 
 describe('canAccessRoute', () => {
+  it('permite Plantillas a Superadmin y bloquea sesiones desactivadas', () => {
+    expect(canAccessRoute(profile('superadmin'), '/app/plantillas')).toBe(true);
+    expect(canAccessRoute({ ...profile('SAT'), active: false }, '/app/plantillas')).toBe(false);
+    expect(canAccessRoute({ ...profile('Oficina'), deleted_at: '2026-10-05' }, '/app/inicio')).toBe(false);
+  });
   it('normaliza SAT con Comercial a un unico workspace SAT', () => {
     const sat = profile('SAT', ['SAT', 'Comercial']);
     expect(profileWorkspaces(sat)).toEqual(['sat']);

@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase/client';
 export const filesBucket = 'dmp-files';
 
 const signedUrlCache = new Map<string, { url: string | null; expiresAt: number }>();
+let cacheGeneration = 0;
+export function clearSignedFileCache() { signedUrlCache.clear(); cacheGeneration += 1; }
 
 export function fileReference(row: Record<string, any>) {
   return {
@@ -16,7 +18,9 @@ export async function signedFileUrl(bucket: string, path?: string | null, expire
   const key = `${bucket}\u0000${path}\u0000${expiresIn}`;
   const cached = signedUrlCache.get(key);
   if (cached && cached.expiresAt > Date.now()) return cached.url;
+  const generation = cacheGeneration;
   const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, expiresIn);
+  if (generation !== cacheGeneration) throw new Error('La sesión ha cambiado. Vuelve a abrir el documento.');
   if (error) throw new Error('No se ha podido generar el acceso temporal al archivo.');
   const url = data?.signedUrl ?? null;
   signedUrlCache.set(key, { url, expiresAt: Date.now() + Math.max(1, expiresIn - 30) * 1000 });

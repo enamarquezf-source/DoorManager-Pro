@@ -21,7 +21,7 @@ describe('SAT operational workspace', () => {
     expect(app).toContain("planificacion: () => <PlanningModule />");
     expect(app).toContain("function PlanningModule()");
     expect(app).toContain("route?.kind === 'templates'");
-    expect(permissions).toContain("if (path.startsWith('/app/plantillas')) return hasAny(profile, ['SAT', 'Gerencia'])");
+    expect(permissions).toContain("if (path.startsWith('/app/plantillas')) return hasAny(profile, ['superadmin', 'SAT', 'Gerencia'])");
   });
 
   it('usa datos reales y filtros navegables en el inicio SAT', () => {

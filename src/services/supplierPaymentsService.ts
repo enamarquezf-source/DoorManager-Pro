@@ -20,8 +20,13 @@ export function supplierPaymentSummary(invoice: any, today = new Date()) {
 function round(value: number) { return Math.round((value + Number.EPSILON) * 100) / 100; }
 
 export const supplierPaymentsService = {
-  async list(invoiceId: string) {
-    return expectData<any[]>(supabase.from('supplier_invoice_payments').select('id,supplier_invoice_id,payment_date,amount,payment_method,reference,notes,created_at,created_by,reversed_at,reversed_by,reversal_reason').eq('supplier_invoice_id', invoiceId).order('payment_date', { ascending: false }).order('created_at', { ascending: false }), context('list supplier invoice payments', invoiceId));
+  async list(invoiceId: string, includeTreasury = false) {
+    const payments = await expectData<any[]>(supabase.from('supplier_invoice_payments').select('id,supplier_invoice_id,payment_date,amount,payment_method,reference,notes,created_at,created_by,reversed_at,reversed_by,reversal_reason').eq('supplier_invoice_id', invoiceId).order('payment_date', { ascending: false }).order('created_at', { ascending: false }), context('list supplier invoice payments', invoiceId));
+    if (!includeTreasury || !payments.length) return payments;
+    const transactions = await expectData<{ id: string; source_id: string }[]>(supabase.from('treasury_transactions')
+      .select('id,source_id').eq('source_type', 'supplier_payment').in('source_id', payments.map((payment) => payment.id)), context('check supplier payment treasury links', invoiceId));
+    const links = new Map(transactions.map((transaction) => [transaction.source_id, transaction.id]));
+    return payments.map((payment) => ({ ...payment, treasury_transaction_id: links.get(payment.id) ?? null }));
   },
   record(invoiceId: string, payload: { amount: number; payment_date: string; payment_method: SupplierPaymentMethod; reference?: string; notes?: string; treasury_account_id: string }) {
     return expectData<string>(supabase.rpc('dmp_record_supplier_payment', { p_supplier_invoice_id: invoiceId, p_amount: payload.amount, p_payment_date: payload.payment_date, p_payment_method: payload.payment_method, p_reference: payload.reference || null, p_notes: payload.notes || null, p_treasury_account_id: payload.treasury_account_id }), context('record supplier invoice payment', invoiceId));

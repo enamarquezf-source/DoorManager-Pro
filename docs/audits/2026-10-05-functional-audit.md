@@ -79,3 +79,9 @@ La migración 165 prepara `dmp_create_alert_atomic`: inserta cabecera y destinat
 Verificadas sintaxis SQL y PL/pgSQL, con dos pruebas adicionales. Pendientes: aplicación en Supabase, prueba de permisos/transacción real y conexión del formulario al RPC. La interfaz conserva todavía el servicio anterior; no se declara resuelta la creación atómica hasta completar esos pasos.
 
 Actualización: el usuario confirma aplicación completa de 165 con «Success». El formulario pasa a usar el RPC con un identificador estable por apertura y bloqueo inmediato de envíos simultáneos. Si falla la conexión, conserva los campos para reintentar el mismo envío. Tres pruebas de servicio verifican repetición del identificador tras respuesta perdida, rechazo de destinos vacíos y ausencia de fallback a inserciones separadas. No se ha realizado todavía una creación de prueba en producción ni se cubre recuperación tras cerrar el formulario o desde otra pestaña.
+
+## Evidencia de tesorería y actualización de pagos
+
+El panel de pagos de proveedor comprobaba una propiedad que su consulta nunca devolvía y por ello señalaba todos los pagos activos como no vinculados a tesorería. Ahora consulta los movimientos canónicos por `source_type=supplier_payment` y los identificadores de los pagos de la factura. Solo muestra ausencia cuando la consulta autorizada confirma que falta el movimiento; sin permiso de lectura de tesorería no inventa ese diagnóstico. Cuatro pruebas cubren vínculo presente, ausencia confirmada, lectura sin permiso, fallo de consulta y factura sin pagos.
+
+Tras fallo de registro/reversión o de recarga, el panel exige actualizar los pagos antes de otra operación. No permite usar el saldo anterior como si la actualización hubiera terminado correctamente. Esto no sustituye una clave de operación persistente del servidor; los reintentos entre pestañas siguen pendientes de auditoría. No se registraron pagos reales para estas pruebas.

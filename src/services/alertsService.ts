@@ -3,6 +3,14 @@ import { supabase } from '../lib/supabase/client';
 import { contains, currentProfileId, expectData } from './query';
 
 export const alertsService = {
+  listPersonal(search = '') {
+    return expectData<any[]>(supabase.rpc('dmp_list_personal_alerts', { p_search: search }));
+  },
+  async unreadPersonal() {
+    const rows = await alertsService.listPersonal();
+    return rows.filter(row => !row.is_read && !row.closed_at && row.alerts?.status !== 'Cerrado')
+      .map(row => ({ ...row.alerts, company_id: row.company_id, recipient_id: row.id, alert_id: row.alert_id, recipient_profile_id: row.recipient_profile_id, recipient_role: row.recipient_role }));
+  },
   list(search = '') {
     let query = supabase.from('alert_recipients').select('*, alerts!alert_recipients_alert_id_fkey!inner(*)').is('alerts.deleted_at', null).order('created_at', { ascending: false });
     if (search) query = query.or(contains(['title', 'description', 'type'], search), { referencedTable: 'alerts' });

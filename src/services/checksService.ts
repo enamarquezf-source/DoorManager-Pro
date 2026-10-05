@@ -49,10 +49,14 @@ async function uploadLocalFile(path: string, payload: Record<string, any>) {
 
 async function withCheckContext(rows: any[]) {
   const ids = [...new Set(rows.map((row) => row.work_order_id).filter(Boolean))];
-  if (!ids.length) return rows;
-  const orders = await expectData<any[]>(supabase.from('work_orders').select('id, clients!work_orders_client_id_fkey(legal_name), sites!work_orders_site_id_fkey(name)').in('id', ids));
+  const equipmentIds = [...new Set(rows.map((row) => row.equipment_id).filter(Boolean))];
+  const [orders, equipment] = await Promise.all([
+    ids.length ? expectData<any[]>(supabase.from('work_orders').select('id, clients!work_orders_client_id_fkey(legal_name), sites!work_orders_site_id_fkey(name)').in('id', ids)) : Promise.resolve([]),
+    equipmentIds.length ? expectData<any[]>(supabase.from('equipment').select('id, code, internal_location, brand, model, equipment_types!equipment_equipment_type_id_fkey(name)').in('id', equipmentIds)) : Promise.resolve([]),
+  ]);
   const byId = new Map(orders.map((order) => [order.id, order]));
-  return rows.map((row) => { const order = byId.get(row.work_order_id); return { ...row, client_name: row.client_name || order?.clients?.legal_name, site_name: row.site_name || order?.sites?.name }; });
+  const equipmentById = new Map(equipment.map((item) => [item.id, item]));
+  return rows.map((row) => { const order = byId.get(row.work_order_id); return { ...row, equipment: equipmentById.get(row.equipment_id) ?? row.equipment, client_name: row.client_name || order?.clients?.legal_name, site_name: row.site_name || order?.sites?.name }; });
 }
 
 export const checksService = {

@@ -71,3 +71,9 @@ Verificación final de esta entrega: 1.561 pruebas superadas, build correcto y m
 Se corrige el filtro OR compartido: comas, puntos, dos puntos, paréntesis, comillas y barras inversas se incluyen dentro de un valor entre comillas, con los escapes de PostgREST. Antes podían romper la consulta o introducir condiciones adicionales. Se conserva el comportamiento previo de las búsquedas simples y sus comodines.
 
 Referencia: https://docs.postgrest.org/en/v16/references/api/url_grammar.html#reserved-characters. Cinco pruebas usan el cliente Supabase real con transporte simulado, incluida una cadena que intentaba añadir una condición. Verifican la URL enviada; queda pendiente comprobar el parser de producción. Suite completa: **1.566 pruebas superadas**, build correcto. No requiere migración.
+
+## Preparación de creación transaccional de avisos
+
+La migración 165 prepara `dmp_create_alert_atomic`: inserta cabecera y destinatarios en la misma transacción, valida destinatarios activos de la empresa, elimina destinos repetidos y serializa reintentos por identificador de operación. Usa SECURITY INVOKER y mantiene RLS y permisos de tabla; no concede nuevas capacidades sobre esas tablas. Un reintento devuelve únicamente el aviso de la misma empresa y autor, no eliminado. La instalación no crea avisos ni modifica registros existentes.
+
+Verificadas sintaxis SQL y PL/pgSQL, con dos pruebas adicionales. Pendientes: aplicación en Supabase, prueba de permisos/transacción real y conexión del formulario al RPC. La interfaz conserva todavía el servicio anterior; no se declara resuelta la creación atómica hasta completar esos pasos.

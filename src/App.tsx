@@ -1542,9 +1542,9 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
       return normalizeCheckStatus(local.payload.status);
     return normalizeCheckStatus(zone.result?.result ?? "Sin revisar");
   };
-  const incidences = (zone: any) =>
-    pending.filter((item) => item.blockId === zone.id && item.payload.incidence)
-      .length;
+  const incidences = (sectionId: string) =>
+    (data.deficiencies ?? []).filter((item: any) => item.section_id === sectionId && !item.deleted_at).length
+    + pending.filter((item) => item.blockId === sectionId && item.payload.incidence).length;
   const pendingDetails = pending.map((item) => {
     const zone = zones.find((candidate) => candidate.id === item.blockId);
     return `${zone?.name ?? item.blockId ?? "Bloque"} — ${item.status}`;
@@ -1663,11 +1663,9 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
             <div>
               <strong>{zone.name}</strong>
               <small>
-                "Sección del check"{" "}
-                · {incidences(zone.id)} incidencias ·{" "}
-                {pending.some((item) => item.blockId === zone.id)
-                  ? "Pendiente de sincronizar"
-                  : "Sincronizado"}
+                {zone.items.length ? `${zone.items.length} comprobaciones` : 'Revisión técnica'}
+                {incidences(zone.id) > 0 && ` · ${incidences(zone.id)} incidencias`}
+                {pending.some((item) => item.blockId === zone.id) && ' · Pendiente de sincronizar'}
               </small>
             </div>
             <Badge tone={severityForStatus(sectionStatus(zone))}>
@@ -1985,9 +1983,8 @@ function CheckBlockPageV2({
         <h2>{zone.name}</h2>
         <Badge tone={severityForStatus(status)}>{displayStatus(status)}</Badge>
         <small>
-          {data.check_templates?.name ?? "Plantilla no informada"} ·{" "}
-           {equipmentLabel.primary} · {equipmentLabel.secondary} · Técnico:{" "}
-          {fullName(data.profiles) || "-"}
+          {equipmentLabel.primary} · {data.equipment?.code ?? 'Código no informado'}
+          {workspace === 'tecnico' ? ` · Revisando: ${fullName(profile)}` : data.profiles ? ` · Técnico: ${fullName(data.profiles)}` : ''}
         </small>
         <div className="actions">
           <Link
@@ -2008,7 +2005,7 @@ function CheckBlockPageV2({
         </div>
       </header>
       <EquipmentPhotoPanel equipmentId={data.equipment?.id} canManage={canExecuteCheck(profile) && Boolean(data.work_order_id)} contextWorkOrderId={data.work_order_id} compact />
-      <Card title="Resultado remoto">
+      <details className="technician-work-details"><summary>Resumen de la revisión</summary><Card title="Resumen de la revisión">
         <InfoGrid
           items={[
             ["Estado", displayStatus(status)],
@@ -2026,7 +2023,7 @@ function CheckBlockPageV2({
             ],
           ]}
         />
-      </Card>
+      </Card></details>
       <Card title="Ítems de la sección">
         <div className="work-detail-list">
           {(section.check_template_items ?? []).map((item: any) => {
@@ -2041,7 +2038,7 @@ function CheckBlockPageV2({
                 <p>
                   <strong>{item.title}</strong>
                   <br />
-                  <small>{item.component ?? "Componente no informado"}</small>
+                  {item.component && item.component !== item.title && <small>{item.component}</small>}
                   <br />
                   {result?.observations ?? ""}
                 </p>
@@ -2050,7 +2047,7 @@ function CheckBlockPageV2({
           })}
         </div>
       </Card>
-      <Card title={`Fotos del bloque (${remotePhotos.length})`}>
+      {remotePhotos.length > 0 && <Card title={`Fotos del bloque (${remotePhotos.length})`}>
         <div className="media-grid">
           {remotePhotos.map((photo: any) =>
             photo.signed_url ? (
@@ -2086,8 +2083,8 @@ function CheckBlockPageV2({
             <p className="large-note">Sin fotos remotas para este bloque.</p>
           )}
         </div>
-      </Card>
-      <Card title={`Deficiencias (${relatedDeficiencies.length})`}>
+      </Card>}
+      {relatedDeficiencies.length > 0 && <Card title={`Deficiencias (${relatedDeficiencies.length})`}>
         <CompactRows
           rows={relatedDeficiencies.map((item: any) => [
             item.code ?? item.severity,
@@ -2097,7 +2094,7 @@ function CheckBlockPageV2({
           ])}
           empty="Sin deficiencias relacionadas."
         />
-      </Card>
+      </Card>}
       {canExecuteCheck(profile) && (
         <>
           <div className="status-grid">

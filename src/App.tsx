@@ -1175,6 +1175,7 @@ function WorkOrderMaterialForm({ workOrder, initial, onClose, onSaved }: { workO
   const showCosts = canViewWorkOrderCosts(profile);
   const [search, setSearch] = useState('');
   const [additional, setAdditional] = useState(initial?.source === 'additional');
+  const [selectedOption, setSelectedOption] = useState<any>(initial?.materials && initial?.material_id ? { ...initial.materials, id: initial.material_id } : null);
   const catalog = useLoad(() => workOrdersService.materialsCatalog(search), [search], [] as any[]);
   const warehouses = useLoad(() => workOrdersService.warehousesCatalog(), [], [] as any[]);
   const warehouseStock = useLoad(() => workOrdersService.warehouseStockCatalog(), [], [] as any[]);
@@ -1183,12 +1184,13 @@ function WorkOrderMaterialForm({ workOrder, initial, onClose, onSaved }: { workO
   const [saving, setSaving] = useState(false);
   const submitting = useRef(false);
   const set = (key: string, value: string) => setValues((current) => ({ ...current, [key]: value }));
-  const selectedMaterial = catalog.data.find((item: any) => item.id === values.material_id);
+  const selectedMaterial = catalog.data.find((item: any) => item.id === values.material_id) ?? (selectedOption?.id === values.material_id ? selectedOption : null);
+  const materialOptions = selectedMaterial && !catalog.data.some((item: any) => item.id === selectedMaterial.id) ? [selectedMaterial, ...catalog.data] : catalog.data;
   const requiresWarehouse = Boolean(values.material_id) && selectedMaterial?.stock_controlled !== false;
   const selectedStockRow = warehouseStock.data.find((item: any) => item.material_id === values.material_id && item.warehouse_id === values.warehouse_id);
   const selectedStock = Number(selectedStockRow?.quantity ?? 0);
   const stockBlocked = false;
-  const selectMaterial = (value: string) => { const material = catalog.data.find((item: any) => item.id === value); setValues((current) => ({ ...current, material_id: value, description: material?.description ?? current.description, unit: material?.unit ?? current.unit, unit_price: material?.price != null ? String(material.price) : current.unit_price })); };
+  const selectMaterial = (value: string) => { const material = materialOptions.find((item: any) => item.id === value); setSelectedOption(material ?? null); setValues((current) => ({ ...current, material_id: value, description: material?.description ?? current.description, unit: material?.unit ?? current.unit, unit_price: material?.price != null ? String(material.price) : current.unit_price })); };
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (submitting.current) return;
@@ -1208,7 +1210,7 @@ function WorkOrderMaterialForm({ workOrder, initial, onClose, onSaved }: { workO
   return <ModalShell title={initial ? 'Editar material' : 'Añadir material'} onClose={onClose} canClose={!saving}><form onSubmit={submit}>
     <p className="large-note">Selecciona un material del catálogo o describe uno no catalogado. Los materiales no catalogados no descuentan existencias.</p>
     <label>Buscar catálogo<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Código, descripción, fabricante o referencia" /></label>
-    <FormSelect label="Material de catálogo" value={values.material_id ?? ''} onChange={selectMaterial} options={[{ value: '', label: 'Material no catalogado' }, ...catalog.data.map((item: any) => ({ value: item.id, label: `${item.code ?? '-'} · ${item.description}` }))]} loading={catalog.loading} />
+    <FormSelect label="Material de catálogo" value={values.material_id ?? ''} onChange={selectMaterial} options={[{ value: '', label: 'Material no catalogado' }, ...materialOptions.map((item: any) => ({ value: item.id, label: `${item.code ?? '-'} · ${item.description}` }))]} loading={catalog.loading} />
     {requiresWarehouse && <FormSelect label="Almacén de origen" value={values.warehouse_id ?? ''} onChange={(value) => set('warehouse_id', value)} options={[{ value: '', label: warehouses.loading ? 'Cargando almacenes...' : 'Selecciona almacén' }, ...warehouses.data.map((item: any) => ({ value: item.id, label: `${item.code} · ${item.name}` }))]} loading={warehouses.loading} />}
     {selectedMaterial && <p className={stockBlocked ? 'form-error' : 'large-note'}>{values.warehouse_id ? selectedStockRow ? `Stock en el almacen seleccionado: ${selectedStock.toLocaleString('es-ES')} ${selectedMaterial.unit ?? 'ud'}` : 'Sin apertura en este almacen. Puedes registrar el consumo cuando exista apertura.' : 'Selecciona un almacen para consultar stock'} </p>}
     <label>Descripción alternativa<input value={values.description ?? ''} onChange={(event) => set('description', event.target.value)} placeholder="Obligatoria si no eliges catálogo" /></label>

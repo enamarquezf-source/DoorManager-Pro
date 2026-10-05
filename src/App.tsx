@@ -97,6 +97,7 @@ import { FilterBar } from './components/FilterBar';
 import { FormSection, ModalShell, SidePanelShell, useDialogFocus } from './components/FormPrimitives';
 import { detailBackRoute } from './routing/detailBackRoute';
 import { completeConceptChanges } from './shared/conceptChanges';
+import { isWorkAccessFailure } from './shared/workAccessFailure';
 
 type AuthContextValue = { initialized: boolean; session: Session | null; profile: Profile | null; profileError: string | null; userId: string | null; companyId: string | null; profileId: string | null; workspace: Workspace; setWorkspace: (workspace: Workspace) => void; refreshProfile: () => Promise<void>; signOut: () => Promise<void> };
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -866,7 +867,7 @@ function WorkOrderDetailPageV2({ forcedId }: { forcedId?: string } = {}) {
     if (detailQuery.data) await Promise.all([summaryQuery.refetch(), detailQuery.refetch()]);
     else await summaryQuery.refetch();
   };
-  if (workspace === 'tecnico' && (error || (!loading && !data))) return <AccessDenied />;
+  if (workspace === 'tecnico' && !loading && !data && (!error || isWorkAccessFailure(error))) return <AccessDenied />;
   if (loading || error || !data) return <StateBlock loading={loading} error={error} retry={reload} empty={!data} />;
   if (!canViewWorkOrder(profile, data)) return workspace === 'tecnico' ? <AccessDenied /> : <StateBlock loading={false} error="No tienes permiso para acceder a este parte" retry={undefined} empty={false} />;
   const summary = { ...interventionSummary(data), lastSync: interventionSummary(data).syncedAt };
@@ -1525,7 +1526,7 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
     remoteLocalChangeIds: remoteLocalChangeIds(data),
   });
   const [equipmentPhotoVersion, setEquipmentPhotoVersion] = useState(0);
-  if (workspace === "tecnico" && (error || (!loading && !data)))
+  if (workspace === "tecnico" && !loading && !data && (!error || isWorkAccessFailure(error)))
     return <AccessDenied />;
   if (loading || error || !data)
     return (
@@ -1749,7 +1750,7 @@ function CheckBlockPageV2({
   const blockId = forcedBlockId ?? routeBlockId;
   const navigate = useNavigate();
   const { profile, workspace } = useAuth();
-  const { data, loading, error } = useLoad(
+  const { data, loading, error, reload } = useLoad(
     () =>
       workspace === "tecnico"
         ? checksService.getTechnicianAssigned(id)
@@ -1839,14 +1840,14 @@ function CheckBlockPageV2({
     JSON.stringify(remoteLocalChangeIds(data)),
   ]);
   if (!canExecuteCheck(profile)) return <AccessDenied />;
-  if (workspace === "tecnico" && (error || (!loading && !data)))
+  if (workspace === "tecnico" && !loading && !data && (!error || isWorkAccessFailure(error)))
     return <AccessDenied />;
   if (loading || error || !data)
     return (
       <StateBlock
         loading={loading}
         error={error}
-        retry={undefined}
+        retry={reload}
         empty={!data}
       />
     );
@@ -2250,7 +2251,7 @@ function AlertsPanel({ onClose, showFilters = false }: { onClose?: () => void; s
     if (filter === 'administrativos') return normalizeParam(alert.type) === 'administrativo';
     return true;
   });
-  return <StateBlock loading={loading} error={error} retry={reload} empty={false}>{actionError && <p className="form-error">{actionError}</p>}{showFilters && <div className="alert-filters"><div className="tabs">{alertFilterOptions.map(([key, label]) => <button key={key} className={`${filter === key ? 'active' : ''} ${['todos','sin-leer','abiertos'].includes(key) ? 'alert-filter-main' : 'alert-filter-secondary'}`} onClick={() => setFilter(key)}>{label}</button>)}</div><label className="alert-filter-mobile">Filtrar avisos<select value={filter} onChange={(event) => setFilter(event.target.value)}>{alertFilterOptions.map(([key,label]) => <option key={key} value={key}>{label}</option>)}</select></label><p className="large-note">Filtro activo: {filter.replace('-', ' ')} · {filtered.length} resultado(s)</p><button className="link-button" onClick={() => setFilter('todos')}>Restablecer filtros</button></div>}{!filtered.length ? <Card title="Sin avisos para este filtro"><p className="large-note">No hay avisos que cumplan el filtro seleccionado. Puedes restablecer filtros o crear un aviso nuevo si tu rol lo permite.</p></Card> : <div className="alerts-panel compact-list">{filtered.map((row) => { const alert = row.alerts; const relatedRoute = routeForAlert(alert); const relatedSupported = isSupportedAlertRoute(alert); return <article key={row.id} className={row.is_read ? 'read' : ''}><Badge tone={severityForPriority(alert.priority)}>{alert.title}</Badge><p>{alert.description}<br /><small>{formatDate(alert.alert_date)} · {row.closed_at ? 'Cerrado en esta bandeja' : 'Abierto en esta bandeja'} · {row.closed_at ? 'Cerrado por destinatario' : row.is_read ? 'Leído' : 'Sin leer'}</small></p><div className="row-actions"><button onClick={() => markRead(row)} disabled={row.is_read}>Marcar como leído</button><button onClick={() => open(row)}>Abrir aviso</button>{relatedSupported && <button onClick={() => goRelated(row)}>Ir al registro</button>}{!relatedSupported && alertRouteFallbackReason(alert) && <small className="form-error">{alertRouteFallbackReason(alert)} Se mantiene en Avisos.</small>}{row.closed_at ? <button disabled={Boolean(busyId)} onClick={() => reopen(row)}>Reabrir</button> : <button disabled={Boolean(busyId)} onClick={() => close(row)}>Cerrar</button>}</div></article>; })}</div>}{opened && <SidePanel title={opened.alerts.title} subtitle="Ficha de aviso" onClose={() => setOpenedId(null)}><InfoGrid items={[[ 'Código', opened.alerts.code ], [ 'Tipo', displayStatus(opened.alerts.type) ], [ 'Prioridad', displayStatus(opened.alerts.priority) ], [ 'Fecha', formatDate(opened.alerts.alert_date) ], [ 'Bandeja', opened.closed_at ? 'Cerrado' : 'Abierto' ], [ 'Destinatario', opened.recipient_profile_id ? 'Usuario concreto' : opened.recipient_role ?? '-' ]]} /><Card title="Descripción"><p className="alert-description">{opened.alerts.description || 'Sin descripción'}</p></Card>{actionError && <p className="form-error" role="alert">{actionError}</p>}<div className="actions">{isSupportedAlertRoute(opened.alerts) && <button onClick={() => goRelated(opened)}>Ir al registro relacionado</button>}<button disabled={Boolean(busyId)} onClick={() => opened.closed_at ? reopen(opened) : close(opened)}>{opened.closed_at ? 'Reabrir aviso' : 'Cerrar aviso'}</button><DeleteRecordAction kind="alert" recordId={opened.alerts.id} title={opened.alerts.title} profile={profile} onDeleted={() => { setOpenedId(null); notify(); }} /></div></SidePanel>}</StateBlock>;
+  return <StateBlock loading={loading} error={error} retry={reload} empty={false}>{actionError && <p className="form-error" role="alert">{actionError}</p>}{showFilters && <div className="alert-filters"><div className="tabs">{alertFilterOptions.map(([key, label]) => <button key={key} className={`${filter === key ? 'active' : ''} ${['todos','sin-leer','abiertos'].includes(key) ? 'alert-filter-main' : 'alert-filter-secondary'}`} onClick={() => setFilter(key)}>{label}</button>)}</div><label className="alert-filter-mobile">Filtrar avisos<select value={filter} onChange={(event) => setFilter(event.target.value)}>{alertFilterOptions.map(([key,label]) => <option key={key} value={key}>{label}</option>)}</select></label><p className="large-note">Filtro activo: {filter.replace('-', ' ')} · {filtered.length} resultado(s)</p><button className="link-button" onClick={() => setFilter('todos')}>Restablecer filtros</button></div>}{!filtered.length ? <Card title="Sin avisos para este filtro"><p className="large-note">No hay avisos que cumplan el filtro seleccionado. Puedes restablecer filtros o crear un aviso nuevo si tu rol lo permite.</p></Card> : <div className="alerts-panel compact-list">{filtered.map((row) => { const alert = row.alerts; const relatedRoute = routeForAlert(alert); const relatedSupported = isSupportedAlertRoute(alert); return <article key={row.id} className={`alert-record linked-equipment-record${row.is_read ? ' read' : ''}`}><button type="button" className="record-title-button record-primary-link" aria-label={`Abrir aviso: ${alert.title}`} onClick={() => open(row)}><Badge tone={severityForPriority(alert.priority)}>{alert.title}</Badge></button><p>{alert.description}<br /><small>{formatDate(alert.alert_date)} · {row.closed_at ? 'Cerrado en esta bandeja' : 'Abierto en esta bandeja'} · {row.closed_at ? 'Cerrado por destinatario' : row.is_read ? 'Leído' : 'Sin leer'}</small></p><div className="row-actions"><button type="button" onClick={() => markRead(row)} disabled={row.is_read || Boolean(busyId)}>Marcar como leído</button>{relatedSupported && <button type="button" disabled={Boolean(busyId)} onClick={() => goRelated(row)}>Ir al registro</button>}{!relatedSupported && alertRouteFallbackReason(alert) && <small className="form-error">{alertRouteFallbackReason(alert)} Se mantiene en Avisos.</small>}{row.closed_at ? <button disabled={Boolean(busyId)} onClick={() => reopen(row)}>Reabrir</button> : <button disabled={Boolean(busyId)} onClick={() => close(row)}>Cerrar</button>}</div></article>; })}</div>}{opened && <SidePanel title={opened.alerts.title} subtitle="Ficha de aviso" onClose={() => setOpenedId(null)}><InfoGrid items={[[ 'Código', opened.alerts.code ], [ 'Tipo', displayStatus(opened.alerts.type) ], [ 'Prioridad', displayStatus(opened.alerts.priority) ], [ 'Fecha', formatDate(opened.alerts.alert_date) ], [ 'Bandeja', opened.closed_at ? 'Cerrado' : 'Abierto' ], [ 'Destinatario', opened.recipient_profile_id ? 'Usuario concreto' : opened.recipient_role ?? '-' ]]} /><Card title="Descripción"><p className="alert-description">{opened.alerts.description || 'Sin descripción'}</p></Card>{actionError && <p className="form-error" role="alert">{actionError}</p>}<div className="actions">{isSupportedAlertRoute(opened.alerts) && <button onClick={() => goRelated(opened)}>Ir al registro relacionado</button>}<button disabled={Boolean(busyId)} onClick={() => opened.closed_at ? reopen(opened) : close(opened)}>{opened.closed_at ? 'Reabrir aviso' : 'Cerrar aviso'}</button><DeleteRecordAction kind="alert" recordId={opened.alerts.id} title={opened.alerts.title} profile={profile} onDeleted={() => { setOpenedId(null); notify(); }} /></div></SidePanel>}</StateBlock>;
 }
 
 function DocumentsPage() { const { profile } = useAuth(); return <DocumentLibrary profile={profile} />; }

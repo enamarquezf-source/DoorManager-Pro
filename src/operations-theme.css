@@ -386,6 +386,8 @@ textarea { resize: none; }
 .linked-equipment-record:hover, .check-summary-card:has(.record-primary-link):hover { background: #f1f8f7; border-color: #397c76; }
 .linked-equipment-record:focus-within, .check-summary-card:focus-within { outline: 2px solid #25776e; outline-offset: 3px; }
 .linked-equipment-record > button, .check-summary-card .lifecycle-panel { position: relative; z-index: 2; }
+.alert-record > .record-primary-link { position: static; z-index: auto; }
+.alert-record > .row-actions { position: relative; z-index: 2; }
 .check-summary-card .lifecycle-panel { grid-column: 1 / -1; }
 .record-primary-link { color: #173f47; text-decoration: none; }
 .record-primary-link:hover { text-decoration: underline; text-underline-offset: 3px; }

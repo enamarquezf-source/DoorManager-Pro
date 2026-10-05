@@ -1505,7 +1505,10 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
         empty={!data}
       />
     );
-  if (!canViewCheck(profile, data)) return <AccessDenied />;
+  // En técnico, getTechnicianAssigned ya ha validado empresa y responsable.
+  // No volver a exigir una asignación activa del parte histórico: el check puede
+  // seguir pendiente aunque el parte haya pasado a estado finalizado/facturado.
+  if (workspace !== "tecnico" && !canViewCheck(profile, data)) return <AccessDenied />;
   const template = visualTemplateForCheck(data);
   const zones = buildFunctionalCheckBlocks(data);
   const typeName = equipmentTypeName(data.equipment);

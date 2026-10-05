@@ -106,7 +106,7 @@ export const checksService = {
     // Un check ya creado conserva su responsable aunque el parte haya pasado a histórico.
     // La asignación del parte se mantiene como alternativa para checks sin responsable directo.
     if (check.technician_id && profileIds.includes(check.technician_id)) return this.get(id);
-    const assignment = await expectData<any>(supabase.from('work_order_assignments').select('id').eq('work_order_id', check.work_order_id).in('technician_id', profileIds).is('deleted_at', null).maybeSingle());
+    const assignment = await expectData<any>(supabase.from('work_order_assignments').select('id').eq('work_order_id', check.work_order_id).in('technician_id', profileIds).is('deleted_at', null).limit(1).maybeSingle());
     if (!assignment) throw new Error('No tienes permiso para acceder a este trabajo');
     return this.get(id);
   },

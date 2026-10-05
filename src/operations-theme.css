@@ -350,3 +350,13 @@ textarea { resize: none; }
 .technician-day-meta { font-size: 13px; color: #526e76; font-weight: 400; }
 .technician-scroll-shortcut { position: fixed; right: 16px; bottom: 18px; bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 30; width: 44px; min-height: 44px; padding: 0; border-radius: 50%; background: #173f47; color: #fff; box-shadow: 0 3px 12px #173f4726; font-size: 22px; }
 .technician-workstation { padding-bottom: 64px; }
+
+.alert-filter-mobile { display: none; }
+@media (max-width: 640px) {
+  .alert-filters .tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .alert-filters .tabs .alert-filter-secondary { display: none; }
+  .alert-filters .tabs .alert-filter-main { min-width: 0; min-height: 44px; padding: 10px 6px; font-size: 13px; }
+  .alert-filter-mobile { display: grid; gap: 4px; margin: 10px 0 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+  .alert-filter-mobile select { width: 100%; min-height: 44px; }
+  .alert-filters > .large-note { margin: 6px 0; font-size: 12px; }
+}

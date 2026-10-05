@@ -155,3 +155,9 @@ El listado y el pedido de origen dejan de escribir sus resultados en estado loca
 Suite completa de la migración de cargas: 1.597 pruebas. Tras añadir los mensajes y recuperación de carga, se verifican las 15 pruebas de facturas proveedor y se recompila. No se afirma probado el orden de respuestas con red real o móvil. No requiere migración nueva.
 
 Referencia de UX propuesta al usuario: Jobber para jornada móvil centrada en visitas/trabajos (https://www.getjobber.com/features/field-service-management-app/), Linear para vistas y filtros guardados (https://linear.app/docs/custom-views), Odoo Field Service para reunir productos, tiempos y hojas de trabajo en la tarea (https://www.odoo.com/es_ES/slides/slide/your-first-field-service-task-6802). Son referencias de patrones, no pruebas de usabilidad de DMP. Pendiente validar un patrón común de ficha y listados con tareas reales y tamaños móviles.
+
+## Comprobación móvil de Avisos y reducción de filtros
+
+Se inspeccionó Avisos en producción mediante viewport solicitado de 390x844. El navegador informó ancho CSS efectivo 325 (la captura refleja el escalado del navegador) y ancho de documento 312; no hubo desbordamiento horizontal del documento. La captura mostró los ocho filtros en cinco filas antes del primer aviso; la cabecera móvil no técnica ocupa unos 120 px CSS. Esto no verifica todavía el trabajo del técnico ni otros módulos.
+
+Se compactan los filtros solo hasta 640 px: Todos, Sin leer y Abiertos en una fila, con selector etiquetado que mantiene todas las opciones, incluidas las secundarias. En escritorio siguen los ocho botones. El selector y los botones mantienen altura mínima de 44 px. No se cambian criterios, permisos ni datos de avisos. Se restauró el viewport después de la inspección. Suite completa: 1.597 pruebas, build correcto y diff sin errores. Pendiente captura y prueba de selección posteriores al despliegue de este ajuste.

@@ -141,3 +141,9 @@ Se prepara la migración 167 con dmp_create_supplier_invoice_atomic: cabecera, l
 Dos pruebas adicionales comprueban sintaxis SQL/PLpgSQL y controles estructurales. No equivalen a una prueba de rollback real en PostgreSQL. Pendiente aplicación en Supabase y conexión del formulario; la pantalla publicada continúa usando el flujo anterior hasta confirmar la instalación, para no romper el servicio durante el despliegue.
 
 Preparada también la llamada cliente createDraftAtomic, todavía sin activar en la pantalla. Dos pruebas comprueban el envío conjunto, normalización numérica y reintento del mismo identificador tras respuesta perdida, sin escrituras directas ni fallback parcial. Suite completa: 1.597/1.597 pruebas, build correcto y diff sin errores. Se ha solicitado al usuario aplicar la 167; pendiente su confirmación y la conexión del formulario.
+
+## Conexión del formulario tras confirmar la 167
+
+El usuario confirma «Success. No rows returned» para la 167. Crear factura proveedor utiliza ahora createDraftAtomic con todas las sugerencias del pedido/recepciones. Se eliminan del envío inicial las llamadas separadas addLine y addAllocation; siguen disponibles para la edición explícita de borradores. Ante respuesta perdida se conserva el mismo identificador mientras el formulario siga abierto. La recuperación tras cerrar y volver a abrir ese formulario continúa pendiente: su identificador aún reside en un ref de la instancia.
+
+Verificación posterior a la conexión: 1.597/1.597 pruebas, build correcto, diff sin errores. No se crearon facturas financieras de prueba en producción, por lo que no se afirma verificado un rollback real de las tres tablas ni una creación concurrente real. La instalación está confirmada por el usuario; la atomicidad está implementada en una sola función sin manejo que absorba excepciones.

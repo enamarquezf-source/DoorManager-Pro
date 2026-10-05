@@ -44,3 +44,10 @@ export function ModalShell({ title, onClose, children, labelledBy, describedBy, 
   const close = () => { if (canClose) onClose(); };
   return createPortal(<div className="mini-modal" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={describedBy} onClick={(event) => event.stopPropagation()} onMouseDown={(event) => { event.stopPropagation(); if (closeOnBackdrop && event.target === event.currentTarget) close(); }} onWheel={(event) => event.stopPropagation()} onTouchMove={(event) => event.stopPropagation()}><div ref={panelRef} tabIndex={-1} className={`modal-panel ${className}`.trim()}><header className="modal-header"><h3 id={titleId}>{title}</h3><button type="button" className="modal-close" onClick={close} disabled={!canClose} aria-label="Cerrar">×</button></header>{children}</div></div>, document.body);
 }
+
+export function SidePanelShell({ title, subtitle, onClose, children }: { title: ReactNode; subtitle?: ReactNode; onClose: () => void; children: ReactNode }) {
+  useModalScrollLock();
+  const panelRef = useDialogFocus<HTMLElement>(onClose);
+  const titleId = `panel-title-${useId().replace(/:/g, '')}`;
+  return createPortal(<div className="overlay" role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={(event) => event.stopPropagation()} onMouseDown={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }} onWheel={(event) => event.stopPropagation()} onTouchMove={(event) => event.stopPropagation()}><aside ref={panelRef} tabIndex={-1} className="side-panel"><header><div>{subtitle && <p className="eyebrow">{subtitle}</p>}<h2 id={titleId}>{title}</h2></div><button type="button" onClick={onClose} aria-label="Cerrar">×</button></header>{children}</aside></div>, document.body);
+}

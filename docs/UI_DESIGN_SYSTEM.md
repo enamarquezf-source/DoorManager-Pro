@@ -8,6 +8,17 @@ La interfaz debe sentirse como una herramienta empresarial real: rápida, clara,
 
 ## 1. Principios visuales
 
+### Interacción común de registros
+
+- Un registro con una ficha debe poder abrirse desde toda su superficie mediante un enlace nativo, también con teclado.
+- Las acciones secundarias conservan su área independiente; pulsar archivar o editar no debe abrir la ficha.
+- Mostrar nombre, contexto y estado antes de entrar. Reservar los detalles extensos para desplegables.
+- Usar el mismo tratamiento de hover, foco y destino en equipos, materiales, checks y partes.
+- En el técnico móvil, los desplegables por equipo muestran únicamente información técnica relevante y cargan al abrirse.
+- Evitar convertir texto informativo en controles sin una acción útil.
+
+Referencias: [NN/g: tarjetas](https://www.nngroup.com/articles/cards-component/), [NN/g: divulgación progresiva](https://www.nngroup.com/articles/progressive-disclosure/), [WCAG 2.2](https://www.w3.org/TR/WCAG/).
+
 - Priorizar contenido, contexto y operaciones.
 - Mantener una densidad media: suficiente información visible sin saturar.
 - Construir una jerarquía visual fuerte y predecible.

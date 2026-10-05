@@ -69,8 +69,12 @@ export const equipmentService = {
     return expectData<any[]>(supabase.from('v_equipment_history').select('*').eq('equipment_id', id).order('event_at', { ascending: false }));
   },
   async technicianContext(id: string) {
+    const associations = await expectData<any[]>(supabase.from('work_order_equipment').select('work_order_id').eq('equipment_id', id));
+    const workIds = [...new Set(associations.map((row) => row.work_order_id).filter(Boolean))];
+    let workQuery = supabase.from('work_orders').select('id, status, work_performed, result, updated_at, created_at');
+    workQuery = workIds.length ? workQuery.or(`main_equipment_id.eq.${id},id.in.(${workIds.join(',')})`) : workQuery.eq('main_equipment_id', id);
     const [workOrders, deficiencies] = await Promise.all([
-      expectData<any[]>(supabase.from('work_orders').select('id, status, description, work_performed, result, updated_at, created_at').eq('main_equipment_id', id).is('deleted_at', null).order('created_at', { ascending: false }).limit(12)),
+      expectData<any[]>(workQuery.is('deleted_at', null).order('created_at', { ascending: false }).limit(12)),
       expectData<any[]>(supabase.from('deficiencies').select('id, code, description, severity, status, created_at').eq('equipment_id', id).is('deleted_at', null).order('created_at', { ascending: false }).limit(12)),
     ]);
     return { workOrders, deficiencies };

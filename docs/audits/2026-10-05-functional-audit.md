@@ -91,3 +91,9 @@ Tras fallo de registro/reversión o de recarga, el panel exige actualizar los pa
 El 5 de octubre se confirma públicamente el despliegue 083d779. La sesión existente de Marta Lopez muestra FPR-2026-000004 registrada, cuatro radares, base 680 €, IVA 142,80 €, total y pagado 822,80 €, pendiente 0 €. El pago aparece activo sin el falso diagnóstico de tesorería ausente. No se registró ni revirtió un pago durante la comprobación.
 
 En Materiales, la búsqueda `9,24` devuelve exclusivamente Motor Elecktromaten TS 9,24, con stock mostrado de 8 unidades. El diálogo Crear aviso abre y cancela sin guardar, con textarea no redimensionable y fondo bloqueado mientras está abierto. Esta comprobación de lectura no verifica la creación atómica real ni los reintentos del servidor. La suite más reciente contiene **1.575 pruebas superadas** y el build es correcto.
+
+## Reintentos de adjuntos de factura
+
+La pantalla generaba una ruta distinta en cada intento aunque el RPC de registro ya era idempotente por ruta (migración 157). Se conserva ahora un identificador por archivo seleccionado, se bloquea inmediatamente el envío simultáneo y se reintenta la misma ruta sin sobrescribir objetos. Los conflictos de objeto existente permiten volver al RPC, que comprueba propietario, factura y origen y recupera el documento existente. Se reconocen tanto 409 como los errores 400 de objeto existente documentados por Supabase: https://supabase.com/docs/guides/storage/uploads/standard-uploads.
+
+Cinco pruebas verifican pérdida de respuesta de registro, reintentos con ambos códigos de conflicto, rechazo de permisos/autenticación y rechazo de identificadores que alteran la ruta. No se eliminan archivos ante respuestas inciertas ni se suben archivos reales en estas pruebas. Quedan pendientes recuperación tras cerrar la pantalla, limpieza asistida de objetos huérfanos y prueba de subida en producción con un documento autorizado.

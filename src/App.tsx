@@ -1318,8 +1318,8 @@ function TechnicianDayPage() {
           <strong>{work.title}</strong>
           <span>{[work.client_name, work.site_name].filter(Boolean).join(' · ') || 'Cliente y centro sin informar'}</span>
           {work.equipment_code && <span className="technician-day-meta">{work.equipment_code}</span>}
-          <span className="technician-day-meta">{[work.assignment_date, work.planned_start_time].filter(Boolean).join(' · ') || 'Sin hora asignada'}{['Alta', 'Crítica', 'Urgente'].includes(work.priority) ? ' · ' + work.priority : ''}</span>
-          {Number(work.pending_checks_count) > 0 && <span className="technician-day-meta">{work.pending_checks_count} checks pendientes</span>}
+          <span className="technician-day-meta">{[work.assignment_date ? formatDate(work.assignment_date) : '', work.planned_start_time].filter(Boolean).join(' · ') || 'Sin hora asignada'}{['Alta', 'Critica', 'Crítica', 'Urgente'].includes(work.priority) ? ' · ' + displayStatus(work.priority) : ''}</span>
+          {Number(work.pending_checks_count) > 0 && <span className="technician-day-meta">{work.pending_checks_count} {Number(work.pending_checks_count) === 1 ? 'check pendiente' : 'checks pendientes'}</span>}
           {local > 0 && <span className="technician-day-meta">{local} cambios pendientes de sincronizar</span>}
         </button>;
       })}

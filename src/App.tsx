@@ -1702,8 +1702,7 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
           }}
         />
       </div>
-      <EquipmentCheckImage equipmentId={data.equipment?.id} template={template} templateImage={template?.image} className="door-check" refreshKey={equipmentPhotoVersion} />
-      <EquipmentPhotoPanel equipmentId={data.equipment?.id} canManage={canExecuteCheck(profile) && Boolean(data.work_order_id)} contextWorkOrderId={data.work_order_id} onChanged={() => setEquipmentPhotoVersion((value) => value + 1)} compact />
+      {workspace === 'tecnico' ? <details className="technician-work-details"><summary>Foto y referencia del equipo</summary><EquipmentCheckImage equipmentId={data.equipment?.id} template={template} templateImage={template?.image} className="door-check" refreshKey={equipmentPhotoVersion} /><EquipmentPhotoPanel equipmentId={data.equipment?.id} canManage={canExecuteCheck(profile) && Boolean(data.work_order_id)} contextWorkOrderId={data.work_order_id} onChanged={() => setEquipmentPhotoVersion((value) => value + 1)} compact /></details> : <><EquipmentCheckImage equipmentId={data.equipment?.id} template={template} templateImage={template?.image} className="door-check" refreshKey={equipmentPhotoVersion} /><EquipmentPhotoPanel equipmentId={data.equipment?.id} canManage={canExecuteCheck(profile) && Boolean(data.work_order_id)} contextWorkOrderId={data.work_order_id} onChanged={() => setEquipmentPhotoVersion((value) => value + 1)} compact /></>}
       <div
         className="block-list status-summary"
         aria-label="Resumen de bloques revisados"
@@ -1717,7 +1716,7 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
             <div>
               <strong>{zone.name}</strong>
               <small>
-                {zone.items.length ? `${zone.items.length} comprobaciones` : 'Revisión técnica'}
+                {zone.items.length ? `${zone.items.length} ${zone.items.length === 1 ? 'comprobación' : 'comprobaciones'}` : 'Revisión técnica'}
                 {incidences(zone.id) > 0 && ` · ${incidences(zone.id)} incidencias`}
                 {pending.some((item) => item.blockId === zone.id) && ' · Pendiente de sincronizar'}
               </small>

@@ -85,3 +85,9 @@ Actualización: el usuario confirma aplicación completa de 165 con «Success».
 El panel de pagos de proveedor comprobaba una propiedad que su consulta nunca devolvía y por ello señalaba todos los pagos activos como no vinculados a tesorería. Ahora consulta los movimientos canónicos por `source_type=supplier_payment` y los identificadores de los pagos de la factura. Solo muestra ausencia cuando la consulta autorizada confirma que falta el movimiento; sin permiso de lectura de tesorería no inventa ese diagnóstico. Cuatro pruebas cubren vínculo presente, ausencia confirmada, lectura sin permiso, fallo de consulta y factura sin pagos.
 
 Tras fallo de registro/reversión o de recarga, el panel exige actualizar los pagos antes de otra operación. No permite usar el saldo anterior como si la actualización hubiera terminado correctamente. Esto no sustituye una clave de operación persistente del servidor; los reintentos entre pestañas siguen pendientes de auditoría. No se registraron pagos reales para estas pruebas.
+
+## Comprobación de producción posterior al despliegue
+
+El 5 de octubre se confirma públicamente el despliegue 083d779. La sesión existente de Marta Lopez muestra FPR-2026-000004 registrada, cuatro radares, base 680 €, IVA 142,80 €, total y pagado 822,80 €, pendiente 0 €. El pago aparece activo sin el falso diagnóstico de tesorería ausente. No se registró ni revirtió un pago durante la comprobación.
+
+En Materiales, la búsqueda `9,24` devuelve exclusivamente Motor Elecktromaten TS 9,24, con stock mostrado de 8 unidades. El diálogo Crear aviso abre y cancela sin guardar, con textarea no redimensionable y fondo bloqueado mientras está abierto. Esta comprobación de lectura no verifica la creación atómica real ni los reintentos del servidor. La suite más reciente contiene **1.575 pruebas superadas** y el build es correcto.

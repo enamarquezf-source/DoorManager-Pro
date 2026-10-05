@@ -366,8 +366,7 @@ export const workOrdersService = {
   reviewWorkOrderEconomic(workOrderId: string, decisions: any[], reason: string, zeroSaleConfirmed = false) {
     if (!isValidUuid(workOrderId)) throw new Error('validacion del formulario: falta un parte valido');
     if (!decisions.length && !zeroSaleConfirmed) throw new Error('validacion del formulario: confirma expresamente la revisión sin conceptos y venta cero');
-    if (!String(reason ?? '').trim()) throw new Error('validacion del formulario: el motivo de revision es obligatorio');
-    return expectData<any>(supabase.rpc('dmp_review_work_order_economic', { p_work_order_id: workOrderId, p_decisions: decisions, p_reason: reason.trim(), p_zero_sale_confirmed: zeroSaleConfirmed }), { service: 'workOrdersService', operation: 'Aprobar revision economica', resource: workOrderId });
+    return expectData<any>(supabase.rpc('dmp_review_work_order_economic', { p_work_order_id: workOrderId, p_decisions: decisions, p_reason: String(reason ?? '').trim(), p_zero_sale_confirmed: zeroSaleConfirmed }), { service: 'workOrdersService', operation: 'Aprobar revision economica', resource: workOrderId });
   },
   reopenWorkOrderEconomic(workOrderId: string, reason: string) {
     if (!isValidUuid(workOrderId) || !String(reason ?? '').trim()) throw new Error('validacion del formulario: parte y motivo son obligatorios');

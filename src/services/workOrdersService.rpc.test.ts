@@ -40,6 +40,14 @@ describe('workOrdersService operational RPCs', () => {
     await expect(workOrdersService.reviewWorkOrderEconomic(id, [], 'Prueba autorizada a cero', true)).resolves.toBe('saved-id');
     expect(rpc).toHaveBeenCalledWith('dmp_review_work_order_economic', expect.objectContaining({ p_decisions: [], p_zero_sale_confirmed: true }));
   });
+  it('envía la aprobación económica sin motivo cuando los conceptos están decididos', async () => {
+    const { workOrdersService } = await import('./workOrdersService');
+    const id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+    const decisions = [{ kind: 'time', entry_id: 'entry', contributes_to_sale: true, unit_price: 55 }];
+    await expect(workOrdersService.reviewWorkOrderEconomic(id, decisions, '')).resolves.toBe('saved-id');
+    expect(rpc).toHaveBeenCalledWith('dmp_review_work_order_economic', { p_work_order_id: id, p_decisions: decisions, p_reason: '', p_zero_sale_confirmed: false });
+    expect(() => workOrdersService.reviewWorkOrderEconomic(id, [], '')).toThrow('confirma expresamente');
+  });
 
   it('registra horas mediante la RPC segura 024', async () => {
     const { workOrdersService } = await import('./workOrdersService');

@@ -86,7 +86,8 @@ main { padding: 24px; }
 .mini-modal { position: fixed; inset: 0; z-index: 40; background: rgba(15,23,42,.34); display: grid; place-items: center; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); overflow: hidden; }
 .mini-modal > div, .mini-modal > form { width: min(640px, calc(100vw - 24px)); max-height: min(92dvh, calc(100dvh - 24px)); overflow: auto; background: white; border: 1px solid var(--line); border-radius: 20px; padding: 18px; display: grid; gap: 12px; box-shadow: 0 24px 70px rgba(15,23,42,.2); }
 .mini-modal:has(.multi-equipment-list) > form { width: min(900px, calc(100vw - 32px)); }
-.invoice-draft-modal > div { width: min(1100px, calc(100vw - 24px)); }
+
+.mini-modal > .invoice-draft-modal { width: min(1100px, calc(100vw - 24px)); }
 .invoice-context-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .invoice-context-grid section { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: #f8fbff; }
 .invoice-context-grid h4 { margin: 0 0 8px; color: #0f4c81; font-size: .78rem; letter-spacing: .06em; }
@@ -664,7 +665,7 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
   .actions button, .actions a, .primary { width: 100%; }
   .mini-modal { padding: 10px; align-items: end; }
   .mini-modal > div, .mini-modal > form { max-height: 94vh; border-radius: 18px 18px 0 0; }
-  .invoice-draft-modal > div { width: 100%; }
+  .mini-modal > .invoice-draft-modal { width: 100%; }
   .invoice-context-grid { grid-template-columns: 1fr; }
   .invoice-totals { flex-direction: column; gap: 4px; }
   .modal-footer { flex-direction: column-reverse; }

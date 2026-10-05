@@ -2988,14 +2988,15 @@ function EquipmentForm({ initial, onClose, onSaved }: any) {
 }
 function ComponentForm({ equipmentId, initial, onClose, onSaved }: any) {
   const [values, setValues] = useState<Record<string, string>>({ component_type: 'Otros', brand: '', model: '', serial_number: '', installed_at: '', status: 'Operativo', notes: '', ...initial });
+  const submitting = useRef(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const set = (key: string, value: string) => setValues((current) => ({ ...current, [key]: value }));
   const submit = async (event: FormEvent) => {
-    event.preventDefault(); if (saving) return; setSaving(true); setError('');
+    event.preventDefault(); if (submitting.current) return; submitting.current = true; setSaving(true); setError('');
     try { if (initial?.id) await equipmentService.updateComponent(initial.id, values); else await equipmentService.addComponent(equipmentId, values); onSaved(); }
     catch (err) { setError(err instanceof Error ? err.message : 'No se ha podido guardar el componente.'); }
-    finally { setSaving(false); }
+    finally { submitting.current = false; setSaving(false); }
   };
   return <ModalForm title={initial?.id ? 'Editar componente' : 'Añadir componente'} onClose={onClose} onSubmit={submit} saving={saving} error={error} submitLabel="Guardar componente"><p className="large-note">Selecciona el tipo. Puedes completar los demás datos cuando dispongas de ellos.</p><div className="form-grid"><FormSelect label="Tipo de componente" value={values.component_type} onChange={(value) => set('component_type', value)} required options={['Motor','Cuadro','Fotocelulas','Banda de seguridad','Activacion','Otros'].map((value) => ({ value, label: value === 'Fotocelulas' ? 'Fotocélulas' : value === 'Activacion' ? 'Activación / radar' : value }))} /><FormSelect label="Estado" value={values.status} onChange={(value) => set('status', value)} options={['Operativo','Averiado','Pendiente de revision','Sustituido'].map((value) => ({ value, label: displayStatus(value) }))} />{[['brand','Marca'],['model','Modelo / referencia'],['serial_number','Número de serie']].map(([key,label]) => <label key={key}>{label}<input value={values[key] ?? ''} onChange={(event) => set(key,event.target.value)} /></label>)}<label>Fecha de instalación<input type="date" value={values.installed_at ?? ''} onChange={(event) => set('installed_at',event.target.value)} /></label></div><label>Información técnica / observaciones<textarea rows={4} value={values.notes ?? ''} onChange={(event) => set('notes',event.target.value)} placeholder="Ubicación, características o indicaciones útiles para próximas intervenciones" /></label></ModalForm>;
 }

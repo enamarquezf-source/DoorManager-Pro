@@ -96,6 +96,7 @@ export const equipmentService = {
       console.error('DMP equipment component save failed', { payload: safePayload, message: error?.message, details: error?.details, hint: error?.hint, code: error?.code, name: error?.name });
       return expectData<any>(Promise.resolve({ data, error }), { service: 'equipmentService', operation: 'create equipment component', resource: equipment_id });
     }
+    if (!data) throw new Error('No se ha podido confirmar el componente guardado. Revisa los permisos del equipo y vuelve a intentarlo.');
     return data;
   },
   async updateComponent(id: string, payload: Record<string, any>) {
@@ -105,6 +106,7 @@ export const equipmentService = {
       console.error('DMP equipment component save failed', { payload: safePayload, message: error?.message, details: error?.details, hint: error?.hint, code: error?.code, name: error?.name });
       return expectData<any>(Promise.resolve({ data, error }), { service: 'equipmentService', operation: 'update equipment component', resource: id });
     }
+    if (!data) throw new Error('No se ha podido confirmar el componente guardado. Revisa los permisos del equipo y vuelve a intentarlo.');
     return data;
   },
   async deleteComponent(id: string) {

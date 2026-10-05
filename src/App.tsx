@@ -2057,7 +2057,7 @@ function CheckBlockPageV2({
           )}
         </div>
       </header>
-      <EquipmentPhotoPanel equipmentId={data.equipment?.id} canManage={canExecuteCheck(profile) && Boolean(data.work_order_id)} contextWorkOrderId={data.work_order_id} compact />
+      {workspace === 'tecnico' ? <details className="technician-work-details"><summary>Foto del equipo</summary><EquipmentPhotoPanel equipmentId={data.equipment?.id} canManage={canExecuteCheck(profile) && Boolean(data.work_order_id)} contextWorkOrderId={data.work_order_id} compact /></details> : <EquipmentPhotoPanel equipmentId={data.equipment?.id} canManage={canExecuteCheck(profile) && Boolean(data.work_order_id)} contextWorkOrderId={data.work_order_id} compact />}
       <details className="technician-work-details"><summary>Resumen de la revisión</summary><Card title="Resumen de la revisión">
         <InfoGrid
           items={[

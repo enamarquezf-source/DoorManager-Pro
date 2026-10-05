@@ -56,6 +56,7 @@ describe('078 invoice drafts', () => {
     expect(billingService).toContain('recordPayment');
     expect(billingService).toContain('reversePayment');
     expect(billingService).toContain('cancelInvoice');
-    expect(billingModule).toContain("!['borrador', 'cancelada']");
+    expect(billingModule).toContain('paymentVisibility(row).visibleInCollections');
+    expect(read('../shared/customerPaymentVisibility.ts')).toContain("!['borrador', 'cancelada']");
   });
 });

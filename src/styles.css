@@ -620,6 +620,7 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
 @media (max-width: 760px) {
   .shell { display: block; }
   .sidebar { position: fixed; left: 0; transform: translateX(-100%); width: min(292px, calc(100vw - 24px)); height: 100dvh; }
+  .sidebar.collapsed { visibility: hidden; }
   .sidebar:not(.collapsed) { transform: translateX(0); }
   .sidebar span { opacity: 1; }
   .mobile-menu { display: inline-flex; }

@@ -162,7 +162,7 @@
 
 /* Stable, shared form controls: text areas scroll internally instead of resizing. */
 textarea { resize: none; }
-:is(.shell, .mini-modal, .login-card) :is(form, .form-grid, .actions) label:has(> :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]), select, textarea)) {
+:is(.shell, .mini-modal, .overlay, .login-card) :is(form, .form-grid, .actions) label:has(> :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]), select, textarea)) {
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -173,7 +173,7 @@ textarea { resize: none; }
   font-weight: 650;
   line-height: 1.45;
 }
-:is(.shell, .mini-modal, .login-card) :is(form, .form-grid, .actions) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]):not([type="submit"]):not([type="button"]), select, textarea) {
+:is(.shell, .mini-modal, .overlay, .login-card) :is(form, .form-grid, .actions) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]):not([type="submit"]):not([type="button"]), select, textarea) {
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
@@ -189,7 +189,7 @@ textarea { resize: none; }
   font-weight: 450;
   line-height: 1.5;
 }
-:is(.shell, .mini-modal, .login-card) textarea {
+:is(.shell, .mini-modal, .overlay, .login-card) textarea {
   resize: none;
   box-sizing: border-box;
   width: 100%;
@@ -197,13 +197,13 @@ textarea { resize: none; }
   height: 112px;
   overflow-y: auto;
 }
-:is(.shell, .mini-modal, .login-card) :is(input, textarea)::placeholder { color: #657b81; opacity: 1; }
-:is(.shell, .mini-modal, .login-card) :is(form, .form-grid, .actions) :is(input, select, textarea):focus-visible {
+:is(.shell, .mini-modal, .overlay, .login-card) :is(input, textarea)::placeholder { color: #657b81; opacity: 1; }
+:is(.shell, .mini-modal, .overlay, .login-card) :is(form, .form-grid, .actions) :is(input, select, textarea):focus-visible {
   border-color: #168179;
   outline: 3px solid #16817930;
   outline-offset: 2px;
 }
-:is(.shell, .mini-modal, .login-card) :is(form, .form-grid, .actions) :is(input, select, textarea):disabled {
+:is(.shell, .mini-modal, .overlay, .login-card) :is(form, .form-grid, .actions) :is(input, select, textarea):disabled {
   background: #edf2f3;
   color: #52676d;
   cursor: not-allowed;
@@ -239,7 +239,7 @@ textarea { resize: none; }
   .supplier-payment-entry { padding: 15px; }
   .supplier-payment-entry .form-grid { grid-template-columns: minmax(0, 1fr); }
   .supplier-payment-entry .actions > button { width: 100%; }
-  :is(.shell, .mini-modal, .login-card) :is(form, .form-grid, .actions) :is(input, select, textarea) { font-size: 16px; }
+  :is(.shell, .mini-modal, .overlay, .login-card) :is(form, .form-grid, .actions) :is(input, select, textarea) { font-size: 16px; }
 }
 
 /* Shared door identity and a focused private access screen. */

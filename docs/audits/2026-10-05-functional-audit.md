@@ -103,3 +103,9 @@ Cinco pruebas verifican pérdida de respuesta de registro, reintentos con ambos 
 Se creó «PRUEBA AUDITORÍA DMP · guardado de aviso» dirigido únicamente al perfil actual Marta Lopez. La creación produjo una entrada, la apertura marcó la entrada como leída y actualizó el contador del centro de avisos de 1 a 0; después se cerró exclusivamente esa prueba. No se modificaron avisos reales.
 
 La ficha reveló un fallo de la migración 165 inicial: el código quedaba vacío al depender de la generación por trigger. Se corrige la función para llamar explícitamente a `next_dmp_code` dentro de la transacción, después de la recuperación de reintentos, y se verifica de nuevo SQL y PL/pgSQL. Pendiente repetir la 165 actualizada en Supabase y comprobar que un nuevo aviso recibe código AVI. El aviso de prueba anterior se conserva como evidencia, cerrado, con su código vacío; no se reparan registros por suposición.
+
+## Preparación de recuperación persistente de pagos
+
+La migración 166 prepara un registro privado de operaciones y el RPC `dmp_record_payment_once`. Para un mismo identificador, empresa del actor, perfil, tipo y contenido exacto, devuelve el pago ya registrado. Serializa envíos simultáneos de esa operación y llama a los RPC financieros existentes, conservando sus comprobaciones de permisos, factura, saldo, tesorería y auditoría. El pago y su recibo de operación se guardan en la misma transacción. La tabla no permite lectura ni escritura directa a clientes.
+
+Verificadas sintaxis SQL y PL/pgSQL con dos pruebas adicionales. La instalación no modifica pagos, importes ni saldos existentes. Pendientes aplicación de 166, conexión de formularios con conservación del identificador, verificación de fallo/reintento real y reglas de recuperación tras cerrar una pantalla. Dos pagos con identificadores diferentes siguen siendo operaciones distintas: no se bloquean pagos legítimos por coincidir en importe o fecha.

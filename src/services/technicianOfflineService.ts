@@ -1,3 +1,4 @@
+import { withOfflineSyncLock, withOfflineRecoveryLock } from '../shared/offlineSyncLock';
 import { checksService } from './checksService';
 import { workOrdersService } from './workOrdersService';
 
@@ -202,6 +203,10 @@ export function recoverInterruptedChangesForTest(changes: OfflineChange[], sessi
 }
 
 async function recoverInterruptedChanges() {
+  return withOfflineRecoveryLock(recoverInterruptedChangesUnlocked, allChanges);
+}
+
+async function recoverInterruptedChangesUnlocked() {
   if (!offlineIdentity) return [];
   const identity = requireOfflineIdentity();
   const changes = await allChanges();
@@ -383,35 +388,43 @@ export const technicianOfflineService = {
     return result;
   },
   async sync(onProgress?: (message: string) => void, scope: OfflineSyncScope = {}) {
-    const identity = requireOfflineIdentity();
-    const pending = (await this.pending()).filter((item) => changeMatchesScope(item, scope));
-    const result = { synced: 0, failed: 0, pending: 0, errors: [] as string[] };
-    for (const item of pending) {
-      if (!identityIsCurrent(identity)) break;
-      if (inFlightChanges.has(item.id)) continue;
-      inFlightChanges.add(item.id);
-      try {
-        onProgress?.(`Sincronizando ${item.type} ${item.blockId ?? item.workOrderId ?? ''}`.trim());
-        const claimed = await updateQueuedRevision(item, identity, (current) => current.status === 'syncing' ? null : { ...current, status: 'syncing', syncSessionId: currentSyncSessionId, error: undefined });
-        if (!claimed || item.status === 'syncing') continue;
-        if (!identityIsCurrent(identity)) throw new Error('La sesión ha cambiado. Reintenta con el perfil que guardó el trabajo.');
-        await syncChange(item);
-        await updateQueuedRevision(item, identity, (current) => ({ ...current, status: 'synced', syncSessionId: undefined, error: undefined, updatedAt: new Date().toISOString() }));
-        result.synced += 1;
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'No se ha podido sincronizar el cambio.';
-        const status = /sincronizar primero|seccion|sección|dependencia/i.test(message) ? 'blocked' : 'failed';
-        await updateQueuedRevision(item, identity, (current) => ({ ...current, status, syncSessionId: undefined, error: message, attempts: (current.attempts ?? 0) + 1, updatedAt: new Date().toISOString() }));
-        result.failed += 1;
-        result.errors.push(message);
-      } finally {
-        inFlightChanges.delete(item.id);
+    requireOfflineIdentity();
+    const run = async () => {
+      const identity = requireOfflineIdentity();
+      const pending = (await this.pending()).filter((item) => changeMatchesScope(item, scope));
+      const result = { synced: 0, failed: 0, pending: 0, errors: [] as string[] };
+      for (const item of pending) {
+        if (!identityIsCurrent(identity)) break;
+        if (inFlightChanges.has(item.id)) continue;
+        inFlightChanges.add(item.id);
+        try {
+          onProgress?.(`Sincronizando ${item.type} ${item.blockId ?? item.workOrderId ?? ''}`.trim());
+          const claimed = await updateQueuedRevision(item, identity, (current) => current.status === 'syncing' ? null : { ...current, status: 'syncing', syncSessionId: currentSyncSessionId, error: undefined });
+          if (!claimed || item.status === 'syncing') continue;
+          if (!identityIsCurrent(identity)) throw new Error('La sesión ha cambiado. Reintenta con el perfil que guardó el trabajo.');
+          await syncChange(item);
+          await updateQueuedRevision(item, identity, (current) => ({ ...current, status: 'synced', syncSessionId: undefined, error: undefined, updatedAt: new Date().toISOString() }));
+          result.synced += 1;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'No se ha podido sincronizar el cambio.';
+          const status = /sincronizar primero|seccion|sección|dependencia/i.test(message) ? 'blocked' : 'failed';
+          await updateQueuedRevision(item, identity, (current) => ({ ...current, status, syncSessionId: undefined, error: message, attempts: (current.attempts ?? 0) + 1, updatedAt: new Date().toISOString() }));
+          result.failed += 1;
+          result.errors.push(message);
+        } finally {
+          inFlightChanges.delete(item.id);
+        }
       }
-    }
-    const remaining = await allChanges();
-    result.pending = remaining.filter((item) => isQueueOpen(item) && changeMatchesScope(item, scope)).length;
-    dispatchQueueChanged();
-    return result;
+      const remaining = await allChanges();
+      result.pending = remaining.filter((item) => isQueueOpen(item) && changeMatchesScope(item, scope)).length;
+      dispatchQueueChanged();
+      return result;
+    };
+    return withOfflineSyncLock(run, async () => {
+      onProgress?.('La sincronización está en curso en otra pestaña.');
+      const changes = await allChanges();
+      return { synced: 0, failed: 0, errors: [] as string[], pending: changes.filter(item => item.status !== 'synced' && changeMatchesScope(item, scope)).length };
+    });
   },
   syncOne(changeId: string, onProgress?: (message: string) => void) {
     return this.sync(onProgress, { changeId });

@@ -21,6 +21,36 @@ beforeEach(async () => {
 afterEach(() => { setOfflineIdentity(null); vi.unstubAllGlobals(); });
 
 describe('offline identity and concurrency with persistent storage', () => {
+  it('a second tab neither recovers a live send nor sends an edited block ahead of it', async () => {
+    let held = false;
+    vi.stubGlobal('navigator', { locks: { request: async (_name: string, _options: any, callback: any) => {
+      if (held) return callback(null);
+      held = true;
+      try { return await callback({ name: 'dmp-technician-offline-sync' }); }
+      finally { held = false; }
+    } } });
+    await technicianOfflineService.upsert({ type: 'check-block', checkId: 'check', blockId: 'block', payload: { status: 'Old' } });
+    let finish!: () => void;
+    let started!: () => void;
+    const began = new Promise<void>(resolve => { started = resolve; });
+    remote.block.mockImplementationOnce(() => { started(); return new Promise<void>(resolve => { finish = resolve; }); });
+    const firstSend = technicianOfflineService.sync();
+    await began;
+    // Separate module state simulates another browsing context sharing IndexedDB and Web Locks.
+    vi.resetModules();
+    const secondTab = await import('./technicianOfflineService');
+    secondTab.setOfflineIdentity(alice);
+    expect(await secondTab.technicianOfflineService.list()).toEqual([expect.objectContaining({ status: 'syncing' })]);
+    const edited = await secondTab.technicianOfflineService.upsert({ type: 'check-block', checkId: 'check', blockId: 'block', payload: { status: 'New' } });
+    expect((await secondTab.technicianOfflineService.sync()).pending).toBe(1);
+    expect(remote.block).toHaveBeenCalledOnce();
+    finish(); await firstSend;
+    expect(await secondTab.technicianOfflineService.pending()).toEqual([edited]);
+    await secondTab.technicianOfflineService.sync();
+    expect(remote.block).toHaveBeenCalledTimes(2);
+    expect(await secondTab.technicianOfflineService.pending()).toEqual([]);
+    secondTab.setOfflineIdentity(null);
+  });
   it('switching users neither displays, sends, deletes nor blocks another technician\'s changes', async () => {
     const own = await technicianOfflineService.upsert({ type: 'work-note', workOrderId: 'shared-work', payload: { localChangeId: 'alice-note', work: 'Alice work' } });
     expect(own).toMatchObject(alice);

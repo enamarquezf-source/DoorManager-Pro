@@ -109,3 +109,13 @@ La ficha reveló un fallo de la migración 165 inicial: el código quedaba vací
 La migración 166 prepara un registro privado de operaciones y el RPC `dmp_record_payment_once`. Para un mismo identificador, empresa del actor, perfil, tipo y contenido exacto, devuelve el pago ya registrado. Serializa envíos simultáneos de esa operación y llama a los RPC financieros existentes, conservando sus comprobaciones de permisos, factura, saldo, tesorería y auditoría. El pago y su recibo de operación se guardan en la misma transacción. La tabla no permite lectura ni escritura directa a clientes.
 
 Verificadas sintaxis SQL y PL/pgSQL con dos pruebas adicionales. La instalación no modifica pagos, importes ni saldos existentes. Pendientes aplicación de 166, conexión de formularios con conservación del identificador, verificación de fallo/reintento real y reglas de recuperación tras cerrar una pantalla. Dos pagos con identificadores diferentes siguen siendo operaciones distintas: no se bloquean pagos legítimos por coincidir en importe o fecha.
+
+El usuario confirma que ha ejecutado la **166** con «Success». Sigue pendiente conectar los formularios y verificar el flujo real. Aclara que la 165 original estaba aplicada; no queda confirmada todavía la repetición de su versión con generación explícita de código AVI.
+
+## Sincronización técnica entre pestañas
+
+Se añade exclusión mediante Web Locks entre pestañas del mismo origen. Una pestaña no puede enviar una revisión nueva mientras otra sigue enviando la anterior; tampoco marca como interrumpida una sincronización que mantiene el bloqueo. La recuperación de cambios interrumpidos se ejecuta bajo el mismo bloqueo. No se roba el bloqueo de una petición activa y no se borran cambios pendientes.
+
+Una prueba con dos instancias independientes del servicio, IndexedDB compartido y LockManager simulado verifica que el segundo contexto conserva el estado syncing, no envía una edición por adelantado y la sincroniza después del envío anterior. Referencia: https://www.w3.org/TR/web-locks/. En navegadores sin Web Locks se conservan las protecciones previas por revisión y en la pestaña; la exclusión entre pestañas no se considera verificada allí. La prueba no sustituye la validación móvil con dos pestañas reales.
+
+Verificación de esta entrega: **1.583 pruebas superadas**, build correcto y diff sin errores. El usuario confirma también la repetición de la **165 actualizada** con «Success», tras la explicación de que reemplaza la función sin duplicar avisos. Falta comprobar un nuevo código AVI en producción; la 166 permanece pendiente de conexión de formularios.

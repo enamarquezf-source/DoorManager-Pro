@@ -360,3 +360,12 @@ textarea { resize: none; }
   .alert-filter-mobile select { width: 100%; min-height: 44px; }
   .alert-filters > .large-note { margin: 6px 0; font-size: 12px; }
 }
+
+@media (max-width: 760px) {
+  .technician-workstation .card > header button { min-height: 44px; padding: 10px 12px; font-size: 14px; }
+  .technician-workstation .card > label:not(.check-consent) { display: grid; gap: 6px; margin: 10px 0; font-size: 14px; }
+  .technician-workstation input:not([type=checkbox]):not([type=radio]):not([type=hidden]),
+  .technician-workstation select { min-height: 44px; width: 100%; max-width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid #dce5e7; border-radius: 10px; background: #fff; color: #173f47; font-size: 16px; }
+  .technician-workstation .check-consent { display: flex; align-items: flex-start; gap: 10px; min-height: 44px; padding: 10px 0; font-size: 14px; line-height: 1.5; }
+  .technician-workstation .check-consent input { flex: 0 0 20px; width: 20px; height: 20px; margin: 1px 0 0; }
+}

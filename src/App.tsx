@@ -1456,8 +1456,17 @@ function TechnicianLegacyWorkPage() {
 function TechnicianLocalForm({ workOrderId, type, title, fields }: any) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [message, setMessage] = useState('');
-  const save = async () => { await technicianOfflineService.upsert({ type, workOrderId, payload: values }); setMessage('Guardado en dispositivo. Pendiente de sincronizar.'); };
-  return <Card title={title}>{fields.map(([key, label]: any[]) => <label key={key}>{label}<textarea value={values[key] ?? ''} onChange={(event) => setValues({ ...values, [key]: event.target.value })} /></label>)}<button className="primary wide" onClick={save}>Guardar localmente</button>{message && <p className="success-note">{message}</p>}</Card>;
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const busy = useRef(false);
+  const save = async () => {
+    if (busy.current) return;
+    busy.current = true; setSaving(true); setMessage(''); setError('');
+    try { await technicianOfflineService.upsert({ type, workOrderId, payload: values }); setMessage('Guardado en dispositivo. Pendiente de sincronizar.'); }
+    catch (err) { setError(err instanceof Error ? err.message : 'No se ha podido guardar en el dispositivo. Inténtalo de nuevo.'); }
+    finally { busy.current = false; setSaving(false); }
+  };
+  return <Card title={title}>{fields.map(([key, label]: any[]) => <label key={key}>{label}<textarea disabled={saving} value={values[key] ?? ''} onChange={(event) => setValues({ ...values, [key]: event.target.value })} /></label>)}<button type="button" className="primary wide" disabled={saving} onClick={save}>{saving ? 'Guardando...' : 'Guardar localmente'}</button>{error && <p className="form-error" role="alert">{error}</p>}{message && <p className="success-note" role="status">{message}</p>}</Card>;
 }
 
 function WorkOrderPhotoForm({ workOrderId }: { workOrderId: string }) {
@@ -1486,13 +1495,22 @@ function WorkOrderDeficiencyForm({ workOrderId, checks }: { workOrderId: string;
   const [checkId, setCheckId] = useState('');
   const [blockId, setBlockId] = useState('');
   const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const busy = useRef(false);
   const save = async () => {
+    if (busy.current) return;
     const text = description.trim();
-    if (!text) { setMessage('La descripción de la incidencia es obligatoria.'); return; }
-    await technicianOfflineService.upsert({ type: 'deficiency', workOrderId, checkId: checkId || undefined, blockId: blockId || undefined, payload: { id: crypto.randomUUID(), description: text, severity, component: component.trim() || null, recommendedAction: recommendedAction.trim() || null, checkId: checkId || null, blockId: blockId || null } });
-    setDescription(''); setComponent(''); setRecommendedAction(''); setBlockId(''); setMessage('Incidencia guardada en dispositivo. Pendiente de sincronizar.');
+    setMessage(''); setError('');
+    if (!text) { setError('La descripción de la incidencia es obligatoria.'); return; }
+    busy.current = true; setSaving(true);
+    try {
+      await technicianOfflineService.upsert({ type: 'deficiency', workOrderId, checkId: checkId || undefined, blockId: blockId || undefined, payload: { id: crypto.randomUUID(), description: text, severity, component: component.trim() || null, recommendedAction: recommendedAction.trim() || null, checkId: checkId || null, blockId: blockId || null } });
+      setDescription(''); setComponent(''); setRecommendedAction(''); setBlockId(''); setMessage('Incidencia guardada en dispositivo. Pendiente de sincronizar.');
+    } catch (err) { setError(err instanceof Error ? err.message : 'No se ha podido guardar la incidencia en el dispositivo. Inténtalo de nuevo.'); }
+    finally { busy.current = false; setSaving(false); }
   };
-  return <Card title="Incidencia / deficiencia"><label>Descripción obligatoria<textarea value={description} onChange={(event) => setDescription(event.target.value)} /></label><FormSelect label="Gravedad" value={severity} onChange={setSeverity} options={['Baja','Media','Alta','Critica'].map((value) => ({ value, label: displayStatus(value) }))} /><label>Componente<input value={component} onChange={(event) => setComponent(event.target.value)} placeholder="Componente afectado" /></label><label>Acción recomendada<textarea value={recommendedAction} onChange={(event) => setRecommendedAction(event.target.value)} /></label><FormSelect label="Check asociado opcional" value={checkId} onChange={setCheckId} options={[{ value: '', label: 'Sin check asociado' }, ...checks.map((check: any) => ({ value: check.id, label: `${check.code ?? 'Check'} · ${check.equipment?.code ?? 'Equipo'}` }))]} /><label>Bloque asociado opcional<input value={blockId} onChange={(event) => setBlockId(event.target.value)} placeholder="Ej. hoja, motor, guías" /></label><button className="primary wide" type="button" onClick={save}>Guardar incidencia local</button>{message && <p className={message.includes('obligatoria') ? 'form-error' : 'success-note'}>{message}</p>}</Card>;
+  return <Card title="Incidencia / deficiencia"><label>Descripción obligatoria<textarea disabled={saving} value={description} onChange={(event) => setDescription(event.target.value)} /></label><FormSelect disabled={saving} label="Gravedad" value={severity} onChange={setSeverity} options={['Baja','Media','Alta','Critica'].map((value) => ({ value, label: displayStatus(value) }))} /><label>Componente<input disabled={saving} value={component} onChange={(event) => setComponent(event.target.value)} placeholder="Componente afectado" /></label><label>Acción recomendada<textarea disabled={saving} value={recommendedAction} onChange={(event) => setRecommendedAction(event.target.value)} /></label><FormSelect disabled={saving} label="Check asociado opcional" value={checkId} onChange={setCheckId} options={[{ value: '', label: 'Sin check asociado' }, ...checks.map((check: any) => ({ value: check.id, label: `${check.code ?? 'Check'} · ${check.equipment?.code ?? 'Equipo'}` }))]} /><label>Bloque asociado opcional<input disabled={saving} value={blockId} onChange={(event) => setBlockId(event.target.value)} placeholder="Ej. hoja, motor, guías" /></label><button className="primary wide" type="button" disabled={saving} onClick={save}>{saving ? 'Guardando...' : 'Guardar incidencia local'}</button>{error && <p className="form-error" role="alert">{error}</p>}{message && <p className="success-note" role="status">{message}</p>}</Card>;
 }
 
 function WorkOrderSignatureForm({ workOrderId }: { workOrderId: string }) {

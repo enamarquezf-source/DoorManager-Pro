@@ -179,3 +179,9 @@ Se detectó que la regla global .card > header button (32 px) ganaba a la regla 
 Con Diego Martin se abrieron y cancelaron los formularios de horas y material de PAR-2026-000041. Horas seleccionó automáticamente al propio Diego, único trabajador disponible en la lista de ese parte. Ambos diálogos no desbordaron horizontalmente con ancho CSS efectivo 325. Los controles de horas midieron aproximadamente 44 px de altura, pero texto de 14 px: la regla general de formularios ganaba por especificidad al ajuste móvil. Se añade una regla con la misma especificidad, posterior y limitada a technician-shell en móvil, para texto de 16 px.
 
 La ayuda de materiales deja de hablar de costes resueltos por el servidor y explica la decisión útil: seleccionar catálogo o describir material no catalogado, que no descuenta existencias. Se cerraron los diálogos sin guardar datos y se restauró el viewport. Verificación del ajuste: 17 pruebas relacionadas y build correcto, diff sin errores. Las mediciones son previas al despliegue de esta regla nueva; pendiente confirmación posterior. No se han verificado guardados reales, firma o cámara móvil.
+
+## Verificación posterior al despliegue móvil
+
+La versión pública 9d6efdb está desplegada. Con Diego y PAR-2026-000041 se comprobaron los cuatro botones principales de sección a unos 44 px, campos de firma a 44 px y 16 px de texto, selector de archivo a 46 px y checkbox a 20 px dentro de su etiqueta. Cabecera estática; ningún elemento de main desborda horizontalmente a ancho CSS efectivo 325. Se restauró el viewport. El ajuste posterior f832ca8 de texto de formularios aún necesita su medición desplegada.
+
+Se crea 2026-10-05-current-status.md para separar evidencia vigente y pendientes del historial de entregas. Se solicita el verificador de solo lectura de los ACL de la 162. Suite completa actual después de los ajustes de interfaz: 1.597/1.597 pruebas. El objetivo integral sigue abierto.

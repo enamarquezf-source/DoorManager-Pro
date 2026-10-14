@@ -31,6 +31,20 @@ Cliente
 
 La cadena es un modelo operativo general y no esta acoplada al concepto de puerta.
 
+## Cómo funciona DMP: mapas de arquitectura
+
+La [guía de arquitectura y recorrido de los datos](docs/architecture-map/LEEME.md) explica la implementación actual con React, TypeScript y Supabase. Incluye mapas obtenidos del catálogo real de la base de datos, capturado el **14 de octubre de 2026**: 89 tablas de DMP, 35 tablas internas de Supabase, 15 vistas, 354 claves foráneas y 76 dependencias de vistas.
+
+[![Recorrido de los datos desde presupuesto hasta cobro](docs/architecture-map/DMP-recorrido-del-dato-preview.png)](docs/architecture-map/DMP-recorrido-del-dato.png)
+
+- **[Mapa completo de tablas y relaciones](docs/architecture-map/DMP-tablas-relaciones.png)** · [Versión vectorial ampliable](docs/architecture-map/DMP-tablas-relaciones.svg).
+- **[Del presupuesto al cobro](docs/architecture-map/DMP-recorrido-del-dato.png)**: cómo se conectan trabajo técnico, revisiones, facturación y tesorería.
+- **[Qué ocurre al abrir un parte](docs/architecture-map/DMP-al-abrir-un-parte.png)**: sesión, permisos, caché, consultas, guardado y sincronización.
+- **[Atlas interactivo](docs/architecture-map/DMP-atlas.html)**: permite buscar tablas, consultar columnas y resaltar relaciones. GitHub muestra su código; para utilizarlo, descarga/clona el repositorio y abre ese HTML en el navegador conservando los archivos de su carpeta.
+- **[Relaciones completas en CSV](docs/architecture-map/relaciones-completas.csv)** y [catálogo estructural JSON](docs/architecture-map/live-catalog.json).
+
+Los mapas contienen estructura y metadatos, sin credenciales ni registros de negocio. Son una fotografía fechada: no acreditan automáticamente cambios posteriores de producción. La guía distingue esta implementación de la documentación conceptual anterior y explica cómo regenerar los mapas con una nueva exportación de solo lectura.
+
 ## Sectores objetivo
 
 DoorManager Pro esta orientado a adaptarse a distintos servicios tecnicos y verticales configurables, por ejemplo:

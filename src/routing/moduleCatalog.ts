@@ -39,7 +39,7 @@ export const moduleMeta: Record<string, ModuleMeta> = {
   ventas: { title: 'Ventas', description: 'Indicadores de ventas y presupuestos aceptados.', links: [{ label: 'Gerencia', to: '/app/gerencia' }], permission: ['commercial.read', 'sat.read', 'billing.read'], visibility: 'commercial', renderer: 'ventas' },
   operaciones: { title: 'Operaciones', description: 'Visión ejecutiva de operaciones.', links: [{ label: 'Partes', to: '/app/partes' }], permission: ['sat.read', 'commercial.read', 'billing.read'], visibility: 'sat', renderer: 'operaciones' },
   rentabilidad: { title: 'Rentabilidad', description: 'Análisis de rentabilidad y desviaciones.', links: [{ label: 'Gerencia', to: '/app/gerencia' }], permission: ['billing.read', 'commercial.read', 'sat.read'], visibility: 'billing', renderer: 'rentabilidad' },
-  personal: { title: 'Personal', description: 'Equipo humano, roles y carga de trabajo.', links: [{ label: 'Técnicos', to: '/app/modulos/tecnicos' }], permission: ['sat.read'], visibility: 'sat', renderer: 'personal' },
+  personal: { title: 'Técnicos', description: 'Equipo técnico y carga de trabajo.', links: [{ label: 'Partes', to: '/app/partes' }], permission: ['sat.read'], visibility: 'sat', renderer: 'personal' },
   informes: { title: 'Informes', description: 'Informes de dirección e indicadores agregados.', links: [{ label: 'Métricas', to: '/app/gerencia' }], permission: ['billing.read', 'commercial.read', 'sat.read'], visibility: 'billing', renderer: 'informes' },
   'tarifas-horas': { title: 'Tarifas horas', description: 'Catálogo de costes y precios horarios.', links: [], permission: ['billing.write'], visibility: 'billing', renderer: 'tarifas-horas' },
 };

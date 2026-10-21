@@ -4,6 +4,23 @@ import { contains, currentCompanyId, expectData } from './query';
 export const economicStatuses = ['pendiente', 'garantia', 'facturable', 'pendiente_facturar', 'facturado', 'cobrado'] as const;
 
 export const economicService = {
+  async managementReportData() {
+    const companyId = await currentCompanyId();
+    // Supabase caps individual responses. Fetch every page before presenting totals.
+    async function pages(table: string, select: string) {
+      const rows: any[] = [];
+      for (let offset = 0; ; offset += 500) {
+        const page = await expectData<any[]>(supabase.from(table).select(select).eq('company_id', companyId).order('id').range(offset, offset + 499), { service: 'economicService', operation: 'informe de gerencia', resource: table });
+        rows.push(...page);
+        if (page.length < 500) return rows;
+      }
+    }
+    const [workOrders, timeEntries] = await Promise.all([
+      pages('v_work_order_economic_summary', '*'),
+      pages('work_order_time_entries', 'id,company_id,work_order_id,profile_id,work_date,duration_minutes,hour_type,total_cost,profiles!work_order_time_entries_profile_id_fkey(first_name,last_name)'),
+    ]);
+    return { workOrders, timeEntries };
+  },
   async workOrderSummary(workOrderId: string) {
     return expectData<any>(supabase.from('v_work_order_economic_summary').select('*').eq('id', workOrderId).maybeSingle(), { service: 'economicService', operation: 'resumen economico canonico de parte', resource: 'v_work_order_economic_summary' });
   },

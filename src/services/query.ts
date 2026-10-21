@@ -47,6 +47,8 @@ export async function expectStep<T>(operation: string, loader: () => Promise<T>)
 
 export function toSpanishSupabaseError(error: any) {
   const message = error?.message ?? String(error ?? '');
+  if (error?.code === 'P0001' && message === 'Tabla no permitida para generar codigo: maintenance_contracts') return 'Falta actualizar la numeración de contratos de mantenimiento en la base de datos. Aplica la migración 180 y vuelve a guardar.';
+  if (error?.code === 'P0001' && /^(Revisa título, vigencia y frecuencia del contrato|El centro no pertenece al cliente y empresa|Estado inicial de contrato no válido|Define el importe y periodicidad de facturación|Técnico no válido para la empresa|Indica las fechas de visita|Hay visitas fuera de la vigencia del contrato|La primera visita debe estar dentro del contrato|El plan supera 120 visitas|El plan debe contener entre 1 y 120 visitas|El equipo no pertenece a este cliente y centro|Tipo de equipo fuera de la empresa|Selección de equipos no válida|Equipo nuevo no válido)$/.test(message)) return message;
   if (error?.code === '42702') return 'La operación está bloqueada por un error interno. Avisa a administración.';
   if (message.includes('more than one relationship')) return 'No se han podido cargar los datos relacionados. Reinténtalo o avisa a administración.';
   if (message.includes('permission denied') || message.includes('insufficient privilege')) return 'No tienes permisos para realizar esta operación con tu rol actual.';

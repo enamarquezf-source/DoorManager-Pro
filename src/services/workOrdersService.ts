@@ -292,8 +292,10 @@ export const workOrdersService = {
     }
   },
   update(id: string, payload: Record<string, any>) {
+    if ('equipment_selection' in payload) return expectData<string>(supabase.rpc('dmp_update_work_intake',{p_work_id:id,p_payload:payload}),{service:'workOrdersService',operation:'actualizar parte y equipos'});
     return expectData<any>(supabase.from('work_orders').update(workOrderPayload(payload)).eq('id', id).select().maybeSingle());
   },
+  attachEquipment(id:string,operationId:string,selection:any[]){return expectData<string>(supabase.rpc('dmp_attach_work_equipment',{p_work_id:id,p_operation_id:operationId,p_selection:selection}),{service:'workOrdersService',operation:'asociar equipos al parte'});},
   async updateOperationalFields(id: string, payload: Record<string, any>) {
     const operationalPayload = workOrderOperationalPayload(payload);
     const params = { p_work_order_id: id, p_payload: operationalPayload };

@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { SupabaseOperationError, toSpanishSupabaseError } from './query';
 
 describe('query error mapping', () => {
+  it('explains the maintenance numbering upgrade and preserves contract validation', () => {
+    expect(toSpanishSupabaseError({code:'P0001',message:'Tabla no permitida para generar codigo: maintenance_contracts'})).toContain('migración 180');
+    for (const message of ['La primera visita debe estar dentro del contrato','Técnico no válido para la empresa','Define el importe y periodicidad de facturación']) expect(toSpanishSupabaseError({code:'P0001',message})).toBe(message);
+    expect(toSpanishSupabaseError({code:'P0001',message:'unexpected private database information'})).not.toContain('private');
+  });
   it('distinguishes an internal SQL collision from invalid user data', () => {
     const message = toSpanishSupabaseError({ code: '42702', message: 'column reference "kind" is ambiguous' });
     expect(message).toContain('error interno');

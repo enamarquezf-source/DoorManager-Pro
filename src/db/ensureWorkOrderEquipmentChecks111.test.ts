@@ -41,7 +41,7 @@ describe('ensure work order equipment checks 111', () => {
   it('keeps quote maintenance in the maintenance check flow and exposes the main id from the UI', () => {
     const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
     expect(app).toContain("quote.quote_type === 'mantenimiento' ? 'Mantenimiento'");
-    expect(app).toContain('main_equipment_id: values.main_equipment_id || null');
+    expect(app).toContain("main_equipment_id: selectedEquipment.find((item: any) => item.kind === 'existing')?.equipment_id || null");
     expect(app).toContain("initialInstallation || values.type === 'Mantenimiento'");
   });
 

@@ -104,6 +104,13 @@
 .department-routing-list p { font-size: 11px; line-height: 1.6; }
 .department-routing-list a.primary { font-size: 10px; letter-spacing: .3px; border-radius: 8px; padding: 10px 13px; }
 .primary, button.primary, a.primary { background: #173f47; border-color: #173f47; }
+/* One shared backdrop for maintenance, data forms and side panels. */
+.mini-modal, .overlay, .flow-dialog-overlay { background: #13302385; backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+/* Dialogs rendered in document.body sit outside .shell. Keep primary actions legible there too. */
+:is(.mini-modal, .overlay, .flow-dialog) button.primary { background: #173f47; border-color: #173f47; color: #fff; }
+:is(.mini-modal, .overlay, .flow-dialog) button.primary:hover:not(:disabled) { background: #215863; border-color: #215863; color: #fff; }
+:is(.mini-modal, .overlay, .flow-dialog) button.primary:active:not(:disabled) { background: #12343b; border-color: #12343b; color: #fff; }
+:is(.mini-modal, .overlay, .flow-dialog) button.primary:disabled { background: #dce5e7; border-color: #c5d2d5; color: #40585f; opacity: 1; }
 .primary:hover, button.primary:hover, a.primary:hover { background: #215863; border-color: #215863; }
 .record-link:hover, .material-row-link:hover, .check-record-link:hover { background: #f6fbfa; border-color: #70aca8; }
 /* Compact working header; explicit foregrounds override legacy action styles. */

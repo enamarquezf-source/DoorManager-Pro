@@ -1,4 +1,8 @@
 /* DoorManager — shared operations identity. Layout remains content driven. */
+/* Default controls cover older modules as well as the shared component library. */
+:where(.shell main, .mini-modal, .overlay, .flow-dialog) button { appearance:none; display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:40px; padding:9px 13px; border:1px solid #d8e4dc; border-radius:9px; background:#fff; color:#456956; font-size:12px; font-weight:650; line-height:1.4; }
+:where(.shell main, .mini-modal, .overlay, .flow-dialog) button:hover:not(:disabled) { background:#f1f7ee; border-color:#abc8a3; }
+:where(.shell main, .mini-modal, .overlay, .flow-dialog) button:disabled { color:#8a9987; background:#f3f6f1; cursor:not-allowed; }
 :root {
   --color-background: #edf2f3;
   --color-primary: #106c70;
@@ -416,3 +420,50 @@ textarea { resize: none; }
   .technician-work-details > .technician-work-details { margin: 8px; }
   .technician-work-details .compact-list article { display: grid; grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Shared surfaces and figures, including modules that still use .metric directly. */
+:where(.shell main) .stats-grid .metric { border:1px solid #d9e5df; border-radius:14px; background:#fff; color:#28534b; box-shadow:none; padding:20px 22px; }
+:where(.shell main) .stats-grid .metric > span, :where(.shell main) .stats-grid .metric > div { color:#758e81; font-size:12px; font-weight:500; }
+:where(.shell main) .stats-grid .metric strong { color:#28534b; font-size:27px; font-weight:700; }
+:where(.shell main) .stats-grid .metric small { color:#82988b; font-size:11px; font-weight:400; }
+:where(.shell main) .stats-grid:not(.material-ux-stats) .metric:first-child, :where(.shell main) .stats-grid .metric.selected { background:#133f40; border-color:#133f40; outline:0; color:#fff; box-shadow:none; }
+:where(.shell main) .stats-grid:not(.material-ux-stats) .metric:first-child :is(strong,span), :where(.shell main) .stats-grid .metric.selected :is(strong,span) { color:#fff; }
+:where(.shell main) .stats-grid:not(.material-ux-stats) .metric:first-child :is(small,svg,div), :where(.shell main) .stats-grid .metric.selected :is(small,svg,div) { color:#d0e5dc; }
+:where(.shell main) .card, :where(.shell main) .table-card { background:#fff; border-color:#dce7df; border-radius:13px; box-shadow:none; }
+:where(.shell main) .card > header h3 { color:#426950; font-size:14px; font-weight:650; }
+:where(.shell main) .table-card th { background:#f5f8f2; color:#6a826d; font-size:11px; font-weight:650; }
+:where(.shell main) .table-card td { font-size:12px; }
+/* Old .page-head and shared detail headers use the same surface as SectionHeader. */
+.shell main .page > .page-head, .shell main .page > .page-header, .shell main .detail-hero { background:linear-gradient(120deg,#edf6ef,#f9fbf8); border:1px solid #d5e7db; border-radius:16px; padding:24px 28px; gap:24px; display:flex; justify-content:space-between; align-items:center; }
+.shell main .page > .page-head > div:first-child, .shell main .page > .page-header > .page-header-main { display:block; }
+.shell main .page > .page-head h2, .shell main .page > .page-header h2, .shell main .detail-hero h2 { color:#214945; font-size:clamp(24px,2.4vw,32px); letter-spacing:-.035em; margin:10px 0; }
+.shell main .page > .page-head p, .shell main .page > .page-header p, .shell main .detail-hero p { color:#6b857a; font-size:12px; line-height:1.7; }
+.shell main .page-header-context { color:#52776b; font-size:10px; font-weight:750; letter-spacing:1.3px; text-transform:uppercase; }
+.options-menu { position:relative; flex-shrink:0; }
+.options-menu > summary { display:flex; align-items:center; justify-content:center; gap:7px; list-style:none; cursor:pointer; padding:11px 14px; min-height:44px; border:1px solid #cddfd1; border-radius:9px; color:#4f735d; background:#fff; font-size:12px; font-weight:650; }
+.options-menu > summary::-webkit-details-marker { display:none; }
+.options-menu-panel { position:absolute; right:0; top:calc(100% + 7px); z-index:30; min-width:230px; padding:7px; border:1px solid #d9e5d9; background:#fff; border-radius:10px; box-shadow:0 12px 35px #183b2b20; }
+.options-menu-panel > button, .options-menu-panel > a { display:flex; width:100%; justify-content:flex-start; border:0; background:#fff; text-align:left; padding:11px; color:#4d6c51; font-size:12px; text-decoration:none; border-radius:7px; }
+.options-menu-panel > button:hover, .options-menu-panel > a:hover { background:#f0f6ec; }
+.treasury-account-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr)); gap:14px; }
+.treasury-account-card { border:1px solid #dce7db; border-radius:12px; background:#f9fbf6; padding:20px; display:flex; flex-direction:column; align-items:flex-start; gap:14px; }
+.treasury-account-card > div { width:100%; }.treasury-account-card > div > strong { color:#3d644b; font-size:16px; }
+.treasury-account-card p { color:#7f9280; font-size:11px; margin:8px 0; }.treasury-account-balance { margin-top:20px; }
+.treasury-account-balance small { display:block; font-size:10px; color:#82937b; }.treasury-account-balance strong { display:block; margin-top:6px; font-size:24px; color:#345f43; }
+.treasury-account-card > button { align-self:flex-end; }
+/* Place legends inside their panel instead of cutting the top border through the text. */
+:is(.shell main,.mini-modal,.overlay) fieldset:has(>legend) { min-width:0; border:0; padding:20px; border-radius:12px; box-shadow:inset 0 0 0 1px #dce6dc; background:#fff; }
+:is(.shell main,.mini-modal,.overlay) fieldset>legend { float:left; width:100%; max-width:100%; box-sizing:border-box; padding:0 0 14px; margin:0; color:#43694c; font-size:14px; line-height:1.6; font-weight:700; white-space:normal; }
+:is(.shell main,.mini-modal,.overlay) fieldset>legend+* { clear:both; }
+.operations-hero { background:linear-gradient(120deg,#edf6ef,#f9fbf8); color:#214945; border:1px solid #d5e7db; border-radius:16px; padding:24px 28px; }
+.operations-eyebrow { color:#52776b; margin-bottom:12px; }.operations-eyebrow>span { background:#80aa83; }
+.operations-hero h2 { color:#214945; font-size:clamp(24px,2.4vw,32px); line-height:1.25; font-weight:700; letter-spacing:-.035em; margin:10px 0; }
+.operations-hero .operations-description,.operations-hero-side time { color:#6b857a; font-size:12px; }
+.operations-review { color:#42694e; border-color:#c5dbc7; background:#fff; }.operations-review:hover { background:#eaf4e6; border-color:#9fc39d; }
+.operations-lines { display:none; }
+.dashboard-kpis .kpi-block { background:#fff; border-color:#d9e5df; box-shadow:none; }
+.dashboard-kpis .kpi-block:first-child { background:#133f40; border-color:#133f40; }
+.dashboard-kpis .kpi-block:first-child :is(strong,.kpi-label) { color:#fff; }
+.dashboard-kpis .kpi-block:first-child small { color:#d0e5dc; }
+.dashboard-kpis a.kpi-block:first-child:hover { background:#1b5150; border-color:#1b5150; }
+@media(max-width:760px) { .shell main .page > .page-head, .shell main .page > .page-header, .shell main .detail-hero { padding:20px; flex-wrap:wrap; }.section-header-action { flex-wrap:wrap; }:where(.shell main) .stats-grid .metric { padding:16px; }:where(.shell main) .stats-grid .metric strong { font-size:23px; } }

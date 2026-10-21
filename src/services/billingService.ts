@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase/client';
 import { recordPaymentOperation, type PaymentScope } from './paymentOperations';
-import { currentCompanyId, expectData } from './query';
+import { currentCompanyId, currentProfileCompanyId, expectData } from './query';
 import { isBillingEligibleWithoutOffice } from '../shared/guidedBillingEligibility';
 
 function billingError(error: any, operation: string, resource?: string) {
@@ -51,10 +51,14 @@ export const billingService = {
     return rows.filter((row) => !linked.has(row.id) && ['approved', 'not_started'].includes(row.economic_review_status ?? 'not_started') && isBillingEligibleWithoutOffice(row));
   },
   async invoices() {
-    const companyId = await currentCompanyId();
-    let query = supabase.from('invoices').select('*, clients(id,code,legal_name), invoice_work_orders(*, work_orders(id,code,title,economic_status)), invoice_payments(*)').order('issue_date', { ascending: false }).order('created_at', { ascending: false });
-    if (companyId) query = query.eq('company_id', companyId);
-    const rows = await expectData<any[]>(query, { service: 'billingService', operation: 'Listar facturas' });
+    const companyId = await currentProfileCompanyId();
+    const rows: any[] = [];
+    for (let offset = 0; ; offset += 500) {
+      const query = supabase.from('invoices').select('*, clients(id,code,legal_name), invoice_work_orders(*, work_orders(id,code,title,economic_status)), invoice_payments(*)').eq('company_id',companyId).order('issue_date', { ascending: false }).order('created_at', { ascending: false }).order('id').range(offset,offset + 499);
+      const page = await expectData<any[]>(query, { service: 'billingService', operation: 'Listar facturas' });
+      rows.push(...page);
+      if (page.length < 500) break;
+    }
     return rows.map((row) => ({ ...row, invoice_payments: (row.invoice_payments ?? []).sort((a: any, b: any) => String(b.paid_at).localeCompare(String(a.paid_at))) }));
   },
   async invoice(invoiceId: string) {

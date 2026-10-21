@@ -426,6 +426,9 @@ textarea { resize: none; }
 :where(.shell main) .stats-grid .metric > span, :where(.shell main) .stats-grid .metric > div { color:#758e81; font-size:12px; font-weight:500; }
 :where(.shell main) .stats-grid .metric strong { color:#28534b; font-size:27px; font-weight:700; }
 :where(.shell main) .stats-grid .metric small { color:#82988b; font-size:11px; font-weight:400; }
+:where(.shell main) .stats-grid .metric { display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; text-align:left; min-height:120px; gap:0; }
+:where(.shell main) .stats-grid .metric > span { font-size:12px; line-height:1.5; font-weight:500; }
+:where(.shell main) .stats-grid .metric > strong { font-size:clamp(20px,2.2vw,30px); line-height:1.35; letter-spacing:-.045em; margin:6px 0 10px; font-weight:700; font-variant-numeric:tabular-nums; }
 :where(.shell main) .stats-grid:not(.material-ux-stats) .metric:first-child, :where(.shell main) .stats-grid .metric.selected { background:#133f40; border-color:#133f40; outline:0; color:#fff; box-shadow:none; }
 :where(.shell main) .stats-grid:not(.material-ux-stats) .metric:first-child :is(strong,span), :where(.shell main) .stats-grid .metric.selected :is(strong,span) { color:#fff; }
 :where(.shell main) .stats-grid:not(.material-ux-stats) .metric:first-child :is(small,svg,div), :where(.shell main) .stats-grid .metric.selected :is(small,svg,div) { color:#d0e5dc; }

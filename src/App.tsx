@@ -1,3 +1,5 @@
+import { CheckAffectedItems } from './components/CheckAffectedItems';
+import { checkItemResults, selectedCheckItemIds, validateCheckItemSelection } from './checks/itemResults';
 import { SectionHeader } from './components/SectionHeader';
 import { CompactFilters } from './components/CompactFilters';
 import { materialStockLabel } from './shared/materialStockLabel';
@@ -1820,6 +1822,10 @@ function CheckBlockPageV2({
   const [intervention, setIntervention] = useState("");
   const [severity, setSeverity] = useState("Leve");
   const [components, setComponents] = useState<string[]>([]);
+  const [itemNotes,setItemNotes] = useState<Record<string,string>>({});
+  const [remainingFavorable,setRemainingFavorable] = useState(false);
+  const [selectionError,setSelectionError] = useState('');
+  const [dirty,setDirty] = useState(false);
   const [photos, setPhotos] = useState<Record<string, any>[]>([]);
   const [saveState, setSaveState] = useState<
     "idle" | "saving" | "saved" | "error"
@@ -1860,7 +1866,8 @@ function CheckBlockPageV2({
         setObservations(local.observations ?? "");
         setIntervention(local.intervention ?? "");
         setSeverity(local.severity ?? "Leve");
-        setComponents(local.components ?? []);
+        setComponents(selectedCheckItemIds(zone.items,local.selectedItemIds??local.components??[]));
+        setItemNotes(local.itemNotes??{});setRemainingFavorable(local.remainingFavorable===true);
         setPhotos(local.photos ?? []);
       } else if (existing) {
         const normalized = normalizeCheckStatus(existing.result);
@@ -1870,8 +1877,10 @@ function CheckBlockPageV2({
         setIntervention(existing.intervention ?? "");
         setSeverity(existing.severity ?? "Leve");
         setComponents(
-          Array.isArray(existing.components) ? existing.components : [],
+          selectedCheckItemIds(zone.items,existing.affected_item_ids?.length?existing.affected_item_ids:(Array.isArray(existing.components)?existing.components:[])),
         );
+        setItemNotes(Object.fromEntries(itemResults.filter((row:any)=>row.observations).map((row:any)=>[row.item_id,row.observations])));
+        setRemainingFavorable(itemResults.length>0&&zone.items.filter((item:any)=>!(existing.affected_item_ids??[]).includes(item.id)).every((item:any)=>itemResults.some((row:any)=>row.item_id===item.id&&row.result==='Todo favorable')));
         setPhotos([]);
       } else {
         setStatus("Sin revisar");
@@ -1879,10 +1888,10 @@ function CheckBlockPageV2({
         setObservations("");
         setIntervention("");
         setSeverity("Leve");
-        setComponents([]);
+        setComponents([]);setItemNotes({});setRemainingFavorable(false);
         setPhotos([]);
       }
-      setLocalLoaded(true);
+      setDirty(false);setLocalLoaded(true);
     });
   }, [
     id,
@@ -1943,12 +1952,12 @@ function CheckBlockPageV2({
   const hasChanges =
     localLoaded &&
     status !== "Sin revisar" &&
-    (status !== confirmedStatus ||
+    (dirty || status !== confirmedStatus ||
       observations.trim() !== (existing?.observations ?? "") ||
       intervention.trim() !== (existing?.intervention ?? "") ||
       JSON.stringify(components) !==
         JSON.stringify(
-          Array.isArray(existing?.components) ? existing.components : [],
+          selectedCheckItemIds(zone.items,existing?.affected_item_ids?.length?existing.affected_item_ids:(Array.isArray(existing?.components)?existing.components:[])),
         ) ||
       photos.length);
   const toggleComponent = (component: string) =>
@@ -1959,7 +1968,7 @@ function CheckBlockPageV2({
     );
   const selectStatus = (nextStatus: string) => {
     setStatus(nextStatus);
-    setSaveState("idle");
+    setSaveState("idle");setDirty(true);
     if (!checkProblemStatuses.includes(nextStatus)) {
       setObservations("");
       setIntervention("");
@@ -1974,13 +1983,16 @@ function CheckBlockPageV2({
         Array.from(files).map(fileToLocalPhoto),
       );
       setPhotos((current) => [...current, ...nextPhotos]);
-      setSaveState("idle");
+      setSaveState("idle");setDirty(true);
     } catch {
       setSaveState("error");
     }
   };
   const save = async () => {
     if (!hasChanges) return;
+    const invalid = validateCheckItemSelection(zone.items,status,components,itemNotes,observations);
+    if(invalid){setSelectionError(invalid);return;}
+    setSelectionError('');
     setSaving(true);
     setSaveState("saving");
     const persisted = status.replace(
@@ -2000,7 +2012,8 @@ function CheckBlockPageV2({
           sectionTitle: zone.name,
           status,
           persistedStatus: persisted,
-          items: section.check_template_items ?? [],
+          items: checkItemResults(section.check_template_items ?? [],status,components,itemNotes,observations,remainingFavorable),
+          selectedItemIds: components, itemNotes, remainingFavorable, itemResultsVersion: 1,
           components:
             status === "Todo favorable"
               ? (zone.items ?? []).map(
@@ -2079,7 +2092,7 @@ function CheckBlockPageV2({
             ["Observaciones", observations || "-"],
             ["Intervención", intervention || "-"],
             ["Gravedad", severity || "-"],
-            ["Componentes", components.join(", ") || "-"],
+            ["Componentes", components.map(id=>zone.items.find((item:any)=>item.id===id)?.title??id).join(", ") || "-"],
             [
               "Sincronizado",
               existing?.synced_at
@@ -2094,13 +2107,14 @@ function CheckBlockPageV2({
       <Card title="Ítems de la sección">
         <div className="work-detail-list">
           {(section.check_template_items ?? []).map((item: any) => {
-            const result = itemResults.find(
+            const preview = checkItemResults(section.check_template_items??[],status,components,itemNotes,observations,remainingFavorable);
+            const result = (hasChanges ? preview.map(row=>({...row,item_id:row.id})) : itemResults).find(
               (row: any) => row.item_id === item.id,
             );
             return (
               <article key={item.id}>
-                <Badge tone={severityForStatus(result?.result ?? status)}>
-                  {displayStatus(result?.result ?? status)}
+                <Badge tone={severityForStatus(result?.result ?? "Sin revisar")}>
+                  {displayStatus(result?.result ?? "Sin revisar")}
                 </Badge>
                 <p>
                   <strong>{item.title}</strong>
@@ -2177,14 +2191,15 @@ function CheckBlockPageV2({
             ))}
           </div>
           {needsDetail && (
-            <Card title="Editar observación e intervención">
+            <Card title="Elementos afectados y detalle de la incidencia">
+              <CheckAffectedItems items={zone.items??[]} selected={components} onSelect={id=>{toggleComponent(id);setSaveState('idle');setDirty(true);}} notes={itemNotes} onNotes={(id,value)=>{setItemNotes(current=>({...current,[id]:value}));setSaveState('idle');setDirty(true);}} remainingFavorable={remainingFavorable} onRemaining={value=>{setRemainingFavorable(value);setSaveState('idle');setDirty(true);}}/>
               <label>
-                Observación
+                Descripción común (opcional si cada elemento tiene su detalle)
                 <textarea
                   value={observations}
                   onChange={(event) => {
                     setObservations(event.target.value);
-                    setSaveState("idle");
+                    setSaveState("idle");setDirty(true);
                   }}
                 />
               </label>
@@ -2194,7 +2209,7 @@ function CheckBlockPageV2({
                   value={intervention}
                   onChange={(event) => {
                     setIntervention(event.target.value);
-                    setSaveState("idle");
+                    setSaveState("idle");setDirty(true);
                   }}
                 />
               </label>
@@ -2203,31 +2218,13 @@ function CheckBlockPageV2({
                 value={severity}
                 onChange={(value) => {
                   setSeverity(value);
-                  setSaveState("idle");
+                  setSaveState("idle");setDirty(true);
                 }}
                 options={["Leve", "Media", "Alta", "Critica"].map((value) => ({
                   value,
                   label: displayStatus(value),
                 }))}
               />
-              <div className="component-select">
-                {(zone.items ?? []).map((item: any) => {
-                  const component = item.component ?? item.title;
-                  return (
-                    <label key={component}>
-                      <input
-                        type="checkbox"
-                        checked={components.includes(component)}
-                        onChange={() => {
-                          toggleComponent(component);
-                          setSaveState("idle");
-                        }}
-                      />{" "}
-                      {component}
-                    </label>
-                  );
-                })}
-              </div>
               <label className="component-photo">
                 Añadir foto real
                 <input
@@ -2240,6 +2237,7 @@ function CheckBlockPageV2({
               </label>
             </Card>
           )}
+          {selectionError&&<p role="alert" className="form-error">{selectionError}</p>}
           <div className="confirm-bar">
             <button
               className="primary wide big"

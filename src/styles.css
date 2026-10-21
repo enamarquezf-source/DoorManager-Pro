@@ -1353,6 +1353,14 @@ body, button, input, select, textarea { font-family: Inter, ui-sans-serif, syste
 .flow-section-title p { font-size: 12px; color: #819184; line-height: 1.6; margin: 6px 0 0; }
 .flow-step-number { flex-shrink: 0; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: #e6f0e7; color: #568660; font-size: 12px; font-weight: 700; }
 .flow-equipment-modes,.flow-work-kind { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
+.check-affected-items { display:grid; gap:12px; margin-bottom:20px; }
+.check-affected-items h4 { margin:0; color:#49684e; font-size:15px; }.check-affected-items>p { margin:0 0 5px; color:#7b8d76; font-size:12px; line-height:1.6; }
+.check-affected-items>article { padding:15px; border:1px solid #dde6d8; border-radius:10px; background:#fbfcf8; }.check-affected-items>article.is-affected { border-color:#d6b591; background:#fff9f1; }
+.check-affected-choice,.check-remaining-choice { display:flex!important; flex-direction:row!important; align-items:flex-start; gap:12px!important; cursor:pointer; }
+.check-affected-choice input,.check-remaining-choice input { width:18px!important; height:18px!important; min-height:18px!important; flex:0 0 18px!important; margin:2px 0 0; accent-color:#5c8056; }
+.check-affected-choice strong { font-size:13px; color:#49684e; }.check-affected-choice small,.check-remaining-choice small { display:block; margin-top:5px; color:#83917b; font-size:11px; font-weight:400; line-height:1.6; }
+.check-item-note { display:grid; gap:7px; margin-top:13px; color:#7a6d54; font-size:12px; }.check-item-note textarea { min-height:75px; padding:10px; border:1px solid #e0d6c5; border-radius:8px; background:#fff; resize:vertical; width:100%; }
+.check-remaining-choice { padding:14px; border:1px solid #d4e3cc; background:#f2f8ec; border-radius:9px; color:#55734c; font-size:12px; line-height:1.6; }
 .flow-equipment-modes button,.flow-work-kind button { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 8px; padding: 16px; border: 1px solid #dce5dc; border-radius: 10px; background: #fff; color: #647d68; }
 .flow-equipment-modes button strong,.flow-work-kind strong { font-size: 13px; color: #3e6547; }
 .flow-equipment-modes button small,.flow-work-kind small { color: #8b998c; font-size: 10px; font-weight: 400; line-height: 1.5; }

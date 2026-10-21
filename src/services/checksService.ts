@@ -172,7 +172,12 @@ export const checksService = {
     }
     if (!sectionId) throw new Error('Falta la sección remota del bloque. El cambio queda guardado localmente.');
 
-    return expectData<any>(supabase.rpc('save_check_block_result', { p_payload: { local_change_id: change.revision ?? change.id, check_id: change.checkId, section_id: sectionId, result: payload.persistedStatus, observations: payload.observations || null, intervention: payload.intervention || null, severity: payload.severity || null, components: payload.components ?? [], items } }));
+    if (payload.itemResultsVersion === 1) {
+      const { error: schemaError } = await supabase.from('check_section_results').select('affected_item_ids').limit(0);
+      if (schemaError) throw new Error('No se ha podido comprobar el guardado por elemento. Revisa la conexión y que esté aplicada la migración 181. El cambio sigue guardado localmente.');
+    }
+
+    return expectData<any>(supabase.rpc('save_check_block_result', { p_payload: { local_change_id: change.revision ?? change.id, check_id: change.checkId, section_id: sectionId, result: payload.persistedStatus, observations: payload.observations || null, intervention: payload.intervention || null, severity: payload.severity || null, components: payload.components ?? [], items, item_results_version: payload.itemResultsVersion ?? 0, selected_item_ids: payload.selectedItemIds ?? [], remaining_favorable: payload.remainingFavorable === true } }));
   },
   async syncOfflinePhoto(change: OfflineChange) {
     if (!change.checkId) throw new Error('Falta el check asociado a la foto.');

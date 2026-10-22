@@ -84,6 +84,7 @@ export function previousWorkOrderStatus(status: string) {
 
 export function displayStatus(status?: string | null) {
   const translated = ({
+    'planned-material': 'Material previsto', time: 'Horas', cost: 'Desplazamiento o recurso', 'material-entry': 'Consumo de material', 'work-fields': 'Trabajo realizado', 'concept-decision': 'Concepto realizado', 'check-finish': 'Cierre de check', 'work-finish': 'Cierre técnico',
     draft: 'Borrador', ordered: 'Pedido', partially_received: 'Recibido parcialmente', received: 'Recibido',
     cancelled: 'Cancelado', confirmed: 'Confirmada', pending: 'Pendiente', active: 'Activo', inactive: 'Inactivo',
     preferred: 'Preferente', supplier: 'Proveedor', warehouse: 'Almacén', quantity: 'Cantidad',

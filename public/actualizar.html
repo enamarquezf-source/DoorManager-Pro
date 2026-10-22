@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Actualizar DMP</title>
+<style>
+  *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:#edf3f3;color:#173e43;font:16px/1.6 system-ui,sans-serif}main{width:100%;max-width:520px;padding:32px;border:1px solid #d3e3dd;border-radius:20px;background:#fff}small{font-weight:700;letter-spacing:.15em}h1{font-size:28px;line-height:1.2}button{width:100%;padding:15px;border:0;border-radius:12px;background:#173e43;color:#fff;font:inherit;font-weight:700;cursor:pointer}button:disabled{opacity:.7;cursor:wait}a{color:#173e43}#estado{min-height:52px}
+</style>
+<main>
+  <small>DMP · ACTUALIZACIÓN</small>
+  <h1>Cargar la nueva versión</h1>
+  <p>Conservaremos tu sesión, los partes descargados y los cambios pendientes de sincronizar.</p>
+  <p>Antes de continuar, guarda los formularios abiertos y cierra las otras pestañas de DMP.</p>
+  <button id="actualizar">Actualizar DMP</button>
+  <p id="estado" role="status" aria-live="polite">Necesitas conexión para descargar la actualización.</p>
+  <a href="/app/tecnico">Volver a DMP</a>
+</main>
+<script>
+const button = document.getElementById('actualizar');
+const status = document.getElementById('estado');
+button.addEventListener('click', async () => {
+  button.disabled = true;
+  status.textContent = 'Descargando la versión actual…';
+  try {
+    if (!navigator.onLine) throw new Error('Conecta el dispositivo a internet y vuelve a intentarlo.');
+    if ('serviceWorker' in navigator) {
+      await Promise.race([(async () => {
+        const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' });
+        await registration.update();
+        const deadline = Date.now() + 45000;
+        while (true) {
+          if (registration.waiting) {
+            status.textContent = 'Activando la actualización…';
+            const worker = registration.waiting;
+            worker.postMessage({ type: 'DMP_ACTIVATE_UPDATE' });
+            while (worker.state !== 'activated') {
+              if (worker.state === 'redundant') throw new Error('La actualización no se ha podido activar. Vuelve a intentarlo.');
+              if (Date.now() > deadline) throw new Error('La actualización está tardando demasiado. Vuelve a intentarlo.');
+              await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            break;
+          }
+          if (!registration.installing) break;
+          if (Date.now() > deadline) throw new Error('No se ha completado la descarga. Vuelve a intentarlo.');
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      })(), new Promise((_, reject) => setTimeout(() => reject(new Error('No se ha completado la actualización. Comprueba tu conexión y vuelve a intentarlo.')), 50000))]);
+    }
+    location.replace('/app/tecnico');
+  } catch (error) {
+    status.textContent = error.message || 'No se ha podido actualizar. Vuelve a intentarlo.';
+    button.disabled = false;
+  }
+});
+</script>
+</html>

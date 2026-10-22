@@ -54,9 +54,10 @@ export function toSpanishSupabaseError(error: any) {
   if (message.includes('permission denied') || message.includes('insufficient privilege')) return 'No tienes permisos para realizar esta operación con tu rol actual.';
   if (message.includes('row-level security')) return 'La operación no cumple el alcance de empresa o los datos enviados.';
   if (message.includes('JWT') || message.includes('auth')) return 'Tu sesión no permite realizar esta operación. Vuelve a iniciar sesión si el problema continúa.';
-  if (message.includes('Failed to fetch') || message.includes('NetworkError') || message.includes('fetch failed')) return 'No hay conexión. Revisa la red e inténtalo de nuevo.';
+  if (message.includes('Failed to fetch') || message.includes('NetworkError') || message.includes('fetch failed') || (!error?.code && /timed out|timeout/i.test(message))) return 'No hay conexión. Revisa la red e inténtalo de nuevo.';
   if (error?.code === 'PGRST202' || message.includes('Could not find the function') || message.includes('function') && message.includes('does not exist')) {
     if (message.includes('create_work_order_full')) return 'La API no encuentra la firma esperada de create_work_order_full.';
+    if (/dmp_sync_field_operation|dmp_save_check_block_offline/.test(message)) return 'Falta aplicar la migración 183 para enviar trabajo offline. Los cambios siguen guardados en este dispositivo.';
     return 'Esta operación no está disponible ahora mismo. Reinténtalo o avisa a administración.';
   }
   if (error?.code === 'PGRST200') return 'No se han podido cargar algunos datos relacionados. Revisa el diagnóstico o inténtalo de nuevo.';
@@ -70,7 +71,7 @@ export function toSpanishSupabaseError(error: any) {
   if (message.includes('violates check constraint')) return 'Los datos no cumplen una regla de validación. Revisa la información introducida.';
   if (/^respuesta de Supabase:/i.test(message)) return message.replace(/^respuesta de Supabase:\s*/i, '');
   if (/^(economia|revision Comercial|revision SAT):/i.test(message)) return message;
-  if (error?.code === 'P0001' && /^check:/i.test(message)) return message;
+  if (error?.code === 'P0001' && /^(check|offline):/i.test(message)) return message;
   if (/^(validacion del formulario|purga|permiso|perfil activo|empresa|asignacion|parte|estado editable|insercion|adicional|tarifa):/i.test(message)) return message;
   if (message.includes('duplicate key')) return 'Ya existe un registro con esos datos.';
   if (message.includes('violates foreign key')) return 'El registro relacionado seleccionado no existe o no pertenece a tu empresa.';

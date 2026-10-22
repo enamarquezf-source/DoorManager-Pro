@@ -10,7 +10,7 @@ describe('check finish contract', () => {
     expect(migration).not.toContain('No se puede finalizar: hay secciones sin sincronizar');
     expect(migration).toContain('revoke all on function public.finish_check_safe(uuid, text) from public');
     expect(migration).toContain('revoke all on function public.finish_check_safe(uuid, text) from anon');
-    expect(app).toContain('const canFinishCheck = pending.length === 0;');
+    expect(app).toContain("const canFinishCheck = workspace === 'tecnico' || pending.length === 0;");
     expect(app).toContain('Hay bloques sin revisar. Puedes finalizar');
   });
 });

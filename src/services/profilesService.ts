@@ -4,7 +4,9 @@ import { currentCompanyId, expectData } from './query';
 
 export const profilesService = {
   async getCurrentProfile(): Promise<Profile> {
-    const user = (await supabase.auth.getUser()).data.user;
+    const response = await supabase.auth.getUser();
+    if (response.error) throw response.error;
+    const user = response.data.user;
     if (!user) throw new Error('No hay sesión activa.');
     const profile = await expectData<any>(supabase.from('profiles').select('*').eq('auth_user_id', user.id).maybeSingle(), { service: 'profilesService', operation: 'Perfil actual', resource: 'profiles' });
     if (!profile) throw new Error('No hay un perfil enlazado a esta sesión.');

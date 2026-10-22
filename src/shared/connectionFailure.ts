@@ -5,5 +5,5 @@ export function isConnectionFailure(error: unknown): boolean {
   if (value.originalError && value.originalError !== error) return isConnectionFailure(value.originalError);
   // A database/API code means that a server answered the request.
   if (value.code) return false;
-  return typeof value.message === 'string' && /failed to fetch|networkerror|network request failed|fetch failed|load failed|no hay conexión/i.test(value.message);
+  return typeof value.message === 'string' && /failed to fetch|networkerror|network request failed|fetch failed|load failed|no hay conexión|timeout|timed out|signal timed out/i.test(value.message);
 }

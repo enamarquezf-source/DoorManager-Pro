@@ -132,7 +132,7 @@ describe('AUTH-RBAC-002 runtime authorization and user administration', () => {
     expect(`${app}\n${panel}`).not.toMatch(/>\s*svg\s*</i);
     for (const detail of ['42804', 'PostgREST', 'No API key found']) expect(`${app}\n${panel}`).not.toContain(detail);
     expect(app).toContain('const requestId = ++authRequestId.current');
-    expect(app).toContain('const nextProfile = await profilesService.getCurrentProfile()');
+    expect(app).toContain('resolveOfflineProfile(nextSession.user.id, () => profilesService.getCurrentProfile())');
     expect(app).toContain('/No hay sesión activa|No hay un perfil enlazado|Usuario desactivado/');
     expect(app).toContain("window.addEventListener('focus', refreshAccess)");
     expect(app).toContain("return roles.length ? roles.map(roleLabel).join(', ') : 'Sin roles';");

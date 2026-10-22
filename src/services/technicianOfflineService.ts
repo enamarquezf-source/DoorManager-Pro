@@ -1,8 +1,12 @@
+import { isConnectionFailure } from '../shared/connectionFailure';
+import { setWorkspaceIdentity, connectionAvailable, offlineWorkspaceStore } from './offlineWorkspaceStore';
+import { supabase } from '../lib/supabase/client';
+import { expectData } from './query';
 import { withOfflineSyncLock, withOfflineRecoveryLock } from '../shared/offlineSyncLock';
 import { checksService } from './checksService';
 import { workOrdersService } from './workOrdersService';
 
-export type OfflineChangeType = 'check-block' | 'work-note' | 'material' | 'photo' | 'signature' | 'deficiency';
+export type OfflineChangeType = 'check-block' | 'work-note' | 'material' | 'photo' | 'signature' | 'deficiency' | 'time' | 'cost' | 'material-entry' | 'work-fields' | 'check-finish' | 'work-finish' | 'concept-decision' | 'planned-material';
 
 export type OfflineChange = {
   id: string;
@@ -39,6 +43,7 @@ const inFlightChanges = new Set<string>();
 export function setOfflineIdentity(identity: OfflineIdentity | null) {
   const changed = identity?.companyId !== offlineIdentity?.companyId || identity?.profileId !== offlineIdentity?.profileId;
   offlineIdentity = identity;
+  setWorkspaceIdentity(identity);
   if (changed && typeof window !== 'undefined') dispatchQueueChanged();
 }
 
@@ -178,6 +183,8 @@ export function migrateLegacyChangesForTest(changes: OfflineChange[], ids: strin
 }
 
 function syncPriority(item: OfflineChange) {
+  if (item.type === 'work-finish') return 20;
+  if (item.type === 'check-finish') return 10;
   if (item.type === 'check-block') return 1;
   if (item.type === 'deficiency') return 2;
   if (item.type === 'photo') return 3;
@@ -235,7 +242,9 @@ function summarizeChanges(changes: OfflineChange[]) {
     blocks: changes.filter((item) => item.type === 'check-block').length,
     incidences: changes.filter((item) => item.type === 'deficiency' || item.payload.incidence).length,
     photos: changes.filter((item) => item.type === 'photo').length,
-    materials: changes.filter((item) => item.type === 'material').length,
+    materials: changes.filter((item) => item.type === 'material' || item.type === 'material-entry' || item.type === 'planned-material').length,
+    hours: changes.filter(item => item.type === 'time').length,
+    closures: changes.filter(item => item.type === 'check-finish' || item.type === 'work-finish').length,
     signatures: changes.filter((item) => item.type === 'signature').length,
     synced: changes.filter((item) => item.status === 'synced').length,
   };
@@ -276,6 +285,14 @@ export function deleteFailedQueueItemsForTest(changes: OfflineChange[]) {
 }
 
 async function syncChange(item: OfflineChange) {
+  if (['time','cost','material-entry','work-fields','check-finish','work-finish','concept-decision','planned-material'].includes(item.type)) {
+    if (item.type === 'check-finish' || item.type === 'work-finish') {
+      const dependencies = (await allChanges()).filter(other => other.id !== item.id && other.status !== 'synced' && (item.type === 'work-finish' ? other.workOrderId === item.workOrderId : other.checkId === item.checkId && other.type !== 'work-finish'));
+      if (dependencies.length) throw new Error('Sincroniza primero los cambios pendientes de este trabajo antes de finalizar.');
+    }
+    await expectData(supabase.rpc('dmp_sync_field_operation', { p_operation_id: item.id, p_kind: item.type, p_work_order_id: item.workOrderId, p_check_id: item.checkId ?? null, p_payload: item.payload }));
+    return;
+  }
   if (item.type === 'check-block') await checksService.syncOfflineBlock(item);
   else if (item.type === 'deficiency' && item.checkId) await checksService.syncOfflineDeficiency(item);
   else if (item.type === 'deficiency' && item.workOrderId) await workOrdersService.syncOfflineDeficiency(item.workOrderId, item.payload, item.id);
@@ -313,7 +330,7 @@ export const technicianOfflineService = {
     return changes.filter((item) => !item.profileId && isQueueOpen(item)).length;
   },
   async pending() {
-    return (await recoverInterruptedChanges()).filter(isQueueOpen).sort((a, b) => syncPriority(a) - syncPriority(b));
+    return (await recoverInterruptedChanges()).filter(isQueueOpen).sort((a, b) => syncPriority(a) - syncPriority(b) || a.createdAt.localeCompare(b.createdAt));
   },
   async queueItems() {
     return (await recoverInterruptedChanges()).filter(isQueueOpen).sort((a, b) => syncPriority(a) - syncPriority(b) || b.updatedAt.localeCompare(a.updatedAt));
@@ -389,6 +406,7 @@ export const technicianOfflineService = {
   },
   async sync(onProgress?: (message: string) => void, scope: OfflineSyncScope = {}) {
     requireOfflineIdentity();
+    if (!connectionAvailable()) throw new Error('Sin conexión. El trabajo sigue guardado en este dispositivo.');
     const run = async () => {
       const identity = requireOfflineIdentity();
       const pending = (await this.pending()).filter((item) => changeMatchesScope(item, scope));
@@ -411,12 +429,23 @@ export const technicianOfflineService = {
           await updateQueuedRevision(item, identity, (current) => ({ ...current, status, syncSessionId: undefined, error: message, attempts: (current.attempts ?? 0) + 1, updatedAt: new Date().toISOString() }));
           result.failed += 1;
           result.errors.push(message);
+          if (!connectionAvailable() || isConnectionFailure(error)) break;
         } finally {
           inFlightChanges.delete(item.id);
         }
       }
       const remaining = await allChanges();
       result.pending = remaining.filter((item) => isQueueOpen(item) && changeMatchesScope(item, scope)).length;
+      if (result.synced && connectionAvailable() && identityIsCurrent(identity)) {
+        try {
+          if (await offlineWorkspaceStore.get('day', identity)) {
+            const { technicianWorkspaceService: workspace } = await import('./technicianWorkspaceService');
+            const workIds = [...new Set(pending.map(item => item.workOrderId).filter(Boolean))] as string[];
+            const checkIds = [...new Set(pending.map(item => item.checkId).filter(Boolean))] as string[];
+            await Promise.allSettled([workspace.day(true), ...workIds.map(id => workspace.work(id, true)), ...checkIds.map(id => workspace.check(id, true))]);
+          }
+        } catch { /* A failed refresh must not turn acknowledged sends into failures. */ }
+      }
       dispatchQueueChanged();
       return result;
     };

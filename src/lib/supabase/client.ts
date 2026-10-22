@@ -1,3 +1,4 @@
+import { boundedFetch } from '../../shared/boundedFetch';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || (import.meta.env.VITEST ? 'https://test.supabase.co' : '');
@@ -13,4 +14,5 @@ if (import.meta.env.DEV && !import.meta.env.VITEST && (!supabaseUrl || !supabase
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabasePublishableKey);
+export const authStorageKey = `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token`;
+export const supabase = createClient(supabaseUrl, supabasePublishableKey, { auth: { storageKey: authStorageKey }, global: { fetch: boundedFetch } });

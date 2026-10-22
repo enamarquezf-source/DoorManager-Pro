@@ -177,7 +177,7 @@ export const checksService = {
       if (schemaError) throw new Error(`No se ha podido comprobar el guardado por elemento. Revisa la conexión y que esté aplicada la migración ${payload.itemResultsVersion>=2?'182':'181'}. El cambio sigue guardado localmente.`);
     }
 
-    return expectData<any>(supabase.rpc('save_check_block_result', { p_payload: { local_change_id: change.revision ?? change.id, check_id: change.checkId, section_id: sectionId, result: payload.persistedStatus, observations: payload.observations || null, intervention: payload.intervention || null, severity: payload.severity || null, components: payload.components ?? [], items, item_results_version: payload.itemResultsVersion ?? 0, selected_item_ids: payload.selectedItemIds ?? [], favorable_item_ids: payload.favorableItemIds ?? [], remaining_favorable: payload.remainingFavorable === true } }));
+    return expectData<any>(supabase.rpc(Object.hasOwn(payload, 'expectedSectionUpdatedAt') ? 'dmp_save_check_block_offline' : 'save_check_block_result', { p_payload: { expected_section_updated_at: payload.expectedSectionUpdatedAt ?? null, local_change_id: change.revision ?? change.id, check_id: change.checkId, section_id: sectionId, result: payload.persistedStatus, observations: payload.observations || null, intervention: payload.intervention || null, severity: payload.severity || null, components: payload.components ?? [], items, item_results_version: payload.itemResultsVersion ?? 0, selected_item_ids: payload.selectedItemIds ?? [], favorable_item_ids: payload.favorableItemIds ?? [], remaining_favorable: payload.remainingFavorable === true } }));
   },
   async syncOfflinePhoto(change: OfflineChange) {
     if (!change.checkId) throw new Error('Falta el check asociado a la foto.');

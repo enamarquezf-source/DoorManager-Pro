@@ -4,11 +4,12 @@ import { useQueryAccessScope } from './accessScope';
 export type LoadState<T> = { data: T; loading: boolean; refreshing: boolean; error: string };
 
 // Transitional adapter: legacy screens keep their API while all server state uses Query.
-export function useLoad<T>(loader: (signal: AbortSignal) => Promise<T>, deps: unknown[] = [], empty: T) {
+export function useLoad<T>(loader: (signal: AbortSignal) => Promise<T>, deps: unknown[] = [], empty: T, options: { retry?: boolean | number; refetchOnReconnect?: boolean } = {}) {
   const accessScope = useQueryAccessScope();
   const query = useQuery({
     queryKey: ['legacy-load', loader.toString(), ...deps, accessScope],
     queryFn: ({ signal }) => loader(signal),
+    ...options,
   });
   const state: LoadState<T> = {
     data: query.data ?? empty,

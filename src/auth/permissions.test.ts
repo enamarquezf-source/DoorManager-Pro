@@ -129,7 +129,7 @@ describe('canAccessRoute', () => {
     expect(canRole('Gerencia', 'asignar técnicos')).toBe(true);
     expect(canRole('Gerencia', 'crear clientes')).toBe(false);
     expect(canRole('Gerencia', 'crear checks')).toBe(false);
-    expect(canRole('Gerencia', 'ejecutar checks')).toBe(false);
+    expect(canRole('Gerencia', 'ejecutar checks')).toBe(true);
   });
 
   it('impide edición administrativa de checks a un tecnico puro', () => {
@@ -149,7 +149,7 @@ describe('canAccessRoute', () => {
     expect(canExecuteCheck(profile('superadmin'))).toBe(true);
     expect(canExecuteCheck(profile('SAT'))).toBe(true);
     expect(canExecuteCheck(profile('Tecnico'))).toBe(true);
-    expect(canExecuteCheck(profile('Gerencia'))).toBe(false);
+    expect(canExecuteCheck(profile('Gerencia'))).toBe(true);
     expect(canExecuteCheck(profile('Comercial'))).toBe(false);
     expect(canExecuteCheck(profile('Oficina'))).toBe(false);
   });

@@ -7,6 +7,9 @@ it('marks only the selected item and clears descriptions from the others',()=>{
 it('keeps other items unreviewed unless the user confirms they are correct',()=>{
  expect(checkItemResults(items,'Problema leve',['a'],{},'Ruido en el motor',false).map(row=>row.result)).toEqual(['Problema leve','Sin revisar','Sin revisar']);
 });
+it('can confirm one unaffected component as favorable while leaving another unreviewed',()=>{
+ expect(checkItemResults(items,'Problema leve',['a'],{},'Ruido',false,['b']).map(row=>row.result)).toEqual(['Problema leve','Todo favorable','Sin revisar']);
+});
 it('requires selection and an explanation and never maps an ambiguous component to every item',()=>{
  expect(selectedCheckItemIds(items,['Seguridad'])).toEqual([]);expect(selectedCheckItemIds(items,['Motor'])).toEqual(['a']);
  expect(validateCheckItemSelection(items,'Problema leve',[],{},'Ruido')).toContain('Selecciona');

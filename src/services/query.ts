@@ -70,6 +70,7 @@ export function toSpanishSupabaseError(error: any) {
   if (message.includes('violates check constraint')) return 'Los datos no cumplen una regla de validación. Revisa la información introducida.';
   if (/^respuesta de Supabase:/i.test(message)) return message.replace(/^respuesta de Supabase:\s*/i, '');
   if (/^(economia|revision Comercial|revision SAT):/i.test(message)) return message;
+  if (error?.code === 'P0001' && /^check:/i.test(message)) return message;
   if (/^(validacion del formulario|purga|permiso|perfil activo|empresa|asignacion|parte|estado editable|insercion|adicional|tarifa):/i.test(message)) return message;
   if (message.includes('duplicate key')) return 'Ya existe un registro con esos datos.';
   if (message.includes('violates foreign key')) return 'El registro relacionado seleccionado no existe o no pertenece a tu empresa.';

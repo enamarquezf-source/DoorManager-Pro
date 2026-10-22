@@ -449,7 +449,7 @@ function navForWorkspace(workspace: Workspace) {
   const sat = [{ id: 'inicio', label: 'Inicio', path: '/app/inicio', icon: Home }, { id: 'planificacion', label: 'Planificación', path: '/app/modulos/planificacion', icon: CalendarClock }, { id: 'tecnicos', label: 'Técnicos', path: '/app/modulos/tecnicos', icon: UsersRound }, { id: 'clientes', label: 'Clientes', path: '/app/clientes', icon: Building2 }, { id: 'centros', label: 'Centros', path: '/app/centros', icon: Factory }, { id: 'equipos', label: 'Equipos', path: '/app/equipos', icon: Warehouse }, { id: 'tipos-equipo', label: 'Tipos de equipo', path: '/app/modulos/tipos-equipo', icon: Wrench }, { id: 'expedientes', label: 'Expedientes', path: '/app/expedientes', icon: FileText }, { id: 'partes', label: 'Partes', path: '/app/partes', icon: ClipboardList }, { id: 'presupuestos', label: 'Presupuestos', path: '/app/modulos/presupuestos', icon: FileText }, { id: 'materiales', label: 'Materiales', path: '/app/modulos/materiales', icon: PackageCheck }, { id: 'checks', label: 'Checks', path: '/app/checks', icon: ClipboardCheck }, { id: 'deficiencias', label: 'Deficiencias', path: '/app/deficiencias', icon: ShieldAlert }, { id: 'documentos', label: 'Documentación', path: '/app/documentos', icon: FileText }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }, { id: 'plantillas', label: 'Plantillas', path: '/app/plantillas', icon: PackageCheck }];
   const comercial = [{ id: 'inicio', label: 'Inicio', path: '/app/inicio', icon: Home }, { id: 'clientes', label: 'Clientes', path: '/app/clientes', icon: Building2 }, { id: 'comerciales', label: 'Comerciales', path: '/app/modulos/comerciales', icon: BriefcaseBusiness }, { id: 'oportunidades', label: 'Oportunidades', path: '/app/modulos/oportunidades', icon: BriefcaseBusiness }, { id: 'presupuestos', label: 'Presupuestos', path: '/app/modulos/presupuestos', icon: FileText }, { id: 'materiales', label: 'Materiales', path: '/app/modulos/materiales', icon: PackageCheck }, { id: 'mantenimientos', label: 'Mantenimientos', path: '/app/modulos/mantenimientos', icon: CalendarClock }, { id: 'visitas', label: 'Visitas', path: '/app/modulos/visitas', icon: CalendarClock }, { id: 'expedientes', label: 'Expedientes', path: '/app/expedientes', icon: FileText }, { id: 'partes', label: 'Partes', path: '/app/partes', icon: ClipboardList }, { id: 'informes-comerciales', label: 'Informes comerciales', path: '/app/modulos/informes-comerciales', icon: PieChart }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }];
   const oficina = [{ id: 'inicio', label: 'Inicio', path: '/app/inicio', icon: Home }, { id: 'administracion', label: 'Administración', path: '/app/modulos/administracion', icon: ClipboardCheck }, { id: 'facturacion', label: 'Facturación', path: '/app/modulos/facturacion', icon: FileText }, { id: 'cobros', label: 'Cobros', path: '/app/modulos/cobros', icon: Bell }, { id: 'compras', label: 'Compras', path: '/app/modulos/compras', icon: Truck }, { id: 'facturas-proveedor', label: 'Facturas de proveedor', path: '/app/modulos/facturas-proveedor', icon: FileText }, { id: 'materiales', label: 'Materiales', path: '/app/modulos/materiales', icon: PackageCheck }, { id: 'tarifas-horas', label: 'Tarifas horas', path: '/app/modulos/tarifas-horas', icon: Settings }, { id: 'proveedores', label: 'Proveedores', path: '/app/modulos/proveedores', icon: Warehouse }, { id: 'prl', label: 'PRL y personal', path: '/app/modulos/prl', icon: ShieldAlert }, { id: 'vehiculos', label: 'Vehículos', path: '/app/modulos/vehiculos', icon: Truck }, { id: 'documentos', label: 'Documentos', path: '/app/documentos', icon: FileText }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }];
-  const gerencia = [{ id: 'inicio', label: 'Inicio', path: '/app/inicio', icon: Home }, { id: 'resumen', label: 'Resumen', path: '/app/gerencia', icon: PieChart }, { id: 'ventas', label: 'Ventas', path: '/app/modulos/ventas', icon: BriefcaseBusiness }, { id: 'presupuestos', label: 'Presupuestos', path: '/app/modulos/presupuestos', icon: FileText }, { id: 'materiales', label: 'Materiales', path: '/app/modulos/materiales', icon: PackageCheck }, { id: 'tarifas-horas', label: 'Tarifas horas', path: '/app/modulos/tarifas-horas', icon: Settings }, { id: 'cobros', label: 'Cobros', path: '/app/modulos/cobros', icon: Bell }, { id: 'operaciones', label: 'Operaciones', path: '/app/modulos/operaciones', icon: Gauge }, { id: 'rentabilidad', label: 'Rentabilidad', path: '/app/modulos/rentabilidad', icon: PieChart }, { id: 'calidad', label: 'Calidad', path: '/app/deficiencias', icon: ShieldAlert }, { id: 'clientes', label: 'Clientes', path: '/app/clientes', icon: Building2 }, { id: 'tecnicos', label: 'Técnicos', path: '/app/modulos/tecnicos', icon: UsersRound }, { id: 'comerciales', label: 'Comerciales', path: '/app/modulos/comerciales', icon: BriefcaseBusiness }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }];
+  const gerencia = [{ id: 'inicio', label: 'Inicio', path: '/app/inicio', icon: Home }, { id: 'resumen', label: 'Resumen', path: '/app/gerencia', icon: PieChart }, { id: 'partes', label: 'Partes', path: '/app/partes', icon: ClipboardList }, { id: 'checks', label: 'Checks', path: '/app/checks', icon: ClipboardCheck }, { id: 'ventas', label: 'Ventas', path: '/app/modulos/ventas', icon: BriefcaseBusiness }, { id: 'presupuestos', label: 'Presupuestos', path: '/app/modulos/presupuestos', icon: FileText }, { id: 'materiales', label: 'Materiales', path: '/app/modulos/materiales', icon: PackageCheck }, { id: 'tarifas-horas', label: 'Tarifas horas', path: '/app/modulos/tarifas-horas', icon: Settings }, { id: 'cobros', label: 'Cobros', path: '/app/modulos/cobros', icon: Bell }, { id: 'operaciones', label: 'Operaciones', path: '/app/modulos/operaciones', icon: Gauge }, { id: 'rentabilidad', label: 'Rentabilidad', path: '/app/modulos/rentabilidad', icon: PieChart }, { id: 'calidad', label: 'Calidad', path: '/app/deficiencias', icon: ShieldAlert }, { id: 'clientes', label: 'Clientes', path: '/app/clientes', icon: Building2 }, { id: 'tecnicos', label: 'Técnicos', path: '/app/modulos/tecnicos', icon: UsersRound }, { id: 'comerciales', label: 'Comerciales', path: '/app/modulos/comerciales', icon: BriefcaseBusiness }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }];
   const maintenanceNav = { id: 'mantenimientos', label: 'Mantenimientos', path: '/app/modulos/mantenimientos', icon: CalendarClock }; for(const items of [sat, gerencia, oficina]) if(!items.some(item=>item.id===maintenanceNav.id)) items.push(maintenanceNav); const purchases = { id: 'compras', label: 'Compras', path: '/app/modulos/compras', icon: Truck };
   const treasury = { id: 'tesoreria', label: 'Tesorería', path: '/app/modulos/tesoreria', icon: ClipboardList };
   superadmin.push(treasury);
@@ -1824,6 +1824,7 @@ function CheckBlockPageV2({
   const [components, setComponents] = useState<string[]>([]);
   const [itemNotes,setItemNotes] = useState<Record<string,string>>({});
   const [remainingFavorable,setRemainingFavorable] = useState(false);
+  const [favorableItemIds,setFavorableItemIds] = useState<string[]>([]);
   const [selectionError,setSelectionError] = useState('');
   const [dirty,setDirty] = useState(false);
   const [photos, setPhotos] = useState<Record<string, any>[]>([]);
@@ -1857,8 +1858,11 @@ function CheckBlockPageV2({
   );
   useEffect(() => {
     if (!data || !zone) return;
+    let active=true;
     setLocalLoaded(false);
-    technicianOfflineService.sectionState(id, zone.id, remoteLocalChangeIds(data)).then((local) => {
+    Promise.all([technicianOfflineService.sectionState(id, zone.id, remoteLocalChangeIds(data)),technicianOfflineService.pendingForCheck(id,remoteLocalChangeIds(data))]).then(([local,pending]) => {
+      if(!active)return;
+      const pendingPhotos=pending.filter(change=>change.type==='photo'&&change.blockId===zone.id).map(change=>change.payload);
       if (local) {
         const normalized = normalizeCheckStatus(local.status);
         setStatus(normalized);
@@ -1867,8 +1871,8 @@ function CheckBlockPageV2({
         setIntervention(local.intervention ?? "");
         setSeverity(local.severity ?? "Leve");
         setComponents(selectedCheckItemIds(zone.items,local.selectedItemIds??local.components??[]));
-        setItemNotes(local.itemNotes??{});setRemainingFavorable(local.remainingFavorable===true);
-        setPhotos(local.photos ?? []);
+        setItemNotes(local.itemNotes??{});setRemainingFavorable(local.remainingFavorable===true);setFavorableItemIds(local.favorableItemIds??[]);
+        setPhotos(local.photos ?? pendingPhotos);
       } else if (existing) {
         const normalized = normalizeCheckStatus(existing.result);
         setStatus(normalized);
@@ -1879,20 +1883,22 @@ function CheckBlockPageV2({
         setComponents(
           selectedCheckItemIds(zone.items,existing.affected_item_ids?.length?existing.affected_item_ids:(Array.isArray(existing.components)?existing.components:[])),
         );
+        setFavorableItemIds(existing.favorable_item_ids??itemResults.filter((row:any)=>row.result==='Todo favorable').map((row:any)=>row.item_id));
         setItemNotes(Object.fromEntries(itemResults.filter((row:any)=>row.observations).map((row:any)=>[row.item_id,row.observations])));
         setRemainingFavorable(itemResults.length>0&&zone.items.filter((item:any)=>!(existing.affected_item_ids??[]).includes(item.id)).every((item:any)=>itemResults.some((row:any)=>row.item_id===item.id&&row.result==='Todo favorable')));
-        setPhotos([]);
+        setPhotos(pendingPhotos);
       } else {
         setStatus("Sin revisar");
         setConfirmedStatus("Sin revisar");
         setObservations("");
         setIntervention("");
         setSeverity("Leve");
-        setComponents([]);setItemNotes({});setRemainingFavorable(false);
+        setComponents([]);setItemNotes({});setRemainingFavorable(false);setFavorableItemIds([]);
         setPhotos([]);
       }
       setDirty(false);setLocalLoaded(true);
     });
+    return()=>{active=false;};
   }, [
     id,
     zone?.id,
@@ -1901,10 +1907,10 @@ function CheckBlockPageV2({
     existing?.observations,
     existing?.intervention,
     existing?.severity,
-    JSON.stringify(existing?.components ?? []),
+    JSON.stringify(existing?.components ?? []),JSON.stringify(existing?.affected_item_ids??[]),JSON.stringify(existing?.favorable_item_ids??[]),JSON.stringify(itemResults.map((row:any)=>[row.item_id,row.result,row.observations])),
     JSON.stringify(remoteLocalChangeIds(data)),
   ]);
-  if (!canExecuteCheck(profile)) return <AccessDenied />;
+  if (!loading && data && !canViewCheck(profile, data)) return <AccessDenied />;
   if (workspace === "tecnico" && !loading && !data && (!error || isWorkAccessFailure(error)))
     return <AccessDenied />;
   if (loading || error || !data)
@@ -1976,13 +1982,13 @@ function CheckBlockPageV2({
       setPhotos([]);
     }
   };
-  const addPhotos = async (files: FileList | null) => {
+  const addPhotos = async (files: FileList | null,itemId?:string) => {
     if (!files?.length) return;
     try {
       const nextPhotos = await Promise.all(
         Array.from(files).map(fileToLocalPhoto),
       );
-      setPhotos((current) => [...current, ...nextPhotos]);
+      setPhotos((current) => [...current, ...nextPhotos.map(photo=>({...photo,itemId}))]);
       setSaveState("idle");setDirty(true);
     } catch {
       setSaveState("error");
@@ -2012,8 +2018,9 @@ function CheckBlockPageV2({
           sectionTitle: zone.name,
           status,
           persistedStatus: persisted,
-          items: checkItemResults(section.check_template_items ?? [],status,components,itemNotes,observations,remainingFavorable),
-          selectedItemIds: components, itemNotes, remainingFavorable, itemResultsVersion: 1,
+          items: checkItemResults(section.check_template_items ?? [],status,components,itemNotes,observations,remainingFavorable,favorableItemIds),
+          selectedItemIds: components, itemNotes, remainingFavorable, favorableItemIds: favorableItemIds.filter(id=>!components.includes(id)), itemResultsVersion: 2,
+          photos: photos.filter(photo=>!photo.itemId||components.includes(photo.itemId)),
           components:
             status === "Todo favorable"
               ? (zone.items ?? []).map(
@@ -2030,7 +2037,7 @@ function CheckBlockPageV2({
       });
       if (needsDetail)
         await Promise.all(
-          photos.map((photo) =>
+          photos.filter(photo=>!photo.itemId||components.includes(photo.itemId)).map((photo) =>
             technicianOfflineService.upsert({
               type: "photo",
               workOrderId: data.work_order_id,
@@ -2041,7 +2048,7 @@ function CheckBlockPageV2({
                 ...photo,
                 sectionId: section.id,
                 sectionTitle: zone.name,
-                description: observations,
+                description: photo.itemId ? itemNotes[photo.itemId]||observations : observations,
               },
             }),
           ),
@@ -2107,7 +2114,7 @@ function CheckBlockPageV2({
       <Card title="Ítems de la sección">
         <div className="work-detail-list">
           {(section.check_template_items ?? []).map((item: any) => {
-            const preview = checkItemResults(section.check_template_items??[],status,components,itemNotes,observations,remainingFavorable);
+            const preview = checkItemResults(section.check_template_items??[],status,components,itemNotes,observations,remainingFavorable,favorableItemIds);
             const result = (hasChanges ? preview.map(row=>({...row,item_id:row.id})) : itemResults).find(
               (row: any) => row.item_id === item.id,
             );
@@ -2141,7 +2148,7 @@ function CheckBlockPageV2({
                 <img
                   src={photo.signed_url}
                   alt={
-                    photo.description ?? photo.files?.name ?? "Foto del bloque"
+                    [zone.items.find((item:any)=>item.id===photo.files?.metadata?.item_id)?.title,photo.description??photo.files?.name??"Foto del bloque"].filter(Boolean).join(" · ")
                   }
                 />
                 <strong>
@@ -2192,7 +2199,7 @@ function CheckBlockPageV2({
           </div>
           {needsDetail && (
             <Card title="Elementos afectados y detalle de la incidencia">
-              <CheckAffectedItems items={zone.items??[]} selected={components} onSelect={id=>{toggleComponent(id);setSaveState('idle');setDirty(true);}} notes={itemNotes} onNotes={(id,value)=>{setItemNotes(current=>({...current,[id]:value}));setSaveState('idle');setDirty(true);}} remainingFavorable={remainingFavorable} onRemaining={value=>{setRemainingFavorable(value);setSaveState('idle');setDirty(true);}}/>
+              <CheckAffectedItems items={zone.items??[]} selected={components} onSelect={id=>{toggleComponent(id);setSaveState('idle');setDirty(true);}} notes={itemNotes} onNotes={(id,value)=>{setItemNotes(current=>({...current,[id]:value}));setSaveState('idle');setDirty(true);}} remainingFavorable={remainingFavorable} onRemaining={value=>{setRemainingFavorable(value);if(!value)setFavorableItemIds([]);setSaveState('idle');setDirty(true);}} favorableItemIds={favorableItemIds} onFavorable={(itemId,value)=>{if(remainingFavorable){setRemainingFavorable(false);setFavorableItemIds(zone.items.filter((item:any)=>!components.includes(item.id)&&item.id!==itemId).map((item:any)=>item.id));}else setFavorableItemIds(current=>value?[...new Set([...current,itemId])]:current.filter(id=>id!==itemId));setSaveState('idle');setDirty(true);}} photos={photos} onPhotos={(itemId,files)=>void addPhotos(files,itemId)} onRemovePhoto={photoId=>{setPhotos(current=>current.filter(photo=>photo.id!==photoId));setSaveState('idle');setDirty(true);}}/>
               <label>
                 Descripción común (opcional si cada elemento tiene su detalle)
                 <textarea
@@ -2226,7 +2233,7 @@ function CheckBlockPageV2({
                 }))}
               />
               <label className="component-photo">
-                Añadir foto real
+                Foto general de la zona (opcional)
                 <input
                   type="file"
                   accept="image/*"

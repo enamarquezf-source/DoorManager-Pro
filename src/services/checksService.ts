@@ -172,24 +172,28 @@ export const checksService = {
     }
     if (!sectionId) throw new Error('Falta la sección remota del bloque. El cambio queda guardado localmente.');
 
-    if (payload.itemResultsVersion === 1) {
-      const { error: schemaError } = await supabase.from('check_section_results').select('affected_item_ids').limit(0);
-      if (schemaError) throw new Error('No se ha podido comprobar el guardado por elemento. Revisa la conexión y que esté aplicada la migración 181. El cambio sigue guardado localmente.');
+    if (payload.itemResultsVersion >= 1) {
+      const { error: schemaError } = await supabase.from('check_section_results').select(payload.itemResultsVersion>=2?'affected_item_ids,favorable_item_ids':'affected_item_ids').limit(0);
+      if (schemaError) throw new Error(`No se ha podido comprobar el guardado por elemento. Revisa la conexión y que esté aplicada la migración ${payload.itemResultsVersion>=2?'182':'181'}. El cambio sigue guardado localmente.`);
     }
 
-    return expectData<any>(supabase.rpc('save_check_block_result', { p_payload: { local_change_id: change.revision ?? change.id, check_id: change.checkId, section_id: sectionId, result: payload.persistedStatus, observations: payload.observations || null, intervention: payload.intervention || null, severity: payload.severity || null, components: payload.components ?? [], items, item_results_version: payload.itemResultsVersion ?? 0, selected_item_ids: payload.selectedItemIds ?? [], remaining_favorable: payload.remainingFavorable === true } }));
+    return expectData<any>(supabase.rpc('save_check_block_result', { p_payload: { local_change_id: change.revision ?? change.id, check_id: change.checkId, section_id: sectionId, result: payload.persistedStatus, observations: payload.observations || null, intervention: payload.intervention || null, severity: payload.severity || null, components: payload.components ?? [], items, item_results_version: payload.itemResultsVersion ?? 0, selected_item_ids: payload.selectedItemIds ?? [], favorable_item_ids: payload.favorableItemIds ?? [], remaining_favorable: payload.remainingFavorable === true } }));
   },
   async syncOfflinePhoto(change: OfflineChange) {
     if (!change.checkId) throw new Error('Falta el check asociado a la foto.');
     const companyId = await currentCompanyId();
     if (!companyId) throw new Error('No se ha podido determinar la empresa para subir la foto.');
     const payload = change.payload;
+    if (payload.itemId) {
+      const result = await expectData<any>(supabase.from('check_item_results').select('id').eq('check_id',change.checkId).eq('item_id',payload.itemId).maybeSingle());
+      if (!result) throw new Error('Guarda y sincroniza primero el resultado del componente. La foto sigue pendiente.');
+    }
     const localId = payload.id ?? change.id;
     const extension = String(payload.name ?? 'foto.jpg').split('.').pop() || 'jpg';
     const path = `${companyId}/checks/${change.checkId}/${change.blockId ?? 'general'}/${localId}.${extension}`;
     const uploaded = await uploadLocalFile(path, payload);
     try {
-      return await expectData<string>(supabase.rpc('register_check_photo', { p_payload: { local_change_id: change.id, check_id: change.checkId, item_result_id: payload.itemResultId ?? null, bucket: filesBucket, path, name: payload.name ?? `Foto ${localId}`, mime_type: payload.type ?? uploaded.mime, size_bytes: payload.size ?? uploaded.size, description: payload.description ?? payload.sectionTitle ?? change.blockId ?? null, metadata: { block_id: change.blockId, section_id: payload.sectionId ?? null } } }));
+      return await expectData<string>(supabase.rpc('register_check_photo', { p_payload: { local_change_id: change.id, check_id: change.checkId, item_id: payload.itemId ?? null, item_result_id: payload.itemResultId ?? null, bucket: filesBucket, path, name: payload.name ?? `Foto ${localId}`, mime_type: payload.type ?? uploaded.mime, size_bytes: payload.size ?? uploaded.size, description: payload.description ?? payload.sectionTitle ?? change.blockId ?? null, metadata: { block_id: change.blockId, section_id: payload.sectionId ?? null, item_id: payload.itemId ?? null } } }));
     } catch (error) {
       await supabase.storage.from(filesBucket).remove([path]);
       throw error;

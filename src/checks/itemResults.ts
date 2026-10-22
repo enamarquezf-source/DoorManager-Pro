@@ -7,11 +7,11 @@ export function selectedCheckItemIds(items:CheckItem[],references:string[]) {
   return matches.length===1?[matches[0].id]:[];
  }))];
 }
-export function checkItemResults(items:CheckItem[],status:string,selected:string[],notes:Record<string,string>,observations:string,remainingFavorable:boolean) {
+export function checkItemResults(items:CheckItem[],status:string,selected:string[],notes:Record<string,string>,observations:string,remainingFavorable:boolean,favorableItemIds:string[]=[]) {
  const ids=selectedCheckItemIds(items,selected);
  const problem=itemProblemStatuses.includes(status);
  const persisted=status.replace('Favorable tras intervención','Favorable tras intervencion');
- return items.map(item=>({id:item.id,result:problem?(ids.includes(item.id)?persisted:remainingFavorable?'Todo favorable':'Sin revisar'):persisted,observations:problem&&ids.includes(item.id)?(notes[item.id]?.trim()||observations.trim()||null):null}));
+ return items.map(item=>({id:item.id,result:problem?(ids.includes(item.id)?persisted:remainingFavorable||favorableItemIds.includes(item.id)?'Todo favorable':'Sin revisar'):persisted,observations:problem&&ids.includes(item.id)?(notes[item.id]?.trim()||observations.trim()||null):null}));
 }
 export function validateCheckItemSelection(items:CheckItem[],status:string,selected:string[],notes:Record<string,string>,observations:string) {
  if(!itemProblemStatuses.includes(status))return '';

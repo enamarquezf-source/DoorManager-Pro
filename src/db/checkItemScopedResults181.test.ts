@@ -2,6 +2,9 @@ import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 import { afterAll,afterEach,beforeAll,beforeEach,expect,it } from 'vitest';
 const migration=readFileSync(new URL('../../supabase/migrations/181_check_item_scoped_results.sql',import.meta.url),'utf8');
+const migration182=readFileSync(new URL('../../supabase/migrations/182_check_component_results_and_photos.sql',import.meta.url),'utf8');
+const photoSource=readFileSync(new URL('../../supabase/migrations/020_check_sync_end_to_end.sql',import.meta.url),'utf8');
+const originalPhoto=photoSource.slice(photoSource.indexOf('create or replace function public.register_check_photo('),photoSource.indexOf('create or replace function public.register_work_order_photo('));
 const company='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222';
 const template='33333333-3333-4333-8333-333333333333',section='44444444-4444-4444-8444-444444444444',check='55555555-5555-4555-8555-555555555555';
 const one='66666666-6666-4666-8666-666666666666',two='77777777-7777-4777-8777-777777777777',three='88888888-8888-4888-8888-888888888888';
@@ -17,14 +20,19 @@ beforeAll(async()=>{
  create table checks(id uuid primary key,company_id uuid,template_id uuid,technician_id uuid,work_order_id uuid,deleted_at timestamptz,finished_at timestamptz,started_at timestamptz,updated_at timestamptz,status text,global_result text,observations text);
  create table check_section_results(id uuid primary key default gen_random_uuid(),company_id uuid,check_id uuid references checks(id),section_id uuid references check_template_sections(id),result text,observations text,intervention text,severity text,components jsonb,local_change_id text,synced_at timestamptz,updated_at timestamptz,unique(check_id,section_id));
  create table check_item_results(id uuid primary key default gen_random_uuid(),company_id uuid,check_id uuid references checks(id),section_result_id uuid references check_section_results(id),item_id uuid references check_template_items(id),result text,observations text,updated_at timestamptz,unique(check_id,item_id));
+ create table files(id uuid primary key default gen_random_uuid(),company_id uuid,bucket text,path text,name text,mime_type text,size_bytes bigint,uploaded_by uuid,description text,metadata jsonb,local_change_id text,uploaded_at timestamptz,unique(bucket,path));
+ create table check_photos(id uuid primary key default gen_random_uuid(),company_id uuid,check_id uuid references checks(id),item_result_id uuid references check_item_results(id),file_id uuid references files(id),taken_by uuid,description text,local_change_id text);
+ create unique index check_photo_local on check_photos(company_id,local_change_id) where local_change_id is not null;
  create function current_profile_id() returns uuid language sql as $$select '${company}'::uuid$$;
  create function assert_member_of_current_company(uuid) returns void language plpgsql as $$begin if $1<>current_setting('test.company')::uuid then raise exception 'Otra empresa';end if;end$$;
  create function has_any_role(text[]) returns boolean language sql as $$select current_setting('test.role')='SAT'$$;
  create function is_assigned_to_work_order(uuid) returns boolean language sql as $$select false$$;
+ create function is_assigned_to_work_order(uuid,uuid) returns boolean language sql as $$select false$$;
+ create function assert_dmp_storage_path(text,uuid,text,uuid) returns void language plpgsql as $$begin if $1 not like $2::text||'/'||$3||'/'||$4::text||'/%' then raise exception 'Ruta fuera de empresa';end if;end$$;
  insert into check_templates values('${template}','${company}');insert into check_template_sections values('${section}','${template}');
  insert into check_template_items values('${one}','${section}','Motor','Motor',1),('${two}','${section}','Banda','Seguridad',2),('${three}','${section}','Fotocélulas','Seguridad',3);
  insert into checks(id,company_id,template_id,status,global_result) values('${check}','${company}','${template}','Por realizar','Sin revisar');
- `);await db.exec(migration);await db.exec(migration);
+ `);await db.exec(originalPhoto);await db.exec(migration);await db.exec(migration);await db.exec(migration182);await db.exec(migration182);
 },30000);
 beforeEach(async()=>{await db.exec(`begin;select set_config('test.company','${company}',false);select set_config('test.role','SAT',false);`);});
 afterEach(async()=>{await db.exec('rollback');});afterAll(async()=>{await db.close();});
@@ -48,3 +56,16 @@ it('supports an older unambiguous offline selection without spreading the defect
 it('does not interpret an ambiguous old component label as all matching elements',async()=>{await expect(save({check_id:check,section_id:section,result:'No favorable',observations:'Defecto',components:['Seguridad']})).rejects.toThrow(/ambigua/);});
 it('denies an unassigned technician even when the check has no technician',async()=>{await db.exec("select set_config('test.role','Tecnico',false)");await expect(save()).rejects.toThrow(/permisos/);});
 it('denies another company',async()=>{await db.exec(`select set_config('test.company','${other}',false)`);await expect(save()).rejects.toThrow('Otra empresa');});
+it('persists an individual favorable acknowledgement independently of the rest',async()=>{
+ await save(payload({item_results_version:2,remaining_favorable:false,favorable_item_ids:[two],items:[{id:one,result:'Problema leve',observations:'Motor con ruido'},{id:two,result:'Todo favorable'},{id:three,result:'Sin revisar'}]}));
+ expect((await db.query<{result:string}>('select result from check_item_results order by item_id')).rows.map(row=>row.result)).toEqual(['Problema leve','Todo favorable','Sin revisar']);
+});
+it('links a photo to the exact component result and keeps retries unique',async()=>{
+ await save();const photo={check_id:check,item_id:one,bucket:'dmp-files',path:`${company}/checks/${check}/component.jpg`,name:'component.jpg',local_change_id:'photo-test',metadata:{section_id:section},description:'Motor con ruido'};
+ await db.query('select register_check_photo($1::jsonb)',[JSON.stringify(photo)]);await db.query('select register_check_photo($1::jsonb)',[JSON.stringify(photo)]);
+ const rows=await db.query<{item_id:string;metadata:any}>('select r.item_id,f.metadata from check_photos p join check_item_results r on r.id=p.item_result_id join files f on f.id=p.file_id');expect(rows.rows).toEqual([{item_id:one,metadata:{section_id:section,item_id:one}}]);
+});
+it('rejects a photo for a component without a result in this check',async()=>{
+ await save();await expect(db.query('select register_check_photo($1::jsonb)',[JSON.stringify({check_id:check,item_id:other,bucket:'dmp-files',path:`${company}/checks/${check}/wrong.jpg`})])).rejects.toThrow(/Guarda primero/);
+});
+it('keeps the older photo helper private',async()=>{const result=await db.query<{allowed:boolean}>("select has_function_privilege('authenticated','public.dmp_register_check_photo_legacy(jsonb)','EXECUTE') allowed");expect(result.rows[0].allowed).toBe(false);});

@@ -20,7 +20,7 @@ const workspaceByRole: Record<RoleName, Workspace> = {
 
 export const permissionMatrix: Record<RoleName, string[]> = {
   superadmin: ['*'],
-  Gerencia: ['ver clientes','ver centros','ver equipos','ver partes','crear partes','editar partes','asignar técnicos','ver checks','ver facturación','ver documentación','ver auditoría'],
+  Gerencia: ['ver clientes','ver centros','ver equipos','ver partes','crear partes','editar partes','asignar técnicos','ver checks','ejecutar checks','sincronizar trabajo técnico','ver facturación','ver documentación','ver auditoría'],
   SAT: ['ver clientes','crear clientes','editar clientes','ver centros','crear centros','editar centros','ver equipos','crear equipos','editar equipos','ver partes','crear partes','editar partes','asignar técnicos','ver checks','crear checks','ejecutar checks','sincronizar trabajo técnico','ver documentación','gestionar plantillas','gestionar tipos de equipo'],
   Comercial: ['ver clientes','crear clientes','editar clientes','ver centros','ver equipos','ver partes','crear partes','ver checks','ver documentación'],
   Oficina: ['ver clientes','ver centros','ver equipos','ver partes','editar partes','ver checks','ver facturación','ver documentación'],
@@ -179,7 +179,7 @@ export function canManageSuppliers(profile: Profile | null | undefined) { return
 export function canViewPurchaseOrders(profile: Profile | null | undefined) { return hasPermission(profile, 'purchase_orders.read'); }
 export function canManagePurchaseOrders(profile: Profile | null | undefined) { return hasPermission(profile, 'purchase_orders.create') || hasPermission(profile, 'purchase_orders.update'); }
 export function canCreateCheck(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT']); }
-export function canExecuteCheck(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Tecnico']); }
+export function canExecuteCheck(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Tecnico']); }
 export function canManageCheck(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT']); }
 export function canManageEquipmentTypes(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT']); }
 export function canViewCheck(profile: Profile | null | undefined, check?: any) {

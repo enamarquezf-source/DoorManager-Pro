@@ -1,6 +1,7 @@
 import { SectionHeader } from '../components/SectionHeader';
 import { DeleteRecordAction } from '../components/DeleteRecordAction';
 import { useState } from 'react';
+import { ChevronRight } from 'lucide-react';
 import { Link,useNavigate } from 'react-router-dom';
 import { useLoad } from '../query/useLoad';
 import { hasPermission } from '../auth/rbac';
@@ -20,5 +21,5 @@ export function DocumentLibrary({profile,documentId}:{profile:any;documentId?:st
 function DocumentLink({row}:{row:any}){
  const routes:Record<string,string>={'Cliente':'/app/clientes/','Centro':'/app/centros/','Equipo':'/app/equipos/','Expediente':'/app/expedientes/','Parte':'/app/partes/','Check':'/app/checks/','Factura proveedor':'/app/modulos/facturas-proveedor?id=','Vehiculo':'/app/modulos/vehiculos?id=','Registro PRL':'/app/modulos/prl?id='};
  const route=row.related_id&&routes[row.related_type]?routes[row.related_type]+row.related_id:null;
- return <div className="register-document"><span>{row.related_type}{row.related_value?' · '+row.related_value:''}</span>{route&&<Link to={route}>Abrir registro ↗</Link>}</div>;
+ return <div className="register-document">{route?<Link className="register-document-link" to={route}><span>{row.related_type}{row.related_value?' · '+row.related_value:''}</span><ChevronRight size={18} aria-hidden="true" /></Link>:<span>{row.related_type}{row.related_value?' · '+row.related_value:''}</span>}</div>;
 }

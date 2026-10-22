@@ -13,6 +13,12 @@ function clickRow({ interactive = false, selection = '', modifier = false } = {}
 }
 
 describe('record table navigation', () => {
+  it('leaves rows without an origin as ordinary, unfocusable table rows', () => {
+    const row = RecordTableRow({ children: 'Sin origen' });
+    expect(row.type).toBe('tr');
+    expect(row.props.tabIndex).toBeUndefined();
+    expect(row.props.onClick).toBeUndefined();
+  });
   it('opens a focused row with Enter without intercepting its controls', () => {
     const onOpen = vi.fn();
     const row = RecordTableRow({ children: null, onOpen });

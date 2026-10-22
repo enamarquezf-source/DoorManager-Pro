@@ -12,7 +12,7 @@ describe('billing functional and UX flow', () => {
     expect(moduleSource).toContain('work.billing_blockers');
     expect(moduleSource).toContain('disabled={isPreparing || blockers.length > 0}');
     expect(moduleSource).toContain('PREPARAR FACTURA');
-    expect(moduleSource).toContain('Abrir parte');
+    expect(moduleSource).toContain('<RecordNavigationHint to={`/app/partes/${work.id}`}');
     expect(moduleSource).toContain('work.source');
     expect(moduleSource).toContain('work.entered_at');
     expect(moduleSource).toContain('const isPreparing = preparing.has(billingWork.id)');

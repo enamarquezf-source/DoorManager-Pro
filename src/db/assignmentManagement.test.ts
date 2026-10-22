@@ -90,7 +90,7 @@ describe('assignment management', () => {
     expect(app).toContain('¿Desasignar a ${fullName(confirm.person)} del parte ${workOrder.code}?');
     expect(app).toContain("savingId === row.id ? 'Desasignando...' : 'Desasignar'");
     expect(app).toContain('if (!confirm || savingId) return');
-    expect(app).toContain('className="assignment-row"');
+    expect(app).toMatch(/className="assignment-row(?: [^"]*)?"/);
     expect(app).toContain("commercial ? 'Comercial' : 'Responsable'");
     expect(app).toContain('Motivo opcional');
     expect(app).toContain("commercial_id: isCommercialProfile(workOrder?.responsible) ? workOrder?.current_responsible_id : ''");

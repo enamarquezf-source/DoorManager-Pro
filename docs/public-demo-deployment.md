@@ -82,3 +82,32 @@ operaciones como simulaciones.
 - https://supabase.com/docs/guides/auth/auth-captcha
 - https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/
 - https://developers.cloudflare.com/workers/ci-cd/builds/configuration/
+
+## Continuación nocturna · 23 de octubre de 2026
+
+Comprobaciones HTTP realizadas sobre el proyecto nuevo y el Worker:
+
+- Worker: HTTP 200; el JavaScript publicado ya contiene la portada «Probar DMP»
+  y la conexión al proyecto de demo.
+- `/rest/v1/companies`: HTTP 404, PGRST205; el esquema sigue sin instalar.
+- `/auth/v1/settings`: HTTP 200; `anonymous_users` sigue desactivado.
+- `/functions/v1/public-demo-cleanup`: HTTP 404; función todavía no desplegada.
+- No se ha acreditado una clave Turnstile configurada en la compilación remota.
+
+Bloqueo de acceso: no hay conectores Supabase/Cloudflare, sesión de navegador
+administrativo accesible, token administrativo Supabase, contraseña de base de
+ datos ni CLI autenticada disponibles. La clave pública facilitada sirve para
+el cliente, pero no para instalar tablas, cambiar Auth o desplegar funciones.
+No se ha modificado la instalación actual ni se ha activado la demo incompleta.
+
+Trabajo independiente completado: añadidas pruebas de límite absoluto de sesión,
+heartbeat que no revive una sesión caducada, selección de sesiones expiradas para
+limpieza y capacidad que cuenta también sesiones pendientes de borrar. Resultado:
+los cuatro archivos de pruebas de demo pasan, 17 pruebas. La validación completa
+anterior sigue siendo 320 archivos / 1.823 pruebas; no se ha repetido toda la suite
+por estos dos casos nuevos, que no modifican código de ejecución.
+
+Siguiente acción necesaria: abrir el panel del proyecto nuevo con acceso de
+administración y seguir los pasos 1 a 5 de este documento. No enviar contraseñas o
+claves secretas al chat. Después realizar la aceptación remota del paso 6.
+La continuación automática era puntual y se elimina al cerrar esta ejecución.

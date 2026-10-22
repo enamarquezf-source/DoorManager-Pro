@@ -15,6 +15,38 @@ beforeAll(async () => {
 },30000);
 afterAll(async()=>{await db?.close();});
 
+it('bounds heartbeats to the absolute deadline and cannot revive an expired session',async()=>{
+  await auth(a);
+  await db.query("select dmp_demo_start('Oficina')");
+  const own=await session();
+  await db.query("update dmp_demo_sessions set absolute_expires_at=now()+interval '5 minutes' where id=$1",[own.id]);
+  await db.query('select dmp_demo_heartbeat()');
+  expect((await db.query('select expires_at=absolute_expires_at bounded from dmp_demo_sessions where id=$1',[own.id])).rows[0].bounded).toBe(true);
+  await db.query("update dmp_demo_sessions set expires_at=now()-interval '1 minute' where id=$1",[own.id]);
+  await db.query('select dmp_demo_heartbeat()');
+  expect((await session()).ended).toBe(true);
+  expect((await db.query('select current_company_id() id')).rows[0].id).toBeNull();
+  await expect(db.query("select dmp_demo_start('Oficina')")).rejects.toThrow('termina esta sesión');
+  await auth('');
+  expect((await db.query('select id from dmp_demo_cleanup_jobs($1)',[a])).rows.map((r:any)=>r.id)).toEqual([own.id]);
+  await db.query('select dmp_demo_purge($1)',[own.id]);
+  await db.query('delete from dmp_demo_sessions where id=$1',[own.id]);
+});
+
+it('counts pending cleanup against capacity and rejects new visitors when full',async()=>{
+  await auth('');
+  await db.query('update dmp_demo_config set max_sessions=1');
+  await auth(a); await db.query("select dmp_demo_start('Oficina')");
+  const own=await session();
+  await db.query('select dmp_demo_finish()');
+  await auth(b);
+  await expect(db.query("select dmp_demo_start('SAT')")).rejects.toThrow('plazas están ocupadas');
+  await auth('');
+  await db.query('select dmp_demo_purge($1)',[own.id]);
+  await db.query('delete from dmp_demo_sessions where id=$1',[own.id]);
+  await db.query('update dmp_demo_config set max_sessions=20');
+});
+
 it('installs all final views without customer or employee seed data',async()=>{
   expect((await db.query('select count(*) total from companies')).rows[0].total).toBe(0);
   expect((await db.query('select count(*) total from clients')).rows[0].total).toBe(0);

@@ -1,0 +1,61 @@
+/* Personal palettes affect identity surfaces, never warning/error/status colours. */
+html[data-dmp-theme] { --color-background: var(--dmp-background); --color-primary: var(--dmp-primary); }
+html[data-dmp-theme] .sidebar { background: var(--dmp-sidebar); }
+html[data-dmp-theme] .sidebar nav a.active { background: var(--dmp-active); box-shadow: inset 2px 0 var(--dmp-accent); color: #fff; }
+html[data-dmp-theme] :is(.sidebar nav a.active > svg, .brand > svg) { color: var(--dmp-accent); }
+html[data-dmp-theme] .sidebar .module-search { background: var(--dmp-active); border-color: var(--dmp-accent); }
+html[data-dmp-theme] .sidebar :is(.brand-edition, .nav-caption, .nav-group h2, .sidebar-update, nav a) { color: #e0e6eb; }
+html[data-dmp-theme] .user > span { background: var(--dmp-primary); color: #fff; }
+html[data-dmp-theme] :is(.flow-hero, .section-header, .list-section-hero, .operations-hero, .detail-hero) {
+  background: linear-gradient(120deg, var(--dmp-soft), #fff); border-color: var(--dmp-border); color: var(--dmp-primary);
+}
+html[data-dmp-theme] :is(.flow-hero, .section-header, .list-section-hero, .operations-hero, .detail-hero) :is(h2, .eyebrow, .study-eyebrow, .operations-eyebrow) { color: var(--dmp-primary); }
+html[data-dmp-theme] :is(.operations-hero .operations-description, .operations-hero-side time) { color: #52606d; }
+html[data-dmp-theme] :is(.shell, .mini-modal, .overlay, .flow-dialog) .primary:not(.danger):not(:disabled),
+html[data-dmp-theme] .technician-stage-next:not(:disabled) { background: var(--dmp-primary); border-color: var(--dmp-primary); color: #fff; }
+html[data-dmp-theme] :is(.shell, .mini-modal, .overlay, .flow-dialog) .primary:not(.danger):hover:not(:disabled),
+html[data-dmp-theme] .technician-stage-next:hover:not(:disabled) { background: var(--dmp-hover); border-color: var(--dmp-hover); color: #fff; }
+html[data-dmp-theme] :is(.study-kpi-primary, .dashboard-kpis .kpi-block:first-child, .calm-summary:not(.material-ux-stats) .metric:first-child:not(.danger):not(.warn), .calm-summary .metric.selected) { background: var(--dmp-primary); border-color: var(--dmp-primary); }
+html[data-dmp-theme] :is(.study-kpi-primary, .dashboard-kpis .kpi-block:first-child, .calm-summary:not(.material-ux-stats) .metric:first-child:not(.danger):not(.warn), .calm-summary .metric.selected) :is(strong, span, small, .kpi-label) { color: #fff; }
+html[data-dmp-theme] .technician-industrial .technician-workstation-head { background-color: var(--dmp-primary); border-color: var(--dmp-active); background-image: linear-gradient(115deg, transparent, #ffffff08), repeating-linear-gradient(0deg, transparent, transparent 23px, #ffffff12 24px), repeating-linear-gradient(90deg, transparent, transparent 23px, #ffffff12 24px); }
+html[data-dmp-theme] .technician-industrial .technician-workstation-head::before { background: var(--dmp-accent); }
+html[data-dmp-theme] .technician-work-tabs > button[aria-selected="true"] { background: var(--dmp-primary); border-color: var(--dmp-primary); color: #fff; }
+html[data-dmp-theme] .technician-work-tabs > button[aria-selected="true"]:hover { background: var(--dmp-hover); border-color: var(--dmp-hover); color: #fff; }
+html[data-dmp-theme] .technician-stage-switch > button[aria-pressed="true"],
+html[data-dmp-theme] .tabs button.active { background: var(--dmp-soft); border-color: var(--dmp-primary); color: var(--dmp-primary); box-shadow: inset 0 0 0 1px var(--dmp-primary); }
+html[data-dmp-theme] .technician-staged-flow .technician-work-subtabs { background: var(--dmp-soft); }
+html[data-dmp-theme] :is(.dashboard-list > .dashboard-entry, .record-surface, .record-link, .material-row-link, .check-record-link, .register-card):hover { background: var(--dmp-soft); border-color: var(--dmp-border); }
+html[data-dmp-theme] .record-surface .record-navigation-hint { color: var(--dmp-primary); }
+html[data-dmp-theme] :is(button, a, input, select, textarea):focus-visible { outline-color: var(--dmp-primary); }
+html[data-dmp-theme] :is(input[type="radio"], input[type="checkbox"]) { accent-color: var(--dmp-primary); }
+html[data-dmp-theme] :is(.mini-modal, .overlay, .flow-dialog-overlay) { background: color-mix(in srgb, var(--dmp-sidebar) 35%, transparent); }
+
+/* Small, self-contained preference panel; native radios support keyboard selection. */
+.appearance-panel { width: min(100%, 540px); }
+.appearance-content { padding: 4px 4px 14px; }
+.appearance-user { display: flex; align-items: center; gap: 9px; margin: 0 0 18px; color: #587078; font-size: 13px; }
+.appearance-content h4 { margin: 0 0 6px; color: #182e35; font-size: 17px; }
+.appearance-content > p:not(.appearance-user) { color: #52616b; font-size: 13px; line-height: 1.6; }
+.appearance-panel fieldset.appearance-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; border: 0; padding: 0; margin: 18px 0; background: transparent; box-shadow: none; }
+.appearance-panel .appearance-options > legend.sr-only { width: 1px; height: 1px; padding: 0; margin: -1px; float: none; }
+.appearance-option { position: relative; display: flex; align-items: center; gap: 10px; min-height: 84px; min-width: 0; padding: 12px 28px 12px 10px; border: 1px solid #dce5e7; border-radius: 12px; background: #fff; cursor: pointer; }
+.appearance-option:hover { background: var(--swatch-background); }
+.appearance-option.is-selected { border-color: var(--swatch-main); box-shadow: inset 0 0 0 1px var(--swatch-main); background: var(--swatch-background); }
+.appearance-option:focus-within { outline: 3px solid var(--swatch-main); outline-offset: 3px; }
+.appearance-option input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.appearance-swatch { position: relative; display: block; flex: 0 0 48px; width: 48px; height: 38px; border-radius: 6px; overflow: hidden; background: var(--swatch-background); border: 1px solid #00000012; }
+.appearance-swatch > i { position: absolute; inset: 0 auto 0 0; width: 10px; background: var(--swatch-main); }
+.appearance-swatch > span { position: absolute; top: 8px; left: 16px; width: 22px; height: 3px; background: var(--swatch-main); border-radius: 2px; }
+.appearance-swatch > b { position: absolute; top: 17px; left: 16px; width: 22px; height: 12px; background: #fff; border: 1px solid var(--swatch-main); border-radius: 3px; }
+.appearance-option-copy { display: grid; gap: 4px; min-width: 0; }
+.appearance-option-copy strong { color: #182e35; font-size: 12px; line-height: 1.4; }
+.appearance-option-copy small { color: #52616b; font-size: 11px; line-height: 1.4; }
+.appearance-selected { position: absolute; right: 8px; top: 12px; color: var(--swatch-main); visibility: hidden; }
+.is-selected .appearance-selected { visibility: visible; }
+.appearance-content .appearance-note { padding-top: 12px; border-top: 1px solid #dce5e7; }
+.appearance-content .appearance-save { font-size: 12px; }
+@media(max-width:420px) {
+  .appearance-panel fieldset.appearance-options { grid-template-columns: minmax(0, 1fr); }
+  .appearance-option { min-height: 64px; }
+  .appearance-panel .modal-footer { flex-wrap: wrap; }
+}

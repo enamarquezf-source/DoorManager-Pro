@@ -13,11 +13,14 @@
   <p>Antes de continuar, guarda los formularios abiertos y cierra las otras pestañas de DMP.</p>
   <button id="actualizar">Actualizar DMP</button>
   <p id="estado" role="status" aria-live="polite">Necesitas conexión para descargar la actualización.</p>
-  <a href="/app/tecnico">Volver a DMP</a>
+  <a id="volver" href="/app/inicio">Volver a DMP</a>
 </main>
 <script>
 const button = document.getElementById('actualizar');
 const status = document.getElementById('estado');
+const requestedReturn = new URLSearchParams(location.search).get('volver') || '';
+const returnTo = /^\/app(?:\/|\?|$)/.test(requestedReturn) && !requestedReturn.includes('\\') ? requestedReturn : '/app/inicio';
+document.getElementById('volver').href = returnTo;
 button.addEventListener('click', async () => {
   button.disabled = true;
   status.textContent = 'Descargando la versión actual…';
@@ -46,7 +49,7 @@ button.addEventListener('click', async () => {
         }
       })(), new Promise((_, reject) => setTimeout(() => reject(new Error('No se ha completado la actualización. Comprueba tu conexión y vuelve a intentarlo.')), 50000))]);
     }
-    location.replace('/app/tecnico');
+    location.replace(returnTo);
   } catch (error) {
     status.textContent = error.message || 'No se ha podido actualizar. Vuelve a intentarlo.';
     button.disabled = false;

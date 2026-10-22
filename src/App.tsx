@@ -396,7 +396,7 @@ function SidebarUpdateCheck() {
       const hasPending = workspace === 'tecnico' && (await technicianOfflineService.pending()).length > 0;
       if ((hasPending || hasPotentialUnsavedFormData()) && !window.confirm('Hay formularios con datos o cambios técnicos pendientes en este dispositivo. Actualiza solo si ya has guardado o sincronizado lo importante.')) return;
       sessionStorage.setItem('dmp-last-manual-update', state.latest.version);
-      window.location.reload();
+      window.location.assign(`/actualizar.html?volver=${encodeURIComponent(window.location.pathname + window.location.search)}`);
       return;
     }
     setChecking(true);

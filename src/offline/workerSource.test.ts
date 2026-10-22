@@ -22,7 +22,43 @@ it('reopens deep routes and loads assets from the installed shell without a netw
   handlers.fetch({ request: { url: 'https://project.supabase.co/rest/v1/profiles', method: 'GET' }, respondWith });
   handlers.fetch({ request: { url: 'https://dmp.test/api/private', method: 'GET' }, respondWith });
   handlers.fetch({ request: { url: 'https://dmp.test/actualizar.html', method: 'GET', mode: 'navigate' }, respondWith });
+  handlers.fetch({ request: { url: 'https://dmp.test/actualizar', method: 'GET', mode: 'navigate' }, respondWith });
   expect(respondWith).not.toHaveBeenCalled();
+});
+
+it('serves Cloudflare redirected cached HTML as a non-redirected navigation response', async () => {
+  const handlers: Record<string, (event: any) => void> = {};
+  const stored = new Response('<main>DMP offline</main>', { headers: { 'Content-Type': 'text/html', 'X-DMP': 'preserved' } });
+  Object.defineProperty(stored, 'redirected', { value: true });
+  Object.defineProperty(stored, 'url', { value: 'https://dmp.test/' });
+  const fetch = vi.fn(() => { throw new Error('Offline'); });
+  runInNewContext(offlineWorkerSource('dmp-shell-test', ['/index.html']), {
+    self: { location: { origin: 'https://dmp.test' }, addEventListener: (name: string, callback: any) => { handlers[name] = callback; } },
+    caches: { open: async () => ({ match: async () => stored }) }, fetch, URL, Response,
+  });
+  let result!: Promise<Response>;
+  handlers.fetch({ request: { url: 'https://dmp.test/app/superadmin/sincronizacion', method: 'GET', mode: 'navigate', redirect: 'manual' }, respondWith: (promise: Promise<Response>) => { result = promise; } });
+  const response = await result;
+  expect(response.redirected).toBe(false);
+  expect(response.status).toBe(200);
+  expect(response.headers.get('Content-Type')).toBe('text/html');
+  expect(response.headers.get('X-DMP')).toBe('preserved');
+  expect(await response.text()).toBe('<main>DMP offline</main>');
+  expect(fetch).not.toHaveBeenCalled();
+});
+
+it('falls back to the server when the device shell cache is unavailable', async () => {
+  const handlers: Record<string, (event: any) => void> = {};
+  const fetch = vi.fn(async () => new Response('DMP online'));
+  runInNewContext(offlineWorkerSource('dmp-shell-test', ['/index.html']), {
+    self: { location: { origin: 'https://dmp.test' }, addEventListener: (name: string, callback: any) => { handlers[name] = callback; } },
+    caches: { open: async () => { throw new Error('Storage unavailable'); } }, fetch, URL, Response,
+  });
+  let result!: Promise<Response>;
+  const request = { url: 'https://dmp.test/app/inicio', method: 'GET', mode: 'navigate' };
+  handlers.fetch({ request, respondWith: (promise: Promise<Response>) => { result = promise; } });
+  expect(await (await result).text()).toBe('DMP online');
+  expect(fetch).toHaveBeenCalledExactlyOnceWith(request);
 });
 
 it('activates an update only after the explicit update message', async () => {

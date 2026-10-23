@@ -20,7 +20,7 @@ export function PublicDemoEntry({ checkReady, start, onReady, siteKey = import.m
   const previous = sessionStorage.getItem('dmp-demo-end-status');
   return <main className="public-demo-entry">
     <header className="demo-wordmark"><BrandMark size={32} /><strong>DoorManager Pro</strong><span>BETA PÚBLICA</span></header>
-    <section className="demo-welcome"><p className="eyebrow">DESCUBRE TU FORMA DE TRABAJAR</p><h1>Entra en DMP.<br />Pruébala a tu manera.</h1><p>Del primer aviso al trabajo terminado. Explora la gestión o ponte en la piel del técnico, con una guía que te acompaña.</p></section>
+    <section className="demo-welcome"><h1>Elige tu perfil y prueba DMP.</h1><p>Del aviso al cobro. Elige cómo entrar; la guía te acompaña y puedes cambiar de perfil durante la prueba.</p></section>
     {previous && <p className="demo-ended" role="status">{previous === 'complete' ? 'Tu prueba anterior ha terminado y sus datos se han eliminado.' : 'Tu prueba anterior ha terminado. La limpieza remota queda pendiente de confirmación del servidor.'}</p>}
     <section className="demo-start"><h2>¿Desde dónde quieres probarla?</h2><fieldset className="demo-role-options" disabled={busy}><legend className="sr-only">Elige tu rol de prueba</legend>
       {demoRoles.map(option => { const Icon = icons[option.icon]; return <label key={option.id} className={`demo-role${role === option.id ? ' is-selected' : ''}`}><input type="radio" name="demo-role" value={option.id} checked={role === option.id} onChange={() => setRole(option.id)} /><Icon size={24} aria-hidden="true" /><strong>{option.title}</strong><span>{option.description}</span><Check size={17} className="demo-role-check" aria-hidden="true" /></label>; })}

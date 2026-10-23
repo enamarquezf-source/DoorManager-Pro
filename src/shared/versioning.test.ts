@@ -8,6 +8,12 @@ describe('versioning', () => {
     expect(isNewBuild(current, { version: '0.1.0-new', commit: 'new', builtAt: '2026-08-03T11:00:00Z' })).toBe(true);
     expect(isNewBuild(current, current)).toBe(false);
   });
+  it('detects distinct Worker builds even when the old version label was always local',()=>{
+    const legacy={version:'0.1.0-local',commit:'local',builtAt:'2026-10-23T10:00:00Z'};
+    expect(isNewBuild(legacy,{...legacy,builtAt:'2026-10-23T11:00:00Z'})).toBe(true);
+    expect(isNewBuild(legacy,{...legacy,builtAt:'2026-10-23T10:00:00+00:00'})).toBe(false);
+    expect(isNewBuild(legacy,{...legacy,builtAt:'desconocido'})).toBe(false);
+  });
 
   it('normaliza manifiestos incompletos sin romper la UI', () => {
     expect(normalizeBuildInfo({ version: ' 0.1.0 ', commit: '', builtAt: 123 })).toEqual({ version: '0.1.0', commit: 'desconocido', builtAt: 'desconocido' });

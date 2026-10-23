@@ -6,6 +6,7 @@ self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).the
 // Updates wait until existing tabs close so an in-progress form is never reloaded.
 self.addEventListener('message', event => {
   if (event.data?.type === 'DMP_ACTIVATE_UPDATE') event.waitUntil(self.skipWaiting());
+  if (event.data?.type === 'DMP_SHELL_INFO') event.ports?.[0]?.postMessage({ cache: CACHE });
 });
 self.addEventListener('activate', event => event.waitUntil((async () => {
   for (const name of await caches.keys()) if (name.startsWith('dmp-shell-') && name !== CACHE) await caches.delete(name);
@@ -14,7 +15,7 @@ self.addEventListener('activate', event => event.waitUntil((async () => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET' || url.origin !== self.location.origin) return;
-  if (url.pathname === '/actualizar.html' || url.pathname === '/actualizar') return;
+  if (url.pathname === '/actualizar.html' || url.pathname === '/actualizar' || url.pathname === '/build-info.json' || url.pathname === '/sw.js' || url.pathname === '/update-shell.js') return;
   const navigation = event.request.mode === 'navigate' && (url.pathname === '/' || url.pathname === '/app' || url.pathname.startsWith('/app/'));
   if (!navigation && !FILES.includes(url.pathname)) return;
   event.respondWith(caches.open(CACHE).then(async cache => {

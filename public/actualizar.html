@@ -15,7 +15,8 @@
   <p id="estado" role="status" aria-live="polite">Necesitas conexión para descargar la actualización.</p>
   <a id="volver" href="/app/inicio">Volver a DMP</a>
 </main>
-<script>
+<script type="module">
+import { publishedShellCache, verifyActiveShell } from '/update-shell.js';
 const button = document.getElementById('actualizar');
 const status = document.getElementById('estado');
 const requestedReturn = new URLSearchParams(location.search).get('volver') || '';
@@ -28,6 +29,7 @@ button.addEventListener('click', async () => {
     if (!navigator.onLine) throw new Error('Conecta el dispositivo a internet y vuelve a intentarlo.');
     if ('serviceWorker' in navigator) {
       await Promise.race([(async () => {
+        const expectedCache = await publishedShellCache();
         const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' });
         await registration.update();
         const deadline = Date.now() + 45000;
@@ -47,6 +49,8 @@ button.addEventListener('click', async () => {
           if (Date.now() > deadline) throw new Error('No se ha completado la descarga. Vuelve a intentarlo.');
           await new Promise(resolve => setTimeout(resolve, 100));
         }
+        status.textContent = 'Comprobando que la versión nueva está activa…';
+        await verifyActiveShell(registration, expectedCache);
       })(), new Promise((_, reject) => setTimeout(() => reject(new Error('No se ha completado la actualización. Comprueba tu conexión y vuelve a intentarlo.')), 50000))]);
     }
     location.replace(returnTo);

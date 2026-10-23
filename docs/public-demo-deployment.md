@@ -205,3 +205,29 @@ mantienen el comportamiento de esperar a sus datos.
 Pruebas de interfaz: abrir el formulario desde cero, guardar el primer registro,
 y conservar el borrador al refrescar o fallar la carga. La corrección es del
 frontend: actualizar la app tras el despliegue, sin otra instalación SQL.
+
+## Actualización verificable y portada compacta
+
+El servidor ya publicaba la corrección de listas vacías. Una prueba adicional
+monta ClientsPage y su formulario real (incluido el portal y el asistente) bajo
+SAT y Comercial y confirma que Crear cliente abre y cierra correctamente.
+No se ha observado todavía el código activo dentro del navegador del usuario.
+
+Se localizaron dos defectos independientes en las actualizaciones del Worker:
+versiones etiquetadas siempre 0.1.0-local y build-info.json servido desde la caché
+del shell. La versión ahora incluye un identificador por compilación cuando no
+hay SHA; el comprobador compara también builtAt y el worker no intercepta el
+manifiesto ni los archivos del actualizador. La página actualizar.html verifica
+mediante MessageChannel que el worker activo coincide con el publicado; si sigue
+el antiguo o no responde, informa del error en vez de volver silenciosamente a
+la app anterior. Se conservan Auth, IndexedDB y los cambios pendientes.
+
+La portada reduce cabecera, título, separaciones y tarjetas para mostrar texto y
+selección de rol al principio. Los portales de formularios de la demo se sitúan
+por encima de la guía y del selector de perfil.
+
+Tras el despliegue, abrir actualizar.html?volver=%2Fapp%2Fclientes en LA MISMA
+pestaña/navegador donde se reproduce el problema y pulsar Actualizar DMP. La
+verificación de activación es obligatoria antes del retorno. Si continúa el
+fallo con la versión verificada, recoger la captura o el error de esa pantalla;
+no atribuirlo a permisos ni afirmar que se ha reproducido en el navegador real.

@@ -77,3 +77,12 @@ it('activates an update only after the explicit update message', async () => {
   expect(skipWaiting).toHaveBeenCalledOnce();
   await waitUntil.mock.calls[0][0];
 });
+
+it('never intercepts version checks or updater files, even when present in the precache manifest',()=>{
+ const handlers:Record<string,(event:any)=>void>={};
+ const paths=['/build-info.json','/sw.js','/update-shell.js','/actualizar.html'];
+ runInNewContext(offlineWorkerSource('dmp-shell-current',paths),{self:{location:{origin:'https://dmp.test'},addEventListener:(name:string,fn:any)=>{handlers[name]=fn;}},URL});
+ for(const path of paths){const respondWith=vi.fn();handlers.fetch({request:{url:'https://dmp.test'+path+'?ts=123',method:'GET'},respondWith});expect(respondWith).not.toHaveBeenCalled();}
+ const postMessage=vi.fn();handlers.message({data:{type:'DMP_SHELL_INFO'},ports:[{postMessage}]});
+ expect(postMessage).toHaveBeenCalledExactlyOnceWith({cache:'dmp-shell-current'});
+});

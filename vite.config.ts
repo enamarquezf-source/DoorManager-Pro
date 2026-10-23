@@ -22,7 +22,8 @@ function offlineShellPlugin() {
 
 const buildTime = new Date().toISOString();
 const buildCommit = process.env.CF_PAGES_COMMIT_SHA ?? process.env.GITHUB_SHA ?? process.env.VERCEL_GIT_COMMIT_SHA ?? 'local';
-const buildVersion = `${process.env.npm_package_version ?? '0.0.0'}-${buildCommit.slice(0, 12)}`;
+const buildIdentity = buildCommit === 'local' ? buildTime.replace(/\D/g, '') : buildCommit.slice(0, 12);
+const buildVersion = `${process.env.npm_package_version ?? '0.0.0'}-${buildIdentity}`;
 
 function buildInfoPlugin() {
   return {

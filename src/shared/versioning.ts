@@ -31,7 +31,9 @@ export async function checkForNewVersion(current: BuildInfo = currentBuild, fetc
 }
 
 export function isNewBuild(current: BuildInfo, latest: BuildInfo) {
-  return Boolean(latest.version && latest.version !== current.version);
+  if (latest.version && latest.version !== current.version) return true;
+  const currentTime=Date.parse(current.builtAt),latestTime=Date.parse(latest.builtAt);
+  return Number.isFinite(currentTime)&&Number.isFinite(latestTime)&&currentTime!==latestTime;
 }
 
 export function normalizeBuildInfo(value: unknown): BuildInfo {

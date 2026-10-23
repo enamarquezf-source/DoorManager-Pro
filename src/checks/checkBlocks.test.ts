@@ -133,3 +133,10 @@ describe('functional check blocks', () => {
     expect(blocks.every((block) => block.visual?.sectionMatcher)).toBe(true);
   });
 });
+it('provides existing reference images for all three demo equipment types', () => {
+  for (const name of ['Puerta seccional', 'Puerta corredera', 'Barrera automática']) {
+    const template = visualTemplateForEquipment({ equipment_types: { name } });
+    expect(template?.image).toBeTruthy();
+    expect(existsSync(`public${template!.image}`)).toBe(true);
+  }
+});

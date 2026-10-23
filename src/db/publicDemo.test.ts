@@ -11,6 +11,7 @@ beforeAll(async () => {
   db=await createDemoTestDatabase();
   await db.exec(demoSchemaBundle());
   await db.exec(readFileSync('supabase/demo/002_public_demo.sql','utf8'));
+  await db.exec(readFileSync('supabase/demo/004_technician_demo_repairs.sql','utf8'));
   await db.exec(`update dmp_demo_config set enabled=true; insert into auth.users(id,is_anonymous) values('${a}',true),('${b}',true);`);
 },30000);
 afterAll(async()=>{await db?.close();});
@@ -72,6 +73,20 @@ it('seeds a technician with one assigned work order and three different unreview
   expect(checks.every((ch:any)=>ch.technician_id===own.profile_id&&ch.global_result==='Sin revisar')).toBe(true);
   expect((await db.query('select count(*) n from check_item_results where company_id=$1',[own.company_id])).rows[0].n).toBe(0);
   expect((await db.query('select count(*) n from work_orders where company_id=$1',[own.company_id])).rows[0].n).toBe(1);
+  // The repair must also restore a missing rate on an already-started session.
+  await auth('');
+  await db.query('delete from rate_versions where company_id=$1',[own.company_id]);
+  await db.query('delete from rate_catalog where company_id=$1',[own.company_id]);
+  await db.exec(readFileSync('supabase/demo/004_technician_demo_repairs.sql','utf8'));
+  await auth(b);
+  expect((await db.query("select cost_amount,sale_amount from dmp_resolve_rate((select id from rate_catalog where company_id=$1 and code='tecnico'),$2,current_date)",[own.company_id,own.profile_id])).rows[0]).toMatchObject({cost_amount:'22.00',sale_amount:'45.00'});
+  await db.exec('set role authenticated');
+  try {
+    const equipment=(await db.query('select code,equipment_type_id from equipment')).rows;
+    expect(equipment).toHaveLength(3);
+    expect(equipment.every((row:any)=>row.code && row.equipment_type_id)).toBe(true);
+    expect((await db.query('select count(*) n from equipment_types')).rows[0].n).toBe(3);
+  } finally { await db.exec('reset role'); }
 });
 it('bounds the operating company and direct RLS reads to the authenticated visitor',async()=>{
   await auth(a); const own=await session();

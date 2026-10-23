@@ -53,3 +53,34 @@ end $guard$;`;
   const parts = demoSchemaParts(root).map(part => `-- ${part.name}\n${part.sql.replace(/^\s*(?:begin|commit);\s*$/gmi, '')}`);
   return `${preflight}\n${parts.join('\n\n')}\ncommit;\n`;
 }
+
+// Keep whole migrations together: splitting on semicolons would break functions.
+export function demoEditorBlocks(root = process.cwd(), limit = 180000) {
+  const groups = []; let group = []; let size = 0;
+  for (const part of demoSchemaParts(root)) {
+    const sql = `-- ${part.name}\n${part.sql.replace(/^\s*(?:begin|commit);\s*$/gmi, '')}`;
+    const bytes = Buffer.byteLength(sql, 'utf8');
+    if (bytes > limit) throw new Error(`Migration exceeds editor block limit: ${part.name}`);
+    if (group.length && size + bytes > limit) { groups.push(group); group = []; size = 0; }
+    group.push(sql); size += bytes;
+  }
+  if (group.length) groups.push(group);
+  return groups.map((parts, index) => {
+    const first = index === 0 ? `do $guard$ begin
+      if to_regclass('public.companies') is not null or to_regclass('public.dmp_demo_install_progress') is not null then
+        raise exception 'Demo: el primer bloque exige una base nueva';
+      end if;
+      if exists(select 1 from auth.users) then raise exception 'Demo: el proyecto debe estar sin usuarios Auth'; end if;
+    end $guard$;
+    create table public.dmp_demo_install_progress(id boolean primary key default true check(id), step integer not null);
+    alter table public.dmp_demo_install_progress enable row level security;
+    revoke all on public.dmp_demo_install_progress from public,anon,authenticated;
+    insert into public.dmp_demo_install_progress values(true,0);` : '';
+    return `-- BLOQUE ${index+1} DE ${groups.length}. Ejecutar en orden, solo en el proyecto de demo nuevo.\nbegin;\n${first}
+    do $order$ begin
+      perform 1 from public.dmp_demo_install_progress where id and step=${index} for update;
+      if not found then raise exception 'Demo: bloque fuera de orden o ya ejecutado'; end if;
+      if exists(select 1 from auth.users) then raise exception 'Demo: no crear usuarios durante la instalación'; end if;
+    end $order$;\n${parts.join('\n\n')}\nupdate public.dmp_demo_install_progress set step=${index+1} where id;\ncommit;\n`;
+  });
+}

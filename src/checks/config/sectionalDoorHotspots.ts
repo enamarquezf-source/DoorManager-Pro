@@ -45,11 +45,11 @@ const pedestrianZones = [zone('hojas', 'Hojas', ['Hojas', 'Vidrios', 'Perfiles']
 const gateZones = [zone('hoja', 'Hoja', ['Hoja', 'Bastidor', 'Cerramiento'], { left: '15%', top: '25%', width: '70%', height: '55%' }), zone('guias', 'Guías/bisagras', ['Guías', 'Bisagras', 'Anclajes'], { left: '8%', top: '15%', width: '84%', height: '20%' }), zone('motor', 'Motor', ['Motor', 'Desbloqueo'], { left: '5%', top: '45%', width: '25%', height: '30%' }), zone('finales', 'Finales de carrera', ['Finales', 'Encoder'], { left: '5%', top: '15%', width: '20%', height: '20%' }), zone('seguridad', 'Seguridad', ['Fotocélulas', 'Bandas', 'Señalización'], { left: '5%', top: '35%', width: '90%', height: '45%' }), zone('funcionamiento', 'Funcionamiento general', ['Apertura', 'Cierre', 'Ruidos'])];
 
 export const equipmentCheckTemplates: EquipmentCheckTemplate[] = [
-  { key: 'puerta-seccional-industrial', name: 'Puerta seccional industrial', image: '/checks/seccional-industrial.png', zones: sectionalZones },
+  { key: 'puerta-seccional-industrial', name: 'Puerta seccional industrial', image: '/checks/seccional-industrial.png', aliases: ['puerta seccional'], zones: sectionalZones },
   { key: 'puerta-rapida', name: 'Puerta rápida', image: '/checks/puerta-rapida.png', zones: rapidZones },
   { key: 'puerta-enrollable', name: 'Puerta enrollable', image: '', placeholder: true, zones: rollUpZones },
   { key: 'barrera-automatica', name: 'Barrera automática', image: '/checks/barrera_automatica.png', aliases: ['barrera'], zones: barrierZones },
-  { key: 'puerta-corredera', name: 'Puerta corredera', image: '', placeholder: true, zones: slidingZones },
+  { key: 'puerta-corredera', name: 'Puerta corredera', image: '/checks/cancela-corredera.png', zones: slidingZones },
   { key: 'puerta-batiente', name: 'Puerta batiente', image: '', placeholder: true, zones: swingZones },
   { key: 'muelle-de-carga', name: 'Muelle de carga', image: '/checks/plataforma-hidraulica.jpg', aliases: ['plataforma-hidraulica', 'plataforma'], zones: dockZones },
   { key: 'abrigo-de-muelle', name: 'Abrigo de muelle', image: '/checks/abrigo.png', zones: shelterZones },

@@ -82,10 +82,26 @@ begin
  return public.dmp_demo_session();
 end $$;
 
+create or replace function public.dmp_demo_prepare_labor(c uuid) returns void language plpgsql security definer set search_path=public as $$
+declare rate uuid;
+begin
+ if not exists(select 1 from public.dmp_demo_sessions where company_id=c) then raise exception 'Demo: empresa no temporal'; end if;
+ insert into public.rate_catalog(company_id,code,name,kind,classification,unit,billing_mode,contributes_to_sale,notes)
+ values(c,'tecnico','Hora técnica · simulación','labor','labor','h','hour',true,'Importes ficticios de demo: coste 22 EUR/h, venta 45 EUR/h')
+ on conflict(company_id,code) do nothing;
+ select id into rate from public.rate_catalog where company_id=c and code='tecnico';
+ if not exists(select 1 from public.rate_versions where company_id=c and rate_id=rate and active and deleted_at is null) then
+   insert into public.rate_versions(company_id,rate_id,cost_amount,sale_amount,valid_from,notes)
+   values(c,rate,22,45,date '2020-01-01','Ejemplo ficticio para probar registro de horas');
+ end if;
+end $$;
+revoke all on function public.dmp_demo_prepare_labor(uuid) from public,anon,authenticated;
+
 create function public.dmp_demo_seed_technician(c uuid,p uuid) returns void language plpgsql security definer set search_path=public as $$
 declare client uuid; site uuid; work uuid; equipment uuid; equipment_type uuid; template uuid; section uuid;
  shape jsonb; section_data jsonb; label text; position integer; item_position integer;
 begin
+ perform public.dmp_demo_prepare_labor(c);
  insert into public.clients(company_id,code,legal_name,notes) values(c,'CLI-DEMO','Cliente ficticio · Demo','Escenario ficticio, sin datos reales') returning id into client;
  insert into public.sites(company_id,client_id,code,name,address) values(c,client,'CEN-DEMO','Centro de prueba','Ubicación ficticia · no desplazarse') returning id into site;
  insert into public.work_orders(company_id,code,client_id,site_id,title,description,type,origin,created_by,created_role,main_technician_id,current_responsible_id,scheduled_date,billable)

@@ -1,8 +1,14 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { demoSchemaBundle } from './schemaBundle.mjs';
+import { demoSchemaBundle, demoEditorBlocks } from './schemaBundle.mjs';
 const directory = 'node_modules/.cache/dmp-demo';
 mkdirSync(directory, { recursive: true });
 const path = `${directory}/001-empty-schema.sql`;
 writeFileSync(path, demoSchemaBundle());
 console.log(`Instalador generado: ${path}`);
 console.log('Solo estructura y configuración; no incluye seed.sql ni datos de la instalación actual.');
+const editorDirectory = `${directory}/sql-editor`;
+mkdirSync(editorDirectory, { recursive: true });
+const blocks = demoEditorBlocks();
+blocks.forEach((sql,index) => writeFileSync(`${editorDirectory}/${String(index+1).padStart(2,'0')}-schema.sql`,sql));
+writeFileSync(`${editorDirectory}/LEEME.txt`, `Ejecutar los ${blocks.length} archivos SQL en orden numérico, uno por consulta, únicamente en el proyecto nuevo de demo.\nEsperar Success antes de pasar al siguiente. No repetir bloques correctos. Si un bloque falla, su transacción se revierte: corregir y repetir ese bloque.\nNo crear usuarios ni abrir la demo durante la instalación. Después del último bloque, seguir con supabase/demo/002_public_demo.sql.\n`);
+console.log(`SQL Editor: ${blocks.length} bloques ordenados en ${editorDirectory}`);

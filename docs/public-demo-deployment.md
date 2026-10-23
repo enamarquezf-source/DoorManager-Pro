@@ -111,3 +111,29 @@ Siguiente acción necesaria: abrir el panel del proyecto nuevo con acceso de
 administración y seguir los pasos 1 a 5 de este documento. No enviar contraseñas o
 claves secretas al chat. Después realizar la aceptación remota del paso 6.
 La continuación automática era puntual y se elimina al cerrar esta ejecución.
+
+## Si SQL Editor indica «Query is too large»
+
+El archivo único puede superar el límite del editor. `npm run demo:prepare-schema`
+también genera `node_modules/.cache/dmp-demo/sql-editor/01-schema.sql` hasta
+`13-schema.sql` (la cantidad puede cambiar con futuras migraciones).
+Ejecutar cada archivo completo en una consulta independiente, en orden numérico,
+esperando Success antes de continuar. Los bloques llevan transacción y control
+de orden: un bloque fallido se revierte; no repetir bloques ya correctos.
+No crear usuarios durante la instalación. Se ha verificado localmente la ejecución
+consecutiva de los 13 bloques generados, todos inferiores a 180 KB, hasta step=13.
+Después del último bloque continuar con `supabase/demo/002_public_demo.sql`.
+El rechazo por tamaño ocurre antes de ejecutar el archivo único.
+
+## Reparación del recorrido técnico
+
+Después de 002, ejecutar `supabase/demo/004_technician_demo_repairs.sql` en el
+proyecto de demo. Repara el permiso de lectura de equipos vinculados a checks
+asignados y crea una tarifa ficticia de 22 EUR/h de coste y 45 EUR/h de venta para
+las sesiones técnicas existentes y futuras. No borra partes ni respuestas.
+El frontend añade referencias visuales de seccional y corredera y muestra la
+referencia desplegada inicialmente en la demo. Las imágenes son referencias del
+tipo de equipo, no fotos reales de una instalación del visitante.
+Para una sesión ya descargada, volver a preparar/actualizar la jornada tras la
+actualización del frontend, de modo que se reemplace la copia local incompleta.
+Después, reintentar el registro fallido de horas sin crear otro duplicado.

@@ -329,10 +329,10 @@ function LoginPage() {
 }
 
 function DemoProtectedLayout() {
-  const { session, signOut } = useAuth();
+  const { session, signOut, refreshProfile } = useAuth();
   const navigate = useNavigate();
   if (!publicDemoEnabled) return <ProtectedLayout />;
-  return <PublicDemoBoundary userId={session?.user.id ?? null} onFinish={async () => { await signOut(); navigate('/', { replace: true }); }}><ProtectedLayout /></PublicDemoBoundary>;
+  return <PublicDemoBoundary userId={session?.user.id ?? null} onRoleChanged={async (demo,navigateToHome=true)=>{await refreshProfile();if(navigateToHome)navigate(demo.role==='Tecnico'?'/app/tecnico':'/app/inicio',{replace:true});}} onFinish={async () => { await signOut(); navigate('/', { replace: true }); }}><ProtectedLayout /></PublicDemoBoundary>;
 }
 
 function ProtectedLayout() {

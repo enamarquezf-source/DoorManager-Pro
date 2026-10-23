@@ -1,6 +1,7 @@
 import { supabase, authStorageKey } from '../lib/supabase/client';
 import { queryClient } from '../query/queryClient';
 import { clearSignedFileCache } from '../shared/signedFiles';
+import { clearOfflineProfile } from '../services/offlineProfile';
 import { publicDemoEnabled, parseDemoSession, validDemoRole, type DemoRole } from './model';
 let ending: Promise<boolean> | undefined;
 
@@ -36,7 +37,22 @@ export async function clearDemoDevice() {
   }
 }
 export const publicDemoService = {
-  async ready() { const data = await rpc('dmp_demo_status'); return data?.ready === true && data?.version === 1; },
+  async journeysAvailable() { const data = await rpc('dmp_demo_status'); return data?.journeys === 2; },
+  async progress() { return await rpc('dmp_demo_progress') as Record<string,number>; },
+  async prepareJourney(role: DemoRole) {
+    guard();
+    if (!navigator.onLine) throw new Error('Conecta para cambiar de perfil. Puedes seguir trabajando sin cobertura en el perfil actual.');
+    const current = await publicDemoService.session();
+    if (current.role === 'Tecnico' && current.role !== role) {
+      const { technicianOfflineService } = await import('../services/technicianOfflineService');
+      if ((await technicianOfflineService.pending()).length) throw new Error('Envía los cambios pendientes del técnico antes de cambiar de perfil. Tus datos siguen guardados.');
+    }
+    await queryClient.cancelQueries();
+    const session = parseDemoSession(await rpc('dmp_demo_prepare_journey', {p_role:role}));
+    queryClient.clear(); clearSignedFileCache(); clearOfflineProfile();
+    return session;
+  },
+  async ready() { const data = await rpc('dmp_demo_status'); return data?.ready === true && data?.version === 1 && data?.journeys === 2; },
   async session() { return parseDemoSession(await rpc('dmp_demo_session')); },
   async heartbeat() { return parseDemoSession(await rpc('dmp_demo_heartbeat')); },
   async start(role: DemoRole, captchaToken: string) {

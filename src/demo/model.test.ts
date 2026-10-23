@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { demoProjectUrl, isDemoProject, demoRoles, demoTourSteps, parseDemoSession } from './model';
+import { demoProjectUrl, isDemoProject, demoRoles, demoTourSteps, parseDemoSession, demoStepDone } from './model';
 const session={id:'00000000-0000-4000-8000-000000000001',company_id:'00000000-0000-4000-8000-000000000002',profile_id:'00000000-0000-4000-8000-000000000003',role:'Tecnico',expires_at:new Date(Date.now()+60000).toISOString(),ended:false,cleanup_state:'pending',work_order_id:'00000000-0000-4000-8000-000000000004'};
 it('enables the public flow only for the explicitly separate demo project',()=>{
   expect(isDemoProject(demoProjectUrl)).toBe(true);
@@ -12,7 +12,19 @@ it('rejects malformed session metadata rather than navigating to arbitrary recor
 it('guides the technician through the actual assigned work and both work phases',()=>{
   const steps=demoTourSteps(parseDemoSession(session));
   expect(steps[0].route).toBe('/app/tecnico');
-  expect(steps.slice(1).every(step=>step.route.includes(session.work_order_id))).toBe(true);
+  expect(steps.slice(1).filter(step=>!step.role).every(step=>step.route.includes(session.work_order_id))).toBe(true);
+  expect(steps.at(-1)?.role).toBe('SAT');
   expect(steps.some(step=>step.route.endsWith('?vista=checks'))).toBe(true);
   expect(steps.some(step=>step.route.endsWith('?vista=records'))).toBe(true);
+});
+it('tracks saved actions and connects the business roles without claiming a visit completes a task',()=>{
+ const sat=demoTourSteps(parseDemoSession({...session,role:'SAT'}));
+ expect(demoStepDone(sat[0],{clients:0})).toBe(false);
+ expect(demoStepDone(sat[0],{clients:1})).toBe(true);
+ expect(sat.some(step=>step.role==='Tecnico')).toBe(true);
+ expect(sat.some(step=>step.role==='Oficina')).toBe(true);
+ const office=demoTourSteps(parseDemoSession({...session,role:'Oficina'}));
+ expect(office.some(step=>step.goal==='invoices')).toBe(true);
+ expect(office.some(step=>step.goal==='payments')).toBe(true);
+ expect(demoStepDone(office[0],{works:99})).toBe(false);
 });

@@ -1,21 +1,26 @@
 # DMP · Demo pública: estado y continuación
 
-## Estado guardado
+## Estado actual · recorridos completos
 
-Código preparado: portada con cinco roles, tutorial por perfil, sesiones temporales
-por visitante, escenario técnico con tres tipos de equipos y limpieza con reintentos.
-La demo solo se activa en el frontend conectado a
-https://xlhzyhotzfflemjnqvqn.supabase.co. La instalación actual conserva su conexión.
+El usuario ya instaló el esquema en 13 bloques, 002 y 004 en el proyecto
+Supabase xlhzyhotzfflemjnqvqn. Configuró Auth anónimo, Turnstile, la función de
+limpieza, su secreto y el cron. La demo llegó a abrir un parte técnico real.
+La instalación actual mantiene su conexión y sus datos independientes.
 
-Validación local: `npm run build` correcto; 320 archivos y 1.823 pruebas correctas.
-Las pruebas incluyen instalación limpia, aislamiento de empresas y borrado del
-escenario técnico sin borrar la otra sesión. No acreditan el funcionamiento remoto
-de Auth, CAPTCHA, Edge Functions, Storage o cron.
+El código nuevo añade cambio entre cinco perfiles, guías por tareas, un parte
+facturable en Oficina y actividad económica ficticia en Gerencia. **Falta ejecutar
+supabase/demo/005_demo_role_journeys.sql en el proyecto de demo** y actualizar el
+frontend después del despliegue. El acceso nuevo comprueba journeys=2 para no
+prometer escenarios que el backend aún no tiene instalados.
 
-**No está lista para promoción pública.** No se ha instalado SQL remoto ni
-configurado Auth o la función de limpieza. La configuración SQL empieza desactivada.
+Validación: compilación correcta y suite completa con 322 archivos / 1.837 pruebas
+correctas; pruebas específicas posteriores verifican cambio de perfil, ciclo
+SAT–Técnico–SAT, facturación/cobro, fuentes económicas, aislamiento y borrado.
+La aceptación remota en móvil, con fotos y firma en Storage, sigue pendiente.
 
-## Próximos pasos, en orden
+## Referencia de instalación inicial (esquema, 002 y servicios ya configurados)
+
+
 
 1. En el proyecto Supabase NUEVO, abrir SQL Editor. Generar el instalador con
    `npm run demo:prepare-schema` y ejecutar el archivo indicado:
@@ -148,3 +153,44 @@ los cuatro perfiles bajo RLS y comprueba que no pueden insertar en otra empresa.
 El frontend muestra primero el componente y debajo la comprobación en la lista
 de ítems y la selección de afectados; el resumen también identifica componentes.
 No se intercambian ni reescriben los datos guardados de las plantillas.
+
+## Recorridos completos de demo (versión journeys=2)
+
+Instalar `supabase/demo/005_demo_role_journeys.sql` únicamente en el Supabase de
+la demo, después de 002 y 004. El archivo es transaccional y puede repetirse.
+No necesita reinstalar el esquema, no borra sesiones y no activa la demo por sí solo.
+El frontend detecta `journeys: 2` en `dmp_demo_status`; sin ese SQL conserva la
+entrada antigua y no muestra un cambio de rol que el backend no soporte.
+
+- SAT comienza sin clientes ni trabajos, con tres tipos de equipo y plantillas,
+  un técnico asignable y una caja ficticia para probar cobros posteriormente.
+- Cambiar perfil conserva empresa, cliente y parte. Cada rol tiene su propio
+  perfil de empleado y permisos; solo uno está enlazado al Auth del visitante.
+  El cambio de Técnico se bloquea si quedan cambios locales pendientes de envío.
+- Oficina dispone de un trabajo revisado y facturable: 2 horas a 45 EUR/h y un kit
+  a 55 EUR, subtotal 145 EUR. El coste base es 44 EUR de horas y 30 EUR de material.
+  Generar borrador, emitir y cobrar usa los RPC reales, sin cargos bancarios.
+- Gerencia dispone de 12 trabajos en las últimas 12 semanas, 3 clientes,
+  3 empleados, 12 registros de horas/materiales, costes externos en reparaciones
+  con pérdida, 3 facturas (cobrada, vencida y futura) y 9 nóminas simuladas.
+  Los importes proceden de las tablas y vistas económicas, no de gráficos fijos.
+  Las nóminas usan importes explícitamente ficticios (coste empresa 2600 EUR/mes);
+  no son un cálculo de convenio ni documentos oficiales. Para estudios completos,
+  seleccionar Últimos 3 meses y revisar/introducir horas disponibles y referencias
+  de rendimiento. Las horas por sí solas no acreditan productividad.
+- Los escenarios se añaden una sola vez al entrar por primera vez en cada rol.
+  Oficina y Gerencia no borran trabajos creados por SAT durante la misma prueba.
+- La guía reconoce acciones guardadas mediante `dmp_demo_progress`, mantiene el
+  avance por perfil y permite omitir. No guarda, firma, revisa ni factura por el
+  usuario. En móvil arranca compacta y permite desplegar la ayuda.
+
+Verificación local añadida: SAT crea/assigna y cambia a Técnico conservando el
+parte bajo RLS; Oficina prepara/emite factura y registra cobro; Gerencia calcula
+márgenes positivos/negativos con varios empleados; los reingresos no duplican
+escenarios; se borra el grafo completo sin afectar al otro visitante; la caducidad
+impide cambiar roles. Las tareas técnicas solo cuentan acciones de su propio
+parte, no las del historial económico de Gerencia.
+
+Aceptación remota pendiente tras instalar 005 y actualizar frontend: completar el
+cierre técnico con foto/firma y sincronización, revisar como SAT y continuar en
+Oficina; probar la guía a anchuras de móvil y confirmar limpieza con Storage real.

@@ -194,3 +194,14 @@ parte, no las del historial económico de Gerencia.
 Aceptación remota pendiente tras instalar 005 y actualizar frontend: completar el
 cierre técnico con foto/firma y sincronización, revisar como SAT y continuar en
 Oficina; probar la guía a anchuras de móvil y confirmar limpieza con Storage real.
+
+## Corrección de alta en listas vacías
+
+El contenedor ListPage ocultaba todos sus hijos cuando el listado estaba vacío,
+incluido el diálogo de creación. Por eso SAT podía tener permisos correctos en
+SQL y seguir sin abrir Crear cliente. StateBlock ahora permite conservar los hijos
+en los listados durante el estado vacío, carga y error; las fichas de detalle
+mantienen el comportamiento de esperar a sus datos.
+Pruebas de interfaz: abrir el formulario desde cero, guardar el primer registro,
+y conservar el borrador al refrescar o fallar la carga. La corrección es del
+frontend: actualizar la app tras el despliegue, sin otra instalación SQL.

@@ -129,3 +129,23 @@ it('purges the populated technician graph, including children with no company_id
   await db.query('select dmp_demo_purge($1)',[own.id]);
   expect((await db.query('select cleanup_state from dmp_demo_sessions where id=$1',[own.id])).rows[0].cleanup_state).toBe('database_done');
 });
+it('lets each business demo role create and edit its own client, without crossing companies',async()=>{
+  for(const [index,role] of ['Gerencia','Oficina','SAT','Comercial'].entries()) {
+    const userId=`00000000-0000-4000-8000-00000000003${index}`;
+    await auth('');
+    await db.query('insert into auth.users(id,is_anonymous) values($1,true)',[userId]);
+    await auth(userId); await db.query('select dmp_demo_start($1)',[role]);
+    const own=await session();
+    await db.exec('set role authenticated');
+    try {
+      const code=(await db.query("select next_dmp_code($1,'clients','CLI',false,6) code",[own.company_id])).rows[0].code;
+      const client=(await db.query("insert into clients(company_id,code,legal_name,status) values($1,$2,'Cliente ficticio','Activo') returning id",[own.company_id,code])).rows[0];
+      expect(client.id).toBeTruthy();
+      const edited=await db.query("update clients set legal_name='Cliente editado' where id=$1 returning legal_name",[client.id]);
+      expect(edited.rows[0].legal_name).toBe('Cliente editado');
+      await expect(db.query("insert into clients(company_id,code,legal_name) values($1,'CLI-FOREIGN','Otra empresa')",['00000000-0000-4000-8000-000000000099'])).rejects.toThrow();
+    } finally { await db.exec('reset role'); }
+    await db.query('select dmp_demo_finish()'); await auth('');
+    await db.query('select dmp_demo_purge($1)',[own.id]);
+  }
+});

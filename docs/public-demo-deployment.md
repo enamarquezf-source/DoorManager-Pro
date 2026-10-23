@@ -137,3 +137,14 @@ tipo de equipo, no fotos reales de una instalación del visitante.
 Para una sesión ya descargada, volver a preparar/actualizar la jornada tras la
 actualización del frontend, de modo que se reemplace la copia local incompleta.
 Después, reintentar el registro fallido de horas sin crear otro duplicado.
+
+## Alta de clientes por perfil y orden de los checks
+
+Aplicar `supabase/migrations/185_client_creation_operational_roles.sql` al proyecto
+de demo para permitir el alta y edición de clientes a Gerencia, Oficina, SAT y
+Comercial. Mantiene el ámbito de empresa y no concede estos permisos al técnico.
+La prueba de integración genera código, crea y edita un cliente con cada uno de
+los cuatro perfiles bajo RLS y comprueba que no pueden insertar en otra empresa.
+El frontend muestra primero el componente y debajo la comprobación en la lista
+de ítems y la selección de afectados; el resumen también identifica componentes.
+No se intercambian ni reescriben los datos guardados de las plantillas.

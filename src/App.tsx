@@ -2159,7 +2159,7 @@ function CheckBlockPageV2({
             ["Observaciones", observations || "-"],
             ["Intervención", intervention || "-"],
             ["Gravedad", severity || "-"],
-            ["Componentes", components.map(id=>zone.items.find((item:any)=>item.id===id)?.title??id).join(", ") || "-"],
+            ["Componentes", components.map(id=>zone.items.find((item:any)=>item.id===id)?.component || zone.items.find((item:any)=>item.id===id)?.title || id).join(", ") || "-"],
             [
               "Sincronizado",
               existing?.synced_at
@@ -2184,9 +2184,9 @@ function CheckBlockPageV2({
                   {displayStatus(result?.result ?? "Sin revisar")}
                 </Badge>
                 <p>
-                  <strong>{item.title}</strong>
+                  <strong>{item.component || item.title}</strong>
                   <br />
-                  {item.component && item.component !== item.title && <small>{item.component}</small>}
+                  {item.component && item.component !== item.title && <small>{item.title}</small>}
                   <br />
                   {result?.observations ?? ""}
                 </p>

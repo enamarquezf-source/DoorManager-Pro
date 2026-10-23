@@ -16,3 +16,12 @@ it('targets selection, notes, favorable confirmation and photos to the chosen co
   expect(cards[0].textContent).toContain('Motor.jpg');expect(cards[0].textContent).not.toContain('Banda.jpg');expect(cards[1].querySelector('input[type="file"]')).toBeNull();
  }finally{await act(async()=>root.unmount());host.remove();}
 });
+it('shows the component first and the inspection instruction below it',async()=>{
+ (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
+ const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ try {
+  await act(async()=>root.render(<CheckAffectedItems items={[{id:'motor',component:'Motor',title:'Comprobar estado y funcionamiento'}]} selected={[]} onSelect={()=>{}} notes={{}} onNotes={()=>{}} remainingFavorable={false} onRemaining={()=>{}}/>));
+  expect(host.querySelector('.check-affected-choice strong')?.textContent).toBe('Motor');
+  expect(host.querySelector('.check-affected-choice small')?.textContent).toBe('Comprobar estado y funcionamiento');
+ }finally{await act(async()=>root.unmount());host.remove();}
+});

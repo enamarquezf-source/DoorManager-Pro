@@ -19,6 +19,16 @@ en escritorio y móvil, con prueba local de apertura de formulario.
 Presupuestos usa la visibilidad SAT/Oficina de su propio departamento, evitando que
 el valor por defecto `commercial=false` lo oculte a esos perfiles. No requiere SQL.
 
+Historial de equipos de muestra: ejecutar `supabase/demo/007_demo_equipment_history.sql`
+solo en el proyecto de demo, después de 006. Añade dos visitas anteriores a cada
+equipo `EQ-DEMO-*` (seis antecedentes en el escenario técnico), claramente ficticias,
+no facturables y sin horas ni materiales económicos. Conserva las respuestas del
+parte actual. Incluye sesiones vivas existentes y las nuevas; reinstalar no duplica.
+Después, en una sesión ya descargada, actualizar/preparar de nuevo la jornada para
+renovar el historial local. No borrar datos locales pendientes.
+Pruebas de historial y recorridos: 10 correctas; incluyen lectura con RLS de técnico,
+aislamiento entre visitantes, idempotencia, conservación del parte actual y purga.
+
 Validación actual: 326 archivos / 1.852 pruebas correctas. Incluye el pedido con
 líneas, recepción confirmada, stock real, aislamiento y limpieza, además del ciclo
 SAT–Técnico–SAT y la facturación. La compilación del frontend se verifica antes

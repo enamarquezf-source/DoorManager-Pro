@@ -13,7 +13,7 @@ it('starts compact, expands help and advances only after a saved action exists',
  const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
  function Harness(){const[progress,setProgress]=useState({step:0,open:true});return <DemoGuide session={session} progress={progress} setProgress={setProgress} onRole={async()=>{}}/>;}
  try{
-  await act(async()=>root.render(<MemoryRouter><Harness/></MemoryRouter>));
+  await act(async()=>root.render(<MemoryRouter initialEntries={['/app/clientes']}><Harness/></MemoryRouter>));
   expect(host.querySelector('aside')?.getAttribute('data-expanded')).toBe('false');
   expect(host.querySelector('h2')?.textContent).toBe('Crea tu primer cliente');
   await act(async()=>host.querySelector<HTMLButtonElement>('.demo-guide-expand')!.click());
@@ -44,4 +44,17 @@ it('refreshes the initial role without redirecting a check deep link to the home
   expect(onRoleChanged).toHaveBeenCalledExactlyOnceWith(own,false);
   expect(host.textContent).toContain('Revisión abierta');
  }finally{await act(async()=>root.unmount());localStorage.clear();}
+});
+it('makes the procurement tour selectable without forcing users through the invoicing tour',async()=>{
+ (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
+ const host=document.createElement('div');const root=createRoot(host);
+ function Harness(){const[tour,setTour]=useState<'work'|'purchases'>('work');return <DemoGuide session={{...session,role:'Oficina'}} progress={{step:0,open:true}} setProgress={()=>{}} onRole={async()=>{}} tour={tour} onTour={setTour}/>;}
+ try{
+ await act(async()=>root.render(<MemoryRouter><Harness/></MemoryRouter>));
+ expect(host.querySelector('h2')?.textContent).toBe('Recibe un trabajo revisado');
+ const button=[...host.querySelectorAll('button')].find(b=>b.textContent==='Materiales y compras')!;
+ await act(async()=>button.click());
+ expect(host.querySelector('h2')?.textContent).toBe('Crea un material');
+ expect(button.getAttribute('aria-pressed')).toBe('true');
+ }finally{await act(async()=>root.unmount());}
 });

@@ -20,3 +20,6 @@
 @media(max-width:540px){.public-demo-app{--demo-session-height:88px;}.demo-session-bar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));height:88px;min-height:88px;gap:4px 6px;}.demo-session-bar>div{grid-column:1/-1;}.demo-session-bar button{justify-content:center;padding:6px 4px;font-size:11px;min-width:0;}.demo-role-menu{top:88px;}.demo-highlight{scroll-margin-top:110px;}}
 /* ModalShell uses a portal under body, outside the demo wrapper. */
 body:has(.public-demo-app)>.mini-modal,body:has(.public-demo-app)>.overlay{z-index:80;}
+.demo-guide-tours{display:flex;gap:6px;margin:8px 0;}.demo-guide-tours button{flex:1;min-height:36px;border:1px solid #d3e1d9;border-radius:7px;background:#fff;color:#173f47;font-size:12px;padding:6px;}.demo-guide-tours button[aria-pressed="true"]{background:#e9f3ed;border-color:#32756c;font-weight:700;}
+.demo-guide-detail .demo-task-hint{line-height:1.45;}
+@media(max-width:540px){.public-demo-app[data-guide-open="true"] .workspace>main{padding-bottom:240px;}}

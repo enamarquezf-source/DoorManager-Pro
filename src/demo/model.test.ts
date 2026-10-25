@@ -28,3 +28,14 @@ it('tracks saved actions and connects the business roles without claiming a visi
  expect(office.some(step=>step.goal==='payments')).toBe(true);
  expect(demoStepDone(office[0],{works:99})).toBe(false);
 });
+it('guides procurement from a new material through ordering, confirmed receipt and stock',()=>{
+ const office=demoTourSteps(parseDemoSession({...session,role:'Oficina'}),'purchases');
+ expect(office.map(step=>step.goal).filter(Boolean)).toEqual(['catalog_materials','suppliers','purchase_orders','ordered_purchases','purchase_receipts']);
+ expect(office[0].route).toBe('/app/modulos/materiales');
+ expect(office[1].route).toBe('/app/modulos/proveedores');
+ expect(office[2].route).toBe('/app/modulos/compras');
+ expect(office.at(-1)?.role).toBe('Tecnico');
+ const sat=demoTourSteps(parseDemoSession({...session,role:'SAT'}),'purchases');
+ expect(sat[1].role).toBe('Oficina');
+ expect(demoTourSteps(parseDemoSession(session),'purchases')[0].goal).toBe('work_materials');
+});

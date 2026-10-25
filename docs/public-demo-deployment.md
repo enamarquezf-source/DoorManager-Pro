@@ -7,15 +7,16 @@ Supabase xlhzyhotzfflemjnqvqn. Configuró Auth anónimo, Turnstile, la función 
 limpieza, su secreto y el cron. La demo llegó a abrir un parte técnico real.
 La instalación actual mantiene su conexión y sus datos independientes.
 
-El código nuevo añade cambio entre cinco perfiles, guías por tareas, un parte
-facturable en Oficina y actividad económica ficticia en Gerencia. **Falta ejecutar
-supabase/demo/005_demo_role_journeys.sql en el proyecto de demo** y actualizar el
-frontend después del despliegue. El acceso nuevo comprueba journeys=2 para no
-prometer escenarios que el backend aún no tiene instalados.
+El cambio entre perfiles y los escenarios económicos de 005 ya están disponibles
+en el backend de demo (journeys=2 comprobado por HTTP). La ampliación actual añade
+el recorrido independiente Materiales y compras. **Falta ejecutar
+supabase/demo/006_demo_procurement_guide.sql en el proyecto de demo** y actualizar
+el frontend después del despliegue. No reinstalar los bloques de esquema.
 
-Validación: compilación correcta y suite completa con 322 archivos / 1.837 pruebas
-correctas; pruebas específicas posteriores verifican cambio de perfil, ciclo
-SAT–Técnico–SAT, facturación/cobro, fuentes económicas, aislamiento y borrado.
+Validación actual: 326 archivos / 1.852 pruebas correctas. Incluye el pedido con
+líneas, recepción confirmada, stock real, aislamiento y limpieza, además del ciclo
+SAT–Técnico–SAT y la facturación. La compilación del frontend se verifica antes
+de subir los cambios.
 La aceptación remota en móvil, con fotos y firma en Storage, sigue pendiente.
 
 ## Referencia de instalación inicial (esquema, 002 y servicios ya configurados)
@@ -231,3 +232,27 @@ pestaña/navegador donde se reproduce el problema y pulsar Actualizar DMP. La
 verificación de activación es obligatoria antes del retorno. Si continúa el
 fallo con la versión verificada, recoger la captura o el error de esa pantalla;
 no atribuirlo a permisos ni afirmar que se ha reproducido en el navegador real.
+
+## Guía de materiales y compras
+
+Instalar `supabase/demo/006_demo_procurement_guide.sql` después de 005 únicamente
+en la demo. Añade un almacén vacío (sin inventar existencias) para sesiones nuevas
+y existentes y amplía las métricas de tareas. Es repetible y conserva los datos.
+
+La guía permite elegir Trabajo y facturación o Materiales y compras, con avance
+independiente por recorrido y perfil. SAT crea el material y deriva la compra a
+Oficina. Oficina/Gerencia recorren material, proveedor, pedido con líneas,
+confirmación del pedido, recepción confirmada, stock y factura de proveedor.
+Después se puede probar el consumo como Técnico y validarlo en SAT.
+No se cambian permisos: Comercial se deriva a Oficina para gestionar compras.
+
+Los materiales ficticios sembrados para informes no completan el alta solicitada.
+Un pedido vacío y una recepción en borrador tampoco completan sus tareas. La guía
+solo avanza automáticamente estando en la pantalla del paso, para no saltar la
+comprobación de stock desde la recepción. Puede omitirse cualquier paso y cambiar
+entre recorridos sin perder el trabajo. Pedir mercancía no crea stock; confirmar
+la recepción sí. Comprar existencias no supone imputarlas dos veces al parte.
+
+Prueba con los RPC reales: material, proveedor, pedido de 5 unidades a 30 EUR,
+línea, pedido confirmado, recepción en borrador sin stock, confirmación y saldo 5.
+También se prueba aislamiento, borrado del grafo de compras y reinstalación de 006.

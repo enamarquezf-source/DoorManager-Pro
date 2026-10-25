@@ -22,10 +22,31 @@ export function parseDemoSession(value: any): DemoSession {
 }
 
 export type DemoProgress = Record<string, number>;
+export type DemoTour = 'work'|'purchases';
 export type DemoStep = { title: string; text: string; route: string; target: string; goal?: string; role?: DemoRole };
 export function demoStepDone(step: DemoStep, progress: DemoProgress) { return Boolean(step.goal && Number(progress[step.goal]) > 0); }
-export function demoTourSteps(session: DemoSession): DemoStep[] {
+export function demoTourSteps(session: DemoSession,tour:DemoTour='work'): DemoStep[] {
  const work = session.work_order_id ? '/app/tecnico/trabajo/' + session.work_order_id : '/app/tecnico';
+ if(tour==='purchases') {
+  const material:DemoStep={title:'Crea un material',text:'En Materiales pulsa Crear material. Prueba con Fotocélula de seguridad, unidad ud, coste 30 €, venta 55 € y stock mínimo 2. Activa el control de stock y guarda. Crear la ficha no significa recibir existencias.',route:'/app/modulos/materiales',target:'.section-header',goal:'catalog_materials'};
+  if(session.role==='Tecnico')return [
+   {title:'Registra el material utilizado',text:'En Completar parte abre Materiales y elige el material que has recibido en el almacén de prueba. Registra solo la cantidad utilizada y sincroniza. No inventes un consumo si no lo has usado.',route:work+'?vista=records',target:'.technician-work-tabs',goal:'work_materials'},
+   {title:'Revisa el consumo con SAT',text:'Cambia a SAT para revisar y validar el material del parte. El movimiento de almacén debe corresponder a un consumo validado; no confundas una solicitud pendiente con una salida confirmada.',route:'/app/partes',target:'.page-head',role:'SAT'}
+  ];
+  if(session.role==='Comercial')return [{title:'Coordina la compra con Oficina',text:'El catálogo puede consultarse desde el perfil autorizado. Cambia a Oficina para crear materiales, proveedores y pedidos sin ampliar los permisos del perfil comercial.',route:'/app/modulos/compras',target:'.flow-hero',role:'Oficina'}];
+  if(session.role==='SAT')return [material,
+   {title:'Solicita el material a Oficina',text:'Cambia a Oficina y sigue este mismo recorrido: proveedor, pedido, recepción y existencias. Los datos creados aquí se mantienen al cambiar de perfil.',route:'/app/modulos/compras',target:'.flow-hero',role:'Oficina'},
+   {title:'Valida el consumo del parte',text:'Cuando el técnico haya registrado el material, abre el parte y revisa el consumo pendiente: material, cantidad y almacén. Valídalo y comprueba el movimiento en Materiales. Puedes volver al recorrido Trabajo y facturación cuando quieras.',route:'/app/partes',target:'.page-head'}];
+  return [material,
+   {title:'Crea un proveedor',text:'En Proveedores crea Suministros de prueba con datos ficticios. Guarda su ficha. Después puedes vincularlo al material y definir su referencia y precio de compra.',route:'/app/modulos/proveedores',target:'.page-head, .flow-hero',goal:'suppliers'},
+   {title:'Prepara el pedido de compra',text:'En Compras pulsa Nuevo pedido. Selecciona el proveedor y Almacén de prueba como destino; añade una línea con tu material, cantidad 5 y precio acordado 30 €. Guarda la línea: un pedido vacío no completa este paso.',route:'/app/modulos/compras',target:'.page-head, .flow-hero',goal:'purchase_orders'},
+   {title:'Confirma el pedido',text:'Abre el pedido, revisa sus líneas y márcalo como pedido. En esta demo no se envía ningún encargo real al proveedor. Las existencias todavía no aumentan.',route:'/app/modulos/compras',target:'.page-head, .flow-hero',goal:'ordered_purchases'},
+   {title:'Recibe la mercancía',text:'Dentro del pedido abre la recepción. Selecciona Almacén de prueba, una referencia ficticia del albarán y las unidades recibidas. Revisa y confirma la recepción; guardar solo el borrador no incorpora stock.',route:'/app/modulos/compras',target:'.page-head, .flow-hero',goal:'purchase_receipts'},
+   {title:'Comprueba las existencias',text:'Vuelve a Materiales y abre el material: comprueba las unidades del almacén y la entrada vinculada a la recepción. El stock debe proceder de la recepción confirmada, no de un ajuste para simularla.',route:'/app/modulos/materiales',target:'.section-header'},
+   {title:'Registra la factura del proveedor',text:'En Facturas de proveedor registra un documento ficticio y revisa sus importes y vencimiento. Recibir mercancía y registrar una factura son operaciones distintas; no introduzcas documentos reales.',route:'/app/modulos/facturas-proveedor',target:'.page-head, .flow-hero'},
+   session.role==='Gerencia'?{title:'Sigue el coste hasta el trabajo',text:'La compra incorpora existencias; el coste del parte aparecerá cuando se registre el consumo correspondiente. Compara compras, stock y materiales utilizados sin sumar dos veces el mismo gasto.',route:'/app/modulos/rentabilidad',target:'.flow-hero'}:{title:'Utiliza el material en el parte',text:'Cambia a Técnico para registrar material en el trabajo y después vuelve a SAT para revisar su validación. Puedes elegir Trabajo y facturación para continuar con el cierre y la factura al cliente.',route:'/app/tecnico',target:'.journey-card',role:'Tecnico'}
+  ];
+ }
  if (session.role === 'Tecnico') return [
   {title:'Tu jornada preparada',text:'Abre el parte asignado. Si vienes de SAT, conserva el cliente y el trabajo que acabas de crear. Prepara la jornada para trabajar sin cobertura.',route:'/app/tecnico',target:'.journey-card'},
   {title:'Consulta el aviso',text:'En En campo revisa cliente, centro, equipo y motivo del aviso. Comprueba que tienes la información necesaria antes de empezar.',route:work+'?vista=work',target:'.technician-workstation-head'},

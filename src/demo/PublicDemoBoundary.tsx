@@ -1,19 +1,21 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate,useLocation } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, BookOpen, LogOut, X } from 'lucide-react';
 import { publicDemoService } from './service';
-import { demoRoles, demoTourSteps, demoStepDone, type DemoRole, type DemoSession } from './model';
+import { demoRoles, demoTourSteps, demoStepDone, type DemoRole, type DemoSession, type DemoTour } from './model';
 
 type Progress = { step: number; open: boolean };
+function tourFor(id:string):DemoTour {try{return localStorage.getItem('dmp-demo-tour-choice:'+id)==='purchases'?'purchases':'work';}catch{return 'work';}}
 function progressFor(id: string): Progress {
   try { const value = JSON.parse(localStorage.getItem(`dmp-demo-tour:${id}`) ?? 'null'); if (Number.isInteger(value?.step) && value.step >= 0 && typeof value.open === 'boolean') return value; } catch { /* Start with the guide if storage is unavailable. */ }
   return { step: 0, open: true };
 }
-export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAvailable=true }: { session: DemoSession; progress: Progress; setProgress: (value: Progress) => void; onRole: (role:DemoRole)=>Promise<void>; roleSwitchAvailable?:boolean }) {
+export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAvailable=true, tour='work', onTour }: { session: DemoSession; progress: Progress; setProgress: (value: Progress) => void; onRole: (role:DemoRole)=>Promise<void>; roleSwitchAvailable?:boolean; tour?:DemoTour; onTour?:(tour:DemoTour)=>void }) {
   const navigate = useNavigate();
+  const location=useLocation();
   const [expanded,setExpanded]=useState(false);
   const [completion,setCompletion]=useState<Record<string,number>>({});
-  const steps = demoTourSteps(session); const index = Math.min(progress.step, steps.length - 1); const step = steps[index];
+  const steps = demoTourSteps(session,tour); const index = Math.min(progress.step, steps.length - 1); const step = steps[index];
   useEffect(() => {
     if (!progress.open) return;
     let highlighted: Element | null = null;
@@ -33,12 +35,12 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
     return()=>{active=false;clearInterval(timer);window.removeEventListener('focus',update);};
   },[session.role,session.id,progress.open,roleSwitchAvailable]);
   useEffect(()=>{
-    if(progress.open && demoStepDone(step,completion) && index<steps.length-1 && !document.querySelector('[role="dialog"], .modal-overlay'))setProgress({step:index+1,open:true});
-  },[completion,index,progress.open,step.goal]);
+    if(progress.open && location.pathname===step.route.split('?')[0] && demoStepDone(step,completion) && index<steps.length-1 && !document.querySelector('[role="dialog"], .modal-overlay'))setProgress({step:index+1,open:true});
+  },[completion,index,progress.open,step.goal,location.pathname]);
   if (!progress.open) return null;
   const go = (next: number) => { setProgress({ step: next, open: true }); navigate(steps[next].route); };
   return <aside className="demo-guide" data-expanded={expanded} aria-label="Guía de primeros pasos"><header><span>PASO {index + 1} DE {steps.length}</span><button type="button" className="demo-guide-expand" aria-expanded={expanded} onClick={()=>setExpanded(!expanded)}>{expanded?'Menos ayuda':'Ver ayuda'}</button><button type="button" aria-label="Ocultar guía" onClick={() => setProgress({ ...progress, open: false })}><X size={18} /></button></header>
-    <h2>{step.title}</h2><div className="demo-guide-detail"><p>{step.text}</p>{step.goal&&<p className="demo-task-hint">{demoStepDone(step,completion)?'Acción guardada.':'Avanza al guardar y sincronizar la acción. También puedes omitir este paso.'}</p>}<div className="demo-guide-progress" aria-hidden="true">{steps.map((item, n) => <i key={item.title} className={n <= index ? 'is-reached' : ''} />)}</div></div>
+    {onTour&&<div className="demo-guide-tours" role="group" aria-label="Recorrido de la guía"><button type="button" aria-pressed={tour==='work'} onClick={()=>onTour('work')}>Trabajo y facturación</button><button type="button" aria-pressed={tour==='purchases'} onClick={()=>onTour('purchases')}>Materiales y compras</button></div>}<h2>{step.title}</h2><div className="demo-guide-detail"><p>{step.text}</p>{step.goal&&<p className="demo-task-hint">{demoStepDone(step,completion)?'Acción guardada.':'Avanza al guardar y sincronizar la acción. También puedes omitir este paso.'}</p>}<div className="demo-guide-progress" aria-hidden="true">{steps.map((item, n) => <i key={item.title} className={n <= index ? 'is-reached' : ''} />)}</div></div>
     <div className="demo-guide-actions"><button type="button" disabled={index === 0} aria-label="Paso anterior" onClick={() => go(index - 1)}><ArrowLeft size={16} /></button>{step.role?<button type="button" className="demo-guide-next" disabled={!roleSwitchAvailable} onClick={()=>{setProgress({step:Math.min(index+1,steps.length-1),open:true});void onRole(step.role!);}}>Cambiar a {demoRoles.find(r=>r.id===step.role)?.title}<ArrowRight size={16}/></button>:<button type="button" className="demo-guide-next" onClick={() => navigate(step.route)}>Ir a la tarea<ArrowRight size={16}/></button>}<button type="button" onClick={() => index === steps.length - 1 ? setProgress({ ...progress, open: false }) : go(index + 1)}>{index === steps.length - 1 ? 'Terminar guía' : step.goal?'Omitir':'Siguiente'}</button></div>
   </aside>;
 }
@@ -46,7 +48,7 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
 export function PublicDemoBoundary({ userId, onFinish, onRoleChanged, children }: { userId: string | null; onFinish: () => Promise<void>; onRoleChanged: (session:DemoSession, navigateToHome?:boolean)=>Promise<void>; children: ReactNode }) {
   const [session, setSession] = useState<DemoSession | null>(null); const [error, setError] = useState(''); const [finishing, setFinishing] = useState(false);
   const [switching,setSwitching]=useState(false); const [roleError,setRoleError]=useState(''); const [roleMenu,setRoleMenu]=useState(false);
-  const [journeys,setJourneys]=useState(false);
+  const [journeys,setJourneys]=useState(false); const [tour,setTour]=useState<DemoTour>('work');
   const [remaining, setRemaining] = useState(0); const [progress, setProgress] = useState<Progress>({ step: 0, open: true });
   const finishRef = useRef(onFinish); finishRef.current = onFinish;
   const finishingRef = useRef(false);
@@ -70,8 +72,8 @@ export function PublicDemoBoundary({ userId, onFinish, onRoleChanged, children }
       if (value.ended || Date.parse(value.expires_at) <= Date.now()) { void finish(); return; }
       void publicDemoService.journeysAvailable().then(async available=>{
         if(!active)return;setJourneys(available);
-        if(available){const prepared=await publicDemoService.prepareJourney(value.role);if(!active)return;await onRoleChanged(prepared,false);setSession(prepared);setProgress(progressFor(prepared.id+':'+prepared.role));}
-        else {setSession(value);setProgress(progressFor(value.id+':'+value.role));}
+        if(available){const prepared=await publicDemoService.prepareJourney(value.role);if(!active)return;await onRoleChanged(prepared,false);setSession(prepared);const chosen=tourFor(prepared.id);setTour(chosen);setProgress(progressFor(prepared.id+':'+prepared.role+':'+chosen));}
+        else {setSession(value);const chosen=tourFor(value.id);setTour(chosen);setProgress(progressFor(value.id+':'+value.role+':'+chosen));}
       }).catch(reason=>{if(active)setError(reason.message);});
     }).catch(reason => { if (active) setError(reason.message); });
     return () => { active = false; };
@@ -99,18 +101,22 @@ export function PublicDemoBoundary({ userId, onFinish, onRoleChanged, children }
   const switchRole=async(role:DemoRole)=>{
     if(switching||!session||role===session.role)return;
     setSwitching(true);setRoleError('');setRoleMenu(false);
-    try{const next=await publicDemoService.prepareJourney(role);await onRoleChanged(next);setSession(next);setProgress(progressFor(next.id+':'+next.role));}
+    try{const next=await publicDemoService.prepareJourney(role);await onRoleChanged(next);setSession(next);setProgress(progressFor(next.id+':'+next.role+':'+tour));}
     catch(reason){setRoleError(reason instanceof Error?reason.message:'No se ha podido cambiar el perfil.');}
     finally{setSwitching(false);}
   };
+  const changeTour=(next:DemoTour)=>{
+    if(!session)return;setTour(next);setProgress({...progressFor(session.id+':'+session.role+':'+next),open:true});
+    try{localStorage.setItem('dmp-demo-tour-choice:'+session.id,next);}catch{/* Selection remains usable in memory. */}
+  };
   const saveProgress = (value: Progress) => {
     setProgress(value); if (!session) return;
-    try { localStorage.setItem(`dmp-demo-tour:${session.id}:${session.role}`, JSON.stringify(value)); } catch { /* Guide works for this session without persistence. */ }
+    try { localStorage.setItem(`dmp-demo-tour:${session.id}:${session.role}:${tour}`, JSON.stringify(value)); } catch { /* Guide works for this session without persistence. */ }
   };
   if (!userId) return children;
   if (switching) return <main className="demo-state"><h1>Preparando el siguiente perfil…</h1><p>Conservando los datos de tu empresa de prueba.</p></main>;
   if (finishing) return <main className="demo-state"><h1>Finalizando tu prueba…</h1><p role="status">Cerrando el acceso y limpiando los datos de esta sesión.</p></main>;
   if (error) return <main className="demo-state"><h1>No se ha podido abrir la sesión de prueba</h1><p role="alert">{error}</p><button type="button" onClick={() => void finish()}>Finalizar y volver a la portada</button></main>;
   if (!session) return <main className="demo-state"><p role="status">Verificando tu espacio temporal…</p></main>;
-  return <div className="public-demo-app" data-guide-open={progress.open ? 'true' : 'false'}><div className="demo-session-bar"><div><strong>DEMO · {demoRoles.find(role => role.id === session.role)?.title}</strong><span>Simulación · usa datos ficticios</span></div><small>{remaining} min de sesión</small>{journeys&&<button type="button" aria-expanded={roleMenu} onClick={()=>setRoleMenu(!roleMenu)}>Cambiar perfil</button>}<button type="button" onClick={() => saveProgress({ ...progress, open: !progress.open })}><BookOpen size={16} />Guía</button><button type="button" onClick={() => void finish()}><LogOut size={16} />Finalizar demo</button></div>{roleMenu&&<nav className="demo-role-menu" aria-label="Cambiar perfil de la prueba">{demoRoles.map(role=><button type="button" key={role.id} disabled={role.id===session.role} onClick={()=>void switchRole(role.id)}>{role.title}</button>)}<p>Misma empresa de prueba, permisos propios de cada perfil.</p></nav>}{roleError&&<p role="alert" className="demo-role-error">{roleError}</p>}{children}<DemoGuide session={session} progress={progress} setProgress={saveProgress} onRole={switchRole} roleSwitchAvailable={journeys} /></div>;
+  return <div className="public-demo-app" data-guide-open={progress.open ? 'true' : 'false'}><div className="demo-session-bar"><div><strong>DEMO · {demoRoles.find(role => role.id === session.role)?.title}</strong><span>Simulación · usa datos ficticios</span></div><small>{remaining} min de sesión</small>{journeys&&<button type="button" aria-expanded={roleMenu} onClick={()=>setRoleMenu(!roleMenu)}>Cambiar perfil</button>}<button type="button" onClick={() => saveProgress({ ...progress, open: !progress.open })}><BookOpen size={16} />Guía</button><button type="button" onClick={() => void finish()}><LogOut size={16} />Finalizar demo</button></div>{roleMenu&&<nav className="demo-role-menu" aria-label="Cambiar perfil de la prueba">{demoRoles.map(role=><button type="button" key={role.id} disabled={role.id===session.role} onClick={()=>void switchRole(role.id)}>{role.title}</button>)}<p>Misma empresa de prueba, permisos propios de cada perfil.</p></nav>}{roleError&&<p role="alert" className="demo-role-error">{roleError}</p>}{children}<DemoGuide session={session} progress={progress} setProgress={saveProgress} onRole={switchRole} roleSwitchAvailable={journeys} tour={tour} onTour={changeTour} /></div>;
 }

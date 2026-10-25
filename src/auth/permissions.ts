@@ -233,7 +233,8 @@ export function canAccessRoute(profile: Profile | null | undefined, path: string
   if (path.startsWith('/app/modulos/comerciales')) return hasAny(profile, ['SAT', 'Gerencia', 'Comercial']);
   if (path.startsWith('/app/modulos/presupuestos') || path.startsWith('/app/modulos/materiales') || path.startsWith('/app/modulos/cobros') || path.startsWith('/app/modulos/rentabilidad')) return hasAny(profile, economicRoles);
   if (path.startsWith('/app/modulos/tarifas-horas')) return hasAny(profile, ['superadmin', 'Gerencia', 'Oficina']);
-  if (path.startsWith('/app/modulos/proveedores') || path.startsWith('/app/modulos/compras')) return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina']);
+  if (path.startsWith('/app/modulos/proveedores')) return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina', 'Comercial']);
+  if (path.startsWith('/app/modulos/compras')) return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina']);
   if (path.startsWith('/app/modulos/facturas-proveedor')) return hasPermission(profile, 'supplier_invoices.read');
   if (path.startsWith('/app/modulos')) return hasAny(profile, ['SAT', 'Gerencia', 'Comercial', 'Oficina']);
   if (path.startsWith('/app/avisos')) return hasAny(profile, ['SAT', 'Gerencia', 'Comercial', 'Oficina', 'Tecnico']);

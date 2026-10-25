@@ -20,6 +20,12 @@ El avance es siempre manual: Ir a la tarea localiza la acción, el visitante la
 realiza y guarda, y Siguiente paso navega al siguiente punto. Guardar nunca cambia
 de paso automáticamente. La confirmación de guardado informa, sin navegar. Los
 cambios de perfil se solicitan con un botón explícito y no avanzan antes de cambiar.
+Proveedores aparece en todos los espacios de negocio y queda excluido de Técnico;
+Comercial puede consultar la ruta con sus permisos de lectura. Oficina conserva
+creación y edición. El formulario conserva la identidad después de guardar la ficha:
+si falla un paso bancario, informa del guardado parcial, refresca la lista y reintenta
+sobre la misma ficha. Bloquea envíos simultáneos, normaliza códigos vacíos a null y
+explica los códigos internos duplicados. Este cambio no necesita SQL.
 Presupuestos usa la visibilidad SAT/Oficina de su propio departamento, evitando que
 el valor por defecto `commercial=false` lo oculte a esos perfiles. No requiere SQL.
 

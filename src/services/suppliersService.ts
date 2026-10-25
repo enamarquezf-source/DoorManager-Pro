@@ -6,7 +6,8 @@ const supplierColumns = ['name', 'trade_name', 'internal_code', 'tax_id', 'email
 
 function cleanSupplier(payload: Record<string, any>) {
   return Object.fromEntries(supplierColumns.filter((key) => key in payload).map((key) => {
-    const value = payload[key] === '' ? null : payload[key];
+    const raw = key === 'internal_code' && typeof payload[key] === 'string' ? payload[key].trim() : payload[key];
+    const value = raw === '' ? null : raw;
     return [key, ['payment_terms_days', 'payment_due_day', 'usual_discount'].includes(key) && value !== null ? Number(value) : value];
   }));
 }

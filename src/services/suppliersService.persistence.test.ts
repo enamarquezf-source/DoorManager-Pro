@@ -62,6 +62,15 @@ describe('material supplier price persistence', () => {
     from.mockClear();
   });
 
+  it('stores optional blank supplier codes as null and trims explicit codes', async () => {
+    const { suppliersService } = await import('./suppliersService');
+    await suppliersService.create({ name: 'Proveedor sin código', internal_code: '   ' });
+    expect(requests.find(request => request.operation === 'insert')?.payload).toMatchObject({ internal_code: null, company_id: 'company-1' });
+    requests.length = 0;
+    await suppliersService.update(supplierId, { internal_code: ' PRO-1 ' });
+    expect(requests.find(request => request.operation === 'update')?.payload).toMatchObject({ internal_code: 'PRO-1' });
+  });
+
   it('keeps 250 through preferred save, clean refetch, and rendered value', async () => {
     const { suppliersService } = await import('./suppliersService');
 

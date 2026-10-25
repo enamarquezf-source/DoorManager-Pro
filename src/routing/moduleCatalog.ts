@@ -60,6 +60,12 @@ export function moduleReadRequirements(moduleId: string) {
   return moduleMeta[moduleId]?.permission ?? [];
 }
 
-export function moduleVisibilityKey(moduleId: string) {
+export function moduleVisibilityKey(moduleId: string, profile?: { roles?: readonly string[] } | null) {
+  // Quotes are shared by departments. A hidden commercial workspace must not
+  // hide the SAT or office entry when their own operational area is visible.
+  if (moduleId === 'presupuestos') {
+    if (profile?.roles?.includes('SAT')) return 'sat';
+    if (profile?.roles?.includes('Oficina')) return 'billing';
+  }
   return moduleMeta[moduleId]?.visibility ?? moduleId;
 }

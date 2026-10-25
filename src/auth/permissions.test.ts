@@ -7,6 +7,25 @@ function profile(primary_area: RoleName, roles: RoleName[] = [primary_area]): Pr
 }
 
 describe('canAccessRoute', () => {
+  it('keeps SAT quotes visible when the unrelated Commercial area is hidden by backend defaults', () => {
+    const sat = { ...profile('SAT'), hidden_modules: ['commercial', 'billing'] };
+    expect(canAccessModule(sat, 'sat', 'presupuestos')).toBe(true);
+    expect(canAccessRoute(sat, '/app/modulos/presupuestos')).toBe(true);
+    expect(canAccessRoute(sat, '/app/modulos/presupuestos/quote-1')).toBe(true);
+    expect(canManageQuotes(sat)).toBe(true);
+    expect(canAccessModule({ ...sat, hidden_modules: ['sat'] }, 'sat', 'presupuestos')).toBe(false);
+    expect(canAccessRoute({ ...sat, hidden_modules: ['sat'] }, '/app/modulos/presupuestos')).toBe(false);
+    expect(canAccessRoute(profile('Tecnico'), '/app/modulos/presupuestos')).toBe(false);
+  });
+
+  it('uses the office visibility for quotes without exposing its hidden Commercial area', () => {
+    const office = { ...profile('Oficina'), hidden_modules: ['commercial'] };
+    expect(canAccessModule(office, 'oficina', 'presupuestos')).toBe(true);
+    expect(canAccessRoute(office, '/app/modulos/presupuestos')).toBe(true);
+    expect(canAccessRoute({ ...office, hidden_modules: ['billing'] }, '/app/modulos/presupuestos')).toBe(false);
+    expect(canAccessRoute({ ...profile('Comercial'), hidden_modules: ['commercial'] }, '/app/modulos/presupuestos')).toBe(false);
+  });
+
   it('permite Plantillas a Superadmin y bloquea sesiones desactivadas', () => {
     expect(canAccessRoute(profile('superadmin'), '/app/plantillas')).toBe(true);
     expect(canAccessRoute({ ...profile('SAT'), active: false }, '/app/plantillas')).toBe(false);

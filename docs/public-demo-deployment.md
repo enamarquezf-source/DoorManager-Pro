@@ -9,9 +9,15 @@ La instalación actual mantiene su conexión y sus datos independientes.
 
 El cambio entre perfiles y los escenarios económicos de 005 ya están disponibles
 en el backend de demo (journeys=2 comprobado por HTTP). La ampliación actual añade
-el recorrido independiente Materiales y compras. **Falta ejecutar
-supabase/demo/006_demo_procurement_guide.sql en el proyecto de demo** y actualizar
-el frontend después del despliegue. No reinstalar los bloques de esquema.
+el recorrido independiente Materiales y compras. El usuario confirmó la ejecución
+de `supabase/demo/006_demo_procurement_guide.sql`. No reinstalar los bloques de esquema.
+
+La portada presenta los perfiles y explica que la demo es una muestra parcial.
+La guía añade una marca pulsante sobre acciones identificadas, sin bloquear clics;
+se retira al abrir formularios y respeta movimiento reducido. Revisada visualmente
+en escritorio y móvil, con prueba local de apertura de formulario.
+Presupuestos usa la visibilidad SAT/Oficina de su propio departamento, evitando que
+el valor por defecto `commercial=false` lo oculte a esos perfiles. No requiere SQL.
 
 Validación actual: 326 archivos / 1.852 pruebas correctas. Incluye el pedido con
 líneas, recepción confirmada, stock real, aislamiento y limpieza, además del ciclo

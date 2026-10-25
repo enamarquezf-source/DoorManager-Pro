@@ -3,6 +3,7 @@ import { useNavigate,useLocation } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, BookOpen, LogOut, X } from 'lucide-react';
 import { publicDemoService } from './service';
 import { demoRoles, demoTourSteps, demoStepDone, type DemoRole, type DemoSession, type DemoTour } from './model';
+import { DemoSpotlight, findDemoTarget } from './DemoSpotlight';
 
 type Progress = { step: number; open: boolean };
 function tourFor(id:string):DemoTour {try{return localStorage.getItem('dmp-demo-tour-choice:'+id)==='purchases'?'purchases':'work';}catch{return 'work';}}
@@ -16,17 +17,6 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
   const [expanded,setExpanded]=useState(false);
   const [completion,setCompletion]=useState<Record<string,number>>({});
   const steps = demoTourSteps(session,tour); const index = Math.min(progress.step, steps.length - 1); const step = steps[index];
-  useEffect(() => {
-    if (!progress.open) return;
-    let highlighted: Element | null = null;
-    const highlight = () => {
-      const element = document.querySelector(step.target);
-      if (element === highlighted) return;
-      highlighted?.classList.remove('demo-highlight'); highlighted = element; highlighted?.classList.add('demo-highlight');
-    };
-    highlight(); const observer = new MutationObserver(highlight); observer.observe(document.body, { childList: true, subtree: true });
-    return () => { observer.disconnect(); highlighted?.classList.remove('demo-highlight'); };
-  }, [step.target, progress.open]);
   useEffect(()=>{
     if(!progress.open || !roleSwitchAvailable) return;
     let active=true; let pending=false;
@@ -39,10 +29,14 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
   },[completion,index,progress.open,step.goal,location.pathname]);
   if (!progress.open) return null;
   const go = (next: number) => { setProgress({ step: next, open: true }); navigate(steps[next].route); };
-  return <aside className="demo-guide" data-expanded={expanded} aria-label="Guía de primeros pasos"><header><span>PASO {index + 1} DE {steps.length}</span><button type="button" className="demo-guide-expand" aria-expanded={expanded} onClick={()=>setExpanded(!expanded)}>{expanded?'Menos ayuda':'Ver ayuda'}</button><button type="button" aria-label="Ocultar guía" onClick={() => setProgress({ ...progress, open: false })}><X size={18} /></button></header>
+  const showTask = () => {
+    if (location.pathname !== step.route.split('?')[0] || location.search !== (step.route.includes('?') ? '?' + step.route.split('?')[1] : '')) navigate(step.route);
+    else findDemoTarget(step)?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'center' });
+  };
+  return <><DemoSpotlight step={step} number={index + 1} /><aside className="demo-guide" data-expanded={expanded} aria-label="Guía de primeros pasos"><header><span>PASO {index + 1} DE {steps.length}</span><button type="button" className="demo-guide-expand" aria-expanded={expanded} onClick={()=>setExpanded(!expanded)}>{expanded?'Menos ayuda':'Ver ayuda'}</button><button type="button" aria-label="Ocultar guía" onClick={() => setProgress({ ...progress, open: false })}><X size={18} /></button></header>
     {onTour&&<div className="demo-guide-tours" role="group" aria-label="Recorrido de la guía"><button type="button" aria-pressed={tour==='work'} onClick={()=>onTour('work')}>Trabajo y facturación</button><button type="button" aria-pressed={tour==='purchases'} onClick={()=>onTour('purchases')}>Materiales y compras</button></div>}<h2>{step.title}</h2><div className="demo-guide-detail"><p>{step.text}</p>{step.goal&&<p className="demo-task-hint">{demoStepDone(step,completion)?'Acción guardada.':'Avanza al guardar y sincronizar la acción. También puedes omitir este paso.'}</p>}<div className="demo-guide-progress" aria-hidden="true">{steps.map((item, n) => <i key={item.title} className={n <= index ? 'is-reached' : ''} />)}</div></div>
-    <div className="demo-guide-actions"><button type="button" disabled={index === 0} aria-label="Paso anterior" onClick={() => go(index - 1)}><ArrowLeft size={16} /></button>{step.role?<button type="button" className="demo-guide-next" disabled={!roleSwitchAvailable} onClick={()=>{setProgress({step:Math.min(index+1,steps.length-1),open:true});void onRole(step.role!);}}>Cambiar a {demoRoles.find(r=>r.id===step.role)?.title}<ArrowRight size={16}/></button>:<button type="button" className="demo-guide-next" onClick={() => navigate(step.route)}>Ir a la tarea<ArrowRight size={16}/></button>}<button type="button" onClick={() => index === steps.length - 1 ? setProgress({ ...progress, open: false }) : go(index + 1)}>{index === steps.length - 1 ? 'Terminar guía' : step.goal?'Omitir':'Siguiente'}</button></div>
-  </aside>;
+    <div className="demo-guide-actions"><button type="button" disabled={index === 0} aria-label="Paso anterior" onClick={() => go(index - 1)}><ArrowLeft size={16} /></button>{step.role?<button type="button" className="demo-guide-next" disabled={!roleSwitchAvailable} onClick={()=>{setProgress({step:Math.min(index+1,steps.length-1),open:true});void onRole(step.role!);}}>Cambiar a {demoRoles.find(r=>r.id===step.role)?.title}<ArrowRight size={16}/></button>:<button type="button" className="demo-guide-next" onClick={showTask}>Ir a la tarea<ArrowRight size={16}/></button>}<button type="button" onClick={() => index === steps.length - 1 ? setProgress({ ...progress, open: false }) : go(index + 1)}>{index === steps.length - 1 ? 'Terminar guía' : step.goal?'Omitir':'Siguiente'}</button></div>
+  </aside></>;
 }
 
 export function PublicDemoBoundary({ userId, onFinish, onRoleChanged, children }: { userId: string | null; onFinish: () => Promise<void>; onRoleChanged: (session:DemoSession, navigateToHome?:boolean)=>Promise<void>; children: ReactNode }) {

@@ -198,7 +198,7 @@ export function canReopenWorkOrder(profile: Profile | null | undefined) { return
 export function canAccessModule(profile: Profile | null | undefined, workspace: Workspace, moduleId: string) {
   if (!isActiveProfile(profile)) return false;
   const requirements = moduleReadRequirements(moduleId);
-  if (requirements.length && (!requirements.some((permission) => hasPermission(profile, permission)) || !moduleVisible(profile as any, moduleVisibilityKey(moduleId)))) return false;
+  if (requirements.length && (!requirements.some((permission) => hasPermission(profile, permission)) || !moduleVisible(profile as any, moduleVisibilityKey(moduleId, profile)))) return false;
   if (moduleId === 'documentos' && (!hasPermission(profile, 'documents.read') || !moduleVisible(profile as any, 'documents'))) return false;
   if (workspace === 'superadmin') return hasAny(profile, ['superadmin']);
   if (workspace === 'tecnico') return ['jornada', 'checks', 'avisos'].includes(moduleId);
@@ -216,7 +216,7 @@ export function canAccessRoute(profile: Profile | null | undefined, path: string
   if (path.startsWith('/app/modulos/')) {
     const moduleId = path.slice('/app/modulos/'.length).split('/')[0];
     const requirements = moduleReadRequirements(moduleId);
-    if (!requirements.length || !requirements.some((permission) => hasPermission(profile, permission)) || !moduleVisible(profile as any, moduleVisibilityKey(moduleId))) return false;
+    if (!requirements.length || !requirements.some((permission) => hasPermission(profile, permission)) || !moduleVisible(profile as any, moduleVisibilityKey(moduleId, profile))) return false;
   }
   if (path.startsWith('/app/superadmin')) return hasAny(profile, ['superadmin']);
   if (hasAny(profile, ['superadmin']) && (path === '/app/inicio' || path.startsWith('/app/clientes') || path.startsWith('/app/centros') || path.startsWith('/app/equipos') || path.startsWith('/app/expedientes') || path.startsWith('/app/partes') || path.startsWith('/app/trabajos') || path.startsWith('/app/checks') || path.startsWith('/app/deficiencias') || path.startsWith('/app/documentos') || path.startsWith('/app/avisos') || path.startsWith('/app/gerencia') || path.startsWith('/app/modulos'))) return true;

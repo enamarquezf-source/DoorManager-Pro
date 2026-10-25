@@ -8,7 +8,7 @@ const mocks=vi.hoisted(()=>({progress:vi.fn(async()=>({clients:0})),session:vi.f
 vi.mock('./service',()=>({publicDemoService:mocks}));
 const session:any={id:'demo',role:'SAT',work_order_id:null};
 afterEach(()=>{vi.clearAllMocks();mocks.progress.mockResolvedValue({clients:0});});
-it('starts compact, expands help and advances only after a saved action exists',async()=>{
+it('stays on the task after saving and advances only when Next is pressed',async()=>{
  (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
  const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
  function Harness(){const[progress,setProgress]=useState({step:0,open:true});return <DemoGuide session={session} progress={progress} setProgress={setProgress} onRole={async()=>{}}/>;}
@@ -21,6 +21,9 @@ it('starts compact, expands help and advances only after a saved action exists',
   expect(host.querySelector('h2')?.textContent).toBe('Crea tu primer cliente');
   mocks.progress.mockResolvedValue({clients:1});
   await act(async()=>window.dispatchEvent(new Event('focus')));
+  expect(host.querySelector('h2')?.textContent).toBe('Crea tu primer cliente');
+  expect(host.textContent).toContain('Acción guardada. Pulsa Siguiente paso');
+  await act(async()=>[...host.querySelectorAll('button')].find(button=>button.textContent==='Siguiente paso')!.click());
   expect(host.querySelector('h2')?.textContent).toBe('Añade el centro de trabajo');
  }finally{await act(async()=>root.unmount());host.remove();}
 });

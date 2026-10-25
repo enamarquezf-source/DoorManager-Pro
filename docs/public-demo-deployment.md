@@ -16,6 +16,10 @@ La portada presenta los perfiles y explica que la demo es una muestra parcial.
 La guía añade una marca pulsante sobre acciones identificadas, sin bloquear clics;
 se retira al abrir formularios y respeta movimiento reducido. Revisada visualmente
 en escritorio y móvil, con prueba local de apertura de formulario.
+El avance es siempre manual: Ir a la tarea localiza la acción, el visitante la
+realiza y guarda, y Siguiente paso navega al siguiente punto. Guardar nunca cambia
+de paso automáticamente. La confirmación de guardado informa, sin navegar. Los
+cambios de perfil se solicitan con un botón explícito y no avanzan antes de cambiar.
 Presupuestos usa la visibilidad SAT/Oficina de su propio departamento, evitando que
 el valor por defecto `commercial=false` lo oculte a esos perfiles. No requiere SQL.
 

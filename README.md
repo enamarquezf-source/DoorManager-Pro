@@ -4,9 +4,37 @@ DoorManager Pro es una plataforma web de gestion operativa para empresas de inst
 
 El producto nacio a partir de necesidades reales del sector de puertas industriales y automaticas, que continua siendo un caso de uso principal y de referencia. Su nucleo debe ser reutilizable por empresas que instalan, mantienen o reparan cualquier tipo de equipo o instalacion tecnica. El nombre DoorManager Pro se mantiene como marca del producto.
 
-## Web publica
+## Acceder a DMP
 
-https://doormanager-pro.pages.dev/
+| Acceso | URL | Qué encontrarás |
+|---|---|---|
+| **Probar la beta pública** | [Abrir demo de DMP](https://demo-doormanager-pro.enamarquezf.workers.dev/) | Elige un perfil y explora una empresa temporal con una guía. Sin correo ni contraseña. |
+| **Aplicación principal** | [Abrir DoorManager Pro](https://doormanager-pro.pages.dev/) | Acceso a la instalación principal con una cuenta autorizada. |
+
+La aplicación principal y la demo comparten este repositorio, pero tienen despliegues y proyectos Supabase separados. Los datos introducidos en la demo no pertenecen a la instalación principal.
+
+## Qué puedes probar en la demo
+
+| Perfil o recorrido | Qué permite explorar |
+|---|---|
+| **SAT → Técnico → SAT** | Crear un cliente y su centro, preparar un trabajo, asignarlo, completarlo como técnico y volver a SAT para revisarlo. Puedes cambiar de perfil conservando la misma empresa de prueba. |
+| **Técnico** | Un parte preparado con tres equipos: puerta seccional, corredera y barrera. Revisar componentes, registrar defectos, añadir fotos, trabajo realizado, horas y firma ficticia. |
+| **Oficina** | Un trabajo de ejemplo revisado para preparar una factura, emitirla dentro de la simulación y registrar un cobro de prueba. |
+| **Materiales y compras** | Crear un material y proveedor, preparar y confirmar un pedido, recibir mercancía, comprobar existencias y continuar con su consumo en el parte. Se selecciona desde la guía. |
+| **Gerencia** | Analizar actividad ficticia de varios clientes y empleados: horas, materiales, costes, márgenes positivos y negativos, facturas y nóminas simuladas. Explorar los estudios de costes y productividad. |
+| **Comercial** | Crear clientes y explorar oportunidades y presupuestos, y continuar el recorrido con SAT. |
+
+### Empezar en tres pasos
+
+1. Abre la [demo pública](https://demo-doormanager-pro.enamarquezf.workers.dev/), elige un perfil y completa la comprobación de acceso.
+2. Pulsa **Probar DMP**. En **Guía**, selecciona **Trabajo y facturación** o **Materiales y compras**; puedes desplegar la ayuda, omitir pasos y retomarla.
+3. Usa **Cambiar perfil** para seguir el mismo trabajo desde otra función y **Finalizar demo** al terminar.
+
+Cada visitante tiene su propio espacio temporal. Usa datos, fotos y firmas ficticios: finalizar revoca el acceso y solicita el borrado; las sesiones abandonadas caducan tras 30 minutos sin actividad, con un máximo de dos horas. La limpieza remota se procesa con reintentos y una tarea periódica. Cerrar una pestaña no garantiza un borrado inmediato.
+
+La beta sigue en pruebas. Las facturas, cobros y nóminas del ejemplo son simulaciones; no se realizan cargos bancarios ni se generan nóminas oficiales. La preparación técnica y las comprobaciones pendientes se detallan en la [guía de despliegue de la demo](docs/public-demo-deployment.md).
+
+Si tienes instalada una versión anterior, guarda primero el trabajo abierto y usa [Actualizar demo](https://demo-doormanager-pro.enamarquezf.workers.dev/actualizar.html) en el mismo navegador donde la utilizas.
 
 ## Problema que resuelve
 

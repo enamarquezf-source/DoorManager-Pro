@@ -19,6 +19,8 @@ ficticios. No se ha accedido a la base de la instalación principal.
 | SAT: añadir tarifa al presupuesto | Dos horas a 45 €/h: coste 44 €, venta 90 €, IVA 18,90 €, total 108,90 €, margen 46 €. |
 | Gerencia: inicio | Carga empresa con actividad, costes y aviso de factura vencida. Se detectó solapamiento entre realizados y pendientes. |
 | Desplazamiento tras desplegar la corrección | Reabierto el mismo parte en la web pública actualizada: muestra 1 desplazamiento, 25 km, con Editar/Eliminar. |
+| Oficina: crear proveedor sin banco ni código | Guardado y visible sin recargar; formulario cerrado sin error. |
+| Oficina: alta de Mano de obra tras corregir | Concepto guardado, abre precio/vigencia; versión coste 25 €/h y venta 55 €/h guardada y visible. |
 
 ## Correcciones
 
@@ -43,6 +45,6 @@ El conjunto de pruebas automatizadas pasa (332 archivos / 1.870 pruebas), pero n
 equivale a probar todas las operaciones en la web pública. Siguen pendientes de
 aceptación remota completa: fotos y firma en Storage, compras con recepción desde
 la interfaz, cierre técnico completo, revisión SAT, facturación/cobro y recorrido
-económico de Gerencia. La revisión pública posterior al despliegue de las
-correcciones se registra al terminar; no afirmar que toda la aplicación está libre
-de errores.
+económico de Gerencia. Se han verificado públicamente después del despliegue el
+desplazamiento persistido y el nuevo flujo de tarifas. No afirmar que toda la
+aplicación está libre de errores.

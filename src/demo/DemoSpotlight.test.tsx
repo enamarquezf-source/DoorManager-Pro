@@ -25,3 +25,9 @@ it('does not point to hidden actions or to buttons in the tutorial', () => {
   visible();
   expect(findDemoTarget(step)?.className).toBe('page-head');
 });
+it('guides the visible required field and then the current form action',()=>{
+ document.body.innerHTML='<main><button>Crear cliente</button></main><div role="dialog"><form><div hidden><input required value=""/></div><label>Razón social<input id="name" required/></label><button type="button">Usar datos de ejemplo</button><button id="next" type="submit">Siguiente</button></form></div>';
+ visible();expect(findDemoTarget(step)?.id).toBe('name');
+ (document.getElementById('name') as HTMLInputElement).value='Empresa ficticia';
+ expect(findDemoTarget(step)?.id).toBe('next');
+});

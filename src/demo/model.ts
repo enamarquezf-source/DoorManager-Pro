@@ -22,10 +22,11 @@ export function parseDemoSession(value: any): DemoSession {
 }
 
 export type DemoProgress = Record<string, number>;
-export type DemoTour = 'work'|'purchases';
+export type DemoTour = 'work'|'purchases'|'updates';
 export type DemoStep = { title: string; text: string; route: string; target: string; goal?: string; role?: DemoRole };
 export function demoStepDone(step: DemoStep, progress: DemoProgress) { return Boolean(step.goal && Number(progress[step.goal]) > 0); }
 export function demoTourSteps(session: DemoSession,tour:DemoTour='work'): DemoStep[] {
+ if(tour==='updates') return [{title:'Tu DMP, siempre al día',text:'Aprende a comprobar la versión y a actualizar conservando tu trabajo.',route:session.role==='Tecnico'?'/app/tecnico':'/app/inicio',target:'[data-demo-update]'}];
  const work = session.work_order_id ? '/app/tecnico/trabajo/' + session.work_order_id : '/app/tecnico';
  if(tour==='purchases') {
   const material:DemoStep={title:'Crea un material',text:'En Materiales pulsa Crear material. Prueba con Fotocélula de seguridad, unidad ud, coste 30 €, venta 55 € y stock mínimo 2. Activa el control de stock y guarda. Crear la ficha no significa recibir existencias.',route:'/app/modulos/materiales',target:'.section-header',goal:'catalog_materials'};

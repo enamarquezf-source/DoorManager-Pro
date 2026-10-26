@@ -4,9 +4,12 @@ import { ArrowLeft, ArrowRight, BookOpen, LogOut, X } from 'lucide-react';
 import { publicDemoService } from './service';
 import { demoRoles, demoTourSteps, demoStepDone, type DemoRole, type DemoSession, type DemoTour } from './model';
 import { DemoSpotlight, findDemoTarget } from './DemoSpotlight';
+import { DemoUpdateLesson } from './DemoUpdateLesson';
+import { guideCopy } from './guideCopy';
+import { Sparkles, CheckCircle2, MousePointer2 } from 'lucide-react';
 
 type Progress = { step: number; open: boolean };
-function tourFor(id:string):DemoTour {try{return localStorage.getItem('dmp-demo-tour-choice:'+id)==='purchases'?'purchases':'work';}catch{return 'work';}}
+function tourFor(id:string):DemoTour {try{const value=localStorage.getItem('dmp-demo-tour-choice:'+id);return value==='purchases'||value==='updates'?value:'work';}catch{return 'work';}}
 function progressFor(id: string): Progress {
   try { const value = JSON.parse(localStorage.getItem(`dmp-demo-tour:${id}`) ?? 'null'); if (Number.isInteger(value?.step) && value.step >= 0 && typeof value.open === 'boolean') return value; } catch { /* Start with the guide if storage is unavailable. */ }
   return { step: 0, open: true };
@@ -30,9 +33,19 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
     if (location.pathname !== step.route.split('?')[0] || location.search !== (step.route.includes('?') ? '?' + step.route.split('?')[1] : '')) navigate(step.route);
     else findDemoTarget(step)?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'center' });
   };
-  return <><DemoSpotlight step={step} number={index + 1} /><aside className="demo-guide" data-expanded={expanded} aria-label="Guía de primeros pasos"><header><span>PASO {index + 1} DE {steps.length}</span><button type="button" className="demo-guide-expand" aria-expanded={expanded} onClick={()=>setExpanded(!expanded)}>{expanded?'Menos ayuda':'Ver ayuda'}</button><button type="button" aria-label="Ocultar guía" onClick={() => setProgress({ ...progress, open: false })}><X size={18} /></button></header>
-    {onTour&&<div className="demo-guide-tours" role="group" aria-label="Recorrido de la guía"><button type="button" aria-pressed={tour==='work'} onClick={()=>onTour('work')}>Trabajo y facturación</button><button type="button" aria-pressed={tour==='purchases'} onClick={()=>onTour('purchases')}>Materiales y compras</button></div>}<h2>{step.title}</h2><p className="demo-guide-rule">Tú haces la tarea. La guía avanza solo cuando pulsas Siguiente paso; no guarda ni completa acciones por ti.</p><div className="demo-guide-detail"><p>{step.text}</p>{step.goal&&<p className="demo-task-hint">{demoStepDone(step,completion)?'Acción guardada. Pulsa Siguiente paso cuando quieras continuar.':'Realiza y guarda la tarea en la app. Después pulsa Siguiente paso.'}</p>}<div className="demo-guide-progress" aria-hidden="true">{steps.map((item, n) => <i key={item.title} className={n <= index ? 'is-reached' : ''} />)}</div></div>
-    <div className="demo-guide-actions"><button type="button" disabled={index === 0} aria-label="Paso anterior" onClick={() => go(index - 1)}><ArrowLeft size={16} /></button>{step.role?<button type="button" className="demo-guide-next" disabled={!roleSwitchAvailable} onClick={()=>{void onRole(step.role!);}}>Cambiar a {demoRoles.find(r=>r.id===step.role)?.title}<ArrowRight size={16}/></button>:<button type="button" className="demo-guide-next" onClick={showTask}>Ir a la tarea<ArrowRight size={16}/></button>}<button type="button" onClick={() => index === steps.length - 1 ? setProgress({ ...progress, open: false }) : go(index + 1)}>{index === steps.length - 1 ? 'Terminar guía' : 'Siguiente paso'}</button></div>
+  const copy = guideCopy(step);
+  return <><DemoSpotlight step={step} number={index + 1} /><aside className="demo-guide demo-guide-v2" data-expanded={expanded} aria-label="Guía de primeros pasos">
+    <header><span className="demo-guide-brand"><Sparkles size={14}/> TU GUÍA DMP</span>{tour!=='updates'&&<button type="button" className="demo-guide-expand" aria-expanded={expanded} onClick={()=>setExpanded(!expanded)}>{expanded?'Menos detalle':'Cómo hacerlo'}</button>}<button type="button" aria-label="Ocultar guía" onClick={()=>setProgress({...progress,open:false})}><X size={18}/></button></header>
+    {onTour&&<div className="demo-guide-tours" role="group" aria-label="Recorrido de la guía"><button type="button" aria-pressed={tour==='work'} onClick={()=>onTour('work')}>Trabajo y facturación</button><button type="button" aria-pressed={tour==='purchases'} onClick={()=>onTour('purchases')}>Materiales y compras</button><button type="button" aria-pressed={tour==='updates'} onClick={()=>onTour('updates')}>App al día</button></div>}
+    <div className="demo-mission-heading"><span className="demo-mission-number">{String(index+1).padStart(2,'0')}</span><div><span className="demo-mission-kicker">{tour==='updates'?'BUENOS HÁBITOS':'TU SIGUIENTE MISIÓN'} · {index+1}/{steps.length}</span><h2>{step.title}</h2></div></div>
+    {tour==='updates'?<DemoUpdateLesson role={session.role}/>:<>
+      <div className="demo-action-cue"><MousePointer2 size={18}/><p>{copy.action}</p></div>
+      <div className="demo-guide-detail"><p>{step.text}</p><div className="demo-mission-benefit"><Sparkles size={15}/><p><strong>Lo que ganas con DMP</strong>{copy.benefit}</p></div>{step.goal&&<p className="demo-task-hint">{demoStepDone(step,completion)?'Acción guardada. Pulsa Siguiente paso cuando quieras continuar.':'Realiza y guarda la tarea en la app. Después pulsa Siguiente paso.'}</p>}
+      <details className="demo-mission-map"><summary>Ver las {steps.length} misiones</summary><ol>{steps.map((item,n)=><li key={item.title}><button type="button" aria-current={n===index?'step':undefined} onClick={()=>go(n)}><span>{n+1}</span>{item.title}{demoStepDone(item,completion)&&<CheckCircle2 size={14} aria-label="Hay datos guardados"/>}</button></li>)}</ol></details></div>
+      <p className="demo-guide-rule">Tú guardas. Tú decides cuándo continuar.</p>
+      <div className="demo-guide-progress" aria-label={'Paso '+(index+1)+' de '+steps.length}>{steps.map((item,n)=><i key={item.title} className={n<=index?'is-reached':''}/>)}</div>
+    </>}
+    <div className="demo-guide-actions">{tour==='updates'?<button type="button" onClick={()=>onTour?onTour('work'):setProgress({...progress,open:false})}>Volver al recorrido<ArrowRight size={16}/></button>:<><button type="button" disabled={index===0} aria-label="Paso anterior" onClick={()=>go(index-1)}><ArrowLeft size={16}/></button>{step.role?<button type="button" className="demo-guide-next" disabled={!roleSwitchAvailable} onClick={()=>void onRole(step.role!)}>Cambiar a {demoRoles.find(r=>r.id===step.role)?.title}<ArrowRight size={16}/></button>:<button type="button" className="demo-guide-next" onClick={showTask}>Muéstrame dónde<MousePointer2 size={15}/></button>}<button type="button" onClick={()=>index===steps.length-1?setProgress({...progress,open:false}):go(index+1)}>{index===steps.length-1?'Terminar guía':'Siguiente paso'}<ArrowRight size={15}/></button></>}</div>
   </aside></>;
 }
 

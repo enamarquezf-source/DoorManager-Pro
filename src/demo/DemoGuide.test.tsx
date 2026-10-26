@@ -3,6 +3,7 @@ import {act,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {MemoryRouter} from 'react-router-dom';
 import {it,expect,vi,afterEach} from 'vitest';
+import type {DemoTour} from './model';
 import {DemoGuide,PublicDemoBoundary} from './PublicDemoBoundary';
 const mocks=vi.hoisted(()=>({progress:vi.fn(async()=>({clients:0})),session:vi.fn(),journeysAvailable:vi.fn(),prepareJourney:vi.fn()}));
 vi.mock('./service',()=>({publicDemoService:mocks}));
@@ -51,7 +52,7 @@ it('refreshes the initial role without redirecting a check deep link to the home
 it('makes the procurement tour selectable without forcing users through the invoicing tour',async()=>{
  (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
  const host=document.createElement('div');const root=createRoot(host);
- function Harness(){const[tour,setTour]=useState<'work'|'purchases'>('work');return <DemoGuide session={{...session,role:'Oficina'}} progress={{step:0,open:true}} setProgress={()=>{}} onRole={async()=>{}} tour={tour} onTour={setTour}/>;}
+ function Harness(){const[tour,setTour]=useState<DemoTour>('work');return <DemoGuide session={{...session,role:'Oficina'}} progress={{step:0,open:true}} setProgress={()=>{}} onRole={async()=>{}} tour={tour} onTour={setTour}/>;}
  try{
  await act(async()=>root.render(<MemoryRouter><Harness/></MemoryRouter>));
  expect(host.querySelector('h2')?.textContent).toBe('Recibe un trabajo revisado');

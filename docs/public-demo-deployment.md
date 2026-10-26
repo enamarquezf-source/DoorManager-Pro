@@ -289,3 +289,7 @@ la recepción sí. Comprar existencias no supone imputarlas dos veces al parte.
 Prueba con los RPC reales: material, proveedor, pedido de 5 unidades a 30 EUR,
 línea, pedido confirmado, recepción en borrador sin stock, confirmación y saldo 5.
 También se prueba aislamiento, borrado del grafo de compras y reinstalación de 006.
+
+### Guía visual y actualización (26/10/2026)
+Guía por misiones con indicación dorada del control activo, ayuda contextual en formularios y avance siempre explícito. Incluye ejemplos editables para cliente, centro, proveedor y material sin guardar automáticamente. La pestaña App al día comprueba la versión real y reutiliza las protecciones del actualizador (formularios y trabajo técnico pendiente). No requiere SQL. Revisión visual en escritorio y móvil; compilación correcta; 1.875 pruebas de la suite general y las 31 pruebas focalizadas de guía, formularios de ejemplo y actualización pasan tras corregir el entorno de confirmación del navegador en las dos pruebas nuevas.
+

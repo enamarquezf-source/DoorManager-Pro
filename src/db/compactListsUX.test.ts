@@ -16,8 +16,10 @@ describe('compact list design and sidebar updates', () => {
   it('keeps the actualizaciones action reachable from the sidebar with its guards', () => {
     expect(app).toContain("'Buscar actualizaciones'");
     expect(app).toContain('sidebar-update');
-    expect(app).toContain('hasPotentialUnsavedFormData');
-    expect(app).toContain('technicianOfflineService.pending()');
+    expect(app).toContain('requestManualAppUpdate(workspace, state.latest.version)');
+    const updater=readFileSync(new URL('../shared/manualAppUpdate.ts',import.meta.url),'utf8');
+    expect(updater).toContain('hasPotentialUnsavedFormData');
+    expect(updater).toContain('technicianOfflineService.pending()');
     expect(app).toContain("state.status === 'update-available'");
   });
 

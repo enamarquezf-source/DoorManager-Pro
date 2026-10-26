@@ -573,8 +573,8 @@ function ManagementDashboard() {
   const { data, loading, error, reload } = useLoad(() => dashboardService.getManagementDashboardData(), [], null as any);
   const [mode, setMode] = useState<'work' | 'alert' | null>(null);
   if (loading || error || !data) return <StateBlock loading={loading} error={error} retry={reload} empty={!data} />;
-  const done = data.workOrders.filter((w: any) => ['Finalizado tecnicamente', 'Enviado', 'Cerrado'].includes(w.status));
-  const pending = data.workOrders.filter((w: any) => !['Enviado', 'Cerrado', 'Cancelado'].includes(w.status));
+  const done = data.workOrders.filter((w: any) => ['Finalizado tecnicamente', 'Enviado', 'Cerrado', 'Facturado'].includes(w.status));
+  const pending = data.workOrders.filter((w: any) => !['Finalizado tecnicamente', 'Enviado', 'Cerrado', 'Facturado', 'Cancelado'].includes(w.status));
   const urgent = data.workOrders.filter((w: any) => ['Alta', 'Critica'].includes(w.priority));
   const openDef = data.deficiencies.filter((d: any) => !['Corregida', 'Cerrada', 'Rechazada'].includes(d.status));
   const saleAmount = Number(data.metrics.sale_amount ?? data.metrics.accepted_quote_amount ?? 0);

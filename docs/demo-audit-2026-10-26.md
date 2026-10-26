@@ -17,6 +17,8 @@ ficticios. No se ha accedido a la base de la instalación principal.
 | SAT: crear cliente | Cliente guardado, numerado CLI-000001 y visible sin recargar. |
 | SAT: crear presupuesto | Borrador guardado y detalle abierto. |
 | SAT: añadir tarifa al presupuesto | Dos horas a 45 €/h: coste 44 €, venta 90 €, IVA 18,90 €, total 108,90 €, margen 46 €. |
+| Gerencia: inicio | Carga empresa con actividad, costes y aviso de factura vencida. Se detectó solapamiento entre realizados y pendientes. |
+| Desplazamiento tras desplegar la corrección | Reabierto el mismo parte en la web pública actualizada: muestra 1 desplazamiento, 25 km, con Editar/Eliminar. |
 
 ## Correcciones
 
@@ -32,6 +34,8 @@ ficticios. No se ha accedido a la base de la instalación principal.
   Requiere instalación manual en el Supabase de demo; no hay credenciales de
   administración disponibles en esta sesión. Preserva precios modificados por
   visitantes y no duplica las versiones al reinstalar.
+- Gerencia: los finalizados técnicamente y facturados dejan de contarse también
+  como pendientes en la comparación de trabajos.
 
 ## Límites de la revisión
 

@@ -27,10 +27,10 @@ it('provides usable travel and platform rates without pre-registering costs',asy
  }finally{await db.exec('reset role');}
 });
 it('does not duplicate resource versions or overwrite a visitor price on repeated preparation',async()=>{
- await db.query("update rate_versions set sale_amount=0.85 where company_id=$1 and rate_id=(select id from rate_catalog where company_id=$1 and code='desplazamiento')",[own.company_id]);
+ await db.query("update rate_versions set sale_amount=95 where company_id=$1 and rate_id=(select id from rate_catalog where company_id=$1 and code='plataforma_demo')",[own.company_id]);
  const count=(await db.query('select count(*) n from rate_versions where company_id=$1',[own.company_id])).rows[0].n;
  await db.exec(readFileSync('supabase/demo/008_demo_resource_rates.sql','utf8'));
  await db.query("select dmp_demo_prepare_journey('Tecnico')");
  expect((await db.query('select count(*) n from rate_versions where company_id=$1',[own.company_id])).rows[0].n).toBe(count);
- expect(Number((await db.query("select sale_amount from rate_versions where company_id=$1 and rate_id=(select id from rate_catalog where company_id=$1 and code='desplazamiento')",[own.company_id])).rows[0].sale_amount)).toBe(0.85);
+ expect(Number((await db.query("select sale_amount from rate_versions where company_id=$1 and rate_id=(select id from rate_catalog where company_id=$1 and code='plataforma_demo')",[own.company_id])).rows[0].sale_amount)).toBe(95);
 });

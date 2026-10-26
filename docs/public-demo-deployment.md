@@ -39,6 +39,13 @@ renovar el historial local. No borrar datos locales pendientes.
 Pruebas de historial y recorridos: 10 correctas; incluyen lectura con RLS de técnico,
 aislamiento entre visitantes, idempotencia, conservación del parte actual y purga.
 
+Revisión real por navegador del 26/10: `docs/demo-audit-2026-10-26.md`. Para añadir
+tarifas de recursos y desplazamiento listas para usar, ejecutar
+`supabase/demo/008_demo_resource_rates.sql` después de 007, solo en la demo.
+Las correcciones de visualización de desplazamientos y clasificación de tarifas
+se despliegan con el frontend. La prueba completa automatizada pasa: 332 archivos,
+1.870 pruebas. Los límites de aceptación pública figuran en el informe.
+
 Validación actual: 326 archivos / 1.852 pruebas correctas. Incluye el pedido con
 líneas, recepción confirmada, stock real, aislamiento y limpieza, además del ciclo
 SAT–Técnico–SAT y la facturación. La compilación del frontend se verifica antes

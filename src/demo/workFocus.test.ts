@@ -1,0 +1,3 @@
+// @vitest-environment happy-dom
+import{afterEach,expect,it,vi}from'vitest';vi.mock('./model',()=>({publicDemoEnabled:true}));import{readDemoWork,rememberDemoWork}from'./workFocus';afterEach(()=>sessionStorage.clear());
+it('keeps the selected demo work within its own company and rejects malformed ids',()=>{const company='11111111-1111-1111-1111-111111111111',work='22222222-2222-2222-2222-222222222222';rememberDemoWork(company,work);expect(readDemoWork(company)).toBe(work);expect(readDemoWork('other-company')).toBeNull();rememberDemoWork(company,'/app/other');expect(readDemoWork(company)).toBe(work);});

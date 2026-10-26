@@ -46,6 +46,7 @@ import { casesService } from './services/casesService';
 import { workOrdersService } from './services/workOrdersService';
 import { assignmentsService } from './services/assignmentsService';
 import { checksService } from './services/checksService';
+import {rememberDemoWork} from './demo/workFocus';
 import {completeAndSyncCheck,completeAndSyncWork,retryPendingCheckFinishes} from './services/checkCompletionService';
 import { deficienciesService } from './services/deficienciesService';
 import { alertsService } from './services/alertsService';
@@ -3518,7 +3519,7 @@ function LegacyWorkOrderForm({ initial, sourceQuote, onClose, onSaved }: any) {
     const payload = { ...values, estimated_duration_minutes: values.estimated_duration_minutes ? Number(values.estimated_duration_minutes) : null, equipment_selection: selectedEquipment.map((item: any) => item.kind === 'existing' ? { existing_equipment_id: item.equipment_id } : { new: item }), installation_equipment: undefined };
     try {
       const result = initial?.id ? await workOrdersService.update(initial.id, payload) : await workOrdersService.create(payload, creatorRole);
-      onSaved?.(result?.id ?? result);
+      if(!initial?.id)rememberDemoWork(companyId??initial?.company_id??'',result?.id??result);onSaved?.(result?.id ?? result);
     } catch (err: any) {
       if (initial?.quote_id) console.error('DMP generate work order from quote failed', { quoteId: initial.quote_id, quoteStatus: sourceQuote?.status, quoteCompanyId: initial.company_id, quoteClientId: initial.client_id, quoteSiteId: initial.site_id, quoteEquipmentId: initial.main_equipment_id, quoteCaseId: initial.case_id, payload, rpcName: 'dmp_create_work_order_full', message: err?.message, details: err?.details, hint: err?.hint, code: err?.code, name: err?.name });
       const codeSuffix = err?.code ? ` Codigo: ${err.code}.` : '';

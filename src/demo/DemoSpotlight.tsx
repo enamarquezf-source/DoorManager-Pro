@@ -43,7 +43,8 @@ export function findDemoTarget(step: DemoStep): HTMLElement | null {
     if (button) return button;
   }
   if(step.goal==='assignments') {
-    const work=[...document.querySelectorAll<HTMLElement>('main a[href*="/app/partes/"]')].find(available);
+    const links=[...document.querySelectorAll<HTMLElement>('main a[href*="/app/partes/"]')].filter(available);
+    const work=links.find(element=>((element.getAttribute('aria-label')??'')+' '+element.textContent).includes('Sin asignar'))??links[0];
     if(work)return work;
   }
   const selector = step.target.replaceAll('.page-head', '.page-head, .section-header');

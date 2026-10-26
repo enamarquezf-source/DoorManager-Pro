@@ -8,6 +8,7 @@ import { DemoUpdateLesson } from './DemoUpdateLesson';
 import { guideCopy } from './guideCopy';
 import {journeyProgressKey,sharedJourney,observeMission,readEvidence,type MissionEvidence} from './journey';
 import {DemoJourneyFinish} from './DemoJourneyFinish';
+import {readDemoWork} from './workFocus';
 import {navigationCompletes,interactionCompletes,navigationMission} from './autoGuide';
 import { Sparkles, CheckCircle2, MousePointer2 } from 'lucide-react';
 
@@ -29,8 +30,10 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
   const evidenceKey='dmp-demo-evidence:'+journeyProgressKey(session,tour);
   const [evidence,setEvidence]=useState<Record<string,MissionEvidence>>(()=>readEvidence(evidenceKey));
   useEffect(()=>setEvidence(readEvidence(evidenceKey)),[evidenceKey]);
+  const [focusedWork,setFocusedWork]=useState(()=>readDemoWork(session.company_id));
+  useEffect(()=>{const changed=(event:Event)=>{const detail=(event as CustomEvent).detail;if(detail?.companyId===session.company_id)setFocusedWork(readDemoWork(session.company_id));};window.addEventListener('dmp-demo-work-created',changed);return()=>window.removeEventListener('dmp-demo-work-created',changed);},[session.company_id]);
   const [completion,setCompletion]=useState<Record<string,number>>({});
-  const steps = demoTourSteps(session,tour); const index = Math.min(progress.step, steps.length - 1); const baseStep = steps[index]; const step=completion.work_checks===0&&baseStep.goal==='photos'?{...baseStep,text:'Abre Fotos de la intervención y añade una imagen ficticia del trabajo. Este parte no tiene checks de equipo; la foto puede quedar vinculada al propio parte. Guarda y envía los cambios.',route:baseStep.route.replace('vista=checks','vista=work'),target:'.component-photo'}:baseStep;
+  const steps = demoTourSteps(focusedWork&&session.role!=='Tecnico'?{...session,work_order_id:focusedWork}:session,tour); const index = Math.min(progress.step, steps.length - 1); const baseStep = steps[index]; const step=completion.work_checks===0&&baseStep.goal==='photos'?{...baseStep,text:'Abre Fotos de la intervención y añade una imagen ficticia del trabajo. Este parte no tiene checks de equipo; la foto puede quedar vinculada al propio parte. Guarda y envía los cambios.',route:baseStep.route.replace('vista=checks','vista=work'),target:'.component-photo'}:baseStep;
   useEffect(()=>{
     if(!progress.open || !roleSwitchAvailable) return;
     let active=true; let pending=false;

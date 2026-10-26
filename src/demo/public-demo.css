@@ -87,3 +87,4 @@ body:has(.public-demo-app)>.mini-modal,body:has(.public-demo-app)>.overlay{z-ind
 .public-demo-app:has(.demo-guide-mini) .workspace>main{padding-bottom:90px}.demo-trial-contact{display:block;padding:12px;background:#173f47;color:#fff;border-radius:9px;text-align:center;text-decoration:none;margin:10px 0}
 
 .demo-guide{box-sizing:border-box}
+@media(max-width:540px){.demo-guide{left:10px;right:10px;width:auto;max-width:none}}

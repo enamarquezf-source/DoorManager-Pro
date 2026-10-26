@@ -46,7 +46,7 @@ import { casesService } from './services/casesService';
 import { workOrdersService } from './services/workOrdersService';
 import { assignmentsService } from './services/assignmentsService';
 import { checksService } from './services/checksService';
-import {rememberDemoWork} from './demo/workFocus';
+import {rememberDemoWork,expectedDemoWork,clearExpectedDemoWork} from './demo/workFocus';
 import {completeAndSyncCheck,completeAndSyncWork,retryPendingCheckFinishes} from './services/checkCompletionService';
 import { deficienciesService } from './services/deficienciesService';
 import { alertsService } from './services/alertsService';
@@ -1356,11 +1356,12 @@ function PendingSyncPage() {
 }
 
 function TechnicianDayPage() {
+  const {profile}=useAuth();
   const navigate = useNavigate();
   const [refreshMessage, setRefreshMessage] = useState('');
   const [preparing, setPreparing] = useState(false);
   const forceDownload = useRef(false);
-  const active = useLoad(() => technicianWorkspaceService.loadJourney(setRefreshMessage, forceDownload.current), [], { rows: [] as any[], ready: null as PreparedJourney | null }, { retry: false, refetchOnReconnect: false });
+  const active = useLoad(async () => {const expected=publicDemoEnabled&&profile?.id?expectedDemoWork(profile.id):undefined;const result=await technicianWorkspaceService.loadJourney(setRefreshMessage,forceDownload.current,expected);if(result.ready&&profile?.id)clearExpectedDemoWork(profile.id);return result;}, [], { rows: [] as any[], ready: null as PreparedJourney | null }, { retry: false, refetchOnReconnect: false });
   const ready = active.data.ready;
   const downloading = preparing || active.loading || active.refreshing;
   const { pending } = useOfflineQueue();
@@ -1375,7 +1376,7 @@ function TechnicianDayPage() {
     <StateBlock loading={active.loading} error={active.error} retry={refresh} empty={false}>
       {!active.data.rows.length ? <Card title="Sin partes pendientes"><p>No tienes partes pendientes asignados.</p></Card> : active.data.rows.map((work: any) => {
         const local = pending.filter((item) => item.workOrderId === work.work_order_id).length;
-        return <button type="button" className="technician-day-card" key={work.assignment_id ?? work.work_order_id} disabled={downloading || !ready?.workOrderIds.includes(work.work_order_id)} onClick={() => navigate('/app/tecnico/trabajo/' + work.work_order_id)}>
+        return <button type="button" className="technician-day-card" data-work-order-id={work.work_order_id} key={work.assignment_id ?? work.work_order_id} disabled={downloading || !ready?.workOrderIds.includes(work.work_order_id)} onClick={() => navigate('/app/tecnico/trabajo/' + work.work_order_id)}>
           <span className="technician-day-card-top"><span>{work.code ?? work.work_order_code}</span><Badge tone={severityForStatus(work.work_order_status)}>{displayStatus(work.work_order_status)}</Badge></span>
           <strong>{work.client_name || work.title}</strong>
           {work.site_name && <span>{work.site_name}</span>}

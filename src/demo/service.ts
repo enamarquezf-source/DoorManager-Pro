@@ -65,6 +65,7 @@ export const publicDemoService = {
     }
     await queryClient.cancelQueries();
     const session = parseDemoSession(await rpc('dmp_demo_prepare_journey', {p_role:role}));
+    if(role==='Tecnico'&&current.role!==role&&session.work_order_id)try{sessionStorage.setItem('dmp-demo-expected-work:'+session.profile_id,session.work_order_id);}catch{}
     queryClient.clear(); clearSignedFileCache(); clearOfflineProfile();
     return session;
   },

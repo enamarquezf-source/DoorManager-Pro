@@ -37,6 +37,14 @@ export function findDemoTarget(step: DemoStep): HTMLElement | null {
     const checksTab=document.querySelector<HTMLElement>('[data-tab="checks"]');
     if(checksTab&&available(checksTab)&&checksTab.getAttribute('aria-selected')!=='true')return checksTab;
   }
+  if(step.goal==='work_notes') {
+    const work=document.querySelector<HTMLElement>('textarea.technician-work-textarea');
+    if(work&&available(work))return work;
+  }
+  if(step.goal==='photos') {
+    const photo=[...document.querySelectorAll<HTMLElement>('label.component-photo')].find(available);
+    if(photo)return photo;
+  }
   const action = step.goal && actions[step.goal];
   if (action) {
     const button = [...document.querySelectorAll<HTMLElement>('main button, main a')].find(element => available(element) && action.test((element.textContent ?? '').trim()));

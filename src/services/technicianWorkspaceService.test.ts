@@ -122,3 +122,11 @@ it('invalidates preparation when assignments change or an older package is found
   expect(journeyMatches({ ...ready, downloadVersion: 1 }, [{ work_order_id: 'one' }])).toBe(false);
   expect(journeyMatches(ready, [{ work_order_id: 'one' }], localDateKey(new Date(Date.now() + 86400000)))).toBe(false);
 });
+
+it('refreshes a cached demo journey when the role transition expects a newly assigned work',async()=>{
+await workspace.loadJourney(vi.fn());remote.day.mockResolvedValue([{work_order_id:'work'},{work_order_id:'new-work'}]);remote.work.mockImplementation(async(id:string)=>({id,checks:[],associated_equipment:[]}));remote.pending.mockResolvedValue([]);
+const result=await workspace.loadJourney(vi.fn(),false,'new-work');expect(result.rows.map((row:any)=>row.work_order_id)).toEqual(['work','new-work']);expect(result.ready?.workOrderIds).toContain('new-work');expect((await offlineWorkspaceStore.get<any>('work:new-work'))?.data.id).toBe('new-work');
+});
+it('keeps the downloaded journey available offline even if another work is expected',async()=>{
+await workspace.loadJourney(vi.fn());const calls=remote.day.mock.calls.length;vi.stubGlobal('navigator',{onLine:false});const result=await workspace.loadJourney(vi.fn(),false,'not-downloaded');expect(result.ready?.workOrderIds).toEqual(['work']);expect(remote.day.mock.calls).toHaveLength(calls);
+});

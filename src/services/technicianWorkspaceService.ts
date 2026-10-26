@@ -48,7 +48,7 @@ async function downloadMedia<T>(value: T): Promise<T> {
 
 export const technicianWorkspaceService = {
   day: (refresh = false) => readDeviceFirst('day', () => assignmentsService.assignedActiveWork(), refresh),
-  async loadJourney(onProgress: (message: string) => void, force = false) {
+  async loadJourney(onProgress: (message: string) => void, force = false, expectedWorkOrderId?:string) {
     // Showing the list must prepare the whole package, not defer the download
     // until somebody happens to open each individual work order.
     const rows = await this.day();
@@ -57,7 +57,7 @@ export const technicianWorkspaceService = {
       onProgress(cached ? 'Sin conexión. Abriendo la jornada descargada en este dispositivo.' : 'Sin conexión. Falta descargar la jornada completa.');
       return { rows, ready: cached ?? null };
     }
-    if (!force && journeyMatches(cached, rows)) {
+    if (!force && journeyMatches(cached, rows) && (!expectedWorkOrderId||cached?.workOrderIds.includes(expectedWorkOrderId))) {
       onProgress('Todos los partes están descargados. Puedes abrirlos sin cobertura.');
       return { rows, ready: cached! };
     }

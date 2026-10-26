@@ -46,6 +46,7 @@ import { casesService } from './services/casesService';
 import { workOrdersService } from './services/workOrdersService';
 import { assignmentsService } from './services/assignmentsService';
 import { checksService } from './services/checksService';
+import {completeAndSyncCheck,completeAndSyncWork,retryPendingCheckFinishes} from './services/checkCompletionService';
 import { deficienciesService } from './services/deficienciesService';
 import { alertsService } from './services/alertsService';
 import { documentsService } from './services/documentsService';
@@ -427,11 +428,14 @@ function SidebarUpdateCheck() {
 function ConnectivityBanner() {
   const [online, setOnline] = useState(() => typeof navigator === 'undefined' ? true : navigator.onLine);
   useEffect(() => {
-    const onOnline = () => setOnline(true);
+    const onOnline = () => {setOnline(true);void retryPendingCheckFinishes().catch(()=>{/* Queued work remains available for explicit retry. */});};
+    const onFocus=()=>{if(navigator.onLine)onOnline();};
+    window.addEventListener('focus',onFocus);
+    if(navigator.onLine)void retryPendingCheckFinishes().catch(()=>{});
     const onOffline = () => setOnline(false);
     window.addEventListener('online', onOnline);
     window.addEventListener('offline', onOffline);
-    return () => { window.removeEventListener('online', onOnline); window.removeEventListener('offline', onOffline); };
+    return () => { window.removeEventListener('online', onOnline); window.removeEventListener('offline', onOffline);window.removeEventListener('focus',onFocus); };
   }, []);
   if (online) return null;
   return <div className="connectivity-banner" role="status" aria-live="polite"><AlertTriangle size={16} />Sin conexión temporal. Puedes seguir trabajando en flujos offline; sincroniza cuando vuelva la cobertura.</div>;
@@ -1075,7 +1079,7 @@ function timeWorkerLabel(profile: any, currentProfileId?: string, assignmentRole
   return fullName(profile) + (tags.length ? ' · ' + tags.join(' · ') : '');
 }
 
-function WorkOrderFinalizeModal({ workOrder, onClose, onDone, onError }: { workOrder: any; onClose: () => void; onDone: () => void; onError: (message: string) => void }) {
+function WorkOrderFinalizeModal({ workOrder, onClose, onDone, onError }: { workOrder: any; onClose: () => void; onDone: (message?:string) => void; onError: (message: string) => void }) {
   const { profile, workspace } = useAuth();
   const [saving, setSaving] = useState(false);
   const showCosts = canViewWorkOrderCosts(profile);
@@ -1092,7 +1096,7 @@ function WorkOrderFinalizeModal({ workOrder, onClose, onDone, onError }: { workO
   const confirm = async () => {
     if (saving || blocked) return;
     setSaving(true); onError('');
-    try { if (workspace === 'tecnico') await saveFieldOperation('work-finish', workOrder.id, { reason: 'Cierre técnico confirmado por usuario', currentStatus: workOrder.status }); else await workOrdersService.finalizeTechnical(workOrder.id, { reason: 'Cierre técnico confirmado por usuario', currentStatus: workOrder.status }); onDone(); }
+    try { const outcome=await completeAndSyncWork(workOrder.id,workOrder.status);if(!outcome.synced&&navigator.onLine){onError(outcome.message);return;}await queryClient.invalidateQueries({queryKey:['legacy-load']});onDone(outcome.message); }
     catch (err) { onError(formErrorMessage(err, 'No se ha podido finalizar técnicamente el parte.')); }
     finally { setSaving(false); }
   };
@@ -1395,6 +1399,7 @@ function TechnicianScrollShortcut() {
   return <button type="button" className="technician-scroll-shortcut" aria-label={atEnd ? 'Ir arriba' : 'Ir al final del parte'} title={atEnd ? 'Ir arriba' : 'Ir al final del parte'} onClick={() => window.scrollTo({ top: atEnd ? 0 : document.documentElement.scrollHeight, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })}>{atEnd ? '↑' : '↓'}</button>;
 }
 function TechnicianWorkPage() {
+  const checkCompletionNotice=useLocation().state?.checkCompletionNotice;
   const navigate = useNavigate();
   const { id = '' } = useParams();
   const [pageParams, setPageParams] = useSearchParams();
@@ -1431,7 +1436,7 @@ function TechnicianWorkPage() {
     finally { workSaving.current = false; setSavingWork(false); }
   };
   return <section className="page technician-page technician-workstation technician-work-mobile technician-industrial">
-    <BackButton />
+    <BackButton />{typeof checkCompletionNotice==='string'&&<p className="state-warning" role="status">{checkCompletionNotice}</p>}
     <div className="technician-workstation-head"><div><p className="eyebrow technician-order-code"><Wrench size={14} aria-hidden="true" /> {data.code}</p><h2>{data.clients?.legal_name ?? 'Cliente no informado'}</h2><p>{data.sites?.name ?? 'Centro no informado'}</p><p className="technician-work-title">{data.title}</p></div><Badge tone={severityForStatus(data.status)}>{displayStatus(data.status)}</Badge></div>
     <div className="technician-operation-strip"><span><ClipboardCheck size={15} aria-hidden="true" />Checks <strong>{progress.checks.done}/{progress.checks.total}</strong></span><span><FileUp size={15} aria-hidden="true" />Fotos <strong>{progress.photos}</strong></span><span className="technician-local-indicator" role="status">{unsavedWork ? 'Texto sin guardar' : data._finishPending ? 'Cierre pendiente' : 'Copia local'}</span></div>
     {message && <p className="success-note" role="status">{message}</p>}{actionError && <p className="form-error" role="alert">{actionError}</p>}
@@ -1469,7 +1474,7 @@ function TechnicianWorkPage() {
         <div className="technician-final-action"><button className="primary big" onClick={() => setFinalizing(true)} disabled={data._finishPending || savingWork || unsavedWork || !canFinalizeWorkOrderTechnical(profile, data)} aria-label="FINALIZAR TRABAJO EN CAMPO">Finalizar parte</button>{unsavedWork && <p className="large-note">Guarda los cambios de Trabajo realizado para finalizar.</p>}<SyncButton workOrderId={data.id} onSynced={async () => { if (data._finishPending) { await queryClient.invalidateQueries({ queryKey: ['legacy-load'] }); navigate('/app/tecnico'); return; } void reload(); }} hideWhenEmpty /></div>
       </> },
     ]} />
-    {finalizing && <WorkOrderFinalizeModal workOrder={data} onClose={() => setFinalizing(false)} onDone={() => { setFinalizing(false); setMessage('Cierre guardado en este dispositivo. Pulsa Enviar trabajo para enviarlo a SAT.'); reload(); }} onError={setActionError} />}
+    {finalizing && <WorkOrderFinalizeModal workOrder={data} onClose={() => setFinalizing(false)} onDone={(notice) => { setFinalizing(false); setMessage(notice??'Cierre procesado. Revisa el estado de sincronización.'); reload(); }} onError={setActionError} />}
   </section>;
 }
 
@@ -1631,6 +1636,9 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
   const [mode, setMode] = useState<"finish" | "edit" | null>(null);
   const [purgeOpen, setPurgeOpen] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [finishing,setFinishing]=useState(false);
+  const finishLock=useRef(false);
+  const [finishMessage,setFinishMessage]=useState('');
   const { pending } = useOfflineQueue({
     checkId: id,
     remoteLocalChangeIds: remoteLocalChangeIds(data),
@@ -1672,7 +1680,7 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
   });
   const pendingDescription = pending.length
     ? `Hay ${pending.length} cambios locales pendientes de sincronizar: ${pendingDetails.join("; ")}.`
-    : workspace === "tecnico" ? "Se guardará el cierre en este dispositivo. Pulsa Enviar trabajo para sincronizarlo." : "Se finalizará el check en Supabase.";
+    : workspace === "tecnico" ? "Se guardará el cierre y se enviarán automáticamente las respuestas y fotos si hay conexión." : "Se finalizará el check en Supabase.";
   const reviewed = zones.filter(
     (zone) => sectionStatus(zone) !== "Sin revisar",
   ).length;
@@ -1684,7 +1692,7 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
     : zones.some((zone) => sectionStatus(zone) === "Problema leve")
       ? "Problema leve"
       : "Todo favorable";
-  const canFinishCheck = workspace === 'tecnico' || pending.length === 0;
+
   const blockHref = (zoneId: CheckBlockId) =>
     workspace === "superadmin"
       ? `/app/superadmin/checks/${id}/bloque/${zoneId}`
@@ -1692,28 +1700,16 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
   const manageAllowed = canManageCheck(profile);
   const executeAllowed = canExecuteCheck(profile);
   const finish = async () => {
+    if(finishLock.current)return;finishLock.current=true;setFinishing(true);setActionError('');setFinishMessage('Guardando y enviando el check…');
     try {
-      setActionError("");
-      if (!canFinishCheck)
-        throw new Error(
-          "Sincroniza primero los cambios locales pendientes antes de finalizar el check.",
-        );
-      if (workspace === 'tecnico') await saveFieldOperation('check-finish', data.work_order_id, { result: globalResult }, id);
-      else await checksService.finish(id, globalResult);
-      setMode(null);
-      if (workspace === "tecnico" && data.work_order_id && location.pathname.startsWith("/app/checks/")) {
-        navigate(`/app/tecnico/trabajo/${data.work_order_id}`);
-      } else {
-        reload();
-      }
-    } catch (err) {
-      console.error(err);
-      setActionError(
-        err instanceof Error
-          ? err.message
-          : "No se ha podido finalizar el check.",
-      );
-    }
+      const outcome=await completeAndSyncCheck(id,data.work_order_id,globalResult,setFinishMessage);
+      setMode(null);setFinishMessage(outcome.message);
+      await queryClient.invalidateQueries({queryKey:['legacy-load']});
+      if(!outcome.synced&&navigator.onLine){setActionError(outcome.message);void reload();return;}
+      if(workspace==='tecnico'&&data.work_order_id&&location.pathname.startsWith('/app/checks/'))navigate('/app/tecnico/trabajo/'+data.work_order_id+'?vista=checks',{state:{checkCompletionNotice:outcome.message}});
+      else void reload();
+    }catch(err){setActionError(err instanceof Error?err.message:'No se ha podido guardar el cierre del check.');setMode(null);}
+    finally{finishLock.current=false;setFinishing(false);}
   };
   return (
     <section className="check-mobile">
@@ -1762,7 +1758,7 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
           )}
         </div>
       </header>
-      {actionError && <p className="form-error">{actionError}</p>}
+      {finishMessage&&<p role="status" className="state-warning">{finishMessage}</p>}{actionError && <p className="form-error" role="alert">{actionError}</p>}
       <div className="progress">
         <span
           style={{
@@ -1798,10 +1794,10 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
       {executeAllowed && (
         <button
           className="primary wide big"
-          disabled={workspace === "tecnico" ? pending.some(item => item.type === "check-finish") : pending.length > 0}
+          disabled={finishing}
           onClick={() => setMode("finish")}
         >
-          Finalizar check
+          {finishing?'Enviando check…':pending.some(item=>item.type==='check-finish')?'Reintentar finalizar y enviar':'Finalizar check'}
         </button>
       )}
       {!allReviewed && (
@@ -1812,7 +1808,7 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
       )}
       {allReviewed && pending.length > 0 && (
         <p className="state-warning">
-          {workspace === "tecnico" ? "Los cambios y el cierre se enviarán en orden cuando pulses Enviar trabajo." : `${pendingDescription} Sincroniza estos cambios antes de finalizar.`}
+          {workspace === "tecnico" ? "Al finalizar se enviarán automáticamente los cambios y el cierre, en ese orden." : `${pendingDescription} Se intentarán enviar automáticamente al finalizar.`}
         </p>
       )}
       {mode === "edit" && manageAllowed && (
@@ -1831,6 +1827,7 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
           text={pendingDescription}
           onCancel={() => setMode(null)}
           onConfirm={finish}
+          busy={finishing}
         />
       )}
       {purgeOpen && (
@@ -3850,7 +3847,7 @@ function relatedRoute(row: any, base: string) {
 }
 function Related({ title, groups }: { title: string; groups: [string, any[] | undefined, string][] }) { return <Card title={title}><div className="grid half">{groups.map(([label, rows, base]) => <Card key={label} title={label}><CompactRows rows={(rows ?? []).filter(Boolean).map((row: any) => [row.related_type ?? formatEntityLabel(row), row.title ?? row.legal_name ?? row.description ?? row.status ?? row.related_id ?? 'Registro vinculado', severityForStatus(row.status), relatedRoute(row, base)])} empty={`Sin ${label.toLowerCase()}.`} /></Card>)}</div></Card>; }
 function SidePanel({ title, subtitle, onClose, children }: any) { const materialTitle = typeof title === 'string' && title.startsWith('Ficha de material · ') ? `Ficha de material · ${subtitle ?? ''} · ${title.slice('Ficha de material · '.length)}` : title; return <SidePanelShell title={materialTitle} subtitle={materialTitle === title ? subtitle : 'Material'} onClose={onClose}>{children}</SidePanelShell>; }
-function ConfirmModal({ title, text, onCancel, onConfirm }: any) { return <div className="mini-modal"><div><h3>{title}</h3><p>{text}</p><div className="modal-footer"><button onClick={onCancel}>Cancelar</button><button className="primary" onClick={onConfirm}>Confirmar</button></div></div></div>; }
+function ConfirmModal({ title, text, onCancel, onConfirm, busy=false }: any) { return <div className="mini-modal"><div><h3>{title}</h3><p>{text}</p><div className="modal-footer"><button disabled={busy} onClick={onCancel}>Cancelar</button><button disabled={busy} className="primary" onClick={onConfirm}>{busy?'Enviando…':'Confirmar'}</button></div></div></div>; }
 function ReasonConfirmModal({ title, text, requiredLabel, onCancel, onConfirm }: { title: string; text: string; requiredLabel: string; onCancel: () => void; onConfirm: (reason: string) => Promise<void> | void }) { const [reason, setReason] = useState(''); const [saving, setSaving] = useState(false); const [error, setError] = useState(''); const submit = async () => { if (!reason.trim()) { setError('El motivo es obligatorio.'); return; } setSaving(true); setError(''); try { await onConfirm(reason.trim()); } catch (err) { setError(err instanceof Error ? err.message : 'No se ha podido confirmar la operación.'); setSaving(false); } }; return <div className="mini-modal" role="dialog" aria-modal="true"><div><h3>{title}</h3><p>{text}</p><label>{requiredLabel}<textarea value={reason} onChange={(event) => setReason(event.target.value)} /></label>{error && <p className="form-error">{error}</p>}<div className="modal-footer"><button onClick={onCancel} disabled={saving}>Cancelar</button><button className="primary danger" onClick={submit} disabled={saving}>{saving ? 'Guardando...' : 'Confirmar'}</button></div></div></div>; }
 function metric(title: string, text: string, tone: Severity, route: string, icon: ReactNode) { return { title, text, tone, route, icon }; }
 function readPath(row: any, path: string) { return path.split('.').reduce((value, key) => value?.[key], row); }

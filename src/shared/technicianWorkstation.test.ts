@@ -42,15 +42,17 @@ describe('technician workstation', () => {
     expect(block).toContain('setSaveState("error");');
   });
 
-  it('returns a technician to the originating work order only after check finish succeeds', () => {
+  it('returns a technician to the originating work order after durable close handling with an honest synchronization notice', () => {
     const detail = app.slice(app.indexOf('function CheckDetailPage('), app.indexOf('function CheckBlockPageV2('));
-    expect(detail).toContain('await checksService.finish(id, globalResult);');
+    expect(detail).toContain('await completeAndSyncCheck(id,data.work_order_id,globalResult,setFinishMessage);');
     expect(detail).toContain('data.work_order_id');
-    expect(detail).toContain('navigate(`/app/tecnico/trabajo/${data.work_order_id}`)');
-    expect(detail).toContain('location.pathname.startsWith("/app/checks/")');
-    expect(detail).toContain('catch (err)');
+    const navigateBack = "navigate('/app/tecnico/trabajo/'+data.work_order_id+'?vista=checks'";
+    expect(detail).toContain(navigateBack);
+    expect(detail).toContain("location.pathname.startsWith('/app/checks/')");
+    expect(detail).toContain('catch(err)');
     expect(detail).toContain('setActionError(');
     const finishBlock = detail.slice(detail.indexOf('const finish = async'), detail.indexOf('return (', detail.indexOf('const finish = async')));
-    expect(finishBlock.indexOf('await checksService.finish(id, globalResult);')).toBeLessThan(finishBlock.indexOf('navigate(`/app/tecnico/trabajo/${data.work_order_id}`)'));
+    expect(finishBlock.indexOf('await completeAndSyncCheck')).toBeLessThan(finishBlock.indexOf(navigateBack));
+    expect(finishBlock).toContain('!outcome.synced&&navigator.onLine');
   });
 });

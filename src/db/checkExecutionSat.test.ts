@@ -21,7 +21,8 @@ const change = (id: string, checkId: string, status: 'pending' | 'failed' | 'blo
 describe('SAT check execution flow', () => {
   it('keeps SAT and superadmin on the executable check/block workflow', () => {
     expect(detail).toContain('canExecuteCheck(profile)');
-    expect(detail).toContain('workspace === "tecnico" ? pending.some(item => item.type === "check-finish") : pending.length > 0');
+    expect(detail).toContain('completeAndSyncCheck');
+    expect(detail).toContain('disabled={finishing}');
     expect(blockV2).toContain('!canViewCheck(profile, data)');
     expect(blockV2).toContain('{canExecuteCheck(profile) && (');
     expect(blockV2).toContain('technicianOfflineService.upsert');
@@ -39,7 +40,7 @@ describe('SAT check execution flow', () => {
 
   it('exposes a diagnostic instead of hiding real blockers', () => {
     expect(detail).toContain('pendingDescription');
-    expect(detail).toContain('Sincroniza estos cambios antes de finalizar.');
+    expect(detail).toContain('Se intentarán enviar automáticamente al finalizar.');
     expect(detail).toContain('remoteLocalChangeIds(data)');
   });
 });

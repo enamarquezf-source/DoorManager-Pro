@@ -2,7 +2,7 @@ import { supabase, authStorageKey } from '../lib/supabase/client';
 import { queryClient } from '../query/queryClient';
 import { clearSignedFileCache } from '../shared/signedFiles';
 import { clearOfflineProfile } from '../services/offlineProfile';
-import { publicDemoEnabled, parseDemoSession, validDemoRole, type DemoRole } from './model';
+import { publicDemoEnabled, parseDemoSession, validDemoRole, type DemoRole, type DemoSession } from './model';
 let ending: Promise<boolean> | undefined;
 
 function guard() { if (!publicDemoEnabled) throw new Error('La demo solo está disponible en su proyecto independiente.'); }
@@ -38,7 +38,21 @@ export async function clearDemoDevice() {
 }
 export const publicDemoService = {
   async journeysAvailable() { const data = await rpc('dmp_demo_status'); return data?.journeys === 2; },
-  async progress() { return await rpc('dmp_demo_progress') as Record<string,number>; },
+  async progress(session?:DemoSession,goal?:string) {
+    const progress=await rpc('dmp_demo_progress') as Record<string,number>;
+    if(session?.role==='Tecnico'&&session.work_order_id) {
+      const count=await queryClient.fetchQuery({queryKey:['demo-check-count',session.id,session.work_order_id],staleTime:60000,queryFn:async()=>{
+        const result=await supabase.from('checks').select('id',{count:'exact',head:true}).eq('company_id',session.company_id).eq('work_order_id',session.work_order_id!).is('deleted_at',null);
+        return result.error?null:result.count;
+      }});
+      if(typeof count==='number')progress.work_checks=count;
+      if(goal==='photos'||goal==='checks'||goal===undefined) {
+        const result=await supabase.from('work_order_photos').select('id',{count:'exact',head:true}).eq('company_id',session.company_id).eq('work_order_id',session.work_order_id);
+        if(!result.error&&typeof result.count==='number')progress.photos=(progress.photos??0)+result.count;
+      }
+    }
+    return progress;
+  },
   async prepareJourney(role: DemoRole) {
     guard();
     if (!navigator.onLine) throw new Error('Conecta para cambiar de perfil. Puedes seguir trabajando sin cobertura en el perfil actual.');

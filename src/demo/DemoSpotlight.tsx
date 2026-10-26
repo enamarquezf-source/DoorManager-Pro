@@ -29,6 +29,10 @@ export function findDemoTarget(step: DemoStep): HTMLElement | null {
       ?? [...dialog.querySelectorAll<HTMLButtonElement>('form button')].find(element=>available(element)&&element.type==='submit') ?? null;
   }
   if (document.querySelector('[role="dialog"], .modal-overlay, .mini-modal, .overlay')) return null;
+  if(step.title==='De campo a Oficina') {
+    const example=[...document.querySelectorAll<HTMLElement>('main a[href*="/app/partes/"]')].find(element=>available(element)&&((element.getAttribute('aria-label')??'')+' '+element.textContent).includes('Cliente ejemplo Oficina 1'));
+    if(example)return example;
+  }
   if(step.title==='Consulta el aviso'||step.title==='Revisión componente a componente') {
     const checksTab=document.querySelector<HTMLElement>('[data-tab="checks"]');
     if(checksTab&&available(checksTab)&&checksTab.getAttribute('aria-selected')!=='true')return checksTab;

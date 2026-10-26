@@ -40,7 +40,7 @@ describe('046 planned materials and technical closeout UX', () => {
     expect(app).toContain("!['Finalizado tecnicamente','Enviado','Cerrado','Cancelado'].includes");
     expect(app).toContain('WorkOrderFinalizeModal');
     expect(app).toContain('if (saving) return');
-    expect(app).toContain('workOrdersService.finalizeTechnical');
+    expect(app).toContain('await completeAndSyncWork(workOrder.id,workOrder.status)');
     expect(app).toContain('Resuelve {pending.length} concepto(s) previsto(s) antes de finalizar.');
   });
 

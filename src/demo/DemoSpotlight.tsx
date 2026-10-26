@@ -10,6 +10,11 @@ const actions: Record<string, RegExp> = {
   catalog_materials: /^(crear|nuevo) material$/i,
   suppliers: /^(crear|nuevo) proveedor$/i,
   purchase_orders: /^nuevo pedido$/i,
+  assignments: /^gestionar asignaciones$/i,
+  times: /^(añadir|registrar) horas$/i,
+  signatures: /^(añadir|guardar|registrar) firma/i,
+  invoices: /^(preparar|crear|generar) (?:la |una )?factura/i,
+  payments: /^registrar (?:un )?cobro/i,
 };
 
 // Prefer a concrete action. Inside a form, guide the current field or next button.
@@ -24,10 +29,18 @@ export function findDemoTarget(step: DemoStep): HTMLElement | null {
       ?? [...dialog.querySelectorAll<HTMLButtonElement>('form button')].find(element=>available(element)&&element.type==='submit') ?? null;
   }
   if (document.querySelector('[role="dialog"], .modal-overlay, .mini-modal, .overlay')) return null;
+  if(step.title==='Consulta el aviso'||step.title==='Revisión componente a componente') {
+    const checksTab=document.querySelector<HTMLElement>('[data-tab="checks"]');
+    if(checksTab&&available(checksTab)&&checksTab.getAttribute('aria-selected')!=='true')return checksTab;
+  }
   const action = step.goal && actions[step.goal];
   if (action) {
     const button = [...document.querySelectorAll<HTMLElement>('main button, main a')].find(element => available(element) && action.test((element.textContent ?? '').trim()));
     if (button) return button;
+  }
+  if(step.goal==='assignments') {
+    const work=[...document.querySelectorAll<HTMLElement>('main a[href*="/app/partes/"]')].find(available);
+    if(work)return work;
   }
   const selector = step.target.replaceAll('.page-head', '.page-head, .section-header');
   return [...document.querySelectorAll<HTMLElement>(selector)].find(available) ?? null;

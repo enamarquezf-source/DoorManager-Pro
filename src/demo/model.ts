@@ -64,8 +64,8 @@ export function demoTourSteps(session: DemoSession,tour:DemoTour='work'): DemoSt
  }
  if (session.role === 'Tecnico') return [
   {title:'Tu jornada preparada',text:'Abre el parte asignado. Si vienes de SAT, conserva el cliente y el trabajo que acabas de crear. Prepara la jornada para trabajar sin cobertura.',route:'/app/tecnico',target:'.journey-card'},
-  {title:'Consulta el aviso',text:'En En campo revisa cliente, centro, equipo y motivo del aviso. Comprueba que tienes la información necesaria antes de empezar.',route:work+'?vista=work',target:'.technician-workstation-head'},
-  {title:'Revisa los componentes',text:'Abre un equipo y una sección. Primero verás el componente y debajo qué comprobar. Marca alguno favorable y otro con problema. Guarda y sincroniza la respuesta; después pulsa Siguiente paso en la guía.',route:work+'?vista=checks',target:'.work-order-check-link',goal:'checks'},
+  {title:'Consulta el aviso',text:'En En campo revisa cliente, centro, equipo y motivo del aviso. Comprueba que tienes la información necesaria antes de empezar y pulsa Checks para revisar los equipos.',route:work+'?vista=work',target:'.technician-workstation-head'},
+  {title:'Revisa los componentes',text:'Abre un equipo y una sección. Primero verás el componente y debajo qué comprobar. Marca alguno favorable y otro con problema. Guarda y sincroniza la respuesta. La guía reconocerá el resultado y te indicará la siguiente tarea.',route:work+'?vista=checks',target:'.work-order-check-link',goal:'checks'},
   {title:'Documenta el defecto',text:'Selecciona solo el componente afectado, explica qué le ocurre y añade una foto ficticia. Los demás pueden quedar favorables; no heredan el defecto.',route:work+'?vista=checks',target:'.work-order-check-link',goal:'photos'},
   {title:'Explica el trabajo realizado',text:'En Completar parte escribe qué has hecho y guarda. Ejemplo: ajuste de finales de carrera y prueba de seguridad.',route:work+'?vista=records',target:'.technician-work-tabs',goal:'work_notes'},
   {title:'Registra el tiempo',text:'Añade las horas realmente empleadas. Guarda y envía los cambios; si hay un fallo, revísalo en Pendientes antes de continuar.',route:work+'?vista=records',target:'.technician-work-tabs',goal:'times'},
@@ -74,7 +74,7 @@ export function demoTourSteps(session: DemoSession,tour:DemoTour='work'): DemoSt
   {title:'Comprueba la recepción en SAT',text:'Cambia a SAT para revisar lo realizado por el técnico. Los datos y las respuestas siguen en esta misma empresa de prueba.',route:'/app/partes',target:'.page-head',role:'SAT'}
  ];
  if(session.role==='SAT') return [
-  {title:'Crea tu primer cliente',text:'Pulsa Crear cliente e introduce una razón social ficticia. Guarda el formulario y, cuando el cliente aparezca en la lista, pulsa Siguiente paso en la guía.',route:'/app/clientes',target:'.page-head',goal:'clients'},
+  {title:'Crea tu primer cliente',text:'Pulsa Crear cliente e introduce una razón social ficticia. Guarda el formulario. Cuando el cliente aparezca en la lista, la guía continuará con su centro de trabajo.',route:'/app/clientes',target:'.page-head',goal:'clients'},
   {title:'Añade el centro de trabajo',text:'Abre el cliente y añade su centro, o usa Centros. Es el lugar donde se realizará el trabajo; usa una dirección ficticia.',route:'/app/centros',target:'.page-head',goal:'sites'},
   {title:'Recibe una solicitud',text:'Crea una reparación, instalación o visita de mantenimiento. Puedes seleccionar equipo, crearlo o continuar sin equipo conocido; ninguna opción debe bloquear el aviso.',route:'/app/partes',target:'.page-head',goal:'works'},
   {title:'Asigna el técnico',text:'En el parte abre Gestionar asignaciones y elige a Alex Demo, o al técnico Demo disponible. Asigna la visita de hoy para encontrarla en Mi jornada.',route:'/app/partes',target:'.page-head',goal:'assignments'},

@@ -9,8 +9,8 @@ import {DemoGuide,PublicDemoBoundary} from './PublicDemoBoundary';
 const mocks=vi.hoisted(()=>({progress:vi.fn(async()=>({clients:0})),session:vi.fn(),journeysAvailable:vi.fn(),prepareJourney:vi.fn()}));
 vi.mock('./service',()=>({publicDemoService:mocks}));
 const session:any={id:'demo',role:'SAT',work_order_id:null};
-afterEach(()=>{vi.clearAllMocks();mocks.progress.mockResolvedValue({clients:0});});
-it('stays on the task after saving and advances only when Next is pressed',async()=>{
+afterEach(()=>{vi.clearAllMocks();mocks.progress.mockResolvedValue({clients:0});localStorage.clear();document.body.innerHTML='';});
+it('automatically advances after a new record is saved without needing a Next click',async()=>{
  (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
  const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
  function Harness(){const[progress,setProgress]=useState({step:0,open:true});return <DemoGuide session={session} progress={progress} setProgress={setProgress} onRole={async()=>{}}/>;}
@@ -23,9 +23,6 @@ it('stays on the task after saving and advances only when Next is pressed',async
   expect(host.querySelector('h2')?.textContent).toBe('Crea tu primer cliente');
   mocks.progress.mockResolvedValue({clients:1});
   await act(async()=>window.dispatchEvent(new Event('focus')));
-  expect(host.querySelector('h2')?.textContent).toBe('Crea tu primer cliente');
-  expect(host.textContent).toContain('Acción guardada. Pulsa Siguiente paso');
-  await act(async()=>[...host.querySelectorAll('button')].find(button=>button.textContent==='Siguiente paso')!.click());
   expect(host.querySelector('h2')?.textContent).toBe('Añade el centro de trabajo');
  }finally{await act(async()=>root.unmount());host.remove();}
 });
@@ -82,3 +79,18 @@ it('requires an explicit successful role change before opening another role miss
   expect(host.querySelector('h2')?.textContent).toBe('Un aviso, tres equipos');
  }finally{await act(async()=>root.unmount());host.remove();localStorage.clear();}
 });
+
+it('can pause automatic progression and never treats seeded records as newly saved',async()=>{
+(globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;const host=document.createElement('div');document.body.append(host);const root=createRoot(host);mocks.progress.mockResolvedValue({clients:12});
+function Harness(){const[p,setP]=useState({step:0,open:true});return <DemoGuide session={session} progress={p} setProgress={setP} onRole={async()=>{}}/>;}
+try{await act(async()=>root.render(<MemoryRouter><Harness/></MemoryRouter>));expect(host.querySelector('h2')?.textContent).toBe('Crea tu primer cliente');
+await act(async()=>host.querySelector<HTMLButtonElement>('.demo-auto-toggle')!.click());mocks.progress.mockResolvedValue({clients:13});await act(async()=>window.dispatchEvent(new Event('focus')));expect(host.querySelector('h2')?.textContent).toBe('Crea tu primer cliente');
+await act(async()=>host.querySelector<HTMLButtonElement>('.demo-auto-toggle')!.click());expect(host.querySelector('h2')?.textContent).toBe('Añade el centro de trabajo');
+}finally{await act(async()=>root.unmount());host.remove();}});
+it('waits for an open form to close before advancing and retracts the panel while editing',async()=>{
+(globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+function Harness(){const[p,setP]=useState({step:0,open:true});return <DemoGuide session={session} progress={p} setProgress={setP} onRole={async()=>{}}/>;}
+try{await act(async()=>root.render(<MemoryRouter><Harness/></MemoryRouter>));const dialog=document.createElement('div');dialog.setAttribute('role','dialog');await act(async()=>document.body.append(dialog));
+expect(host.querySelector('[aria-label="Guía reducida"]')).not.toBeNull();mocks.progress.mockResolvedValue({clients:1});await act(async()=>window.dispatchEvent(new Event('focus')));expect(host.textContent).toContain('Crea tu primer cliente');
+await act(async()=>dialog.remove());expect(host.querySelector('h2')?.textContent).toBe('Añade el centro de trabajo');
+}finally{await act(async()=>root.unmount());host.remove();}});

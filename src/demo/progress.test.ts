@@ -3,6 +3,7 @@ const mock=vi.hoisted(()=>({rpc:vi.fn(),from:vi.fn(),rows:{} as Record<string,an
 vi.mock('../lib/supabase/client',()=>({supabase:{rpc:mock.rpc,from:mock.from},authStorageKey:'test'}));
 vi.mock('../query/queryClient',()=>({queryClient:{fetchQuery:({queryFn}:any)=>queryFn()}}));
 vi.mock('./model',async importOriginal=>({...await importOriginal<any>(),publicDemoEnabled:true}));
+vi.mock('../services/technicianOfflineService',()=>({technicianOfflineService:{pending:async()=>[]}}));
 import{publicDemoService}from'./service';
 const session:any={id:'visitor',company_id:'own-company',work_order_id:'own-work',role:'Tecnico'};
 beforeEach(()=>{vi.clearAllMocks();mock.queries=[];mock.rows={checks:{count:0,error:null},work_order_photos:{count:2,error:null}};mock.rpc.mockResolvedValue({data:{photos:1},error:null});mock.from.mockImplementation((table:string)=>{const query:any={table,filters:[]};mock.queries.push(query);const chain:any={select:()=>chain,eq:(key:string,value:string)=>{query.filters.push([key,value]);return chain;},is:()=>chain,then:(resolve:any,reject:any)=>Promise.resolve(mock.rows[table]).then(resolve,reject)};return chain;});});

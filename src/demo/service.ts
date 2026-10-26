@@ -3,6 +3,7 @@ import { queryClient } from '../query/queryClient';
 import { clearSignedFileCache } from '../shared/signedFiles';
 import { clearOfflineProfile } from '../services/offlineProfile';
 import { publicDemoEnabled, parseDemoSession, validDemoRole, type DemoRole, type DemoSession } from './model';
+import {withLocalProgress} from './localProgress';
 let ending: Promise<boolean> | undefined;
 
 function guard() { if (!publicDemoEnabled) throw new Error('La demo solo está disponible en su proyecto independiente.'); }
@@ -51,6 +52,7 @@ export const publicDemoService = {
         if(!result.error&&typeof result.count==='number')progress.photos=(progress.photos??0)+result.count;
       }
     }
+    if(session?.role==='Tecnico'&&session.work_order_id){const {technicianOfflineService}=await import('../services/technicianOfflineService');const local=await technicianOfflineService.pending().catch(()=>[]);return withLocalProgress(progress,local,session.work_order_id);}
     return progress;
   },
   async prepareJourney(role: DemoRole) {

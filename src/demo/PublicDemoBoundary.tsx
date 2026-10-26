@@ -35,8 +35,8 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
     if(!progress.open || !roleSwitchAvailable) return;
     let active=true; let pending=false;
     const update=async()=>{if(pending||document.visibilityState==='hidden')return;pending=true;try{const value=await publicDemoService.progress(session,step.goal);if(active){setCompletion(value);setEvidence(previous=>{const next={...previous};steps.forEach((mission,n)=>{if(mission.goal&&(!mission.requiredRole||mission.requiredRole===session.role)&&Number.isFinite(value[mission.goal]))next[n]=observeMission(previous[n],value[mission.goal]);});try{localStorage.setItem(evidenceKey,JSON.stringify(next));}catch{}return next;});}}catch{/* Older demo SQL keeps the guide manual. */}finally{pending=false;}};
-    void update();const timer=setInterval(()=>void update(),2000);window.addEventListener('focus',update);
-    return()=>{active=false;clearInterval(timer);window.removeEventListener('focus',update);};
+    void update();const timer=setInterval(()=>void update(),2000);window.addEventListener('focus',update);window.addEventListener('dmp-offline-queue-changed',update);
+    return()=>{active=false;clearInterval(timer);window.removeEventListener('focus',update);window.removeEventListener('dmp-offline-queue-changed',update);};
   },[session.role,session.id,progress.open,roleSwitchAvailable,index,tour,evidenceKey]);
   const required=step.requiredRole&&step.requiredRole!==session.role?step.requiredRole:step.role;
   const detected=Boolean(evidence[index]?.saved);

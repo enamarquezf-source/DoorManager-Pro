@@ -6,46 +6,56 @@ import { demoRoles, demoTourSteps, demoStepDone, type DemoRole, type DemoSession
 import { DemoSpotlight, findDemoTarget } from './DemoSpotlight';
 import { DemoUpdateLesson } from './DemoUpdateLesson';
 import { guideCopy } from './guideCopy';
+import {journeyProgressKey,sharedJourney,observeMission,readEvidence,type MissionEvidence} from './journey';
+import {DemoJourneyFinish} from './DemoJourneyFinish';
 import { Sparkles, CheckCircle2, MousePointer2 } from 'lucide-react';
 
 type Progress = { step: number; open: boolean };
-function tourFor(id:string):DemoTour {try{const value=localStorage.getItem('dmp-demo-tour-choice:'+id);return value==='purchases'||value==='updates'?value:'work';}catch{return 'work';}}
+function tourFor(id:string):DemoTour {try{const value=localStorage.getItem('dmp-demo-tour-choice:'+id);return value==='purchases'||value==='updates'||value==='connected'||value==='discover'?value:'work';}catch{return 'work';}}
 function progressFor(id: string): Progress {
   try { const value = JSON.parse(localStorage.getItem(`dmp-demo-tour:${id}`) ?? 'null'); if (Number.isInteger(value?.step) && value.step >= 0 && typeof value.open === 'boolean') return value; } catch { /* Start with the guide if storage is unavailable. */ }
   return { step: 0, open: true };
 }
-export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAvailable=true, tour='work', onTour }: { session: DemoSession; progress: Progress; setProgress: (value: Progress) => void; onRole: (role:DemoRole)=>Promise<void>; roleSwitchAvailable?:boolean; tour?:DemoTour; onTour?:(tour:DemoTour)=>void }) {
+export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAvailable=true, tour='work', onTour }: { session: DemoSession; progress: Progress; setProgress: (value: Progress) => void; onRole: (role:DemoRole)=>Promise<void|boolean>; roleSwitchAvailable?:boolean; tour?:DemoTour; onTour?:(tour:DemoTour)=>void }) {
   const navigate = useNavigate();
   const location=useLocation();
   const [expanded,setExpanded]=useState(false);
+  const [minimized,setMinimized]=useState(false);
+  const evidenceKey='dmp-demo-evidence:'+session.id+':'+tour;
+  const [evidence,setEvidence]=useState<Record<string,MissionEvidence>>(()=>readEvidence(evidenceKey));
+  useEffect(()=>setEvidence(readEvidence(evidenceKey)),[evidenceKey]);
   const [completion,setCompletion]=useState<Record<string,number>>({});
   const steps = demoTourSteps(session,tour); const index = Math.min(progress.step, steps.length - 1); const step = steps[index];
   useEffect(()=>{
     if(!progress.open || !roleSwitchAvailable) return;
     let active=true; let pending=false;
-    const update=async()=>{if(pending||document.visibilityState==='hidden')return;pending=true;try{const value=await publicDemoService.progress();if(active)setCompletion(value);}catch{/* Older demo SQL keeps the guide manual. */}finally{pending=false;}};
+    const update=async()=>{if(pending||document.visibilityState==='hidden')return;pending=true;try{const value=await publicDemoService.progress();if(active){setCompletion(value);if(sharedJourney(tour)&&step.goal&&(!step.requiredRole||step.requiredRole===session.role)&&Number.isFinite(value[step.goal]))setEvidence(previous=>{const next={...previous,[index]:observeMission(previous[index],value[step.goal!])};try{localStorage.setItem(evidenceKey,JSON.stringify(next));}catch{}return next;});}}catch{/* Older demo SQL keeps the guide manual. */}finally{pending=false;}};
     void update();const timer=setInterval(()=>void update(),5000);window.addEventListener('focus',update);
     return()=>{active=false;clearInterval(timer);window.removeEventListener('focus',update);};
-  },[session.role,session.id,progress.open,roleSwitchAvailable]);
+  },[session.role,session.id,progress.open,roleSwitchAvailable,index,tour,evidenceKey]);
   if (!progress.open) return null;
-  const go = (next: number) => { setProgress({ step: next, open: true }); navigate(steps[next].route); };
+  const go = (next: number) => { setProgress({ step: next, open: true }); if(!steps[next].requiredRole||steps[next].requiredRole===session.role)navigate(steps[next].route); };
   const showTask = () => {
     if (location.pathname !== step.route.split('?')[0] || location.search !== (step.route.includes('?') ? '?' + step.route.split('?')[1] : '')) navigate(step.route);
     else findDemoTarget(step)?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'center' });
   };
   const copy = guideCopy(step);
-  return <><DemoSpotlight step={step} number={index + 1} /><aside className="demo-guide demo-guide-v2" data-expanded={expanded} aria-label="Guía de primeros pasos">
-    <header><span className="demo-guide-brand"><Sparkles size={14}/> TU GUÍA DMP</span>{tour!=='updates'&&<button type="button" className="demo-guide-expand" aria-expanded={expanded} onClick={()=>setExpanded(!expanded)}>{expanded?'Menos detalle':'Cómo hacerlo'}</button>}<button type="button" aria-label="Ocultar guía" onClick={()=>setProgress({...progress,open:false})}><X size={18}/></button></header>
+  const required=step.requiredRole&&step.requiredRole!==session.role?step.requiredRole:step.role;
+  const detected=sharedJourney(tour)?Boolean(evidence[index]?.saved):demoStepDone(step,completion);
+  if(minimized)return <aside className="demo-guide demo-guide-mini" aria-label="Guía reducida"><button type="button" onClick={()=>setMinimized(false)}><Sparkles size={16}/>{index+1}/{steps.length} · {step.title}<span>Continuar guía</span></button></aside>;
+  return <>{!required&&!step.finale&&<DemoSpotlight step={step} number={index + 1} />}<aside className="demo-guide demo-guide-v2" data-expanded={expanded} aria-label="Guía de primeros pasos">
+    <header><span className="demo-guide-brand"><Sparkles size={14}/> TU GUÍA DMP</span>{tour!=='updates'&&<button type="button" className="demo-guide-expand" aria-expanded={expanded} onClick={()=>setExpanded(!expanded)}>{expanded?'Menos detalle':'Cómo hacerlo'}</button>}<button type="button" className="demo-minimize" onClick={()=>setMinimized(true)}>Reducir</button><button type="button" aria-label="Ocultar guía" onClick={()=>setProgress({...progress,open:false})}><X size={18}/></button></header>
+    {onTour&&<details className="demo-tour-picker"><summary>Cambiar recorrido</summary><div className="demo-path-options"><button type="button" aria-pressed={tour==='discover'} onClick={()=>onTour('discover')}>Visita rápida · 3 min</button><button type="button" aria-pressed={tour==='connected'} onClick={()=>onTour('connected')}>Mi recorrido completo</button></div></details>}
     {onTour&&<div className="demo-guide-tours" role="group" aria-label="Recorrido de la guía"><button type="button" aria-pressed={tour==='work'} onClick={()=>onTour('work')}>Trabajo y facturación</button><button type="button" aria-pressed={tour==='purchases'} onClick={()=>onTour('purchases')}>Materiales y compras</button><button type="button" aria-pressed={tour==='updates'} onClick={()=>onTour('updates')}>App al día</button></div>}
-    <div className="demo-mission-heading"><span className="demo-mission-number">{String(index+1).padStart(2,'0')}</span><div><span className="demo-mission-kicker">{tour==='updates'?'BUENOS HÁBITOS':'TU SIGUIENTE MISIÓN'} · {index+1}/{steps.length}</span><h2>{step.title}</h2></div></div>
-    {tour==='updates'?<DemoUpdateLesson role={session.role}/>:<>
-      <div className="demo-action-cue"><MousePointer2 size={18}/><p>{copy.action}</p></div>
-      <div className="demo-guide-detail"><p>{step.text}</p><div className="demo-mission-benefit"><Sparkles size={15}/><p><strong>Lo que ganas con DMP</strong>{copy.benefit}</p></div>{step.goal&&<p className="demo-task-hint">{demoStepDone(step,completion)?'Acción guardada. Pulsa Siguiente paso cuando quieras continuar.':'Realiza y guarda la tarea en la app. Después pulsa Siguiente paso.'}</p>}
-      <details className="demo-mission-map"><summary>Ver las {steps.length} misiones</summary><ol>{steps.map((item,n)=><li key={item.title}><button type="button" aria-current={n===index?'step':undefined} onClick={()=>go(n)}><span>{n+1}</span>{item.title}{demoStepDone(item,completion)&&<CheckCircle2 size={14} aria-label="Hay datos guardados"/>}</button></li>)}</ol></details></div>
-      <p className="demo-guide-rule">Tú guardas. Tú decides cuándo continuar.</p>
+    <div className="demo-mission-heading"><span className="demo-mission-number">{String(index+1).padStart(2,'0')}</span><div><span className="demo-mission-kicker">{tour==='updates'?'BUENOS HÁBITOS':tour==='connected'?'MI RECORRIDO COMPLETO':tour==='discover'?'DESCUBRE DMP':'TU SIGUIENTE MISIÓN'} · {index+1}/{steps.length}</span><h2>{step.title}</h2></div></div>
+    {step.finale?<DemoJourneyFinish steps={steps} evidence={evidence} onTour={next=>{if(next===tour)go(0);else onTour?.(next);}}/>:tour==='updates'?<DemoUpdateLesson role={session.role}/>:<>
+      <div className="demo-action-cue"><MousePointer2 size={18}/><p>{required?'Continúa como '+demoRoles.find(r=>r.id===required)?.title+'. Conservamos tu empresa y el punto del recorrido.':copy.action}</p></div>
+      <div className="demo-guide-detail"><p>{step.text}</p><div className="demo-mission-benefit"><Sparkles size={15}/><p><strong>Lo que ganas con DMP</strong>{copy.benefit}</p></div>{step.goal&&<p className="demo-task-hint">{detected?'Acción guardada. Pulsa Siguiente paso cuando quieras continuar.':'Realiza y guarda la tarea en la app. Después pulsa Siguiente paso.'}</p>}
+      <details className="demo-mission-map"><summary>Ver las {steps.length} misiones</summary><ol>{steps.map((item,n)=><li key={item.title}><button type="button" aria-current={n===index?'step':undefined} onClick={()=>go(n)}><span>{n+1}</span>{item.title}{(sharedJourney(tour)?evidence[n]?.saved:demoStepDone(item,completion))&&<CheckCircle2 size={14} aria-label="Hay datos guardados"/>}</button></li>)}</ol></details></div>
+      {step.goal&&sharedJourney(tour)&&<p className={'demo-save-status'+(detected?' is-saved':'')} role="status">{detected?'Cambio guardado detectado. Continúa cuando quieras.':'Guarda la acción para ver tu progreso. También puedes seguir explorando.'}</p>}<p className="demo-guide-rule">Tú guardas. Tú decides cuándo continuar.</p>
       <div className="demo-guide-progress" aria-label={'Paso '+(index+1)+' de '+steps.length}>{steps.map((item,n)=><i key={item.title} className={n<=index?'is-reached':''}/>)}</div>
     </>}
-    <div className="demo-guide-actions">{tour==='updates'?<button type="button" onClick={()=>onTour?onTour('work'):setProgress({...progress,open:false})}>Volver al recorrido<ArrowRight size={16}/></button>:<><button type="button" disabled={index===0} aria-label="Paso anterior" onClick={()=>go(index-1)}><ArrowLeft size={16}/></button>{step.role?<button type="button" className="demo-guide-next" disabled={!roleSwitchAvailable} onClick={()=>void onRole(step.role!)}>Cambiar a {demoRoles.find(r=>r.id===step.role)?.title}<ArrowRight size={16}/></button>:<button type="button" className="demo-guide-next" onClick={showTask}>Muéstrame dónde<MousePointer2 size={15}/></button>}<button type="button" onClick={()=>index===steps.length-1?setProgress({...progress,open:false}):go(index+1)}>{index===steps.length-1?'Terminar guía':'Siguiente paso'}<ArrowRight size={15}/></button></>}</div>
+    <div className="demo-guide-actions">{tour==='updates'?<button type="button" onClick={()=>onTour?onTour('work'):setProgress({...progress,open:false})}>Volver al recorrido<ArrowRight size={16}/></button>:<><button type="button" disabled={index===0} aria-label="Paso anterior" onClick={()=>go(index-1)}><ArrowLeft size={16}/></button>{required?<button type="button" className="demo-guide-next" disabled={!roleSwitchAvailable} onClick={()=>void onRole(required).then(ok=>{if(ok!==false&&step.requiredRole)navigate(step.route);})}>Cambiar a {demoRoles.find(r=>r.id===required)?.title}<ArrowRight size={16}/></button>:<button type="button" className="demo-guide-next" onClick={showTask}>Muéstrame dónde<MousePointer2 size={15}/></button>}<button type="button" onClick={()=>index===steps.length-1?setProgress({...progress,open:false}):go(index+1)}>{index===steps.length-1?'Terminar guía':'Siguiente paso'}<ArrowRight size={15}/></button></>}</div>
   </aside></>;
 }
 
@@ -76,8 +86,8 @@ export function PublicDemoBoundary({ userId, onFinish, onRoleChanged, children }
       if (value.ended || Date.parse(value.expires_at) <= Date.now()) { void finish(); return; }
       void publicDemoService.journeysAvailable().then(async available=>{
         if(!active)return;setJourneys(available);
-        if(available){const prepared=await publicDemoService.prepareJourney(value.role);if(!active)return;await onRoleChanged(prepared,false);setSession(prepared);const chosen=tourFor(prepared.id);setTour(chosen);setProgress(progressFor(prepared.id+':'+prepared.role+':'+chosen));}
-        else {setSession(value);const chosen=tourFor(value.id);setTour(chosen);setProgress(progressFor(value.id+':'+value.role+':'+chosen));}
+        if(available){const prepared=await publicDemoService.prepareJourney(value.role);if(!active)return;await onRoleChanged(prepared,false);setSession(prepared);const chosen=tourFor(prepared.id);setTour(chosen);setProgress(progressFor(journeyProgressKey(prepared,chosen)));}
+        else {setSession(value);const chosen=tourFor(value.id);setTour(chosen);setProgress(progressFor(journeyProgressKey(value,chosen)));}
       }).catch(reason=>{if(active)setError(reason.message);});
     }).catch(reason => { if (active) setError(reason.message); });
     return () => { active = false; };
@@ -105,17 +115,17 @@ export function PublicDemoBoundary({ userId, onFinish, onRoleChanged, children }
   const switchRole=async(role:DemoRole)=>{
     if(switching||!session||role===session.role)return;
     setSwitching(true);setRoleError('');setRoleMenu(false);
-    try{const next=await publicDemoService.prepareJourney(role);await onRoleChanged(next);setSession(next);setProgress(progressFor(next.id+':'+next.role+':'+tour));}
-    catch(reason){setRoleError(reason instanceof Error?reason.message:'No se ha podido cambiar el perfil.');}
+    try{const next=await publicDemoService.prepareJourney(role);await onRoleChanged(next);setSession(next);setProgress(progressFor(journeyProgressKey(next,tour)));return true;}
+    catch(reason){setRoleError(reason instanceof Error?reason.message:'No se ha podido cambiar el perfil.');return false;}
     finally{setSwitching(false);}
   };
   const changeTour=(next:DemoTour)=>{
-    if(!session)return;setTour(next);setProgress({...progressFor(session.id+':'+session.role+':'+next),open:true});
+    if(!session)return;setTour(next);setProgress({...progressFor(journeyProgressKey(session,next)),open:true});
     try{localStorage.setItem('dmp-demo-tour-choice:'+session.id,next);}catch{/* Selection remains usable in memory. */}
   };
   const saveProgress = (value: Progress) => {
     setProgress(value); if (!session) return;
-    try { localStorage.setItem(`dmp-demo-tour:${session.id}:${session.role}:${tour}`, JSON.stringify(value)); } catch { /* Guide works for this session without persistence. */ }
+    try { localStorage.setItem(`dmp-demo-tour:${journeyProgressKey(session,tour)}`, JSON.stringify(value)); } catch { /* Guide works for this session without persistence. */ }
   };
   if (!userId) return children;
   if (switching) return <main className="demo-state"><h1>Preparando el siguiente perfil…</h1><p>Conservando los datos de tu empresa de prueba.</p></main>;

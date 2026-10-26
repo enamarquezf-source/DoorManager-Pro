@@ -2,6 +2,7 @@
 import {act,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {MemoryRouter} from 'react-router-dom';
+import {useLocation} from 'react-router-dom';
 import {it,expect,vi,afterEach} from 'vitest';
 import type {DemoTour} from './model';
 import {DemoGuide,PublicDemoBoundary} from './PublicDemoBoundary';
@@ -61,4 +62,23 @@ it('makes the procurement tour selectable without forcing users through the invo
  expect(host.querySelector('h2')?.textContent).toBe('Crea un material');
  expect(button.getAttribute('aria-pressed')).toBe('true');
  }finally{await act(async()=>root.unmount());}
+});
+it('requires an explicit successful role change before opening another role mission and can minimize without advancing',async()=>{
+ (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
+ const host=document.createElement('div');document.body.append(host);const root=createRoot(host);let allowed=false;
+ const onRole=vi.fn(async()=>allowed);
+ function Harness(){const location=useLocation();return <><output>{location.pathname}</output><DemoGuide session={session} tour="discover" progress={{step:0,open:true}} setProgress={()=>{}} onRole={onRole}/></>;}
+ try{
+  await act(async()=>root.render(<MemoryRouter initialEntries={['/app/inicio']}><Harness/></MemoryRouter>));
+  expect(onRole).not.toHaveBeenCalled();
+  await act(async()=>host.querySelector<HTMLButtonElement>('.demo-guide-next')!.click());
+  expect(host.querySelector('output')?.textContent).toBe('/app/inicio');
+  allowed=true;
+  await act(async()=>host.querySelector<HTMLButtonElement>('.demo-guide-next')!.click());
+  expect(host.querySelector('output')?.textContent).toBe('/app/tecnico');
+  await act(async()=>[...host.querySelectorAll('button')].find(b=>b.textContent==='Reducir')!.click());
+  expect(host.querySelector('[aria-label="Guía reducida"]')).not.toBeNull();
+  await act(async()=>host.querySelector<HTMLButtonElement>('.demo-guide-mini button')!.click());
+  expect(host.querySelector('h2')?.textContent).toBe('Un aviso, tres equipos');
+ }finally{await act(async()=>root.unmount());host.remove();localStorage.clear();}
 });

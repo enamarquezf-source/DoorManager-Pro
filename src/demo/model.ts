@@ -22,10 +22,24 @@ export function parseDemoSession(value: any): DemoSession {
 }
 
 export type DemoProgress = Record<string, number>;
-export type DemoTour = 'work'|'purchases'|'updates';
-export type DemoStep = { title: string; text: string; route: string; target: string; goal?: string; role?: DemoRole };
+export type DemoTour = 'work'|'purchases'|'updates'|'connected'|'discover';
+export type DemoStep = { title: string; text: string; route: string; target: string; goal?: string; role?: DemoRole; requiredRole?: DemoRole; finale?: boolean };
 export function demoStepDone(step: DemoStep, progress: DemoProgress) { return Boolean(step.goal && Number(progress[step.goal]) > 0); }
 export function demoTourSteps(session: DemoSession,tour:DemoTour='work'): DemoStep[] {
+ if(tour==='connected') {
+  const forRole=(role:DemoRole)=>demoTourSteps({...session,role},'work').map(step=>({...step,requiredRole:role}));
+  const sat=forRole('SAT'),tech=forRole('Tecnico'),office=forRole('Oficina'),management=forRole('Gerencia');
+  const detail=session.work_order_id?'/app/partes/'+session.work_order_id:'/app/partes';
+  return [...sat.slice(0,4),...tech.slice(0,-1),{...sat[5],route:detail},...office.slice(1,5).map((step,index)=>index===0?{...step,route:detail,text:'Revisa el parte que acabas de trabajar: cliente, horas, materiales e importe aprobado. Al entrar en Oficina también se preparan otros ejemplos; usa el cliente y el parte de tu recorrido para mantener el vínculo.'}:index===1?{...step,text:'En Facturación selecciona el parte de tu recorrido enviado por SAT. Revisa cliente, conceptos, impuestos y vencimiento antes de emitir. Si no lo ves, vuelve al parte y comprueba su revisión y envío a Facturación.'}:step),...management.slice(1,4),{title:'Del aviso al resultado',text:'Has llegado al final del recorrido. Revisa qué acciones has guardado y qué pantallas has explorado. Puedes volver a cualquier misión o seguir probando sin perder los datos de tu empresa temporal.',route:'/app/modulos/rentabilidad',target:'.flow-hero',requiredRole:'Gerencia',finale:true}];
+ }
+ if(tour==='discover') return [
+  {title:'Un aviso, tres equipos',text:'Abre el trabajo preparado y consulta cliente, centro y equipos. Es una visita guiada: los datos son ficticios y no necesitas rellenar todo para descubrir el circuito.',route:'/app/tecnico',target:'.journey-card',requiredRole:'Tecnico'},
+  {title:'Revisión componente a componente',text:'Abre el parte y sus checks. Consulta el historial del equipo, las comprobaciones y las fotos de referencia. Cada defecto pertenece a su componente; los demás pueden quedar favorables.',route:session.work_order_id?'/app/tecnico/trabajo/'+session.work_order_id+'?vista=checks':'/app/tecnico',target:'.work-order-check-link',requiredRole:'Tecnico'},
+  {title:'De campo a Oficina',text:'Abre el parte de ejemplo listo para facturar y revisa sus conceptos. Este es otro caso preparado para mostrar esta etapa sin obligarte a terminar el trabajo técnico anterior.',route:'/app/partes',target:'.page-head',requiredRole:'Oficina'},
+  {title:'Cobros a la vista',text:'Consulta los vencimientos y los importes pendientes del ejemplo. Registrar un cobro en DMP no realiza ningún cargo bancario.',route:'/app/modulos/cobros',target:'.flow-hero',requiredRole:'Oficina'},
+  {title:'Entiende el margen',text:'Explora los trabajos preparados para Gerencia. Compara venta y coste, filtra por cliente y abre un parte para seguir el origen de los importes. Son ejemplos adicionales, no resultados del trabajo que acabas de ver.',route:'/app/modulos/rentabilidad',target:'.flow-hero',requiredRole:'Gerencia'},
+  {title:'Ahora prueba tu propio caso',text:'Ya has visto cómo se conectan campo, oficina y negocio. El recorrido completo te permite crear tus propios datos y seguirlos entre perfiles; esta visita rápida no ha creado ni cerrado trabajos por ti.',route:'/app/modulos/rentabilidad',target:'.flow-hero',requiredRole:'Gerencia',finale:true}
+ ];
  if(tour==='updates') return [{title:'Tu DMP, siempre al día',text:'Aprende a comprobar la versión y a actualizar conservando tu trabajo.',route:session.role==='Tecnico'?'/app/tecnico':'/app/inicio',target:'[data-demo-update]'}];
  const work = session.work_order_id ? '/app/tecnico/trabajo/' + session.work_order_id : '/app/tecnico';
  if(tour==='purchases') {

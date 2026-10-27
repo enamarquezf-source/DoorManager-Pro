@@ -36,6 +36,7 @@ it('guides procurement from a new material through ordering, confirmed receipt a
  expect(office[2].route).toBe('/app/modulos/compras');
  expect(office.at(-1)?.role).toBe('Tecnico');
  const sat=demoTourSteps(parseDemoSession({...session,role:'SAT'}),'purchases');
- expect(sat[1].role).toBe('Oficina');
+ expect(sat[0].role).toBe('Oficina');
+  expect(sat[0].goal).not.toBe('catalog_materials');
  expect(demoTourSteps(parseDemoSession(session),'purchases')[0].goal).toBe('work_materials');
 });

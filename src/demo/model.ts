@@ -50,8 +50,7 @@ export function demoTourSteps(session: DemoSession,tour:DemoTour='work'): DemoSt
    {title:'Revisa el consumo con SAT',text:'Cambia a SAT para revisar y validar el material del parte. El movimiento de almacén debe corresponder a un consumo validado; no confundas una solicitud pendiente con una salida confirmada.',route:'/app/partes',target:'.page-head',role:'SAT'}
   ];
   if(session.role==='Comercial')return [{title:'Coordina la compra con Oficina',text:'El catálogo puede consultarse desde el perfil autorizado. Cambia a Oficina para crear materiales, proveedores y pedidos sin ampliar los permisos del perfil comercial.',route:'/app/modulos/compras',target:'.flow-hero',role:'Oficina'}];
-  if(session.role==='SAT')return [material,
-   {title:'Solicita el material a Oficina',text:'Cambia a Oficina y sigue este mismo recorrido: proveedor, pedido, recepción y existencias. Los datos creados aquí se mantienen al cambiar de perfil.',route:'/app/modulos/compras',target:'.flow-hero',role:'Oficina'},
+  if(session.role==='SAT')return [{title:'Gestiona el catálogo en Oficina',text:'SAT consulta existencias y valida consumos. Entra en Oficina para crear el material y continuar con proveedores, pedidos y recepción.',route:'/app/modulos/materiales',target:'.section-header',role:'Oficina'},
    {title:'Valida el consumo del parte',text:'Cuando el técnico haya registrado el material, abre el parte y revisa el consumo pendiente: material, cantidad y almacén. Valídalo y comprueba el movimiento en Materiales. Puedes volver al recorrido Trabajo y facturación cuando quieras.',route:'/app/partes',target:'.page-head'}];
   return [material,
    {title:'Crea un proveedor',text:'En Proveedores crea Suministros de prueba con datos ficticios. Guarda su ficha. Después puedes vincularlo al material y definir su referencia y precio de compra.',route:'/app/modulos/proveedores',target:'.page-head, .flow-hero',goal:'suppliers'},

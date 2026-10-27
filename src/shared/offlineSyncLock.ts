@@ -2,9 +2,9 @@
 const lockName = 'dmp-technician-offline-sync';
 let ownsLock = false;
 
-export async function withOfflineSyncLock<T>(task: () => Promise<T>, busy: () => Promise<T>): Promise<T> {
+export async function withOfflineSyncLock<T>(task: () => Promise<T>, busy: () => Promise<T>, wait = false): Promise<T> {
   if (typeof navigator === 'undefined' || !navigator.locks) return task();
-  return navigator.locks.request(lockName, { ifAvailable: true }, async (lock) => {
+  return navigator.locks.request(lockName, wait ? {} : { ifAvailable: true }, async (lock) => {
     if (!lock) return busy();
     ownsLock = true;
     try { return await task(); }

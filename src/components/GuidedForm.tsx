@@ -6,7 +6,7 @@ type Step = { title: string; description?: string; content: ReactNode };
 export function FormStep({ children }: { title: string; description?: string; children: ReactNode }) { return <>{children}</>; }
 
 function flatten(children: ReactNode): ReactNode[] {
-  return Children.toArray(children).flatMap(child => isValidElement(child) && child.type === Fragment ? flatten((child as Element).props.children) : [child]);
+  return Children.toArray(children).flatMap(child => isValidElement(child) && child.type === Fragment ? flatten((child as Element).props.children) : typeof child === 'string' && !child.trim() ? [] : [child]);
 }
 export function collectFormSteps(children: ReactNode): Step[] {
   const steps: Step[] = [];

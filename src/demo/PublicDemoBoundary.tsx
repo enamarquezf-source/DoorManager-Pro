@@ -51,9 +51,12 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
   useEffect(()=>{const path=location.pathname+location.search;const before=lastLocation.current;lastLocation.current=path;if(!automatic||before===path)return;if(navigationCompletes(step,before,path))advance();else {const found=navigationMission(steps,index,path,session.role);if(found>=0){setProgress({step:found,open:true});setExpanded(false);}}},[location.pathname,location.search,automatic,index,tour]);
   useEffect(()=>{if(!automatic)return;const click=(event:Event)=>{const element=event.target instanceof Element?event.target.closest('button,a,summary'):null;if(!element||element.closest('.demo-guide,[role="dialog"],.mini-modal'))return;if(interactionCompletes(step,(element.textContent??'').trim()))advance();};document.addEventListener('click',click,true);return()=>document.removeEventListener('click',click,true);},[automatic,index,tour]);
   const launchTarget=()=>{
+    if(location.pathname!==step.route.split('?')[0]&&!location.pathname.startsWith(step.route.split('?')[0]+'/'))return false;
     const reveal:Record<string,RegExp>={times:/^Horas/,photos:/^Fotos de la intervención/,signatures:/^Firma/};
     if(reveal[step.goal??''])for(const summary of document.querySelectorAll<HTMLElement>('main details>summary'))if(reveal[step.goal!].test((summary.textContent??'').trim()))summary.closest('details')!.open=true;
     const target=findDemoTarget(step);if(!target||target.closest('[role="dialog"],.mini-modal'))return false;
+    // A page heading can appear before its action has loaded. Keep waiting for creation controls.
+    if(['clients','sites','works','catalog_materials','suppliers','purchase_orders'].includes(step.goal??'')&&!target.matches('button,a'))return false;
     setLaunchTask(false);
     const safeClick=!['invoices','payments','completed_work','sat_approved','ordered_purchases','purchase_receipts'].includes(step.goal??'');
     if(safeClick&&target.matches('button,a,summary')){target.click();return true;}

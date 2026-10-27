@@ -404,7 +404,7 @@ export const technicianOfflineService = {
     result.pending = remaining.filter((item) => isQueueOpen(item) && ids.includes(item.id)).length;
     return result;
   },
-  async sync(onProgress?: (message: string) => void, scope: OfflineSyncScope = {}) {
+  async sync(onProgress?: (message: string) => void, scope: OfflineSyncScope = {}, waitForLock = false) {
     requireOfflineIdentity();
     if (!connectionAvailable()) throw new Error('Sin conexión. El trabajo sigue guardado en este dispositivo.');
     const run = async () => {
@@ -453,7 +453,7 @@ export const technicianOfflineService = {
       onProgress?.('La sincronización está en curso en otra pestaña.');
       const changes = await allChanges();
       return { synced: 0, failed: 0, errors: [] as string[], pending: changes.filter(item => item.status !== 'synced' && changeMatchesScope(item, scope)).length };
-    });
+    }, waitForLock);
   },
   syncOne(changeId: string, onProgress?: (message: string) => void) {
     return this.sync(onProgress, { changeId });

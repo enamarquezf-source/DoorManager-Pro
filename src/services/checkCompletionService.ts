@@ -10,7 +10,7 @@ export async function completeAndSyncCheck(checkId:string,workOrderId:string|nul
  }
  if(!navigator.onLine)return {synced:false,queued:Boolean(workOrderId),message:workOrderId?'Check guardado en este dispositivo. Se enviará automáticamente cuando vuelva la conexión.':'Bloques guardados en este dispositivo. Conecta y vuelve a finalizar este check sin parte asociado.'};
  try {
-  const sent=await technicianOfflineService.sync(onProgress,workOrderId?{workOrderId}:{checkId});
+  const sent=await technicianOfflineService.sync(onProgress,workOrderId?{workOrderId}:{checkId},true);
   if(sent.failed||sent.pending)return {synced:false,queued:Boolean(workOrderId),message:'El trabajo sigue guardado. Quedan datos del parte sin enviar: '+(sent.errors[0]??`${sent.pending} cambios pendientes. Revisa Pendientes y reintenta.`)};
   if(!workOrderId)await checksService.finish(checkId,result);
   return {synced:true,queued:Boolean(workOrderId),message:'Check finalizado y sincronizado, incluidas sus respuestas y fotos.'};
@@ -41,7 +41,7 @@ export async function completeAndSyncWork(workOrderId:string,currentStatus:strin
  }
  if(!navigator.onLine)return {synced:false,queued:true,message:'Parte completo guardado en este dispositivo. Se enviará automáticamente a SAT cuando vuelva la conexión.'};
  try {
-  const sent=await technicianOfflineService.sync(onProgress,{workOrderId});
+  const sent=await technicianOfflineService.sync(onProgress,{workOrderId},true);
   if(sent.failed||sent.pending)return {synced:false,queued:true,message:'El parte sigue guardado. Hay datos sin enviar y el cierre no se ha confirmado: '+(sent.errors[0]??`${sent.pending} cambios pendientes. Revisa Pendientes y reintenta.`)};
   return {synced:true,queued:true,message:'Parte finalizado y enviado a SAT con sus checks, fotos, horas, materiales, recursos y firma registrados.'};
  }catch(error){return {synced:false,queued:true,message:'El parte sigue guardado; no se ha confirmado el envío. '+(error instanceof Error?error.message:'Revisa la conexión y reintenta.')};}

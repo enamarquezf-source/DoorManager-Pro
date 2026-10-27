@@ -22,6 +22,9 @@ async function typeName(value = 'Cliente de prueba') {
   await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input,value); input.dispatchEvent(new Event('input', {bubbles:true})); });
 }
 describe('guided forms', () => {
+  it('does not turn an empty conditional error string into an extra wizard step', () => {
+    expect(collectFormSteps([<FormStep title="Identificación"><input /></FormStep>, '', '   '])).toHaveLength(1);
+  });
   it('keeps primary actions readable in dialogs outside the application shell', () => {
     const style = document.createElement('style');
     style.textContent = readFileSync('src/styles.css','utf8') + readFileSync('src/operations-theme.css','utf8');

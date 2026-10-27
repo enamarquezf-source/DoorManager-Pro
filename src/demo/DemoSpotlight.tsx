@@ -37,6 +37,10 @@ export function findDemoTarget(step: DemoStep): HTMLElement | null {
     const review=document.querySelector<HTMLElement>('main .economic-review-panel');
     if(review&&available(review))return review;
   }
+  if(step.title==='Cobros a la vista'||step.title==='Comprueba los pendientes') {
+    const calendar=[...document.querySelectorAll<HTMLElement>('main button,main summary')].find(element=>available(element)&&/^Ver calendario$/.test((element.textContent??'').trim()));
+    if(calendar)return calendar;
+  }
   if(step.title==='Consulta el aviso'||step.title==='Revisión componente a componente') {
     const checksTab=document.querySelector<HTMLElement>('[data-tab="checks"]');
     if(checksTab&&available(checksTab)&&checksTab.getAttribute('aria-selected')!=='true')return checksTab;

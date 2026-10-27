@@ -31,3 +31,7 @@ it('guides the visible required field and then the current form action',()=>{
  (document.getElementById('name') as HTMLInputElement).value='Empresa ficticia';
  expect(findDemoTarget(step)?.id).toBe('next');
 });
+it('points the calendar instruction at its opening control instead of the whole hero',()=>{
+ document.body.innerHTML='<main><header class="flow-hero">Cobros</header><button id="calendar">Ver calendario</button></main>';visible();
+ expect(findDemoTarget({title:'Cobros a la vista',text:'',route:'/app/modulos/cobros',target:'.flow-hero'})?.id).toBe('calendar');
+});

@@ -87,8 +87,13 @@ export const technicianWorkspaceService = {
     const text = search.trim().toLocaleLowerCase();
     return rows.filter(row => !text || [row.code, row.description, row.manufacturer, row.reference].some(value => String(value ?? '').toLocaleLowerCase().includes(text)));
   },
-  warehouses: (refresh = false) => readDeviceFirst('warehouses', () => workOrdersService.warehousesCatalog(), refresh),
-  stock: (refresh = false) => readDeviceFirst('stock', () => workOrdersService.warehouseStockCatalog(), refresh),
+  async stockOptions(refresh=false) {
+    const day=await this.day();const workOrderId=day[0]?.work_order_id;
+    if(!workOrderId)return {warehouses:[],stock:[]};
+    return readDeviceFirst('stock-options:'+workOrderId,()=>workOrdersService.technicianStockOptions(workOrderId),refresh);
+  },
+  warehouses: (refresh = false) => readDeviceFirst('warehouses', async () => (await technicianWorkspaceService.stockOptions(refresh)).warehouses, refresh),
+  stock: (refresh = false) => readDeviceFirst('stock', async () => (await technicianWorkspaceService.stockOptions(refresh)).stock, refresh),
   async checks(done: boolean) {
     const [pending, completed] = await Promise.all([
       readDeviceFirst<any[]>('checks-pending', () => checksService.pendingForCurrentTechnician()),

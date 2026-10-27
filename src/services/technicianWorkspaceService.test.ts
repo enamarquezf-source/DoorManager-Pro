@@ -3,7 +3,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 const remote = vi.hoisted(() => ({ day: vi.fn(), work: vi.fn(), check: vi.fn(), pending: vi.fn(), done: vi.fn(), workers: vi.fn(), photos: vi.fn(), history: vi.fn(), costs: vi.fn(), warehouses: vi.fn(), stock: vi.fn() }));
 vi.mock('./documentsService', () => ({ documentsService: { linked: async () => [] } }));
 vi.mock('./assignmentsService', () => ({ assignmentsService: { assignedActiveWork: remote.day } }));
-vi.mock('./workOrdersService', () => ({ workOrdersService: { getTechnicianAssigned: remote.work, timeWorkerOptions: remote.workers, warehousesCatalog: remote.warehouses, warehouseStockCatalog: remote.stock } }));
+vi.mock('./workOrdersService', () => ({ workOrdersService: { getTechnicianAssigned: remote.work, timeWorkerOptions: remote.workers, warehousesCatalog: remote.warehouses, warehouseStockCatalog: remote.stock, technicianStockOptions: async()=>({warehouses:await remote.warehouses(),stock:await remote.stock()}) } }));
 vi.mock('./checksService', () => ({ checksService: { getTechnicianAssigned: remote.check, pendingForCurrentTechnician: remote.pending, completedForCurrentTechnician: remote.done } }));
 vi.mock('./equipmentPhotosService', () => ({ equipmentPhotosService: { list: remote.photos } }));
 vi.mock('./equipmentService', () => ({ equipmentService: { technicianContext: remote.history } }));

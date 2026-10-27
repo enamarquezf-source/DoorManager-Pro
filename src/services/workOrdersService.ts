@@ -417,6 +417,13 @@ export const workOrdersService = {
   warehousesCatalog() {
     return expectData<any[]>(supabase.from('warehouses').select('id,code,name').is('deleted_at', null).eq('active', true).order('name'));
   },
+  async technicianStockOptions(workOrderId:string) {
+    const response=await supabase.rpc('dmp_technician_stock_options',{p_work_order_id:workOrderId});
+    // Older installations keep their previous catalogue until migration 186 is installed.
+    // Permission denials must never fall back to another access path.
+    if(response.error&&['PGRST202','42883'].includes(response.error.code))return {warehouses:await this.warehousesCatalog(),stock:await this.warehouseStockCatalog()};
+    return expectData<{warehouses:any[];stock:any[]}>(Promise.resolve(response));
+  },
   warehouseStockCatalog() {
     return expectData<any[]>(supabase.from('warehouse_stock').select('warehouse_id,material_id,quantity'));
   },

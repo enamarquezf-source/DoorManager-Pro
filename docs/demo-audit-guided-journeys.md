@@ -58,3 +58,8 @@ Prueba manual en el navegador, desde portada como visitante nuevo. Solo empresa 
 
 Esto verifica un circuito concreto y no demuestra ausencia de todos los errores. No se han probado exhaustivamente todas las combinaciones de permisos, cancelación/anulación, importación masiva, impagos parciales, producción Pro ni concurrencia de dos visitantes en esta sesión. Las pruebas automáticas de aislamiento y SQL complementan, pero no sustituyen esas pruebas remotas.
 La visita rápida se había comprobado en la sesión anterior; queda repetirla con la última publicación y verificar móvil. También queda comprobar nuevamente un primer cierre de check tras la corrección del lock, sin reintento manual, y validar el consumo pendiente desde SAT.
+### Repetición posterior a las correcciones
+
+- Primer cierre de un check nuevo CHK-2026-000002 probado desde móvil: tres bloques favorables, Finalizar → Confirmar, envío automático de bloques y cierre; retorno al parte con «Check finalizado y sincronizado» y tarjeta Finalizado. Sin pulsar Enviar trabajo ni reintento manual. Queda cubierta la repetición pendiente del lock para un cierre nuevo; la foto se había verificado en el circuito anterior.
+- Vista móvil 390×844: navegación del técnico, tarjetas y guía compacta comprobadas. Evidencia local en node_modules/.cache/dmp-demo/audit-mobile-check-synced.png.
+- Pruebas completas: 347 archivos, 1.915 pruebas. Una prueba antigua exigía literalmente el enlace defectuoso con props.supplier_id; se actualizó al proveedor del pedido cargado y sus 3 casos pasan. Las otras 1.914 pruebas pasaron en la ejecución completa.

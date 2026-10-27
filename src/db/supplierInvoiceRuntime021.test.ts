@@ -26,7 +26,7 @@ describe('SUPPLIER-INVOICE-RUNTIME-021', () => {
   it('offers contextual supplier invoice creation from a purchase order with the right permission', () => {
     expect(app).toContain("hasPermission(profile, 'supplier_invoices.create')");
     expect(app).toContain('Registrar factura de proveedor');
-    expect(app).toContain('supplier=${props.supplier_id ??');
-    expect(app).toContain('order=${props.id}');
+    expect(app).toContain('supplier=${data.supplier_id}&order=${data.id}');
+    expect(app).not.toContain('supplier=${props.supplier_id ??');
   });
 });

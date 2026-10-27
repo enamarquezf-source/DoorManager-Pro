@@ -102,6 +102,7 @@ export function CostStudyPanel() {
       const study = await costStudiesService.get(id);
       setSaved(study); setSources(study.sources);
       setHistory(previous => [study, ...previous.filter(row => row.id !== id)].slice(0, 100));
+      window.dispatchEvent(new CustomEvent('dmp-cost-study-saved',{detail:{id}}));
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'No se ha podido guardar. Puedes reintentar la operación.'); }
     finally { setBusy(false); }
   }

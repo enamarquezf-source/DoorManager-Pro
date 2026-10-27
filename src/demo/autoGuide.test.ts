@@ -20,3 +20,7 @@ it('recognizes reading the calendar and the user intentionally navigating to ano
  expect(navigationMission(steps,0,'/app/modulos/cobros','Tecnico')).toBe(-1);
  expect(navigationMission(steps,0,'/app/modulos/cobros','Gerencia')).toBe(3);
 });
+it('recognizes opening the received material and never treats a save click as a saved study',()=>{
+ const steps=demoTourSteps({...session,role:'Gerencia'},'purchases');expect(navigationCompletes(steps[5],'/app/modulos/materiales','/app/modulos/materiales/rodillo')).toBe(true);
+ expect(interactionCompletes({title:'Haz un estudio de costes'} as any,'Guardar estudio')).toBe(false);
+});

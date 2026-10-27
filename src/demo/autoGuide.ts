@@ -8,13 +8,13 @@ export function navigationCompletes(step:DemoStep,before:string,after:string) {
  if(name==='Revisión componente a componente')return /^\/app\/checks\/[^/?]+/.test(after);
  if(name==='De campo a Oficina'||name==='Recibe un trabajo revisado'||name==='Comprueba los conceptos')return /^\/app\/partes\/[^/?]+/.test(after);
  if(name==='Entiende el margen'||name==='Compara margen y costes')return /^\/app\/partes\/[^/?]+/.test(after);
+ if(name==='Comprueba las existencias')return /^\/app\/modulos\/materiales\/[^/?]+/.test(after);
  return false;
 }
 export function interactionCompletes(step:DemoStep,label:string) {
  if(step.goal||step.finale)return false;
  if(step.title==='Cobros a la vista'||step.title==='Comprueba los pendientes')return /^(Ver calendario|Con retraso|Vence hoy|Próximos 7 días)/i.test(label);
  if(step.title==='Analiza el tiempo')return /^(Últimos 3 meses|Año actual|Por empleado|Por empresa)/i.test(label);
- if(step.title==='Haz un estudio de costes')return /^(Guardar estudio|Guardar escenario)/i.test(label);
  return false;
 }
 export function navigationMission(steps:DemoStep[],index:number,path:string,role:string) {

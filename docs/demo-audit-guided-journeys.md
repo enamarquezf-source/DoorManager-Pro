@@ -23,3 +23,38 @@ Pendiente de completar y registrar los resultados del recorrido después de publ
 Petición ampliada: finalizar cualquier check envía todos los pendientes de su parte; finalizar el parte envía también el cierre final. Se conservan ámbitos por empresa/perfil y parte. Orden probado con IndexedDB real y backend simulado: bloque → foto → horas → cierre de check → cierre de parte. El fallo de foto conserva las operaciones e impide confirmar el cierre. Los cierres explícitos llevan autoSync y se reintentan al recuperar conexión/foco; no se envían borradores de otros partes. Los mensajes distinguen guardado local y envío confirmado.
 El propietario confirmó la instalación remota de 009 con Success. Datos de inventario pendientes de comprobar desde la UI.
 Visita rápida: apertura de parte avanza de 1 a 2; apertura de check avanza a Oficina; apertura del parte listo para facturar avanza a Cobros. Comprobados historial, tipos de equipo, selección de un defecto con otros favorables, foto de componente persistida y sincronización de dos operaciones con 0 fallos. Siguen pendientes las etapas restantes de esta auditoría.
+
+## Auditoría pública de 27/10/2026
+
+Prueba manual en el navegador, desde portada como visitante nuevo. Solo empresa temporal de la demo; sin modificar la instalación Pro.
+
+### Recorrido propio comprobado
+
+- SAT: cliente «Prueba completa DMP · ficticia», centro, parte PAR-2026-000001, alta rápida de puerta seccional y asignación a Alex Demo. El técnico recibió el parte y su check descargado automáticamente.
+- Check: rodillos con defecto leve y observación/foto; paneles y bisagras favorables; accionamiento y seguridad favorables. Respuestas independientes correctas.
+- Primer cierre automático del check dejó 5 operaciones pendientes sin intentos. Reintento manual envió 5/5, cero fallos. Se corrigió la espera del lock en el cierre explícito. La recuperación automática posterior a actualizar envió el cierre del parte y los registros pendientes.
+- Técnico: trabajo realizado, 90 minutos, 1 rodillo de almacén, 25 km y firma ficticia. Datos recibidos por SAT. El cierre técnico persistió; no equivale a aprobación económica.
+- SAT envió a Facturación. Oficina decidió los tres conceptos y aprobó: material 8 € de coste/16 € de venta; horas 33 €/67,50 €; desplazamiento 7,50 €/15 €. Total coste 48,50 €, venta 98,50 €, margen 50 €.
+- Factura FAC-2026-000001 emitida por 119,19 € con IVA, vencimiento 10/11/2026. Cobro simulado registrado en Caja de simulación: 119,19 € cobrado, 0 € pendiente. Calendario de Oficina confirmó cero pendientes.
+- Gerencia mostró el mismo caso como cobrado, coste 48,50 €, venta 98,50 €, margen 50 €. Resumen incluyó el trabajo en el periodo. Estudio «Auditoría DMP · escenario ficticio» guardado, con presencia y estándar introducidos explícitamente; no se afirma productividad sin referencia.
+- Compras: proveedor «Proveedor auditoría · ficticio», pedido PED-2026-000001 de dos rodillos a 8 €, recepción REC-2026-000001 confirmada. Stock 6→8, movimiento +2 enlazado a pedido/recepción. El consumo técnico todavía requiere validación y no descontó stock antes de ella.
+- Factura de proveedor FPR-2026-000001 / SIM-PROV-001, base 16 €, IVA 3,36 €, total 19,36 €, registrada y vinculada a pedido/recepción.
+
+### Errores encontrados y correcciones
+
+- Condicional de error vacío generaba un paso «Información adicional» sin campos: se excluyen cadenas vacías del asistente.
+- Guía consumía una cabecera de la pantalla anterior o de carga en vez de esperar al botón Crear: espera ruta y acción concretas; prueba de regresión con carga diferida.
+- Cierre explícito competía con sincronización de fondo y devolvía pendientes inmediatamente: espera el lock sin robarlo. Prueba de concurrencia y pruebas de orden/dependencias conservadas.
+- Mensaje de error de cierre aparecía duplicado: se muestra una sola vez.
+- Técnico veía un error de bloqueo después de un cierre correcto: mensaje de trabajo entregado y regreso a jornada, sin reabrir acceso.
+- Guía de Oficina se atascaba sobre el mismo parte ya abierto: detecta aprobación económica confirmada y explica decidir conceptos antes de aprobar.
+- Resumen apuntaba a una cabecera inexistente: apunta al panel de estudios.
+- Guardar estudio avanzaba antes de confirmar persistencia: ahora espera evento de guardado correcto.
+- Cambiar de recorrido podía reutilizar evidencia de la misión anterior: instancia de guía por recorrido.
+- Apertura del material recibido y registro confirmado de factura de proveedor no hacían avanzar: reconocidos.
+- Enlace de factura proveedor desde pedido usaba supplier_id de props inexistente: utiliza el proveedor del pedido cargado.
+
+### Límites y pendientes de cobertura
+
+Esto verifica un circuito concreto y no demuestra ausencia de todos los errores. No se han probado exhaustivamente todas las combinaciones de permisos, cancelación/anulación, importación masiva, impagos parciales, producción Pro ni concurrencia de dos visitantes en esta sesión. Las pruebas automáticas de aislamiento y SQL complementan, pero no sustituyen esas pruebas remotas.
+La visita rápida se había comprobado en la sesión anterior; queda repetirla con la última publicación y verificar móvil. También queda comprobar nuevamente un primer cierre de check tras la corrección del lock, sin reintento manual, y validar el consumo pendiente desde SAT.

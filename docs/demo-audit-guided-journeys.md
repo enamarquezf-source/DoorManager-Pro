@@ -67,3 +67,15 @@ La visita rápida se había comprobado en la sesión anterior; queda repetirla c
 - Validación SAT del consumo confirmada: pendientes 1→0 y stock del rodillo 8→7. Queda cerrada esa comprobación.
 - Alta de material desde SAT falló por permiso; búsqueda confirmó que no dejó una ficha parcial. RBAC y servidor conceden SAT lectura y validación, no materials.create. Se oculta Crear material en ese perfil y su guía conduce a Oficina, sin ampliar permisos. Repetido desde Oficina: MAT-000001 «Material auditoría Oficina · ficticio» creado correctamente, con proveedor inicial y cantidad inicial cero.
 - Pendientes de cobertura ampliada: presupuestos comerciales completos, contratos/visitas de mantenimiento, importación masiva, cancelaciones y concurrencia remota entre visitantes. No se deben presentar estos ámbitos como auditados por este recorrido.
+
+## Revisión de usabilidad de 28/10/2026
+
+- La guía técnica completa ya no considera un componente guardado como un check terminado: usa checks Realizado y cierres locales explícitos. Mantiene la instrucción hasta Finalizar check; prueba de regresión para bloque parcial y cierre.
+- Dentro de un check señala el siguiente bloque Sin revisar; al acabar los bloques señala Finalizar check. En el detalle de bloque señala el grupo de resultados sin elegir uno por el visitante.
+- Ir a la firma enfoca Nombre firmante; no intenta guardar una firma vacía. Material utilizado abre su sección y señala Añadir material.
+- Objetivos concretos para Enviar a destino, Marcar pedido, Registrar recepción, Añadir línea, últimos tres meses, guardar estudio y registro de factura de proveedor.
+- Rentabilidad y existencias apuntan a registros pulsables. Las operaciones de aprobación, cobro, emisión/registro y cierre conservan confirmación del visitante; la guía señala sus controles sin ejecutarlas al detectar datos.
+- La guía puede continuar dentro de los checks sin redirigir al parte. Una búsqueda de control pendiente se cancela al cambiar de misión y deja de bloquear el CTA tras ocho segundos.
+- Instrucciones breves con nombres exactos de los botones; actualización de instrucciones anunciada mediante aria-live polite.
+- Verificación: 347 archivos / 1.920 pruebas pasaron antes de añadir dos regresiones adicionales; las 53 pruebas finales de demo y la compilación pasan. El primer intento de suite tuvo falta de memoria; repetición con dos workers correcta.
+- Se continúa la comprobación pública de los recorridos tras publicar. No se amplía esta evidencia a combinaciones de cancelaciones, importación o concurrencia no recorridas.

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, expect, it, vi } from 'vitest';
-import { findDemoTarget } from './DemoSpotlight';
+import { findDemoTarget, isDemoTaskSurface } from './DemoSpotlight';
 import type { DemoStep } from './model';
 
 const step: DemoStep = { title: 'Cliente', text: '', route: '/app/clientes', target: '.page-head', goal: 'clients' };
@@ -34,4 +34,21 @@ it('guides the visible required field and then the current form action',()=>{
 it('points the calendar instruction at its opening control instead of the whole hero',()=>{
  document.body.innerHTML='<main><header class="flow-hero">Cobros</header><button id="calendar">Ver calendario</button></main>';visible();
  expect(findDemoTarget({title:'Cobros a la vista',text:'',route:'/app/modulos/cobros',target:'.flow-hero'})?.id).toBe('calendar');
+});
+it('points at the pending block, then the finish action after every block is saved',()=>{
+ document.body.innerHTML='<main><a href="/app/checks/check/bloque/one">Hoja Todo favorable</a><a id="pending" href="/app/checks/check/bloque/two">Motor Sin revisar</a><button id="finish">Finalizar check</button></main>';visible();
+ const check={title:'Revisa los componentes',text:'',route:'/app/tecnico/trabajo/work',target:'.work-order-check-link',goal:'checks'};
+ expect(findDemoTarget(check)?.id).toBe('pending');document.querySelector('#pending')!.textContent='Motor Todo favorable';expect(findDemoTarget(check)?.id).toBe('finish');
+});
+it('finds the actual SAT routing action and the receive control',()=>{
+ document.body.innerHTML='<main><header class="page-head">Parte</header><button id="sat">Enviar a destino</button><button id="receive">Registrar recepción</button></main>';visible();
+ expect(findDemoTarget({...step,goal:'sat_approved'})?.id).toBe('sat');expect(findDemoTarget({...step,goal:'purchase_receipts'})?.id).toBe('receive');
+});
+it('keeps the review cue in a check instead of taking the technician back to the work list',()=>{
+ const check={...step,goal:'checks',route:'/app/tecnico/trabajo/work?vista=checks'};
+ expect(isDemoTaskSurface(check,'/app/checks/check/bloque/zone')).toBe(true);
+ expect(isDemoTaskSurface({...check,goal:'clients'},'/app/checks/check')).toBe(false);
+});
+it('guides the signer name rather than submitting an empty signature',()=>{
+ document.body.innerHTML='<main><label>Nombre firmante<input id="signer"/></label><button>Guardar firma local</button></main>';visible();expect(findDemoTarget({...step,goal:'signatures'})?.id).toBe('signer');
 });

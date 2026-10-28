@@ -14,3 +14,7 @@ it('does not interpret unavailable check metadata as an empty work',async()=>{
 mock.rows.checks={count:null,error:{message:'network'}};mock.rows.work_order_photos={count:null,error:{message:'network'}};
 const result=await publicDemoService.progress(session,'photos');expect(result.work_checks).toBeUndefined();expect(result.photos).toBe(1);});
 it('does not request technical metadata for business profiles',async()=>{await publicDemoService.progress({...session,role:'SAT'},'clients');expect(mock.from).not.toHaveBeenCalled();});
+it('counts finished checks instead of individual reviewed items',async()=>{
+ mock.rpc.mockResolvedValue({data:{checks:9},error:null});mock.rows.checks={count:3,data:[{status:'Realizado'},{status:'En curso'},{status:'Por realizar'}],error:null};
+ expect(await publicDemoService.progress(session,'checks')).toMatchObject({checks:1,work_checks:3});
+});

@@ -7,7 +7,7 @@ export function withLocalProgress(remote:Record<string,number>,changes:OfflineCh
  result.times=(remote.times??0)+local.filter(change=>change.type==='time').length;
  result.signatures=(remote.signatures??0)+local.filter(change=>change.type==='signature').length;
  result.work_notes=Math.max(remote.work_notes??0,local.some(change=>(change.type==='work-fields'&&String(change.payload.work_performed??'').trim())||(change.type==='work-note'&&String(change.payload.work??'').trim()))?1:0);
- result.checks=(remote.checks??0)+local.filter(change=>change.type==='check-block').reduce((sum,change)=>sum+(change.payload.items??[]).filter((item:any)=>item.result!=='Sin revisar').length,0);
+ result.checks=(remote.checks??0)+new Set(local.filter(change=>change.type==='check-finish').map(change=>change.checkId)).size;
  // A queued close is not an acknowledged hand-off to SAT.
  return result;
 }

@@ -2240,7 +2240,7 @@ function CheckBlockPageV2({
       </Card>}
       {canExecuteCheck(profile) && (
         <>
-          <div className="status-grid">
+          <div className="status-grid" data-demo-check-results role="group" aria-label="Elige el resultado de este bloque">
             {checkStatuses.map((item) => (
               <button
                 type="button"

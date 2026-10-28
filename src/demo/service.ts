@@ -42,11 +42,11 @@ export const publicDemoService = {
   async progress(session?:DemoSession,goal?:string) {
     const progress=await rpc('dmp_demo_progress') as Record<string,number>;
     if(session?.role==='Tecnico'&&session.work_order_id) {
-      const count=await queryClient.fetchQuery({queryKey:['demo-check-count',session.id,session.work_order_id],staleTime:60000,queryFn:async()=>{
-        const result=await supabase.from('checks').select('id',{count:'exact',head:true}).eq('company_id',session.company_id).eq('work_order_id',session.work_order_id!).is('deleted_at',null);
-        return result.error?null:result.count;
+      const count=await queryClient.fetchQuery({queryKey:['demo-check-count',session.id,session.work_order_id],staleTime:0,queryFn:async()=>{
+        const result=await supabase.from('checks').select('id,status',{count:'exact'}).eq('company_id',session.company_id).eq('work_order_id',session.work_order_id!).is('deleted_at',null);
+        return result.error?null:{total:result.count,finished:(result.data??[]).filter((check:any)=>check.status==='Realizado').length};
       }});
-      if(typeof count==='number')progress.work_checks=count;
+      if(count&&typeof count.total==='number'){progress.work_checks=count.total;progress.checks=count.finished;}
       if(goal==='photos'||goal==='checks'||goal===undefined) {
         const result=await supabase.from('work_order_photos').select('id',{count:'exact',head:true}).eq('company_id',session.company_id).eq('work_order_id',session.work_order_id);
         if(!result.error&&typeof result.count==='number')progress.photos=(progress.photos??0)+result.count;

@@ -121,15 +121,21 @@ function Harness(){const[p,setP]=useState({step:19,open:true});return <><main><b
 try{await act(async()=>root.render(<MemoryRouter><Harness/></MemoryRouter>));await act(async()=>host.querySelector<HTMLButtonElement>('main button')!.click());expect(host.querySelector('h2')?.textContent).toBe('Haz un estudio de costes');await act(async()=>window.dispatchEvent(new CustomEvent('dmp-cost-study-saved')));expect(host.querySelector('h2')?.textContent).toBe('Del aviso al resultado');}finally{await act(async()=>root.unmount());host.remove();}});
 
 it.each([
- ['Comercial',1,'Prepara un presupuesto','dmp-quote-line-saved','Coordina la ejecución con SAT'],
+ ['Comercial',1,'Prepara un presupuesto','dmp-quote-line-saved','Registra el envío del presupuesto'],
  ['SAT',6,'Explora el contrato de mantenimiento','dmp-maintenance-saved','Continúa en Oficina'],
 ] as const)('advances %s only when the operation confirms persistence',async(role,step,title,event,next)=>{
  (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
  function Harness(){const[p,setP]=useState({step,open:true});return <><main><button>Guardar</button></main><DemoGuide session={{...session,role}} tour="work" progress={p} setProgress={setP} onRole={async()=>{}}/></>;}
- try{await act(async()=>root.render(<MemoryRouter><Harness/></MemoryRouter>));await act(async()=>host.querySelector<HTMLButtonElement>('main button')!.click());expect(host.querySelector('h2')?.textContent).toBe(title);await act(async()=>window.dispatchEvent(new CustomEvent(event)));expect(host.querySelector('h2')?.textContent).toBe(next);expect(host.querySelector('aside')?.getAttribute('data-finale')).toBe('true');}finally{await act(async()=>root.unmount());host.remove();}
+ try{await act(async()=>root.render(<MemoryRouter><Harness/></MemoryRouter>));await act(async()=>host.querySelector<HTMLButtonElement>('main button')!.click());expect(host.querySelector('h2')?.textContent).toBe(title);await act(async()=>window.dispatchEvent(new CustomEvent(event)));expect(host.querySelector('h2')?.textContent).toBe(next);expect(host.querySelector('aside')?.getAttribute('data-finale')).toBe(role==='SAT'?'true':'false');}finally{await act(async()=>root.unmount());host.remove();}
 });
 
 it('retracts the mobile guide while reviewing results and lets the visitor reopen help',async()=>{
  (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;vi.stubGlobal('innerWidth',390);const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
  try{await act(async()=>root.render(<MemoryRouter><main><div data-demo-check-results><button>Todo favorable</button></div></main><DemoGuide session={{...session,role:'Tecnico',work_order_id:'work'}} progress={{step:2,open:true}} setProgress={()=>{}} onRole={async()=>{}}/></MemoryRouter>));expect(host.querySelector('[aria-label="Guía reducida"]')?.textContent).toContain('Elige el resultado y confirma abajo');await act(async()=>host.querySelector<HTMLButtonElement>('.demo-guide-mini button')!.click());expect(host.querySelector('h2')?.textContent).toBe('Revisa los componentes');}finally{await act(async()=>root.unmount());host.remove();vi.unstubAllGlobals();}
+});
+
+it('waits for the matching persisted quote transition, not another status or a click',async()=>{
+ (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ function Harness(){const[p,setP]=useState({step:2,open:true});return <DemoGuide session={{...session,role:'Comercial'}} progress={p} setProgress={setP} onRole={async()=>{}}/>;}
+ try{await act(async()=>root.render(<MemoryRouter><Harness/></MemoryRouter>));expect(host.querySelector('h2')?.textContent).toBe('Registra el envío del presupuesto');await act(async()=>window.dispatchEvent(new CustomEvent('dmp-quote-status-saved',{detail:{status:'Borrador'}})));expect(host.querySelector('h2')?.textContent).toBe('Registra el envío del presupuesto');await act(async()=>window.dispatchEvent(new CustomEvent('dmp-quote-status-saved',{detail:{status:'Enviado'}})));expect(host.querySelector('h2')?.textContent).toBe('Simula la aceptación del cliente');await act(async()=>window.dispatchEvent(new CustomEvent('dmp-quote-status-saved',{detail:{status:'Aceptado'}})));expect(host.querySelector('h2')?.textContent).toBe('Convierte el presupuesto en trabajo');}finally{await act(async()=>root.unmount());host.remove();}
 });

@@ -53,6 +53,11 @@ export function findDemoTarget(step: DemoStep): HTMLElement | null {
   }
   const reading:Record<string,RegExp>={'Analiza el tiempo':/^Últimos 3 meses$/,'Haz un estudio de costes':/^(Analizar periodo|Actualizar datos|Guardar estudio)$/,'Registra la factura del proveedor':/^(Crear factura proveedor|Registrar factura)$/,'Prepara un presupuesto':/^(Añadir concepto|Añadir línea|Crear presupuesto)$/,'Explora el contrato de mantenimiento':/^Nuevo contrato$/};
   if(reading[step.title]){const control=[...document.querySelectorAll<HTMLElement>('main button')].find(element=>available(element)&&reading[step.title].test((element.textContent??'').trim()));if(control)return control;}
+  if(['Registra el envío del presupuesto','Simula la aceptación del cliente','Convierte el presupuesto en trabajo'].includes(step.title)){
+    if(step.title==='Simula la aceptación del cliente'){const status=document.querySelector<HTMLElement>('main .status-selector select');if(status&&available(status))return status;}
+    const label=step.title==='Convierte el presupuesto en trabajo'?'Generar parte':'Marcar como enviado';const action=[...document.querySelectorAll<HTMLElement>('main button')].find(element=>available(element)&&(element.textContent??'').trim()===label);if(action)return action;
+    const quote=[...document.querySelectorAll<HTMLElement>('main a[href*="/app/modulos/presupuestos/"]')].find(available);if(quote)return quote;
+  }
   if(step.goal==='purchase_orders') {const line=[...document.querySelectorAll<HTMLElement>('main button')].find(element=>available(element)&&/^Añadir línea$/.test((element.textContent??'').trim()));if(line)return line;}
   if(step.goal==='checks') {
     const results=document.querySelector<HTMLElement>('main [data-demo-check-results]');if(results&&available(results))return results;

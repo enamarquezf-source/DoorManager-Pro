@@ -103,7 +103,7 @@ export function demoTourSteps(session: DemoSession,tour:DemoTour='work'): DemoSt
   {title:'Prepara un presupuesto',text:'Añade conceptos, cantidades y precios. Guarda el borrador y revisa el margen antes de enviarlo en esta simulación.',route:'/app/modulos/presupuestos',target:'.page-head'},
   {title:'Registra el envío del presupuesto',text:'Pulsa Marcar como enviado e introduce cliente@example.invalid. Solo registra el envío: no manda ningún correo real. Revisa y confirma.',route:'/app/modulos/presupuestos',target:'.page-head'},
   {title:'Simula la aceptación del cliente',text:'En Estado selecciona Aceptado e indica un motivo ficticio. Confirma el cambio para habilitar la generación del trabajo.',route:'/app/modulos/presupuestos',target:'.status-selector'},
-  {title:'Convierte el presupuesto en trabajo',text:'Pulsa Generar parte, revisa cliente y centro y elige al técnico Demo. Si falta el centro, puedes crearlo desde el formulario. Puedes continuar sin equipo identificado.',route:'/app/modulos/presupuestos',target:'.page-head',goal:'works'},
-  {title:'Coordina la ejecución con SAT',text:'Cambia a SAT para explorar cómo continúa el trabajo después del presupuesto.',route:'/app/partes',target:'.page-head',role:'SAT'}
+  {title:'Convierte el presupuesto en trabajo',text:'Pulsa Generar parte, revisa cliente y centro. SAT asignará después al técnico. Si falta el centro, puedes crearlo desde el formulario. Puedes continuar sin equipo identificado.',route:'/app/modulos/presupuestos',target:'.page-head',goal:'works'},
+  {title:'Coordina la ejecución con SAT',text:'Entra en SAT y asigna el técnico en este mismo parte. El presupuesto y sus conceptos siguen enlazados.',route:session.work_order_id?'/app/partes/'+session.work_order_id:'/app/partes',target:'.page-head',role:'SAT'}
  ];
 }

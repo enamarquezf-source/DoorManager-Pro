@@ -9,6 +9,7 @@ export function navigationCompletes(step:DemoStep,before:string,after:string) {
  if(name==='De campo a Oficina'||name==='Recibe un trabajo revisado'||name==='Comprueba los conceptos')return /^\/app\/partes\/[^/?]+/.test(after);
  if(name==='Entiende el margen'||name==='Compara margen y costes')return /^\/app\/partes\/[^/?]+/.test(after);
  if(name==='Comprueba las existencias')return /^\/app\/modulos\/materiales\/[^/?]+/.test(after);
+ if(name==='Explora una empresa con actividad')return /^\/app\/partes\/[^/?]+/.test(after);
  return false;
 }
 export function interactionCompletes(step:DemoStep,label:string) {

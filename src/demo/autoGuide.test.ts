@@ -24,3 +24,9 @@ it('recognizes opening the received material and never treats a save click as a 
  const steps=demoTourSteps({...session,role:'Gerencia'},'purchases');expect(navigationCompletes(steps[5],'/app/modulos/materiales','/app/modulos/materiales/rodillo')).toBe(true);
  expect(interactionCompletes({title:'Haz un estudio de costes'} as any,'Guardar estudio')).toBe(false);
 });
+
+it('advances the management overview when a work is actually opened',()=>{
+ const step=demoTourSteps({...session,role:'Gerencia'},'work')[0];
+ expect(navigationCompletes(step,'/app/inicio','/app/partes/example')).toBe(true);
+ expect(navigationCompletes(step,'/app/inicio','/app/partes')).toBe(false);
+});

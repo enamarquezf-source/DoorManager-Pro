@@ -161,7 +161,9 @@ export const quotesService = {
       ? { quote_id: quoteId, company_id: quote.company_id, line_type: normalized.line_type, concept_id: payload.concept_id, rate_version_id: payload.rate_version_id, description: normalized.description, quantity: normalized.quantity, tax_rate: normalized.tax_rate, discount_percent: normalized.discount_percent }
       : { ...normalized, quote_id: quoteId, company_id: quote.company_id };
     try {
-      return await expectData<any>(supabase.from('quote_lines').insert(normalizedPayload).select().maybeSingle(), { service: 'quotesService', operation: 'add quote line', resource: quoteId });
+      const line=await expectData<any>(supabase.from('quote_lines').insert(normalizedPayload).select().maybeSingle(), { service: 'quotesService', operation: 'add quote line', resource: quoteId });
+      if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent('dmp-quote-line-saved',{detail:{quoteId}}));
+      return line;
     } catch (error: any) {
       console.error('DMP quote line debug', { payloadBeforeNormalize: payload, normalizedPayload, message: error?.message, details: error?.details, hint: error?.hint, code: error?.code });
       throw error;

@@ -79,3 +79,5 @@ La visita rápida se había comprobado en la sesión anterior; queda repetirla c
 - Instrucciones breves con nombres exactos de los botones; actualización de instrucciones anunciada mediante aria-live polite.
 - Verificación: 347 archivos / 1.920 pruebas pasaron antes de añadir dos regresiones adicionales; las 53 pruebas finales de demo y la compilación pasan. El primer intento de suite tuvo falta de memoria; repetición con dos workers correcta.
 - Se continúa la comprobación pública de los recorridos tras publicar. No se amplía esta evidencia a combinaciones de cancelaciones, importación o concurrencia no recorridas.
+- Ampliación: Presupuestos comerciales y contrato de mantenimiento avanzan tras confirmación de guardado, no por pulsar Guardar. La última misión de cada recorrido permite terminar la guía. Tres regresiones adicionales: 56 pruebas de demo correctas; compilación correcta.
+- Visita rápida pública repetida el 28/10: abrir trabajo, abrir check, consultar parte de Oficina, calendario real y trabajo desde Rentabilidad → 6/6 sin pulsar Siguiente. Los cambios de perfil siguen siendo explícitos.

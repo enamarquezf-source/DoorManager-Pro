@@ -119,3 +119,12 @@ it('finishes the study mission only after persistence confirms success',async()=
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
 function Harness(){const[p,setP]=useState({step:19,open:true});return <><main><button>Guardar estudio</button></main><DemoGuide session={{...session,role:'Gerencia'}} tour="connected" progress={p} setProgress={setP} onRole={async()=>{}}/></>;}
 try{await act(async()=>root.render(<MemoryRouter><Harness/></MemoryRouter>));await act(async()=>host.querySelector<HTMLButtonElement>('main button')!.click());expect(host.querySelector('h2')?.textContent).toBe('Haz un estudio de costes');await act(async()=>window.dispatchEvent(new CustomEvent('dmp-cost-study-saved')));expect(host.querySelector('h2')?.textContent).toBe('Del aviso al resultado');}finally{await act(async()=>root.unmount());host.remove();}});
+
+it.each([
+ ['Comercial',1,'Prepara un presupuesto','dmp-quote-line-saved','Coordina la ejecución con SAT'],
+ ['SAT',6,'Explora el contrato de mantenimiento','dmp-maintenance-saved','Continúa en Oficina'],
+] as const)('advances %s only when the operation confirms persistence',async(role,step,title,event,next)=>{
+ (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ function Harness(){const[p,setP]=useState({step,open:true});return <><main><button>Guardar</button></main><DemoGuide session={{...session,role}} tour="work" progress={p} setProgress={setP} onRole={async()=>{}}/></>;}
+ try{await act(async()=>root.render(<MemoryRouter><Harness/></MemoryRouter>));await act(async()=>host.querySelector<HTMLButtonElement>('main button')!.click());expect(host.querySelector('h2')?.textContent).toBe(title);await act(async()=>window.dispatchEvent(new CustomEvent(event)));expect(host.querySelector('h2')?.textContent).toBe(next);expect(host.querySelector('aside')?.getAttribute('data-finale')).toBe('true');}finally{await act(async()=>root.unmount());host.remove();}
+});

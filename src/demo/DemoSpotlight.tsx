@@ -51,7 +51,7 @@ export function findDemoTarget(step: DemoStep): HTMLElement | null {
     const calendar=[...document.querySelectorAll<HTMLElement>('main button,main summary')].find(element=>available(element)&&/^Ver calendario$/.test((element.textContent??'').trim()));
     if(calendar)return calendar;
   }
-  const reading:Record<string,RegExp>={'Analiza el tiempo':/^Últimos 3 meses$/,'Haz un estudio de costes':/^(Analizar periodo|Actualizar datos|Guardar estudio)$/,'Registra la factura del proveedor':/^(Crear factura proveedor|Registrar factura)$/};
+  const reading:Record<string,RegExp>={'Analiza el tiempo':/^Últimos 3 meses$/,'Haz un estudio de costes':/^(Analizar periodo|Actualizar datos|Guardar estudio)$/,'Registra la factura del proveedor':/^(Crear factura proveedor|Registrar factura)$/,'Prepara un presupuesto':/^(Añadir concepto|Añadir línea|Crear presupuesto)$/,'Explora el contrato de mantenimiento':/^Nuevo contrato$/};
   if(reading[step.title]){const control=[...document.querySelectorAll<HTMLElement>('main button')].find(element=>available(element)&&reading[step.title].test((element.textContent??'').trim()));if(control)return control;}
   if(step.goal==='purchase_orders') {const line=[...document.querySelectorAll<HTMLElement>('main button')].find(element=>available(element)&&/^Añadir línea$/.test((element.textContent??'').trim()));if(line)return line;}
   if(step.goal==='checks') {
@@ -60,7 +60,7 @@ export function findDemoTarget(step: DemoStep): HTMLElement | null {
     const pending=block.find(element=>/Sin revisar/.test(element.textContent??''));if(pending)return pending;
     if(block.length){const finish=[...document.querySelectorAll<HTMLElement>('main button')].find(element=>available(element)&&/^(Finalizar check|Reintentar finalizar y enviar)$/.test((element.textContent??'').trim()));if(finish)return finish;}
   }
-  if(step.title==='Entiende el margen'||step.title==='Compara margen y costes') {const work=[...document.querySelectorAll<HTMLElement>('main a[href*="/app/partes/"]')].find(available);if(work)return work;}
+  if(step.title==='Entiende el margen'||step.title==='Compara margen y costes'||step.title==='Explora una empresa con actividad') {const work=[...document.querySelectorAll<HTMLElement>('main a[href*="/app/partes/"]')].find(available);if(work)return work;}
   if(step.title==='Comprueba las existencias'){const material=[...document.querySelectorAll<HTMLElement>('main a.material-row-link')].find(available);if(material)return material;}
   if(step.title==='Consulta el aviso'||step.title==='Revisión componente a componente') {
     const checksTab=document.querySelector<HTMLElement>('[data-tab="checks"]');

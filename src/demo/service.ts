@@ -42,6 +42,7 @@ export const publicDemoService = {
   async progress(session?:DemoSession,goal?:string) {
     const progress=await rpc('dmp_demo_progress') as Record<string,number>;
     if(session?.role==='Tecnico'&&session.work_order_id) {
+      delete progress.checks; // The legacy RPC counts reviewed items, not completed checks.
       const count=await queryClient.fetchQuery({queryKey:['demo-check-count',session.id,session.work_order_id],staleTime:0,queryFn:async()=>{
         const result=await supabase.from('checks').select('id,status',{count:'exact'}).eq('company_id',session.company_id).eq('work_order_id',session.work_order_id!).is('deleted_at',null);
         return result.error?null:{total:result.count,finished:(result.data??[]).filter((check:any)=>check.status==='Realizado').length};

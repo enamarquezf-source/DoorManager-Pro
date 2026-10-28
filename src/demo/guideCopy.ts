@@ -21,7 +21,7 @@ const benefits: Record<string,string> = {
 };
 export function guideCopy(step:DemoStep) {
  const tasks:Record<string,[string,string]>={
-  clients:['Crea un cliente ficticio. Puedes usar los datos de ejemplo y cambiarlos. Al guardar pasaremos a su centro.','Crear cliente'],
+  clients:['Crea un cliente ficticio. Puedes usar los datos de ejemplo y cambiarlos. Al guardar, la guía continuará automáticamente.','Crear cliente'],
   sites:['Elige el cliente que acabas de crear, añade su centro y guarda.','Crear centro'],
   works:['Crea el trabajo de ese cliente y centro. Puedes continuar sin conocer el equipo.','Crear parte'],
   assignments:['Abre Gestionar asignaciones, elige al técnico Demo y guarda la visita.','Asignar este parte'],

@@ -153,3 +153,9 @@ it('persists the destination mission before refreshing the profile during a comm
  const changed=vi.fn(async(next:any)=>{if(next.role==='SAT')expect(JSON.parse(localStorage.getItem('dmp-demo-tour:handoff-session:SAT:work')!)).toEqual({step:3,open:true});});
  try{await act(async()=>root.render(<MemoryRouter><PublicDemoBoundary userId="visitor" onRoleChanged={changed} onFinish={async()=>{}}><main/></PublicDemoBoundary></MemoryRouter>));expect(host.querySelector('h2')?.textContent).toBe('Coordina la ejecución con SAT');await act(async()=>host.querySelector<HTMLButtonElement>('.demo-guide-next')!.click());expect(host.querySelector('h2')?.textContent).toBe('Asigna el técnico');expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({role:'SAT'}),false);}finally{await act(async()=>root.unmount());host.remove();}
 });
+
+it('continues the standalone office tour when the loaded economic review is already approved',async()=>{
+ (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ function Harness(){const[p,setP]=useState({step:1,open:true});return <><main><section data-economic-review="approved"/></main><DemoGuide session={{...session,role:'Oficina'}} tour="work" progress={p} setProgress={setP} onRole={async()=>{}}/></>;}
+ try{await act(async()=>root.render(<MemoryRouter initialEntries={['/app/partes/work']}><Harness/></MemoryRouter>));expect(host.querySelector('h2')?.textContent).toBe('Prepara la factura');}finally{await act(async()=>root.unmount());host.remove();}
+});

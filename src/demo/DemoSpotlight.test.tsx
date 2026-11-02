@@ -52,3 +52,8 @@ it('keeps the review cue in a check instead of taking the technician back to the
 it('guides the signer name rather than submitting an empty signature',()=>{
  document.body.innerHTML='<main><label>Nombre firmante<input id="signer"/></label><button>Guardar firma local</button></main>';visible();expect(findDemoTarget({...step,goal:'signatures'})?.id).toBe('signer');
 });
+
+it('opens the prepared office example rather than the pending commercial work or a heading',()=>{
+ document.body.innerHTML='<main><header class="page-head">Partes</header><a href="/app/partes/pending">Empresa propia Pendiente</a><a id="ready" href="/app/partes/ready" aria-label="Cliente Cliente ejemplo Oficina 1 Centro industrial">PAR-Oficina-1</a></main>';visible();
+ expect(findDemoTarget({title:'Recibe un trabajo revisado',text:'',route:'/app/partes',target:'.page-head'})?.id).toBe('ready');
+});

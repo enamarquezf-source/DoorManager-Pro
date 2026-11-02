@@ -57,3 +57,16 @@ it('opens the prepared office example rather than the pending commercial work or
  document.body.innerHTML='<main><header class="page-head">Partes</header><a href="/app/partes/pending">Empresa propia Pendiente</a><a id="ready" href="/app/partes/ready" aria-label="Cliente Cliente ejemplo Oficina 1 Centro industrial">PAR-Oficina-1</a></main>';visible();
  expect(findDemoTarget({title:'Recibe un trabajo revisado',text:'',route:'/app/partes',target:'.page-head'})?.id).toBe('ready');
 });
+
+it('distinguishes the field, records and close views within the same technician work',()=>{
+ const records={...step,goal:'work_notes',route:'/app/tecnico/trabajo/work?vista=records'};
+ expect(isDemoTaskSurface(records,'/app/tecnico/trabajo/work?vista=checks')).toBe(false);
+ expect(isDemoTaskSurface(records,'/app/tecnico/trabajo/work?vista=work')).toBe(false);
+ expect(isDemoTaskSurface(records,'/app/tecnico/trabajo/work?vista=records')).toBe(true);
+ expect(isDemoTaskSurface({...records,goal:'signatures',route:'/app/tecnico/trabajo/work?vista=close'},'/app/tecnico/trabajo/work?vista=records')).toBe(false);
+});
+
+it('guides the signature through name, drawing, consent and saving without choosing consent for the visitor',()=>{
+ document.body.innerHTML='<main><label>Nombre firmante<input id="signer"/></label><canvas id="pad" class="signature-pad" data-has-ink="false"></canvas><label id="consent" class="signature-consent"><input type="checkbox"/>Confirmo mi firma</label><button id="save">Guardar firma</button></main>';visible();const signature={...step,goal:'signatures'};
+ expect(findDemoTarget(signature)?.id).toBe('signer');(document.getElementById('signer') as HTMLInputElement).value='Visitante ficticio';expect(findDemoTarget(signature)?.id).toBe('pad');document.getElementById('pad')!.setAttribute('data-has-ink','true');expect(findDemoTarget(signature)?.id).toBe('consent');expect((document.querySelector('.signature-consent input') as HTMLInputElement).checked).toBe(false);(document.querySelector('.signature-consent input') as HTMLInputElement).checked=true;expect(findDemoTarget(signature)?.id).toBe('save');
+});

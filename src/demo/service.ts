@@ -39,8 +39,28 @@ export async function clearDemoDevice() {
 }
 export const publicDemoService = {
   async journeysAvailable() { const data = await rpc('dmp_demo_status'); return data?.journeys === 2; },
-  async progress(session?:DemoSession,goal?:string) {
+  async progress(session?:DemoSession,goal?:string,activeWorkId?:string) {
+    const scopedTechnical=session?.role==='Tecnico'&&Boolean(activeWorkId&&activeWorkId!==session.work_order_id);
+    if(scopedTechnical)session={...session!,work_order_id:activeWorkId!};
     const progress=await rpc('dmp_demo_progress') as Record<string,number>;
+    if(session&&activeWorkId&&session.role!=='Tecnico'){
+      delete progress.sat_approved;
+      const review=await supabase.from('work_orders').select('id',{count:'exact',head:true}).eq('company_id',session.company_id).eq('id',activeWorkId).eq('sat_review_status','approved').is('deleted_at',null);
+      if(!review.error&&typeof review.count==='number')progress.sat_approved=review.count;
+    }
+    if(scopedTechnical&&session?.work_order_id){
+      for(const key of ['work_notes','times','signatures','completed_work','photos'])delete progress[key];
+      const [work,times,signatures,photos]=await Promise.all([
+        supabase.from('work_orders').select('work_performed,status').eq('company_id',session.company_id).eq('id',session.work_order_id).maybeSingle(),
+        supabase.from('work_order_time_entries').select('id',{count:'exact',head:true}).eq('company_id',session.company_id).eq('work_order_id',session.work_order_id),
+        supabase.from('work_order_signatures').select('id',{count:'exact',head:true}).eq('company_id',session.company_id).eq('work_order_id',session.work_order_id),
+        supabase.from('check_photos').select('id,checks!inner(id)',{count:'exact',head:true}).eq('company_id',session.company_id).eq('checks.work_order_id',session.work_order_id),
+      ]);
+      if(!work.error&&work.data){progress.work_notes=work.data.work_performed?.trim()?1:0;progress.completed_work=['Finalizado tecnicamente','Enviado','Cerrado'].includes(work.data.status)?1:0;}
+      if(!times.error&&typeof times.count==='number')progress.times=times.count;
+      if(!signatures.error&&typeof signatures.count==='number')progress.signatures=signatures.count;
+      if(!photos.error&&typeof photos.count==='number')progress.photos=photos.count;
+    }
     if(session?.role==='Tecnico'&&session.work_order_id) {
       delete progress.checks; // The legacy RPC counts reviewed items, not completed checks.
       const count=await queryClient.fetchQuery({queryKey:['demo-check-count',session.id,session.work_order_id],staleTime:0,queryFn:async()=>{

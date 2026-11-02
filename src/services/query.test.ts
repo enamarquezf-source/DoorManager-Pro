@@ -45,3 +45,7 @@ describe('query error mapping', () => {
     expect(toSpanishSupabaseError({ message: 'new row violates row-level security policy for table purchase_orders' })).toBe('La operación no cumple el alcance de empresa o los datos enviados.');
   });
 });
+
+it('explains the required payment reversal before cancelling an invoice',()=>{
+ expect(toSpanishSupabaseError({code:'P0001',message:'factura: anula primero los cobros registrados'})).toBe('Anula primero los cobros de esta factura. Después podrás cancelarla.');
+});

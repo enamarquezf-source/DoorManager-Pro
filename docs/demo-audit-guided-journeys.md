@@ -106,3 +106,12 @@ La visita rápida se había comprobado en la sesión anterior; queda repetirla c
 - El CTA de conversión del presupuesto se concreta como Generar parte del presupuesto y explica que SAT asignará al técnico.
 - Ajuste local pendiente del diagnóstico guardado: se conserva el error original al relanzarlo y se registran campos de diagnóstico legibles. Pruebas enfocadas previas: 79 correctas; nueva guía: 60 correctas; compilación correcta. Pendiente repetir el traspaso público con esta corrección, cobros/anulaciones, importaciones y concurrencia remota.
 - Criterio de presentación: demo guiada para grupo pequeño cuando los recorridos principales de campo, Comercial/SAT y Oficina se repitan sin bloqueo y sin saltos manuales de guía. No equivale a lanzamiento con datos reales.
+
+
+### Correcciones de campo y visita rápida · 02/11/2026
+- La visita rápida ya no completa la misión de checks por abrir su ficha. Espera al aumento de checks finalizados del parte; basta un equipo para continuar la visita breve. La siguiente etapa sigue identificada como otro ejemplo preparado de Oficina y el cambio de perfil es explícito.
+- Se explica en el bloque cómo elegir resultado, seleccionar solo el componente defectuoso, describirlo, añadir foto ficticia y guardar antes de finalizar el check. Abrir una ficha no es completar su revisión.
+- Los destinos de Registro y Cierre distinguen el parámetro vista y conservan el parte técnico que está abierto. Se añaden instrucciones para horas y firma, ejemplo editable de 90 minutos, lienzo con indicación visible y consentimiento alineado con área pulsable.
+- El retorno a SAT usa el mismo parte y la evidencia de aprobación se consulta para ese parte; una aprobación de otro ejemplo no completa la misión. Los partes sin equipo identificado no necesitan checks y se indica cómo aportar fotos al propio parte.
+- Oficina pública: factura ficticia de 175,45 EUR, cobro parcial de 50 EUR y anulación del cobro comprobados. Saldo final visible: cobrado 0, pendiente 175,45 EUR. El servidor impide cancelar mientras hay cobros activos; se traduce ese motivo al usuario. No se ha completado la cancelación de la factura.
+- Validación de esta ampliación: 78 pruebas focalizadas correctas y compilación correcta. Pendiente repetir públicamente las nuevas pantallas de campo tras su despliegue. No requiere SQL ni modifica la base de Pro.

@@ -31,20 +31,24 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
   const lastAdvanced=useRef('');
   const [launchTask,setLaunchTask]=useState(false);
   const launchMission=useRef('');
-  const evidenceKey='dmp-demo-evidence:'+journeyProgressKey(session,tour);
-  const [evidence,setEvidence]=useState<Record<string,MissionEvidence>>(()=>readEvidence(evidenceKey));
-  useEffect(()=>setEvidence(readEvidence(evidenceKey)),[evidenceKey]);
   const [focusedWork,setFocusedWork]=useState(()=>readDemoWork(session.company_id));
   useEffect(()=>{const changed=(event:Event)=>{const detail=(event as CustomEvent).detail;if(detail?.companyId===session.company_id)setFocusedWork(readDemoWork(session.company_id));};window.addEventListener('dmp-demo-work-created',changed);return()=>window.removeEventListener('dmp-demo-work-created',changed);},[session.company_id]);
+  const pathWork=session.role==='Tecnico'?location.pathname.match(/^\/app\/tecnico\/trabajo\/([^/]+)/)?.[1]:undefined;
+  const [technicalWork,setTechnicalWork]=useState(pathWork??session.work_order_id);
+  useEffect(()=>{if(pathWork)setTechnicalWork(pathWork);},[pathWork]);
+  const guidedWork=session.role==='Tecnico'?(pathWork??technicalWork??session.work_order_id):(focusedWork??session.work_order_id);
+  const evidenceKey='dmp-demo-evidence:'+journeyProgressKey(session,tour)+(session.role==='Tecnico'&&guidedWork?':'+guidedWork:'');
+  const [evidence,setEvidence]=useState<Record<string,MissionEvidence>>(()=>readEvidence(evidenceKey));
+  useEffect(()=>setEvidence(readEvidence(evidenceKey)),[evidenceKey]);
   const [completion,setCompletion]=useState<Record<string,number>>({});
-  const steps = demoTourSteps(focusedWork&&session.role!=='Tecnico'?{...session,work_order_id:focusedWork}:session,tour); const index = Math.min(progress.step, steps.length - 1); const baseStep = steps[index]; const step=completion.work_checks===0&&baseStep.goal==='photos'?{...baseStep,text:'Abre Fotos de la intervención y añade una imagen ficticia del trabajo. Este parte no tiene checks de equipo; la foto puede quedar vinculada al propio parte. Guarda y envía los cambios.',route:baseStep.route.replace('vista=checks','vista=work'),target:'.component-photo'}:baseStep;
+  const steps = demoTourSteps(guidedWork?{...session,work_order_id:guidedWork}:session,tour); const index = Math.min(progress.step, steps.length - 1); const baseStep = steps[index]; const step=completion.work_checks===0&&baseStep.goal==='photos'?{...baseStep,text:'Abre Fotos de la intervención y añade una imagen ficticia del trabajo. Este parte no tiene checks de equipo; la foto puede quedar vinculada al propio parte. Guarda y envía los cambios.',route:baseStep.route.replace('vista=checks','vista=work'),target:'.component-photo'}:baseStep;
   useEffect(()=>{
     if(!progress.open || !roleSwitchAvailable) return;
     let active=true; let pending=false;
-    const update=async()=>{if(pending||document.visibilityState==='hidden')return;pending=true;try{const value=await publicDemoService.progress(session,step.goal);if(active){setCompletion(value);setEvidence(previous=>{const next={...previous};steps.forEach((mission,n)=>{if(mission.goal&&(!mission.requiredRole||mission.requiredRole===session.role)&&Number.isFinite(value[mission.goal]))next[n]=observeMission(previous[n],value[mission.goal]);});try{localStorage.setItem(evidenceKey,JSON.stringify(next));}catch{}return next;});}}catch{/* Older demo SQL keeps the guide manual. */}finally{pending=false;}};
+    const update=async()=>{if(pending||document.visibilityState==='hidden')return;pending=true;try{const value=await publicDemoService.progress(session,step.goal,guidedWork??undefined);if(active){setCompletion(value);setEvidence(previous=>{const next={...previous};steps.forEach((mission,n)=>{if(mission.goal&&(!mission.requiredRole||mission.requiredRole===session.role)&&Number.isFinite(value[mission.goal])){const scoped=mission.goal==='sat_approved'&&guidedWork;next[n]={...observeMission(scoped&&previous[n]?.scope!==guidedWork?undefined:previous[n],value[mission.goal]),...(scoped?{scope:guidedWork}:{})};}});try{localStorage.setItem(evidenceKey,JSON.stringify(next));}catch{}return next;});}}catch{/* Older demo SQL keeps the guide manual. */}finally{pending=false;}};
     void update();const timer=setInterval(()=>void update(),2000);window.addEventListener('focus',update);window.addEventListener('dmp-offline-queue-changed',update);
     return()=>{active=false;clearInterval(timer);window.removeEventListener('focus',update);window.removeEventListener('dmp-offline-queue-changed',update);};
-  },[session.role,session.id,progress.open,roleSwitchAvailable,index,tour,evidenceKey]);
+  },[session.role,session.id,progress.open,roleSwitchAvailable,index,tour,evidenceKey,guidedWork]);
   const required=step.requiredRole&&step.requiredRole!==session.role?step.requiredRole:step.role;
   const detected=Boolean(evidence[index]?.saved);
   const automatic=progress.open&&!paused&&!required&&!step.finale&&tour!=='updates';
@@ -57,7 +61,7 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
   useEffect(()=>{const path=location.pathname+location.search;const before=lastLocation.current;lastLocation.current=path;if(!automatic||before===path)return;if(navigationCompletes(step,before,path))advance();else {const found=navigationMission(steps,index,path,session.role);if(found>=0){setProgress({step:found,open:true});setExpanded(false);}}},[location.pathname,location.search,automatic,index,tour]);
   useEffect(()=>{if(!automatic)return;const click=(event:Event)=>{const element=event.target instanceof Element?event.target.closest('button,a,summary'):null;if(!element||element.closest('.demo-guide,[role="dialog"],.mini-modal'))return;if(interactionCompletes(step,(element.textContent??'').trim()))advance();};document.addEventListener('click',click,true);return()=>document.removeEventListener('click',click,true);},[automatic,index,tour]);
   const launchTarget=()=>{
-    if(!isDemoTaskSurface(step,location.pathname))return false;
+    if(!isDemoTaskSurface(step,location.pathname+location.search))return false;
     const reveal:Record<string,RegExp>={times:/^Horas/,photos:/^Fotos de la intervención/,signatures:/^Firma/,work_materials:/^Material utilizado/};
     if(reveal[step.goal??''])for(const summary of document.querySelectorAll<HTMLElement>('main details>summary'))if(reveal[step.goal!].test((summary.textContent??'').trim()))summary.closest('details')!.open=true;
     const target=findDemoTarget(step);if(!target||target.closest('[role="dialog"],.mini-modal'))return false;
@@ -72,7 +76,7 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
   if (!progress.open) return null;
   const go = (next: number) => { setProgress({ step: next, open: true }); if(!steps[next].requiredRole||steps[next].requiredRole===session.role)navigate(steps[next].route); };
   const showTask = () => {
-    const here=isDemoTaskSurface(step,location.pathname);
+    const here=isDemoTaskSurface(step,location.pathname+location.search);
     if(here&&launchTarget())return;
     launchMission.current=tour+':'+index;setLaunchTask(true);
     if(!here||location.search!==(step.route.includes('?')?'?'+step.route.split('?')[1]:''))navigate(step.route);

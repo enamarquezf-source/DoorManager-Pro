@@ -6,7 +6,8 @@ it('follows opening the prepared work and a check without treating a page refres
  const steps=demoTourSteps(session,'discover');
  expect(navigationCompletes(steps[0],'/app/tecnico','/app/tecnico/trabajo/own?vista=work')).toBe(true);
  expect(navigationCompletes(steps[0],'/app/tecnico','/app/tecnico')).toBe(false);
- expect(navigationCompletes(steps[1],'/app/tecnico/trabajo/own?vista=checks','/app/checks/check')).toBe(true);
+ expect(navigationCompletes(steps[1],'/app/tecnico/trabajo/own?vista=checks','/app/checks/check')).toBe(false);
+ expect(steps[1].goal).toBe('checks');
 });
 it('requires saved evidence for write missions rather than clicks or visits',()=>{
  const step=demoTourSteps({...session,role:'SAT'},'connected')[0];

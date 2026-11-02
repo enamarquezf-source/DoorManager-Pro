@@ -22,9 +22,13 @@ const actions: Record<string, RegExp> = {
   payments: /^registrar (?:un )?cobro/i,
 };
 
-export function isDemoTaskSurface(step:DemoStep,path:string) {
-  if((step.goal==='checks'||step.goal==='photos')&&/^\/app\/checks\/[^/]+/.test(path))return true;
-  const base=step.route.split('?')[0];return path===base||path.startsWith(base+'/');
+export function isDemoTaskSurface(step:DemoStep,location:string) {
+  const current=new URL(location,'https://dmp.local');
+  if((step.goal==='checks'||step.goal==='photos')&&/^\/app\/checks\/[^/]+/.test(current.pathname))return true;
+  const expected=new URL(step.route,'https://dmp.local');
+  if(current.pathname!==expected.pathname&&!current.pathname.startsWith(expected.pathname+'/'))return false;
+  const view=expected.searchParams.get('vista');
+  return !view||current.searchParams.get('vista')===view;
 }
 
 // Prefer a concrete action. Inside a form, guide the current field or next button.
@@ -75,7 +79,14 @@ export function findDemoTarget(step: DemoStep): HTMLElement | null {
     const work=document.querySelector<HTMLElement>('textarea.technician-work-textarea');
     if(work&&available(work))return work;
   }
-  if(step.goal==='signatures') {const name=[...document.querySelectorAll<HTMLInputElement>('main input')].find(element=>available(element)&&[...element.labels??[]].some(label=>/Nombre firmante/.test(label.textContent??'')));if(name)return name;}
+  if(step.goal==='signatures') {
+    const name=[...document.querySelectorAll<HTMLInputElement>('main input')].find(element=>available(element)&&[...element.labels??[]].some(label=>/Nombre firmante/.test(label.textContent??'')));
+    if(name&&!name.value.trim())return name;
+    const pad=document.querySelector<HTMLElement>('main .signature-pad[data-has-ink="false"]');if(pad&&available(pad))return pad;
+    const consent=document.querySelector<HTMLInputElement>('main .signature-consent input[type="checkbox"]');if(consent&&available(consent)&&!consent.checked)return consent.closest<HTMLElement>('label');
+    const save=[...document.querySelectorAll<HTMLElement>('main button')].find(element=>available(element)&&/^Guardar firma(?: local)?$/.test((element.textContent??'').trim()));if(save)return save;
+    if(name)return name;
+  }
   if(step.goal==='photos') {
     const photo=[...document.querySelectorAll<HTMLElement>('label.component-photo')].find(available);
     if(photo)return photo;
@@ -113,7 +124,7 @@ export function DemoSpotlight({ step, number }: { step: DemoStep; number: number
       labelNode?.querySelectorAll('input,select,textarea,svg,small').forEach(element=>element.remove());
       const label=(target?.getAttribute('aria-label') || labelNode?.textContent || target?.textContent || '').replace(/\s+/g,' ').trim();
       const field=Boolean(target?.matches('input,select,textarea'));
-      const caption=field?'Completa '+label:label&&label.length<55?'Pulsa '+label:'Empieza aquí';
+      const caption=target?.matches('canvas.signature-pad')?'Dibuja aquí la firma':target?.matches('label.signature-consent')?'Marca esta casilla cuando hayas revisado el parte':field?'Completa '+label:label&&label.length<55?'Pulsa '+label:'Empieza aquí';
       const value = visible ? { top: bounds.top, left: bounds.left, width: bounds.width, height: bounds.height,caption,modal,field } : null;
       setRect(previous => JSON.stringify(previous) === JSON.stringify(value) ? previous : value);
     };

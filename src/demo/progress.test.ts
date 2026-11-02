@@ -6,7 +6,7 @@ vi.mock('./model',async importOriginal=>({...await importOriginal<any>(),publicD
 vi.mock('../services/technicianOfflineService',()=>({technicianOfflineService:{pending:async()=>[]}}));
 import{publicDemoService}from'./service';
 const session:any={id:'visitor',company_id:'own-company',work_order_id:'own-work',role:'Tecnico'};
-beforeEach(()=>{vi.clearAllMocks();mock.queries=[];mock.rows={checks:{count:0,error:null},work_order_photos:{count:2,error:null}};mock.rpc.mockResolvedValue({data:{photos:1},error:null});mock.from.mockImplementation((table:string)=>{const query:any={table,filters:[]};mock.queries.push(query);const chain:any={select:()=>chain,eq:(key:string,value:string)=>{query.filters.push([key,value]);return chain;},is:()=>chain,then:(resolve:any,reject:any)=>Promise.resolve(mock.rows[table]).then(resolve,reject)};return chain;});});
+beforeEach(()=>{vi.clearAllMocks();mock.queries=[];mock.rows={checks:{count:0,error:null},work_order_photos:{count:2,error:null}};mock.rpc.mockResolvedValue({data:{photos:1},error:null});mock.from.mockImplementation((table:string)=>{const query:any={table,filters:[]};mock.queries.push(query);const chain:any={select:()=>chain,maybeSingle:()=>chain,eq:(key:string,value:string)=>{query.filters.push([key,value]);return chain;},is:()=>chain,then:(resolve:any,reject:any)=>Promise.resolve(mock.rows[table]).then(resolve,reject)};return chain;});});
 it('counts photos from the work as well as checks and scopes all reads to the current company and work',async()=>{
 const result=await publicDemoService.progress(session,'photos');expect(result.photos).toBe(3);expect(result.work_checks).toBe(0);
 for(const query of mock.queries)expect(query.filters).toEqual([['company_id','own-company'],['work_order_id','own-work']]);});
@@ -17,4 +17,17 @@ it('does not request technical metadata for business profiles',async()=>{await p
 it('counts finished checks instead of individual reviewed items',async()=>{
  mock.rpc.mockResolvedValue({data:{checks:9},error:null});mock.rows.checks={count:3,data:[{status:'Realizado'},{status:'En curso'},{status:'Por realizar'}],error:null};
  expect(await publicDemoService.progress(session,'checks')).toMatchObject({checks:1,work_checks:3});
+});
+
+it('never treats another approved example as SAT approval of the current work',async()=>{
+ mock.rpc.mockResolvedValue({data:{sat_approved:7},error:null});mock.rows.work_orders={count:0,error:null};
+ const result=await publicDemoService.progress({...session,role:'SAT'},'sat_approved','current-work');
+ expect(result.sat_approved).toBe(0);expect(mock.queries[0].filters).toEqual([['company_id','own-company'],['id','current-work'],['sat_review_status','approved']]);
+});
+it('scopes technician completion, hours and signatures to the work currently opened',async()=>{
+ mock.rpc.mockResolvedValue({data:{work_notes:1,times:5,signatures:2,completed_work:1,photos:8},error:null});
+ mock.rows.work_orders={data:{work_performed:'',status:'Pendiente'},error:null};mock.rows.work_order_time_entries={count:0,error:null};mock.rows.work_order_signatures={count:0,error:null};mock.rows.check_photos={count:0,error:null};
+ const result=await publicDemoService.progress(session,'photos','opened-work');
+ expect(result).toMatchObject({work_notes:0,times:0,signatures:0,completed_work:0,photos:2});
+ for(const query of mock.queries){expect(query.filters[0]).toEqual(['company_id','own-company']);expect(query.filters[1][1]).toBe('opened-work');}
 });

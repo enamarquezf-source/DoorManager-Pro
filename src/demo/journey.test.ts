@@ -25,6 +25,6 @@ it('connects SAT, field work, SAT approval, invoicing and management using the s
 });
 it('clearly identifies the prepared cases as examples rather than pretending they were executed',()=>{
  const steps=demoTourSteps(session,'discover');expect(steps).toHaveLength(6);
- expect(steps.every(step=>!step.goal)).toBe(true);
+ expect(steps.filter(step=>step.goal).map(step=>step.goal)).toEqual(['checks']);
  expect(steps.find(s=>s.requiredRole==='Oficina')?.text).toContain('otro caso preparado');
 });

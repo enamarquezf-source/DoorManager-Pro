@@ -286,10 +286,10 @@ export const workOrdersService = {
     const rpcPayload = { ...payload, company_id: companyId, created_by: profileId, created_role: role };
     try {
       return await expectData<string>(supabase.rpc('dmp_create_work_order_full', { p_payload: rpcPayload }), { service: 'workOrdersService', operation: 'create work order', resource: 'dmp_create_work_order_full' });
-    } catch (error: any) {
-      const cause=error?.originalError??error;
-      console.error('create_work_order_full failed', JSON.stringify({code:cause?.code,message:cause?.message,details:cause?.details,hint:cause?.hint}));
-      throw error;
+    } catch (failure: any) {
+      const error=failure?.originalError??failure;
+      console.error('create_work_order_full failed', JSON.stringify({ code: error?.code, message: error?.message, details: error?.details, hint: error?.hint }));
+      throw failure;
     }
   },
   update(id: string, payload: Record<string, any>) {

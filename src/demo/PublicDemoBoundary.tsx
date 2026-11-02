@@ -13,12 +13,13 @@ import {navigationCompletes,interactionCompletes,navigationMission} from './auto
 import { Sparkles, CheckCircle2, MousePointer2 } from 'lucide-react';
 
 type Progress = { step: number; open: boolean };
+type RoleContinuation = {step:number;route:string};
 function tourFor(id:string):DemoTour {try{const value=localStorage.getItem('dmp-demo-tour-choice:'+id);return value==='purchases'||value==='updates'||value==='connected'||value==='discover'?value:'work';}catch{return 'work';}}
 function progressFor(id: string): Progress {
   try { const value = JSON.parse(localStorage.getItem(`dmp-demo-tour:${id}`) ?? 'null'); if (Number.isInteger(value?.step) && value.step >= 0 && typeof value.open === 'boolean') return value; } catch { /* Start with the guide if storage is unavailable. */ }
   return { step: 0, open: true };
 }
-export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAvailable=true, tour='work', onTour }: { session: DemoSession; progress: Progress; setProgress: (value: Progress) => void; onRole: (role:DemoRole)=>Promise<void|boolean>; roleSwitchAvailable?:boolean; tour?:DemoTour; onTour?:(tour:DemoTour)=>void }) {
+export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAvailable=true, tour='work', onTour }: { session: DemoSession; progress: Progress; setProgress: (value: Progress) => void; onRole: (role:DemoRole,continuation?:RoleContinuation)=>Promise<void|boolean>; roleSwitchAvailable?:boolean; tour?:DemoTour; onTour?:(tour:DemoTour)=>void }) {
   const navigate = useNavigate();
   const location=useLocation();
   const [expanded,setExpanded]=useState(false);
@@ -90,11 +91,12 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
       {step.goal&&sharedJourney(tour)&&<p className={'demo-save-status'+(detected?' is-saved':'')} role="status">{detected?'Acción detectada. Preparando la siguiente misión…':'La guía avanza cuando guardas. Puedes pausarla para explorar.'}</p>}<p className="demo-guide-rule">Tú trabajas. La guía sigue tus acciones.</p>
       <div className="demo-guide-progress" aria-label={'Paso '+(index+1)+' de '+steps.length}>{steps.map((item,n)=><i key={item.title} className={n<=index?'is-reached':''}/>)}</div>
     </>}
-    <div className="demo-guide-actions">{tour==='updates'?<button type="button" onClick={()=>onTour?onTour('work'):setProgress({...progress,open:false})}>Volver al recorrido<ArrowRight size={16}/></button>:<><button type="button" disabled={index===0} aria-label="Paso anterior" onClick={()=>go(index-1)}><ArrowLeft size={16}/></button>{required?<button type="button" className="demo-guide-next" disabled={!roleSwitchAvailable} onClick={()=>void onRole(required).then(ok=>{if(ok===false)return;if(tour==='work'&&step.title==='Coordina la ejecución con SAT'){setProgress({step:3,open:true});navigate(step.route);}else if(tour==='work'&&step.title==='Comprueba la recepción en SAT'){setProgress({step:5,open:true});navigate(step.route);}else if(step.requiredRole)navigate(step.route);})}>Entrar como {demoRoles.find(r=>r.id===required)?.title}<ArrowRight size={16}/></button>:!step.finale&&<button type="button" className="demo-guide-next" disabled={launchTask} onClick={showTask}>{launchTask?'Preparando la pantalla…':copy.cta}<MousePointer2 size={15}/></button>}<button type="button" className="demo-skip" onClick={()=>index===steps.length-1?setProgress({...progress,open:false}):go(index+1)}>{index===steps.length-1?'Terminar guía':'Omitir paso'}<ArrowRight size={15}/></button></>}</div>
+    <div className="demo-guide-actions">{tour==='updates'?<button type="button" onClick={()=>onTour?onTour('work'):setProgress({...progress,open:false})}>Volver al recorrido<ArrowRight size={16}/></button>:<><button type="button" disabled={index===0} aria-label="Paso anterior" onClick={()=>go(index-1)}><ArrowLeft size={16}/></button>{required?<button type="button" className="demo-guide-next" disabled={!roleSwitchAvailable} onClick={()=>{const continuation=tour==='work'&&step.title==='Coordina la ejecución con SAT'?{step:3,route:step.route}:tour==='work'&&step.title==='Comprueba la recepción en SAT'?{step:5,route:step.route}:undefined;void (continuation?onRole(required,continuation):onRole(required)).then(ok=>{if(ok!==false&&step.requiredRole)navigate(step.route);});}}>Entrar como {demoRoles.find(r=>r.id===required)?.title}<ArrowRight size={16}/></button>:!step.finale&&<button type="button" className="demo-guide-next" disabled={launchTask} onClick={showTask}>{launchTask?'Preparando la pantalla…':copy.cta}<MousePointer2 size={15}/></button>}<button type="button" className="demo-skip" onClick={()=>index===steps.length-1?setProgress({...progress,open:false}):go(index+1)}>{index===steps.length-1?'Terminar guía':'Omitir paso'}<ArrowRight size={15}/></button></>}</div>
   </aside></>;
 }
 
 export function PublicDemoBoundary({ userId, onFinish, onRoleChanged, children }: { userId: string | null; onFinish: () => Promise<void>; onRoleChanged: (session:DemoSession, navigateToHome?:boolean)=>Promise<void>; children: ReactNode }) {
+  const navigate=useNavigate();
   const [session, setSession] = useState<DemoSession | null>(null); const [error, setError] = useState(''); const [finishing, setFinishing] = useState(false);
   const [switching,setSwitching]=useState(false); const [roleError,setRoleError]=useState(''); const [roleMenu,setRoleMenu]=useState(false);
   const [journeys,setJourneys]=useState(false); const [tour,setTour]=useState<DemoTour>('work');
@@ -147,10 +149,10 @@ export function PublicDemoBoundary({ userId, onFinish, onRoleChanged, children }
     window.addEventListener('pointerdown', activity); window.addEventListener('keydown', activity);
     return () => { active = false; clearInterval(timer); window.removeEventListener('pointerdown', activity); window.removeEventListener('keydown', activity); };
   }, [session, finishing]);
-  const switchRole=async(role:DemoRole)=>{
+  const switchRole=async(role:DemoRole,continuation?:RoleContinuation)=>{
     if(switching||!session||role===session.role)return;
     setSwitching(true);setRoleError('');setRoleMenu(false);
-    try{const next=await publicDemoService.prepareJourney(role);await onRoleChanged(next);setSession(next);setProgress(progressFor(journeyProgressKey(next,tour)));return true;}
+    try{const next=await publicDemoService.prepareJourney(role);const destination=continuation?{step:continuation.step,open:true}:progressFor(journeyProgressKey(next,tour));if(continuation){try{localStorage.setItem(`dmp-demo-tour:${journeyProgressKey(next,tour)}`,JSON.stringify(destination));}catch{}}await onRoleChanged(next,!continuation);setSession(next);setProgress(destination);if(continuation)navigate(continuation.route);return true;}
     catch(reason){setRoleError(reason instanceof Error?reason.message:'No se ha podido cambiar el perfil.');return false;}
     finally{setSwitching(false);}
   };

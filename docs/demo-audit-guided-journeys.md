@@ -97,3 +97,12 @@ La visita rápida se había comprobado en la sesión anterior; queda repetirla c
 - Mantenimiento público MNT-000001: omitir y restaurar visita, cambio de fecha con control nativo a 29/01/2027, pausa, cancelación y reactivación probados. Pausa/cancelación impiden generar nuevos partes y conservan el parte existente. La primera interacción automatizada con la fecha no confirmó su valor; repetición con el control nativo guarda y muestra la fecha correcta. No se atribuye ese intento al guardado del servidor.
 - Cambio de cobertura de tres a dos equipos guardado: el parte ya generado conserva sus tres equipos y checks, visibles desde SAT.
 - Suite previa a la última ampliación: 347 archivos / 1.927 pruebas correctas. Pruebas finales enfocadas de demo y circuito comercial: 60 correctas; compilación correcta. Pendiente completar repetición pública de la conversión tras retirar la asignación de Comercial. Importaciones y concurrencia remota siguen sin cobertura en esta sesión.
+
+## Repetición con visitante nuevo · 02/11/2026
+
+- Recorrido comercial público repetido desde cero: cliente, presupuesto, línea (coste 40 €, venta 100 €, IVA 21 %), registro de envío, aceptación y parte sin equipo identificado. La guía avanza automáticamente en cada guardado confirmado. Se crea el centro desde el parte y se conserva el presupuesto de origen; Comercial ya no ve asignación técnica.
+- SAT recibe el mismo parte 5f11943e-4f39-430e-a3cf-535213678d55 y puede asignar Alex Demo. Confirmado en la ficha, con PRE-2026-000001 enlazado.
+- Detectado que el traspaso de guía llegaba a la ficha correcta pero reiniciaba en Crear cliente. La continuación se traslada al contenedor del cambio de rol: persiste la misión del perfil destino antes de refrescar Auth y navega sin pasar por Inicio. Regresión de integración del contenedor, además de la prueba del botón.
+- El CTA de conversión del presupuesto se concreta como Generar parte del presupuesto y explica que SAT asignará al técnico.
+- Ajuste local pendiente del diagnóstico guardado: se conserva el error original al relanzarlo y se registran campos de diagnóstico legibles. Pruebas enfocadas previas: 79 correctas; nueva guía: 60 correctas; compilación correcta. Pendiente repetir el traspaso público con esta corrección, cobros/anulaciones, importaciones y concurrencia remota.
+- Criterio de presentación: demo guiada para grupo pequeño cuando los recorridos principales de campo, Comercial/SAT y Oficina se repitan sin bloqueo y sin saltos manuales de guía. No equivale a lanzamiento con datos reales.

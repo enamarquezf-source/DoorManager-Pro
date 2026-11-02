@@ -55,6 +55,12 @@ export function findDemoTarget(step: DemoStep): HTMLElement | null {
     const calendar=[...document.querySelectorAll<HTMLElement>('main button,main summary')].find(element=>available(element)&&/^Ver calendario$/.test((element.textContent??'').trim()));
     if(calendar)return calendar;
   }
+  if(step.title==='Registra la factura del proveedor') {
+    const empty=document.querySelector('main [data-invoice-has-lines="false"]');
+    if(empty){const description=[...empty.querySelectorAll<HTMLInputElement>('input')].find(input=>available(input)&&[...input.labels??[]].some(label=>/Descripción/.test(label.textContent??'')));if(description)return description;}
+    const account=document.querySelector<HTMLSelectElement>('main .supplier-payment-entry select');if(account&&available(account)&&!account.value)return account;
+    const payment=[...document.querySelectorAll<HTMLElement>('main button')].find(element=>available(element)&&/^Registrar pago$/.test((element.textContent??'').trim()));if(payment)return payment;
+  }
   const reading:Record<string,RegExp>={'Analiza el tiempo':/^Últimos 3 meses$/,'Haz un estudio de costes':/^(Analizar periodo|Actualizar datos|Guardar estudio)$/,'Registra la factura del proveedor':/^(Crear factura proveedor|Registrar factura)$/,'Prepara un presupuesto':/^(Añadir concepto|Añadir línea|Crear presupuesto)$/,'Explora el contrato de mantenimiento':/^Nuevo contrato$/};
   if(reading[step.title]){const control=[...document.querySelectorAll<HTMLElement>('main button')].find(element=>available(element)&&reading[step.title].test((element.textContent??'').trim()));if(control)return control;}
   if(['Registra el envío del presupuesto','Simula la aceptación del cliente','Convierte el presupuesto en trabajo'].includes(step.title)){

@@ -115,3 +115,11 @@ La visita rápida se había comprobado en la sesión anterior; queda repetirla c
 - El retorno a SAT usa el mismo parte y la evidencia de aprobación se consulta para ese parte; una aprobación de otro ejemplo no completa la misión. Los partes sin equipo identificado no necesitan checks y se indica cómo aportar fotos al propio parte.
 - Oficina pública: factura ficticia de 175,45 EUR, cobro parcial de 50 EUR y anulación del cobro comprobados. Saldo final visible: cobrado 0, pendiente 175,45 EUR. El servidor impide cancelar mientras hay cobros activos; se traduce ese motivo al usuario. No se ha completado la cancelación de la factura.
 - Validación de esta ampliación: 78 pruebas focalizadas correctas y compilación correcta. Pendiente repetir públicamente las nuevas pantallas de campo tras su despliegue. No requiere SQL ni modifica la base de Pro.
+
+
+### Compra, factura y pago de proveedor · 02/11/2026
+- La misión de factura conserva el pedido visitado por empresa temporal y abre la preparación con su origen. Se reutiliza la creación atómica existente, que copia líneas y vinculaciones desde pedido/recepción; no se confirma una deuda ni se paga automáticamente.
+- Si el visitante ya está en un borrador vacío, la indicación apunta al artículo y el registro queda deshabilitado hasta añadir líneas. El aviso explica cómo copiar desde el pedido. Se elimina la explicación que sugería crear documentos fuera de DMP.
+- Corregido el panel de pagos que conservaba el estado Borrador después de registrar la factura: escucha el registro de esa factura y recarga sus datos. Una prueba de componente comprueba que aparece el formulario sin recargar la página y que no reacciona a otra factura.
+- La misión continúa hasta el pago confirmado, con indicación inicial de la cuenta de origen. No hace transferencias bancarias.
+- Validación: 83 pruebas focalizadas correctas, compilación correcta. Pendiente repetir el circuito público tras desplegar. Sin migraciones ni modificaciones de la base Pro.

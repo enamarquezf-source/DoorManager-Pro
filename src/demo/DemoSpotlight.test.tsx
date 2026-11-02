@@ -70,3 +70,12 @@ it('guides the signature through name, drawing, consent and saving without choos
  document.body.innerHTML='<main><label>Nombre firmante<input id="signer"/></label><canvas id="pad" class="signature-pad" data-has-ink="false"></canvas><label id="consent" class="signature-consent"><input type="checkbox"/>Confirmo mi firma</label><button id="save">Guardar firma</button></main>';visible();const signature={...step,goal:'signatures'};
  expect(findDemoTarget(signature)?.id).toBe('signer');(document.getElementById('signer') as HTMLInputElement).value='Visitante ficticio';expect(findDemoTarget(signature)?.id).toBe('pad');document.getElementById('pad')!.setAttribute('data-has-ink','true');expect(findDemoTarget(signature)?.id).toBe('consent');expect((document.querySelector('.signature-consent input') as HTMLInputElement).checked).toBe(false);(document.querySelector('.signature-consent input') as HTMLInputElement).checked=true;expect(findDemoTarget(signature)?.id).toBe('save');
 });
+
+it('guides an empty supplier invoice to its article instead of registration',()=>{
+ document.body.innerHTML='<main><section data-invoice-has-lines="false"><button disabled>Registrar factura</button><label>Descripción *<input id="article" /></label></section></main>';visible();
+ expect(findDemoTarget({title:'Registra la factura del proveedor',route:'/app/modulos/facturas-proveedor',target:'.page-head',text:''})?.id).toBe('article');
+});
+it('guides a registered supplier invoice to the source account before payment',()=>{
+ document.body.innerHTML='<main><form class="supplier-payment-entry"><select id="account"><option value="">Selecciona cuenta</option></select><button>Registrar pago</button></form></main>';visible();
+ expect(findDemoTarget({title:'Registra la factura del proveedor',route:'/app/modulos/facturas-proveedor',target:'.page-head',text:''})?.id).toBe('account');
+});

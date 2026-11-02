@@ -1,3 +1,4 @@
+import {rememberDemoPurchase} from './demo/purchaseFocus';
 import { DemoExample } from './demo/DemoExample';
 import { requestManualAppUpdate } from './shared/manualAppUpdate';
 import { isTravelCost } from './shared/travelCosts';
@@ -3242,6 +3243,7 @@ function PurchaseReceiptForm({ order, warehouses, onClose, onSaved }: any) {
 
 function PurchaseOrderDetail(props: any) {
   const { profile } = useAuth();
+  useEffect(()=>{if(profile?.company_id)rememberDemoPurchase(profile.company_id,props.id);},[profile?.company_id,props.id]);
   const canCreateSupplierInvoice = hasPermission(profile, 'supplier_invoices.create');
   return <PurchaseOrderDetailContent {...props} canCreateSupplierInvoice={canCreateSupplierInvoice} />;
 }

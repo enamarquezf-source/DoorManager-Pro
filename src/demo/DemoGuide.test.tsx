@@ -122,11 +122,10 @@ try{await act(async()=>root.render(<MemoryRouter><Harness/></MemoryRouter>));awa
 
 it.each([
  ['Comercial',1,'Prepara un presupuesto','dmp-quote-line-saved','Registra el envío del presupuesto'],
- ['SAT',6,'Explora el contrato de mantenimiento','dmp-maintenance-saved','Continúa en Oficina'],
 ] as const)('advances %s only when the operation confirms persistence',async(role,step,title,event,next)=>{
  (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
  function Harness(){const[p,setP]=useState({step,open:true});return <><main><button>Guardar</button></main><DemoGuide session={{...session,role}} tour="work" progress={p} setProgress={setP} onRole={async()=>{}}/></>;}
- try{await act(async()=>root.render(<MemoryRouter><Harness/></MemoryRouter>));await act(async()=>host.querySelector<HTMLButtonElement>('main button')!.click());expect(host.querySelector('h2')?.textContent).toBe(title);await act(async()=>window.dispatchEvent(new CustomEvent(event)));expect(host.querySelector('h2')?.textContent).toBe(next);expect(host.querySelector('aside')?.getAttribute('data-finale')).toBe(role==='SAT'?'true':'false');}finally{await act(async()=>root.unmount());host.remove();}
+ try{await act(async()=>root.render(<MemoryRouter><Harness/></MemoryRouter>));await act(async()=>host.querySelector<HTMLButtonElement>('main button')!.click());expect(host.querySelector('h2')?.textContent).toBe(title);await act(async()=>window.dispatchEvent(new CustomEvent(event)));expect(host.querySelector('h2')?.textContent).toBe(next);expect(host.querySelector('aside')?.getAttribute('data-finale')).toBe('false');}finally{await act(async()=>root.unmount());host.remove();}
 });
 
 it('retracts the mobile guide while reviewing results and lets the visitor reopen help',async()=>{
@@ -212,5 +211,15 @@ it('collapses the mission map after choosing a task so it cannot cover the save 
   expect(host.querySelector('aside')?.getAttribute('data-expanded')).toBe('true');
   await act(async()=>[...host.querySelectorAll<HTMLButtonElement>('.demo-mission-map button')].find(button=>button.textContent?.includes('Explica el trabajo realizado'))!.click());
   expect(host.querySelector('h2')?.textContent).toBe('Explica el trabajo realizado');expect(host.querySelector('aside')?.getAttribute('data-expanded')).toBe('false');
+ }finally{await act(async()=>root.unmount());host.remove();}
+});
+
+it('hands the reviewed work to Office instead of requiring a maintenance contract first',async()=>{
+ (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;const host=document.createElement('div');document.body.append(host);const root=createRoot(host);const onRole=vi.fn(async()=>{});
+ try{
+  await act(async()=>root.render(<MemoryRouter><DemoGuide session={{...session,role:'SAT',work_order_id:'reviewed-work'}} progress={{step:6,open:true}} setProgress={()=>{}} onRole={onRole}/></MemoryRouter>));
+  expect(host.querySelector('h2')?.textContent).toBe('Continúa en Oficina');
+  await act(async()=>host.querySelector<HTMLButtonElement>('.demo-guide-next')!.click());
+  expect(onRole).toHaveBeenCalledExactlyOnceWith('Oficina',{step:1,route:'/app/partes/reviewed-work'});
  }finally{await act(async()=>root.unmount());host.remove();}
 });

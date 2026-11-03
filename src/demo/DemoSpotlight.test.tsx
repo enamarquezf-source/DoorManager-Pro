@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, expect, it, vi } from 'vitest';
-import { findDemoTarget, isDemoTaskSurface } from './DemoSpotlight';
+import { findDemoTarget, isDemoTaskSurface, checkTaskHint } from './DemoSpotlight';
 import type { DemoStep } from './model';
 
 const step: DemoStep = { title: 'Cliente', text: '', route: '/app/clientes', target: '.page-head', goal: 'clients' };
@@ -78,4 +78,18 @@ it('guides an empty supplier invoice to its article instead of registration',()=
 it('guides a registered supplier invoice to the source account before payment',()=>{
  document.body.innerHTML='<main><form class="supplier-payment-entry"><select id="account"><option value="">Selecciona cuenta</option></select><button>Registrar pago</button></form></main>';visible();
  expect(findDemoTarget({title:'Registra la factura del proveedor',route:'/app/modulos/facturas-proveedor',target:'.page-head',text:''})?.id).toBe('account');
+});
+
+it('marks the wizard next button after the required name is filled even when the name still has focus',()=>{
+ document.body.innerHTML='<div role="dialog"><form><label>Nombre<input id="name" required value="Demo"/></label><button type="button" id="next">Siguiente</button><button type="submit" hidden>Guardar</button></form></div>';visible();document.getElementById('name')!.focus();
+ expect(findDemoTarget(step)?.id).toBe('next');
+ document.getElementById('next')!.textContent='Revisar datos';expect(findDemoTarget(step)?.id).toBe('next');
+});
+
+it('follows the component defect through selection, description, other results and confirmation',()=>{
+ document.body.innerHTML='<main><div data-demo-check-results><button class="active">Problema leve</button></div><section class="check-affected-items" id="items"><label class="check-affected-choice"><input id="affected" type="checkbox"/></label><label class="check-item-note">Qué le ocurre<textarea id="note"></textarea></label><label id="remaining" class="check-remaining-choice"><input type="checkbox"/>He revisado los demás</label></section><button id="confirm">Confirmar selección</button></main>';visible();const mission={...step,goal:'checks'};
+ expect(findDemoTarget(mission)?.id).toBe('items');expect(checkTaskHint(findDemoTarget(mission))).toContain('solo el componente');
+ (document.getElementById('affected') as HTMLInputElement).checked=true;expect(findDemoTarget(mission)?.id).toBe('note');expect(checkTaskHint(findDemoTarget(mission))).toContain('qué le ocurre');
+ (document.getElementById('note') as HTMLTextAreaElement).value='Defecto ficticio';expect(findDemoTarget(mission)?.id).toBe('remaining');expect((document.querySelector('#remaining input') as HTMLInputElement).checked).toBe(false);
+ (document.querySelector('#remaining input') as HTMLInputElement).checked=true;expect(findDemoTarget(mission)?.id).toBe('confirm');
 });

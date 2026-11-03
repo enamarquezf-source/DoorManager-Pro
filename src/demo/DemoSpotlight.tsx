@@ -39,8 +39,10 @@ export function findDemoTarget(step: DemoStep): HTMLElement | null {
   if (dialog) {
     const inputs = [...dialog.querySelectorAll<HTMLInputElement>('input:not([type="hidden"]),select,textarea')].filter(element=>available(element)&&!element.readOnly);
     const missing = inputs.find(element=>element.required && (element.type==='checkbox'?!element.checked:!element.value.trim()));
-    return missing ?? inputs.find(element=>element===document.activeElement)
-      ?? [...dialog.querySelectorAll<HTMLButtonElement>('form button')].find(element=>available(element)&&element.type==='submit') ?? null;
+    const next=[...dialog.querySelectorAll<HTMLButtonElement>('button')].find(element=>available(element)&&/^(Siguiente|Revisar datos)$/.test((element.textContent??'').trim()));
+    return missing ?? next
+      ?? [...dialog.querySelectorAll<HTMLButtonElement>('form button')].find(element=>available(element)&&element.type==='submit')
+      ?? inputs.find(element=>element===document.activeElement) ?? null;
   }
   if (document.querySelector('[role="dialog"], .modal-overlay, .mini-modal, .overlay')) return null;
   if(step.title==='De campo a Oficina'||step.title==='Recibe un trabajo revisado') {
@@ -70,7 +72,23 @@ export function findDemoTarget(step: DemoStep): HTMLElement | null {
   }
   if(step.goal==='purchase_orders') {const line=[...document.querySelectorAll<HTMLElement>('main button')].find(element=>available(element)&&/^Añadir línea$/.test((element.textContent??'').trim()));if(line)return line;}
   if(step.goal==='checks') {
-    const results=document.querySelector<HTMLElement>('main [data-demo-check-results]');if(results&&available(results))return results;
+    const results=document.querySelector<HTMLElement>('main [data-demo-check-results]');
+    if(results&&available(results)) {
+      const affected=document.querySelector<HTMLElement>('main .check-affected-items');
+      if(affected&&available(affected)) {
+        if(!affected.querySelector('.check-affected-choice input:checked'))return affected;
+        const note=[...affected.querySelectorAll<HTMLTextAreaElement>('.check-item-note textarea')].find(element=>available(element)&&!element.value.trim());
+        if(note)return note;
+        const remaining=affected.querySelector<HTMLInputElement>('.check-remaining-choice input');
+        if(remaining&&available(remaining)&&!remaining.checked)return remaining.closest<HTMLElement>('label');
+      }
+      const selected=results.querySelector('button.active');
+      if(selected&&!/^Sin revisar$/.test((selected.textContent??'').trim())) {
+        const confirm=[...document.querySelectorAll<HTMLElement>('main button')].find(element=>available(element)&&/^Confirmar selección$/.test((element.textContent??'').trim()));
+        if(confirm)return confirm;
+      }
+      return results;
+    }
     const block=[...document.querySelectorAll<HTMLElement>('main a[href*="/bloque/"]')].filter(available);
     const pending=block.find(element=>/Sin revisar/.test(element.textContent??''));if(pending)return pending;
     if(block.length){const finish=[...document.querySelectorAll<HTMLElement>('main button')].find(element=>available(element)&&/^(Finalizar check|Reintentar finalizar y enviar)$/.test((element.textContent??'').trim()));if(finish)return finish;}
@@ -111,6 +129,14 @@ export function findDemoTarget(step: DemoStep): HTMLElement | null {
   return [...document.querySelectorAll<HTMLElement>(selector)].find(available) ?? null;
 }
 
+export function checkTaskHint(target:HTMLElement|null) {
+  if(target?.matches('.check-affected-items'))return 'Selecciona solo el componente afectado';
+  if(target?.matches('.check-item-note textarea'))return 'Describe qué le ocurre a ese componente';
+  if(target?.matches('.check-remaining-choice'))return 'Confirma los demás solo si los has revisado';
+  if(target?.matches('button')&&/^Confirmar selección$/.test((target.textContent??'').trim()))return 'Guarda este bloque para continuar';
+  return 'Elige el resultado de este bloque';
+}
+
 export function DemoSpotlight({ step, number }: { step: DemoStep; number: number }) {
   const [rect, setRect] = useState<{ top: number; left: number; width: number; height: number; caption:string; modal:boolean; field:boolean } | null>(null);
   useEffect(() => {
@@ -130,7 +156,7 @@ export function DemoSpotlight({ step, number }: { step: DemoStep; number: number
       labelNode?.querySelectorAll('input,select,textarea,svg,small').forEach(element=>element.remove());
       const label=(target?.getAttribute('aria-label') || labelNode?.textContent || target?.textContent || '').replace(/\s+/g,' ').trim();
       const field=Boolean(target?.matches('input,select,textarea'));
-      const caption=target?.matches('canvas.signature-pad')?'Dibuja aquí la firma':target?.matches('label.signature-consent')?'Marca esta casilla cuando hayas revisado el parte':field?'Completa '+label:label&&label.length<55?'Pulsa '+label:'Empieza aquí';
+      const caption=target?.matches('canvas.signature-pad')?'Dibuja aquí la firma':target?.matches('label.signature-consent')?'Marca esta casilla cuando hayas revisado el parte':target?.matches('.check-affected-items,.check-remaining-choice')?checkTaskHint(target):field?'Completa '+label:label&&label.length<55?'Pulsa '+label:'Empieza aquí';
       const value = visible ? { top: bounds.top, left: bounds.left, width: bounds.width, height: bounds.height,caption,modal,field } : null;
       setRect(previous => JSON.stringify(previous) === JSON.stringify(value) ? previous : value);
     };

@@ -131,7 +131,7 @@ it.each([
 
 it('retracts the mobile guide while reviewing results and lets the visitor reopen help',async()=>{
  (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;vi.stubGlobal('innerWidth',390);const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
- try{await act(async()=>root.render(<MemoryRouter><main><div data-demo-check-results><button>Todo favorable</button></div></main><DemoGuide session={{...session,role:'Tecnico',work_order_id:'work'}} progress={{step:2,open:true}} setProgress={()=>{}} onRole={async()=>{}}/></MemoryRouter>));expect(host.querySelector('[aria-label="Guía reducida"]')?.textContent).toContain('Elige el resultado y confirma abajo');await act(async()=>host.querySelector<HTMLButtonElement>('.demo-guide-mini button')!.click());expect(host.querySelector('h2')?.textContent).toBe('Revisa los componentes');}finally{await act(async()=>root.unmount());host.remove();vi.unstubAllGlobals();}
+ try{await act(async()=>root.render(<MemoryRouter><main><div data-demo-check-results><button>Todo favorable</button></div></main><DemoGuide session={{...session,role:'Tecnico',work_order_id:'work'}} progress={{step:2,open:true}} setProgress={()=>{}} onRole={async()=>{}}/></MemoryRouter>));expect(host.querySelector('[aria-label="Guía reducida"]')?.textContent).toContain('Elige el resultado de este bloque');await act(async()=>host.querySelector<HTMLButtonElement>('.demo-guide-mini button')!.click());expect(host.querySelector('h2')?.textContent).toBe('Revisa los componentes');}finally{await act(async()=>root.unmount());host.remove();vi.unstubAllGlobals();}
 });
 
 it('waits for the matching persisted quote transition, not another status or a click',async()=>{
@@ -186,5 +186,19 @@ it('keeps the quick tour on the check until an equipment review is finished',asy
   mocks.progress.mockResolvedValue({checks:1,work_checks:3});
   await act(async()=>window.dispatchEvent(new Event('focus')));
   expect(host.querySelector('h2')?.textContent).toBe('De campo a Oficina');
+ }finally{await act(async()=>root.unmount());host.remove();}
+});
+
+it('waits for payment on the supplier invoice currently displayed rather than another invoice',async()=>{
+ (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ function Harness(){const[p,setP]=useState({step:6,open:true});return <DemoGuide session={{...session,role:'Oficina'}} progress={p} setProgress={setP} onRole={async()=>{}} tour="purchases"/>;}
+ try{
+  await act(async()=>root.render(<MemoryRouter initialEntries={['/app/modulos/facturas-proveedor?id=own']}><Harness/></MemoryRouter>));
+  await act(async()=>window.dispatchEvent(new CustomEvent('dmp-supplier-invoice-registered',{detail:{id:'own'}})));
+  expect(host.querySelector('h2')?.textContent).toBe('Registra la factura del proveedor');
+  await act(async()=>window.dispatchEvent(new CustomEvent('dmp-supplier-payment-recorded',{detail:{id:'other'}})));
+  expect(host.querySelector('h2')?.textContent).toBe('Registra la factura del proveedor');
+  await act(async()=>window.dispatchEvent(new CustomEvent('dmp-supplier-payment-recorded',{detail:{id:'own'}})));
+  expect(host.querySelector('h2')?.textContent).toBe('Utiliza el material en el parte');
  }finally{await act(async()=>root.unmount());host.remove();}
 });

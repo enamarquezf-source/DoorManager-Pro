@@ -98,3 +98,13 @@ body:has(.public-demo-app)>.mini-modal,body:has(.public-demo-app)>.overlay{z-ind
 .demo-guide-v2[data-compact=true] .demo-auto-toggle,.demo-guide-v2[data-compact=true] .demo-skip,.demo-guide-v2[data-compact=true] .demo-guide-actions>[aria-label="Paso anterior"]{display:none}.demo-guide-v2[data-compact=true] .demo-guide-actions .demo-guide-next{width:100%;min-height:40px;font-size:12px}.demo-guide-v2[data-compact=true] .demo-mission-number{display:none}.demo-guide-v2[data-compact=true] .demo-action-cue{background:transparent;border:0;padding:3px 0 9px;margin:0}.demo-guide-v2[data-compact=true] .demo-action-cue p{-webkit-line-clamp:3;line-height:1.5}.demo-guide-v2[data-compact=true] .demo-action-cue>svg{display:none}.demo-guide-v2[data-compact=true]{max-height:30dvh}.demo-guide-v2[data-compact=true] .demo-mission-heading h2{font-size:15px}.demo-guide-v2[data-compact=true] header{padding-bottom:5px;border-bottom:1px solid #e0ebe5}.demo-guide-v2 .demo-guide-expand{white-space:nowrap}
 
 .demo-guide-v2[data-finale=true] .demo-skip{display:inline-flex!important}
+
+/* Keep field confirmation above the mobile coach rather than under its tap area. */
+@media(max-width:540px){
+ .public-demo-app:has(.demo-guide-mini) .check-mobile .confirm-bar{bottom:calc(94px + env(safe-area-inset-bottom));z-index:44;scroll-margin-bottom:100px}
+ .public-demo-app .check-mobile .confirm-bar button{min-height:44px}
+ .demo-guide-v2[data-expanded=true]{max-height:48dvh;overscroll-behavior:contain}
+ .demo-guide-v2[data-expanded=true]>header{position:sticky;top:-12px;z-index:2;background:#f8fcfa;padding:6px 0;border-bottom:1px solid #dce9e1}
+ .demo-guide-mini>button>div{min-width:0;line-height:1.4}
+ .demo-guide-mini>button>span{flex-shrink:0}
+}

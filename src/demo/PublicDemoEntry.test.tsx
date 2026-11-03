@@ -29,3 +29,16 @@ it('shows preparation status and never creates a visitor when the backend is not
     expect(start).not.toHaveBeenCalled();
   }finally{await act(async()=>root.unmount());}
 });
+
+it('uses the selected business role guide instead of forcing the quick technician route',async()=>{
+ (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ const start=vi.fn(async()=>({id:'role-choice',role:'Oficina'} as any));
+ try{
+  await act(async()=>root.render(<PublicDemoEntry checkReady={async()=>true} start={start} onReady={async()=>{}} siteKey="site"/>));
+  await act(async()=>[...host.querySelectorAll('button')].find(button=>button.textContent?.includes('Descubrir DMP'))!.click());
+  await act(async()=>host.querySelector<HTMLInputElement>('input[value="Oficina"]')!.click());
+  await act(async()=>[...host.querySelectorAll('button')].find(button=>button.textContent==='Verificación de prueba')!.click());
+  await act(async()=>host.querySelector<HTMLButtonElement>('.demo-launch')!.click());
+  expect(start).toHaveBeenCalledExactlyOnceWith('Oficina','verified-token');expect(localStorage.getItem('dmp-demo-tour-choice:role-choice')).toBe('work');
+ }finally{await act(async()=>root.unmount());host.remove();localStorage.clear();}
+});

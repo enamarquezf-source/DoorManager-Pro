@@ -202,3 +202,15 @@ it('waits for payment on the supplier invoice currently displayed rather than an
   expect(host.querySelector('h2')?.textContent).toBe('Utiliza el material en el parte');
  }finally{await act(async()=>root.unmount());host.remove();}
 });
+
+it('collapses the mission map after choosing a task so it cannot cover the save action',async()=>{
+ (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ function Harness(){const[p,setP]=useState({step:0,open:true});return <DemoGuide session={{...session,role:'Tecnico',work_order_id:'own'}} progress={p} setProgress={setP} onRole={async()=>{}}/>;}
+ try{
+  await act(async()=>root.render(<MemoryRouter><Harness/></MemoryRouter>));
+  await act(async()=>host.querySelector<HTMLButtonElement>('.demo-guide-expand')!.click());
+  expect(host.querySelector('aside')?.getAttribute('data-expanded')).toBe('true');
+  await act(async()=>[...host.querySelectorAll<HTMLButtonElement>('.demo-mission-map button')].find(button=>button.textContent?.includes('Explica el trabajo realizado'))!.click());
+  expect(host.querySelector('h2')?.textContent).toBe('Explica el trabajo realizado');expect(host.querySelector('aside')?.getAttribute('data-expanded')).toBe('false');
+ }finally{await act(async()=>root.unmount());host.remove();}
+});

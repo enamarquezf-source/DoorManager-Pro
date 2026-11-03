@@ -16,10 +16,11 @@ La portada presenta los perfiles y explica que la demo es una muestra parcial.
 La guía añade una marca pulsante sobre acciones identificadas, sin bloquear clics;
 se retira al abrir formularios y respeta movimiento reducido. Revisada visualmente
 en escritorio y móvil, con prueba local de apertura de formulario.
-El avance es siempre manual: Ir a la tarea localiza la acción, el visitante la
-realiza y guarda, y Siguiente paso navega al siguiente punto. Guardar nunca cambia
-de paso automáticamente. La confirmación de guardado informa, sin navegar. Los
-cambios de perfil se solicitan con un botón explícito y no avanzan antes de cambiar.
+La guía localiza la acción y avanza al detectar el guardado de la misión. Abrir
+un check no completa su revisión: se espera a finalizarlo. Los pasos de lectura
+se completan con la navegación indicada; el visitante puede pausarlos u omitirlos.
+Los cambios de perfil siguen siendo explícitos y no validan operaciones por él.
+En la visita breve, Oficina usa otro ejemplo preparado y lo explica antes de cambiar.
 Proveedores aparece en todos los espacios de negocio y queda excluido de Técnico;
 Comercial puede consultar la ruta con sus permisos de lectura. Oficina conserva
 creación y edición. El formulario conserva la identidad después de guardar la ficha:

@@ -19,7 +19,7 @@ describe('SUPPLIER-INVOICE-RUNTIME-021', () => {
     expect(invoices).toContain("params.get('order')");
     expect(invoices).toContain("params.get('supplier')");
     expect(invoices).toContain('supplierInvoicesService.createDraft');
-    expect(invoices).toContain('onSaved={(id) => navigate(`/app/modulos/facturas-proveedor?id=${id}`)}');
+    expect(invoices).toContain('navigate(`/app/modulos/facturas-proveedor?id=${id}`)');
     expect(invoices).toContain('Revisa y confirma las líneas sugeridas');
   });
 

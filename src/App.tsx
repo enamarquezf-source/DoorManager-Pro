@@ -1105,7 +1105,7 @@ function WorkOrderFinalizeModal({ workOrder, onClose, onDone, onError }: { workO
   };
   return <div className="mini-modal finalize-modal" role="dialog" aria-modal="true"><div>
     <h3>FINALIZAR PARTE TÉCNICO</h3>
-    <p className="large-note">El cierre técnico bloquea la intervención y la envía a validación de oficina. Todavía no pasa a facturación.</p>
+    <p className="large-note">{publicDemoEnabled?'El cierre técnico bloquea la intervención y entrega el parte para revisión. Todavía no pasa a facturación.':'El cierre técnico bloquea la intervención y la envía a validación de oficina. Todavía no pasa a facturación.'}</p>
     {pending.length > 0 && <p className="form-error">Resuelve {pending.length} concepto(s) previsto(s) antes de finalizar.</p>}
     {pendingChecks > 0 && <p className="form-error">Resuelve {pendingChecks} check(s) pendiente(s) antes de cerrar el parte.</p>}
     <div className="finalize-grid">
@@ -1444,7 +1444,7 @@ function TechnicianWorkPage() {
   return <section className="page technician-page technician-workstation technician-work-mobile technician-industrial">
     <BackButton />{typeof checkCompletionNotice==='string'&&<p className="state-warning" role="status">{checkCompletionNotice}</p>}
     <div className="technician-workstation-head"><div><p className="eyebrow technician-order-code"><Wrench size={14} aria-hidden="true" /> {data.code}</p><h2>{data.clients?.legal_name ?? 'Cliente no informado'}</h2><p>{data.sites?.name ?? 'Centro no informado'}</p><p className="technician-work-title">{data.title}</p></div><Badge tone={severityForStatus(data.status)}>{displayStatus(data.status)}</Badge></div>
-    <div className="technician-operation-strip"><span><ClipboardCheck size={15} aria-hidden="true" />Checks <strong>{progress.checks.done}/{progress.checks.total}</strong></span><span><FileUp size={15} aria-hidden="true" />Fotos <strong>{progress.photos}</strong></span><span className="technician-local-indicator" role="status">{unsavedWork ? 'Texto sin guardar' : data._finishPending ? 'Cierre pendiente' : 'Copia local'}</span></div>
+    <div className="technician-operation-strip"><span><ClipboardCheck size={15} aria-hidden="true" />Checks <strong>{progress.checks.done}/{progress.checks.total}</strong></span><span><FileUp size={15} aria-hidden="true" />{publicDemoEnabled?'Fotos del parte':'Fotos'} <strong>{progress.photos}</strong></span><span className="technician-local-indicator" role="status">{unsavedWork ? 'Texto sin guardar' : data._finishPending ? 'Cierre pendiente' : 'Copia local'}</span></div>
     {message && <p className="success-note" role="status">{message}</p>}{actionError && <p className="form-error" role="alert">{actionError}</p>}
     <TechnicianWorkTabs staged active={activeTab} onChange={changeWorkTab} panels={[
       { id: 'work', label: 'Intervención', detail: 'Aviso y equipo', icon: <Wrench size={20} aria-hidden="true" />, content: <>
@@ -1617,7 +1617,7 @@ function WorkOrderSignatureForm({ workOrderId }: { workOrderId: string }) {
     busy.current = true; setSaving(true); setMessage('');
     try {
       await technicianOfflineService.upsert({ type: 'signature', workOrderId, payload: { localChangeId: crypto.randomUUID(), dataUrl: canvas.toDataURL('image/png'), signerName, signerDocument, signerRole: 'Cliente', acceptedTerms: accepted } });
-      setMessage('Firma guardada en dispositivo. Pendiente de sincronizar.');
+      setMessage(publicDemoEnabled?'Firma guardada. Consulta al pie del parte el estado del envío.':'Firma guardada en dispositivo. Pendiente de sincronizar.');
     } catch (error) { setMessage(error instanceof Error ? error.message : 'No se ha podido guardar la firma. Inténtalo de nuevo.'); }
     finally { busy.current = false; setSaving(false); }
   };

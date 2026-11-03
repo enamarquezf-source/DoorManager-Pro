@@ -108,3 +108,13 @@ body:has(.public-demo-app)>.mini-modal,body:has(.public-demo-app)>.overlay{z-ind
  .demo-guide-mini>button>div{min-width:0;line-height:1.4}
  .demo-guide-mini>button>span{flex-shrink:0}
 }
+
+.demo-purchase-preview{padding:12px;border:1px solid #c8ded1;background:#f0f7f3;border-radius:12px;margin:12px 0}.demo-purchase-preview>div{display:grid;gap:4px;padding:9px 0;border-bottom:1px solid #d6e7dd}.demo-purchase-preview small,.demo-purchase-preview p{font-size:12px;line-height:1.5;color:#496660}.demo-purchase-preview p{margin:9px 0 0}
+
+@media(max-width:540px){
+ .public-demo-app .topbar{background:var(--color-surface,#fff)}
+ .public-demo-app .topbar .top-title{flex:1 1 0;min-width:0}
+ .public-demo-app .topbar .top-title h1{font-size:16px;line-height:1.25;overflow-wrap:normal;word-break:normal}
+ .public-demo-app .topbar .mobile-session-actions{flex:0 0 auto;gap:6px}
+ .public-demo-app .topbar .mobile-session-actions button:last-child{font-size:0;width:42px;min-width:42px;padding:0;justify-content:center}
+}

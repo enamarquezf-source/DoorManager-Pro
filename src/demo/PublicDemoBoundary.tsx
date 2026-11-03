@@ -43,7 +43,7 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
   const [evidence,setEvidence]=useState<Record<string,MissionEvidence>>(()=>readEvidence(evidenceKey));
   useEffect(()=>setEvidence(readEvidence(evidenceKey)),[evidenceKey]);
   const [completion,setCompletion]=useState<Record<string,number>>({});
-  const steps = demoTourSteps(guidedWork?{...session,work_order_id:guidedWork}:session,tour); const index = Math.min(progress.step, steps.length - 1); const originalStep = steps[index]; const baseStep=originalStep.title==='Registra la factura del proveedor'?{...originalStep,route:demoPurchaseInvoiceRoute(session.company_id)}:originalStep; const step=completion.work_checks===0&&baseStep.goal==='photos'?{...baseStep,text:'Abre Fotos de la intervención y añade una imagen ficticia del trabajo. Este parte no tiene checks de equipo; la foto puede quedar vinculada al propio parte. Guarda y envía los cambios.',route:baseStep.route.replace('vista=checks','vista=work'),target:'.component-photo'}:baseStep;
+  const steps = demoTourSteps(guidedWork?{...session,work_order_id:guidedWork}:session,tour).map(mission=>mission.title==='Registra la factura del proveedor'?{...mission,route:demoPurchaseInvoiceRoute(session.company_id)}:mission); const index = Math.min(progress.step, steps.length - 1); const baseStep = steps[index]; const step=completion.work_checks===0&&baseStep.goal==='photos'?{...baseStep,text:'Abre Fotos de la intervención y añade una imagen ficticia del trabajo. Este parte no tiene checks de equipo; la foto puede quedar vinculada al propio parte. Guarda y envía los cambios.',route:baseStep.route.replace('vista=checks','vista=work'),target:'.component-photo'}:baseStep;
   useEffect(()=>{
     if(!progress.open || !roleSwitchAvailable) return;
     let active=true; let pending=false;
@@ -75,8 +75,9 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
     target.scrollIntoView({behavior:'smooth',block:'center'});if(target.matches('input,textarea,select'))target.focus();return true;
   };
   useEffect(()=>{if(!launchTask||!progress.open)return;if(launchMission.current!==tour+':'+index){setLaunchTask(false);return;}let observer:MutationObserver|undefined;const open=()=>{if(!launchTarget())return false;setLaunchTask(false);return true;};if(open())return;observer=new MutationObserver(()=>{if(open())observer?.disconnect();});observer.observe(document.body,{childList:true,subtree:true});const stop=setTimeout(()=>setLaunchTask(false),8000);return()=>{observer?.disconnect();clearTimeout(stop);};},[launchTask,location.pathname,location.search,index,tour,progress.open]);
+  useEffect(()=>{if(!progress.open)return;const editing=(event:Event)=>{const target=event.target;if(target instanceof Element&&target.matches('input,select,textarea,canvas')&&target.closest('main')&&!target.closest('.demo-guide')){setExpanded(false);if(window.innerWidth<=540)setMinimized(true);}};document.addEventListener('focusin',editing);return()=>document.removeEventListener('focusin',editing);},[progress.open]);
   if (!progress.open) return null;
-  const go = (next: number) => { setProgress({ step: next, open: true }); if(!steps[next].requiredRole||steps[next].requiredRole===session.role)navigate(steps[next].route); };
+  const go = (next: number) => { setExpanded(false);setMinimized(false);setProgress({ step: next, open: true }); if(!steps[next].requiredRole||steps[next].requiredRole===session.role)navigate(steps[next].route); };
   const showTask = () => {
     const here=isDemoTaskSurface(step,location.pathname+location.search);
     if(here&&launchTarget())return;

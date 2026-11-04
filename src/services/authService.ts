@@ -19,7 +19,25 @@ export const authService = {
     }
   },
   onAuthStateChange(callback: Parameters<typeof supabase.auth.onAuthStateChange>[0]) {
-    return supabase.auth.onAuthStateChange(callback);
+    // Supabase awaits subscribers while holding its auth lock. Profile loading
+    // calls getUser(), so it must start in a later task, after that lock releases.
+    let active = true;
+    const tasks = new Set<ReturnType<typeof setTimeout>>();
+    const result = supabase.auth.onAuthStateChange((event, session) => {
+      const task = setTimeout(() => {
+        tasks.delete(task);
+        if (active) void Promise.resolve().then(() => callback(event, session)).catch(() => {
+          console.error('[DMP] No se ha podido procesar el cambio de sesión.');
+        });
+      }, 0);
+      tasks.add(task);
+    });
+    return { data: { subscription: { ...result.data.subscription, unsubscribe() {
+      active = false;
+      for (const task of tasks) clearTimeout(task);
+      tasks.clear();
+      result.data.subscription.unsubscribe();
+    } } } };
   },
   signIn(email: string, password: string) {
     return supabase.auth.signInWithPassword({ email, password });

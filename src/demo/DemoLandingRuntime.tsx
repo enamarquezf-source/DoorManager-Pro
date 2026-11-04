@@ -10,9 +10,12 @@ const loadServices = () => Promise.all([import('./service'), import('../lib/supa
 export default function DemoLandingRuntime() {
   const [Application, setApplication] = useState<ComponentType | null>(null);
   const checkReady = useCallback(async () => {
-    const [{ publicDemoService }, { supabase }] = await loadServices();
-    const { data, error } = await supabase.auth.getSession();
-    if (!error && data.session) {
+    const [{ publicDemoService }, { authStorageKey }] = await loadServices();
+    // A saved token only chooses the restoration screen. AuthProvider still
+    // validates it and the profile before allowing any protected route.
+    let hasSavedSession = false;
+    try { hasSavedSession = Boolean(localStorage.getItem(authStorageKey)); } catch { /* Continue with the public entry. */ }
+    if (hasSavedSession) {
       const runtime = await loadApplication();
       setApplication(() => runtime.default);
       return false;

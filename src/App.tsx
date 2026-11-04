@@ -81,6 +81,7 @@ import { canAccessModule, canAccessRoute, canArchiveEntity, canAssignTechnician,
 import { WarrantyBillingDecisionPanel } from './components/WarrantyBillingDecisionPanel';
 import { EconomicReviewPanel } from './components/EconomicReviewPanel';
 import { loadInitialAuthSnapshot, loginAuthState, protectedAuthState } from './auth/sessionBootstrap';
+import { AuthRestorationScreen } from './auth/AuthRestorationScreen';
 import { displayOfficeValidationStatus, displayStatus, formatDate, fullName, initials, nextWorkOrderStatus, previousWorkOrderStatus, severityForPriority, severityForStatus, visibleLabel, workOrderStatuses, workspaceTitles, workspaceToRole } from './shared/labels';
 import { userFacingErrorMessage } from './shared/errorMessages';
 import { checkTabFromParams, deficiencyFiltersFromParams, isOpenDeficiencyStatus, normalizeParam } from './shared/filters';
@@ -181,7 +182,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = async () => {
     const requestId = ++authRequestId.current;
-    const snapshot = await loadInitialAuthSnapshot(() => authService.getSession(), async () => { const session = (await authService.getSession()).data.session; if (!session) throw new Error('No hay sesión activa.'); return resolveOfflineProfile(session.user.id, () => profilesService.getCurrentProfile()); });
+    const snapshot = await loadInitialAuthSnapshot(() => authService.getSession(), (session) => resolveOfflineProfile(session.user.id, () => profilesService.getCurrentProfile()));
     if (requestId !== authRequestId.current) return;
     authIdentity.current = snapshot.session?.user?.id ?? null;
     setSession(snapshot.session);
@@ -254,7 +255,7 @@ function useAuth() { const value = useContext(AuthContext); if (!value) throw ne
 function WorkOrderRoutePage() { const { workspace } = useAuth(); return workspace === 'tecnico' ? <TechnicianWorkPage /> : <WorkOrderDetailPageV2 />; }
 
 function AuthLoadingScreen() {
-  return <main className="page"><Card title="Restaurando sesión"><p className="large-note">Comprobando la sesión activa antes de abrir la ruta solicitada.</p></Card></main>;
+  return <AuthRestorationScreen />;
 }
 
 type AppErrorBoundaryProps = { scope: string; children: ReactNode; route?: string; homeRoute?: string; onSignOut?: () => Promise<void> | void };

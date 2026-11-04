@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { canAccessRoute } from './permissions';
 import { loadInitialAuthSnapshot, loginAuthState, protectedAuthState, type AuthSnapshot } from './sessionBootstrap';
 import type { Profile } from '../shared/types';
@@ -13,6 +13,14 @@ const session = { access_token: 'token' } as any;
 const satProfile = { id: 'sat-profile', company_id: 'company-id', auth_user_id: 'auth-id', first_name: 'SAT', last_name: 'User', email: 'sat@test.local', phone: null, primary_area: null, active: true, roles: ['SAT'] } as any as Profile;
 
 describe('auth session bootstrap', () => {
+  it('reutiliza la sesión inicial al cargar el perfil sin otra consulta de autenticación', async () => {
+    const getSession = vi.fn(async () => ({ data: { session } }));
+    const getProfile = vi.fn(async () => satProfile);
+    const snapshot = await loadInitialAuthSnapshot(getSession, getProfile);
+    expect(getSession).toHaveBeenCalledOnce();
+    expect(getProfile).toHaveBeenCalledExactlyOnceWith(session);
+    expect(protectedAuthState(snapshot)).toBe('ready');
+  });
   it('mantiene /app/partes durante getSession asincrono y permite la ruta al finalizar', async () => {
     const pendingSession = deferred<{ data: { session: any } }>();
     const loading: AuthSnapshot = { initialized: false, session: null, profile: null, profileError: null };

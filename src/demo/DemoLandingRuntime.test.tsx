@@ -10,7 +10,7 @@ const calls = vi.hoisted(() => ({
   start: vi.fn(async (role: string) => ({ id: 'landing-visitor', role })),
 }));
 vi.mock('./service', () => ({ publicDemoService: calls }));
-vi.mock('../lib/supabase/client', () => ({ supabase: { auth: { getSession: calls.getSession } } }));
+vi.mock('../lib/supabase/client', () => ({ authStorageKey: 'test-auth', supabase: { auth: { getSession: calls.getSession } } }));
 vi.mock('../ApplicationRuntime', () => {
   calls.application();
   return { default: () => <main>Aplicación completa</main> };
@@ -44,12 +44,13 @@ it('shows roles before importing the application and retains the selection after
 
 it('resumes an existing session without creating a new visitor', async () => {
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-  calls.getSession.mockResolvedValueOnce({ data: { session: { access_token: 'test-only' } }, error: null });
+  localStorage.setItem('test-auth', 'stored-session-awaiting-validation');
   const starts = calls.start.mock.calls.length;
   const host = document.createElement('div'); const root = createRoot(host);
   try {
     await act(async () => { root.render(<DemoLandingRuntime />); await new Promise(resolve => setTimeout(resolve, 0)); });
     expect(host.textContent).toBe('Aplicación completa');
     expect(calls.start.mock.calls.length).toBe(starts);
+    expect(calls.getSession).not.toHaveBeenCalled();
   } finally { await act(async () => root.unmount()); }
 });

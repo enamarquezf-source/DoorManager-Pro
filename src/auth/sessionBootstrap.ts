@@ -8,11 +8,11 @@ export type AuthSnapshot = {
   profileError: string | null;
 };
 
-export async function loadInitialAuthSnapshot(getSession: () => Promise<{ data: { session: Session | null } }>, getProfile: () => Promise<Profile>): Promise<AuthSnapshot> {
+export async function loadInitialAuthSnapshot(getSession: () => Promise<{ data: { session: Session | null } }>, getProfile: (session: Session) => Promise<Profile>): Promise<AuthSnapshot> {
   const session = (await getSession()).data.session;
   if (!session) return { initialized: true, session: null, profile: null, profileError: null };
   try {
-    const profile = await getProfile();
+    const profile = await getProfile(session);
     return { initialized: true, session, profile, profileError: null };
   } catch {
     return { initialized: true, session, profile: null, profileError: 'La sesión existe, pero no hay perfil activo enlazado a este usuario Auth.' };

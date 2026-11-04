@@ -1,5 +1,5 @@
 import { offlineWorkerSource } from './src/offline/workerSource';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -38,8 +38,23 @@ function buildInfoPlugin() {
   };
 }
 
-export default defineConfig({
-  plugins: [react(), buildInfoPlugin(), offlineShellPlugin()],
+function demoMetadataPlugin(enabled: boolean) {
+  return {
+    name: 'dmp-demo-metadata',
+    transformIndexHtml() {
+      if (enabled) return [{ tag: 'meta', attrs: { name: 'description', content: 'Prueba DoorManager Pro sin registro: clientes, partes, checks, mantenimiento, compras y gestión económica, con datos ficticios y una guía paso a paso.' }, injectTo: 'head' as const }];
+    },
+    generateBundle() {
+      if (enabled) this.emitFile({ type: 'asset', fileName: 'robots.txt', source: 'User-agent: *\nAllow: /\nDisallow: /app\nDisallow: /actualizar\n' });
+    },
+  };
+}
+
+export default defineConfig(({ mode }) => {
+  const environment = loadEnv(mode, process.cwd(), 'VITE_');
+  const demo = (process.env.VITE_SUPABASE_URL ?? environment.VITE_SUPABASE_URL)?.replace(/\/$/, '') === 'https://xlhzyhotzfflemjnqvqn.supabase.co';
+  return {
+  plugins: [react(), buildInfoPlugin(), demoMetadataPlugin(demo), offlineShellPlugin()],
   build: {
     rollupOptions: {
       output: {
@@ -56,4 +71,5 @@ export default defineConfig({
     __DMP_BUILD_COMMIT__: JSON.stringify(buildCommit),
     __DMP_BUILD_TIME__: JSON.stringify(buildTime),
   },
+};
 });

@@ -1,5 +1,7 @@
 import { boundedFetch } from '../../shared/boundedFetch';
 import { createClient } from '@supabase/supabase-js';
+import { createAuthStorage } from '../../auth/authStorage';
+import { publicDemoEnabled } from '../../demo/model';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || (import.meta.env.VITEST ? 'https://test.supabase.co' : '');
 const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || (import.meta.env.VITEST ? 'test-publishable-key' : '');
@@ -15,4 +17,5 @@ if (import.meta.env.DEV && !import.meta.env.VITEST && (!supabaseUrl || !supabase
 }
 
 export const authStorageKey = `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token`;
-export const supabase = createClient(supabaseUrl, supabasePublishableKey, { auth: { storageKey: authStorageKey }, global: { fetch: boundedFetch } });
+export const authStorage = createAuthStorage(publicDemoEnabled, authStorageKey);
+export const supabase = createClient(supabaseUrl, supabasePublishableKey, { auth: { storageKey: authStorageKey, storage: authStorage }, global: { fetch: boundedFetch } });

@@ -30,6 +30,10 @@ export function homeRouteForWorkspace(workspace: Workspace) {
   return '/app/inicio';
 }
 
+export function restoredEntryRoute(path: string, workspace: Workspace) {
+  return path === '/app' || path === '/app/' ? homeRouteForWorkspace(workspace) : null;
+}
+
 export function entityRoute(workspace: Workspace, entity: 'clientes' | 'centros' | 'equipos' | 'partes' | 'checks', id: string) {
   const prefix = workspace === 'superadmin' ? '/app/superadmin' : '/app';
   return `${prefix}/${entity}/${id}`;

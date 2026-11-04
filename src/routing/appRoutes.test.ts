@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { entityRoute, homeRouteForWorkspace, matchesRouteOrChild, parseManualRoute, superadminSharedRoutes } from './appRoutes';
+import { entityRoute, homeRouteForWorkspace, restoredEntryRoute, matchesRouteOrChild, parseManualRoute, superadminSharedRoutes } from './appRoutes';
 
 describe('canonical app routes', () => {
+  it('opens the validated workspace for bare app bookmarks without redirecting details', () => {
+    expect(restoredEntryRoute('/app', 'sat')).toBe('/app/inicio');
+    expect(restoredEntryRoute('/app/', 'tecnico')).toBe('/app/tecnico');
+    expect(restoredEntryRoute('/app', 'superadmin')).toBe('/app/superadmin');
+    expect(restoredEntryRoute('/app/partes/work-1', 'sat')).toBeNull();
+    expect(restoredEntryRoute('/app/modulos/tesoreria', 'sat')).toBeNull();
+  });
   it('resolves each workspace home without an intermediate redirect', () => {
     expect(homeRouteForWorkspace('superadmin')).toBe('/app/superadmin');
     expect(homeRouteForWorkspace('tecnico')).toBe('/app/tecnico');

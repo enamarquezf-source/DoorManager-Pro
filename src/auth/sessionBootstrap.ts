@@ -1,5 +1,6 @@
 import type { Session } from '@supabase/supabase-js';
 import type { Profile } from '../shared/types';
+import { profileRecoveryMessage, verifyProfile } from './profileRecovery';
 
 export type AuthSnapshot = {
   initialized: boolean;
@@ -12,10 +13,10 @@ export async function loadInitialAuthSnapshot(getSession: () => Promise<{ data: 
   const session = (await getSession()).data.session;
   if (!session) return { initialized: true, session: null, profile: null, profileError: null };
   try {
-    const profile = await getProfile(session);
+    const profile = await verifyProfile(() => getProfile(session));
     return { initialized: true, session, profile, profileError: null };
-  } catch {
-    return { initialized: true, session, profile: null, profileError: 'La sesión existe, pero no hay perfil activo enlazado a este usuario Auth.' };
+  } catch (error) {
+    return { initialized: true, session, profile: null, profileError: profileRecoveryMessage(error) };
   }
 }
 

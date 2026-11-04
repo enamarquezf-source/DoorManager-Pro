@@ -1,9 +1,10 @@
 import type { Session } from '@supabase/supabase-js';
-import { supabase, authStorageKey } from '../lib/supabase/client';
+import { supabase, authStorageKey, authStorage } from '../lib/supabase/client';
 import { isConnectionFailure } from '../shared/connectionFailure';
+import { publicDemoEnabled } from '../demo/model';
 
 function storedSession() {
-  try { const session = JSON.parse(localStorage.getItem(authStorageKey) ?? 'null'); return { data: { session: session?.user?.id ? session as Session : null }, error: null }; }
+  try { const session = JSON.parse(authStorage.getItem(authStorageKey) ?? 'null'); return { data: { session: session?.user?.id ? session as Session : null }, error: null }; }
   catch { return { data: { session: null }, error: null }; }
 }
 
@@ -24,6 +25,9 @@ export const authService = {
     let active = true;
     const tasks = new Set<ReturnType<typeof setTimeout>>();
     const result = supabase.auth.onAuthStateChange((event, session) => {
+      // Pro uses tab-scoped credentials. Ignore auth broadcasts from another
+      // tab/account; they must not replace this tab's validated identity.
+      if (!publicDemoEnabled && (storedSession().data.session?.user?.id ?? null) !== (session?.user?.id ?? null)) return;
       const task = setTimeout(() => {
         tasks.delete(task);
         if (active) void Promise.resolve().then(() => callback(event, session)).catch(() => {

@@ -82,6 +82,9 @@ import { WarrantyBillingDecisionPanel } from './components/WarrantyBillingDecisi
 import { EconomicReviewPanel } from './components/EconomicReviewPanel';
 import { loadInitialAuthSnapshot, loginAuthState, protectedAuthState } from './auth/sessionBootstrap';
 import { AuthRestorationScreen } from './auth/AuthRestorationScreen';
+import { AccessRecovery } from './auth/AccessRecovery';
+import { AccessDeniedScreen } from './auth/AccessDeniedScreen';
+import { profileRecoveryMessage, verifyProfile } from './auth/profileRecovery';
 import { displayOfficeValidationStatus, displayStatus, formatDate, fullName, initials, nextWorkOrderStatus, previousWorkOrderStatus, severityForPriority, severityForStatus, visibleLabel, workOrderStatuses, workspaceTitles, workspaceToRole } from './shared/labels';
 import { userFacingErrorMessage } from './shared/errorMessages';
 import { checkTabFromParams, deficiencyFiltersFromParams, isOpenDeficiencyStatus, normalizeParam } from './shared/filters';
@@ -104,7 +107,7 @@ import { useEquipmentTypes, useManagedCheckTemplates, useMaterialsCatalog, useOf
 import { queryClient } from './query/queryClient';
 import { queryKeys } from './query/queryKeys';
 import { useLoad } from './query/useLoad';
-import { homeRouteForWorkspace, matchesRouteOrChild, parseManualRoute, superadminSharedRoutes } from './routing/appRoutes';
+import { homeRouteForWorkspace, restoredEntryRoute, matchesRouteOrChild, parseManualRoute, superadminSharedRoutes } from './routing/appRoutes';
 import { alertRouteFallbackReason, isSupportedAlertRoute, routeForAlert } from './routing/alertRoutes';
 import { moduleRegistry } from './routing/moduleCatalog';
 import type { Profile, RoleName, Severity, Workspace } from './shared/types';
@@ -204,19 +207,19 @@ function AuthProvider({ children }: { children: ReactNode }) {
       if (!mounted) return;
       if (_event === 'INITIAL_SESSION') return;
       const requestId = ++authRequestId.current;
-      if ((nextSession?.user?.id ?? null) !== authIdentity.current) { applyProfile(null); authIdentity.current = nextSession?.user?.id ?? null; }
+      if ((nextSession?.user?.id ?? null) !== authIdentity.current) { setInitialized(false); applyProfile(null); authIdentity.current = nextSession?.user?.id ?? null; }
       setSession(nextSession);
       if (!nextSession) { clearOfflineProfile(); applyProfile(null); setProfileError(null); setInitialized(true); return; }
       try {
-        const nextProfile = await resolveOfflineProfile(nextSession.user.id, () => profilesService.getCurrentProfile());
+        const nextProfile = await verifyProfile(() => resolveOfflineProfile(nextSession.user.id, () => profilesService.getCurrentProfile()));
         if (!mounted || requestId !== authRequestId.current) return;
         setProfileError(null);
         applyProfile(nextProfile);
         setInitialized(true);
-      } catch {
+      } catch (error) {
         if (!mounted || requestId !== authRequestId.current) return;
         applyProfile(null);
-        setProfileError('La sesión existe, pero no hay perfil activo enlazado a este usuario.');
+        setProfileError(profileRecoveryMessage(error));
         setInitialized(true);
       }
     });
@@ -225,16 +228,18 @@ function AuthProvider({ children }: { children: ReactNode }) {
       const requestId = ++authRequestId.current;
       try {
         if (!connectionAvailable() || !authIdentity.current) return;
-        const nextProfile = await resolveOfflineProfile(authIdentity.current, () => profilesService.getCurrentProfile());
+        const nextProfile = await verifyProfile(() => resolveOfflineProfile(authIdentity.current!, () => profilesService.getCurrentProfile()));
         if (!mounted || requestId !== authRequestId.current) return;
         setProfileError(null);
         applyProfile(nextProfile);
+        setInitialized(true);
       } catch (error) {
         if (!mounted || requestId !== authRequestId.current) return;
         const message = error instanceof Error ? error.message : '';
         if (/No hay sesión activa|No hay un perfil enlazado|Usuario desactivado/.test(message)) {
           applyProfile(null);
-          setProfileError('La sesión existe, pero no hay perfil activo enlazado a este usuario.');
+          setProfileError(profileRecoveryMessage(error));
+          setInitialized(true);
           return;
         }
         console.error('[DMP access refresh failed]', error);
@@ -344,7 +349,7 @@ function DemoProtectedLayout() {
 }
 
 function ProtectedLayout() {
-  const { initialized, session, profile, profileError, workspace, setWorkspace, signOut } = useAuth();
+  const { initialized, session, profile, profileError, workspace, setWorkspace, signOut, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(() => window.innerWidth <= 760 || localStorage.getItem(sidebarKey) === 'true');
@@ -389,9 +394,10 @@ function ProtectedLayout() {
   const authState = protectedAuthState({ initialized, session, profile, profileError });
   if (authState === 'loading') return <AuthLoadingScreen />;
   if (authState === 'redirect-login') return <Navigate to="/" replace />;
-  if (authState === 'profile-error') return <main className="page"><Card title="Perfil no enlazado"><p className="form-error">{profileError ?? 'La sesión existe, pero no hay perfil activo enlazado a este usuario.'}</p><button className="primary" onClick={() => signOut()}>Cerrar sesión</button></Card></main>;
-  if (!profile) return <main className="page"><Card title="Perfil no enlazado"><p className="form-error">La sesión existe, pero no hay perfil activo enlazado a este usuario.</p><button className="primary" onClick={() => signOut()}>Cerrar sesión</button></Card></main>;
-  if (!allowedWorkspaces.length) return <main className="page"><Card title="Perfil sin rol válido"><p className="form-error">Tu perfil no tiene un rol válido. Contacta con el administrador.</p><button className="primary" onClick={() => signOut()}>Cerrar sesión</button></Card></main>;
+  if (authState === 'profile-error' || !profile) return <main className="page"><Card title="No hemos podido verificar tu acceso"><p className="form-error">{profileError ?? 'No se ha podido cargar el perfil de esta sesión.'}</p><div className="actions"><AccessRecovery retry={refreshProfile} /><button onClick={() => signOut()}>Cerrar sesión</button></div></Card></main>;
+  if (!allowedWorkspaces.length) return <main className="page"><Card title="Perfil sin rol válido"><p className="form-error">Tu perfil no tiene un rol válido. Contacta con el administrador si el problema continúa.</p><div className="actions"><AccessRecovery retry={refreshProfile} /><button onClick={() => signOut()}>Cerrar sesión</button></div></Card></main>;
+  const entryHome = restoredEntryRoute(location.pathname, allowedWorkspaces.includes(workspace) ? workspace : allowedWorkspaces[0]);
+  if (entryHome && canAccessRoute(profile, entryHome)) return <Navigate to={entryHome} replace />;
    if (isSuperadmin(profile) && !matchesRouteOrChild(location.pathname, '/app/superadmin') && !superadminSharedRoutes.some((route) => matchesRouteOrChild(location.pathname, route))) return <Navigate to="/app/superadmin" replace />;
   if (!canAccessRoute(profile, location.pathname)) return <main><AccessDeniedZone /></main>;
 
@@ -1304,7 +1310,11 @@ function MediaGallery({ photos, signatures }: { photos: any[]; signatures: any[]
   return <div className="grid half"><Card title={`Fotos (${photos.length})`}><div className="media-grid">{photos.map((photo) => photo.signed_url ? <a key={photo.id} href={photo.signed_url} target="_blank" rel="noreferrer"><img src={photo.signed_url} alt={photo.description ?? photo.files?.name ?? 'Foto del parte'} /><strong>{photo.description ?? photo.files?.name ?? 'Foto del parte'}</strong><small>{formatDate(photo.taken_at ?? photo.created_at)} · {fullName(photo.profiles) || 'Autor no informado'}</small></a> : <article key={photo.id} className="media-error"><strong>{photo.description ?? photo.files?.name ?? 'Foto del parte'}</strong><p className="form-error">{photo.file_error ?? 'No se ha podido cargar el archivo'}</p></article>)}{!photos.length && <p className="large-note">Sin fotos sincronizadas.</p>}</div></Card><Card title={`Firmas (${signatures.length})`}><div className="media-grid">{signatures.map((signature) => signature.signed_url ? <a key={signature.id} href={signature.signed_url} target="_blank" rel="noreferrer"><img src={signature.signed_url} alt={`Firma de ${signature.signer_name}`} /><strong>{signature.signer_name}</strong><small>{signature.signer_role ?? 'Rol no informado'} · {maskDocument(signature.signer_document)} · {formatDate(signature.signed_at)}</small><small>{signature.accepted_terms ? 'Aceptación registrada' : 'Aceptación no registrada'}</small></a> : <article key={signature.id} className="media-error"><strong>{signature.signer_name ?? 'Firma'}</strong><p className="form-error">{signature.file_error ?? 'No se ha podido cargar el archivo'}</p></article>)}{!signatures.length && <p className="large-note">Sin firmas sincronizadas.</p>}</div></Card></div>;
 }
 function AccessDenied() { return <section className="page"><Card title="Sin permiso"><p className="form-error">No tienes permiso para acceder a este trabajo</p><Link className="primary" to="/app/tecnico">Volver a Mi jornada</Link></Card></section>; }
-function AccessDeniedZone() { const { workspace, signOut } = useAuth(); const home = homeForWorkspace(workspace); return <section className="page"><Card title="No tienes permiso para acceder a esta zona"><p className="form-error">No tienes permiso para acceder a esta zona</p><div className="actions"><Link className="primary" to={home}>{workspace === 'tecnico' ? 'Volver a Mi jornada' : workspace === 'superadmin' ? 'Volver a Superadmin' : 'Volver al inicio'}</Link><button onClick={() => signOut()}>Cerrar sesión</button></div></Card></section>; }
+function AccessDeniedZone() {
+  const { workspace, signOut, refreshProfile } = useAuth();
+  const location = useLocation();
+  return <AccessDeniedScreen key={location.pathname} retry={refreshProfile} signOut={signOut} home={homeForWorkspace(workspace)} homeLabel={workspace === 'tecnico' ? 'Volver a Mi jornada' : workspace === 'superadmin' ? 'Volver a Superadmin' : 'Volver al inicio'} />;
+}
 
 function remoteLocalChangeIds(check: any) {
   return [...(check?.check_section_results ?? []), ...(check?.check_item_results ?? []), ...(check?.check_photos ?? []), ...(check?.deficiencies ?? [])]

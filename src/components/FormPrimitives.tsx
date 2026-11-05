@@ -7,7 +7,7 @@ export function FormSection({ title, description, children, className = '' }: { 
   return <section className={`form-section ${className}`.trim()}>{(title || description) && <header>{title && <h3>{title}</h3>}{description && <p>{description}</p>}</header>}{children}</section>;
 }
 
-export function useDialogFocus<T extends HTMLElement = HTMLElement>(onClose: () => void, canClose = true) {
+export function useDialogFocus<T extends HTMLElement = HTMLElement>(onClose: () => void, canClose = true, startAtTop = false) {
   const panelRef = useRef<T>(null);
   const closeRef = useRef(onClose);
   const canCloseRef = useRef(canClose);
@@ -17,8 +17,13 @@ export function useDialogFocus<T extends HTMLElement = HTMLElement>(onClose: () 
     const opener = document.activeElement as HTMLElement | null;
     const panel = panelRef.current;
     const focusables = () => Array.from(panel?.querySelectorAll<HTMLElement>('input:not([type="hidden"]), select, textarea, button, a[href], [tabindex]:not([tabindex="-1"])') ?? []).filter((item) => !item.matches(':disabled') && !item.closest('[hidden], [inert], [aria-hidden="true"]') && item.getClientRects().length > 0);
-    const initial = focusables();
-    (initial.find((item) => item.matches('input, select, textarea') && !item.hasAttribute('readonly')) ?? initial[0] ?? panel)?.focus();
+    if (startAtTop && panel) {
+      panel.scrollTop = 0;
+      panel.focus({ preventScroll: true });
+    } else {
+      const initial = focusables();
+      (initial.find((item) => item.matches('input, select, textarea') && !item.hasAttribute('readonly')) ?? initial[0] ?? panel)?.focus();
+    }
     const onKey = (event: KeyboardEvent) => {
       const dialogs = document.querySelectorAll('[role="dialog"]');
       if (panel?.closest('[role="dialog"]') !== dialogs[dialogs.length - 1]) return;
@@ -27,19 +32,19 @@ export function useDialogFocus<T extends HTMLElement = HTMLElement>(onClose: () 
       const items = focusables();
       if (!items.length) { event.preventDefault(); return; }
       const first = items[0]; const last = items[items.length - 1];
-      if (!panel?.contains(document.activeElement)) { event.preventDefault(); (event.shiftKey ? last : first).focus(); }
+      if (document.activeElement === panel || !panel?.contains(document.activeElement)) { event.preventDefault(); (event.shiftKey ? last : first).focus(); }
       else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     };
     window.addEventListener('keydown', onKey);
     return () => { window.removeEventListener('keydown', onKey); if (opener?.isConnected) opener.focus(); };
-  }, []);
+  }, [startAtTop]);
   return panelRef;
 }
 
-export function ModalShell({ title, onClose, children, labelledBy, describedBy, className = '', canClose = true, closeOnBackdrop = false }: { title: ReactNode; onClose: () => void; children: ReactNode; labelledBy?: string; describedBy?: string; className?: string; canClose?: boolean; closeOnBackdrop?: boolean }) {
+export function ModalShell({ title, onClose, children, labelledBy, describedBy, className = '', canClose = true, closeOnBackdrop = false, startAtTop = false }: { title: ReactNode; onClose: () => void; children: ReactNode; labelledBy?: string; describedBy?: string; className?: string; canClose?: boolean; closeOnBackdrop?: boolean; startAtTop?: boolean }) {
   useModalScrollLock();
-  const panelRef = useDialogFocus<HTMLDivElement>(onClose, canClose);
+  const panelRef = useDialogFocus<HTMLDivElement>(onClose, canClose, startAtTop);
   const generatedId = useId().replace(/:/g, '');
   const titleId = labelledBy ?? `modal-title-${generatedId}`;
   const close = () => { if (canClose) onClose(); };

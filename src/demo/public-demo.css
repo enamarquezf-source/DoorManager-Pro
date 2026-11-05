@@ -124,6 +124,17 @@ body:has(.public-demo-app)>.mini-modal,body:has(.public-demo-app)>.overlay{z-ind
 .demo-author-credit { flex: 0 0 100%; margin: 2px 0 0; line-height: 1.55; }
 .demo-author-credit strong { color: #173f47; }
 
+@media (max-width: 760px) {
+  .public-demo-app { --demo-session-height: 0px; }
+  .public-demo-app .demo-session-bar,
+  .public-demo-app .demo-role-menu,
+  .public-demo-app .topbar {
+    position: relative;
+    top: auto;
+  }
+  .public-demo-app .demo-highlight { scroll-margin-top: 16px; }
+}
+
 .demo-intro-copy > .demo-mobile-intro { display: none; }
 
 @media (max-width: 540px) {

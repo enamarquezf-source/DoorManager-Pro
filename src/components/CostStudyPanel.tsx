@@ -3,7 +3,7 @@ import { costStudiesService, type SavedCostStudy } from '../services/costStudies
 import { calculateCostStudy, emptyStudyInputs, emptyStudySources, validateStudyInputs, type StudyEmployeeInput, type StudyInputs, type StudySources } from '../shared/costStudy';
 import { localDateKey } from '../shared/localDate';
 import { CostStudyInsights } from './CostStudyInsights';
-import { BarChart3, Download, FolderOpen, RefreshCw, Save, SlidersHorizontal } from 'lucide-react';
+import { BarChart3, Download, FileText, FolderOpen, RefreshCw, Save, SlidersHorizontal } from 'lucide-react';
 import { automaticStudyPayroll } from '../shared/employeeHr';
 
 const money = (value: number | null) => value == null ? 'Sin dato' : value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
@@ -24,6 +24,7 @@ export function CostStudyPanel() {
   const [saved, setSaved] = useState<SavedCostStudy | null>(null);
   const [history, setHistory] = useState<StudyHeader[]>([]);
   const [busy, setBusy] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const [error, setError] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [payrollMode, setPayrollMode] = useState<'auto'|'actual'|'simulation'>('auto');
@@ -107,6 +108,20 @@ export function CostStudyPanel() {
     finally { setBusy(false); }
   }
   function reset() { setSaved(null); setInputs(emptyStudyInputs()); setSources(emptyStudySources()); setLoadedRange(''); operation.current = null; setError(''); }
+  async function exportPdf() {
+    if (!ready || busy || exportingPdf) return;
+    setExportingPdf(true);
+    setError('');
+    try {
+      const { createCostStudyPdf } = await import('../shared/costStudyPdf');
+      const pdf = await createCostStudyPdf({ title, from, to, capturedAt: sources.captured_at, saved: !!saved, report, inputs });
+      pdf.save(`DMP-estudio-${from}-${to}.pdf`);
+    } catch {
+      setError('No se ha podido descargar el informe PDF. Vuelve a intentarlo.');
+    } finally {
+      setExportingPdf(false);
+    }
+  }
   function exportCsv() {
     const cell = (value: unknown) => { const text = String(value ?? ''); return `"${(/^[=+@\-\t\r]/.test(text) ? "'" : '') + text.replaceAll('"', '""')}"`; };
     const rows: unknown[][] = [
@@ -152,7 +167,7 @@ export function CostStudyPanel() {
           <label>Presupuesto total de coste del periodo (€)<input type="number" min="0" step="0.01" value={inputs.cost_budget ?? ''} onChange={event => setInputs(previous => ({ ...previous, cost_budget: optionalNumber(event.target.value) }))} /></label><label>Notas, hipótesis y datos pendientes<textarea value={inputs.notes} onChange={event => setInputs(previous => ({ ...previous, notes: event.target.value }))} /></label>
         </fieldset>
         </details>
-        <footer className="study-footer"><small>Captura: {sources.captured_at ? new Date(sources.captured_at).toLocaleString('es-ES') : 'Sin datos'}. Al guardar se actualiza la captura.</small><div className="actions"><button type="submit" disabled={locked} className="primary"><Save size={16} /> {busy ? 'Procesando…' : 'Guardar estudio'}</button><button type="button" onClick={exportCsv} disabled={busy}><Download size={16} /> Exportar CSV</button></div></footer>
+        <footer className="study-footer"><small>Captura: {sources.captured_at ? new Date(sources.captured_at).toLocaleString('es-ES') : 'Sin datos'}. Al guardar se actualiza la captura.</small><div className="actions"><button type="submit" disabled={locked} className="primary"><Save size={16} /> {busy ? 'Procesando…' : 'Guardar estudio'}</button><button type="button" onClick={() => void exportPdf()} disabled={busy || exportingPdf}><FileText size={16} /> {exportingPdf ? 'Preparando PDF…' : 'Descargar informe PDF'}</button><button type="button" onClick={exportCsv} disabled={busy}><Download size={16} /> Exportar CSV</button></div></footer>
       </>}
     </form>
   </section>;

@@ -117,7 +117,7 @@ begin
     start_month:=(date_trunc('month',current_date)-make_interval(months=>month_number))::date;
     insert into public.employee_hr_records(id,company_id,profile_id,kind,date_from,date_to,payload,created_by)
     values(gen_random_uuid(),c,employee,'payroll',start_month,(start_month+interval '1 month'-interval '1 day')::date,
-    jsonb_build_object('mode','simulation','salary_base',1800,'supplements',200,'overtime_hours',0,'overtime_hourly_price',18,'employee_deductions',200,'employer_contributions',600,'other_employer_costs',0,'gross_amount',2000,'net_amount',1800,'employer_cost',2600,'statutory_calculation',false,'notes','Importes ficticios para estudios; no es una nómina oficial'),public.current_profile_id());
+    jsonb_build_object('mode','simulation','salary_base',1800,'supplements',200,'overtime_hours',0,'overtime_hourly_price',18,'employee_deductions',200,'employer_contributions',500,'other_employer_costs',0,'gross_amount',2000,'net_amount',1800,'employer_cost',2500,'statutory_calculation',false,'notes','Importes ficticios para estudios; no es una nómina oficial'),public.current_profile_id());
    end loop;
   end loop;
  end if;

@@ -7,6 +7,7 @@ import { applyArchiveFilter, type ArchiveFilter } from './entityLifecycleService
 import { applyDateRangeFilters, type DateRangeFilters } from '../shared/dateRange';
 import { isValidUuid } from '../shared/uuid';
 import { billingBlockers } from '../shared/guidedBillingEligibility';
+import { publicDemoEnabled } from '../demo/model';
 
 const workOrderEditableColumns = ['case_id', 'quote_id', 'client_id', 'site_id', 'main_equipment_id', 'contact_id', 'access_requirement_id', 'title', 'description', 'type', 'priority', 'origin', 'scheduled_date', 'scheduled_time', 'estimated_duration_minutes', 'planned_material', 'technical_team', 'diagnosis', 'work_performed', 'result'];
 function workOrderPayload(payload: Record<string, any>) {
@@ -193,9 +194,9 @@ export const workOrdersService = {
       throw new Error('Parte bloqueado. Motivo: usuario sin permiso o parte no disponible.');
     }
     if (!canAssignTechnicalWorkOrder(assignment.work_orders)) throw new Error(`Parte bloqueado. Motivo: ${assignment.work_orders?.status === 'Finalizado tecnicamente' ? 'Finalizado técnicamente' : assignment.work_orders?.status ?? 'no está en trabajo activo'}. Solicita su revisión a SAT.`);
-    return this.getWorkOrderFullDetail(id);
+    return this.getWorkOrderFullDetail(id, publicDemoEnabled);
   },
-  async getWorkOrderFullDetail(workOrderId: string): Promise<WorkOrderFullDetail> {
+  async getWorkOrderFullDetail(workOrderId: string, demoTechnician = false): Promise<WorkOrderFullDetail> {
     try {
       const workOrder = await expectData<any>(supabase.from('work_orders').select(`
         *,
@@ -220,7 +221,16 @@ export const workOrdersService = {
       const timeEntries = await expectStep('Detalle parte / horas', () => expectData<any[]>(supabase.from('work_order_time_entries').select('*, profiles!work_order_time_entries_profile_id_fkey(first_name,last_name,primary_area), created_by_profile:profiles!work_order_time_entries_created_by_fkey(first_name,last_name,primary_area), updated_by_profile:profiles!work_order_time_entries_updated_by_fkey(first_name,last_name,primary_area)').eq('work_order_id', workOrderId).order('work_date', { ascending: true })));
       const notes = await expectStep('Detalle parte / notas', () => expectData<any[]>(supabase.from('work_order_notes').select('*, profiles!work_order_notes_created_by_fkey(first_name,last_name)').eq('work_order_id', workOrderId).order('created_at', { ascending: true })));
       const materials = await expectStep('Detalle parte / materiales', () => expectData<any[]>(supabase.from('work_order_materials').select('*, materials!work_order_materials_material_id_fkey(*), profiles!work_order_materials_registered_by_fkey(first_name,last_name,primary_area)').eq('work_order_id', workOrderId).is('deleted_at', null).order('created_at', { ascending: true })));
-      const plannedQuoteLines = workOrder.quote_id ? await expectStep('Detalle parte / conceptos previstos', () => expectData<any[]>(supabase.from('quote_lines').select('*, materials!quote_lines_material_id_fkey(*)').eq('quote_id', workOrder.quote_id).is('deleted_at', null).order('position', { ascending: true }))) : [];
+      let plannedQuoteLines: any[] = [];
+      if (workOrder.quote_id) {
+        if (demoTechnician) {
+          const response = await supabase.rpc('dmp_demo_technician_planned_lines', { p_work_order_id: workOrderId });
+          // Keep existing parts open while the demo database migration is rolled out.
+          if (response.error?.code !== 'PGRST202') plannedQuoteLines = await expectData<any[]>(Promise.resolve(response));
+        } else {
+          plannedQuoteLines = await expectStep('Detalle parte / conceptos previstos', () => expectData<any[]>(supabase.from('quote_lines').select('*, materials!quote_lines_material_id_fkey(*)').eq('quote_id', workOrder.quote_id).is('deleted_at', null).order('position', { ascending: true })));
+        }
+      }
       const plannedQuoteLineDecisions = workOrder.quote_id ? await expectStep('Detalle parte / decisiones conceptos previstos', () => expectData<any[]>(supabase.from('work_order_quote_line_decisions').select('*').eq('work_order_id', workOrderId).is('deleted_at', null))) : [];
       const plannedMaterialLines = plannedQuoteLines.filter((line: any) => line.line_type === 'material' || line.material_id);
       const plannedMaterialDecisions = workOrder.quote_id ? await expectStep('Detalle parte / decisiones materiales previstos', () => expectData<any[]>(supabase.from('work_order_planned_material_decisions').select('*').eq('work_order_id', workOrderId).is('deleted_at', null))) : [];

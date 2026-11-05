@@ -17,7 +17,15 @@ type Progress = { step: number; open: boolean };
 type RoleContinuation = {step:number;route:string};
 function tourFor(id:string):DemoTour {try{const value=localStorage.getItem('dmp-demo-tour-choice:'+id);return value==='purchases'||value==='updates'||value==='connected'||value==='discover'?value:'work';}catch{return 'work';}}
 function progressFor(id: string): Progress {
-  try { const value = JSON.parse(localStorage.getItem(`dmp-demo-tour:${id}`) ?? 'null'); if (Number.isInteger(value?.step) && value.step >= 0 && typeof value.open === 'boolean') return value; } catch { /* Start with the guide if storage is unavailable. */ }
+  try {
+    const stored = localStorage.getItem(`dmp-demo-tour:${id}`);
+    const legacyKey = id.endsWith(':v2') && stored === null ? id.slice(0, -3) : null;
+    const value = JSON.parse(stored ?? (legacyKey ? localStorage.getItem(`dmp-demo-tour:${legacyKey}`) : null) ?? 'null');
+    if (Number.isInteger(value?.step) && value.step >= 0 && typeof value.open === 'boolean') {
+      const removedStep = legacyKey?.endsWith(':connected') ? 7 : 3;
+      return { step: legacyKey && value.step > removedStep ? value.step - 1 : value.step, open: value.open };
+    }
+  } catch { /* Start with the guide if storage is unavailable. */ }
   return { step: 0, open: true };
 }
 export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAvailable=true, tour='work', onTour }: { session: DemoSession; progress: Progress; setProgress: (value: Progress) => void; onRole: (role:DemoRole,continuation?:RoleContinuation)=>Promise<void|boolean>; roleSwitchAvailable?:boolean; tour?:DemoTour; onTour?:(tour:DemoTour)=>void }) {
@@ -44,7 +52,7 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
   const [evidence,setEvidence]=useState<Record<string,MissionEvidence>>(()=>readEvidence(evidenceKey));
   useEffect(()=>setEvidence(readEvidence(evidenceKey)),[evidenceKey]);
   const [completion,setCompletion]=useState<Record<string,number>>({});
-  const steps = demoTourSteps(guidedWork?{...session,work_order_id:guidedWork}:session,tour).map(mission=>mission.title==='Registra la factura del proveedor'?{...mission,route:demoPurchaseInvoiceRoute(session.company_id)}:mission); const index = Math.min(progress.step, steps.length - 1); const baseStep = steps[index]; const step=completion.work_checks===0&&baseStep.goal==='photos'?{...baseStep,text:'Abre Fotos de la intervención y añade una imagen ficticia del trabajo. Este parte no tiene checks de equipo; la foto puede quedar vinculada al propio parte. Guarda y envía los cambios.',route:baseStep.route.replace('vista=checks','vista=work'),target:'.component-photo'}:baseStep;
+  const steps = demoTourSteps(guidedWork?{...session,work_order_id:guidedWork}:session,tour).map(mission=>mission.title==='Registra la factura del proveedor'?{...mission,route:demoPurchaseInvoiceRoute(session.company_id)}:mission); const index = Math.min(progress.step, steps.length - 1); const step = steps[index];
   useEffect(()=>{
     if(!progress.open || !roleSwitchAvailable) return;
     let active=true; let pending=false;
@@ -65,7 +73,7 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
   useEffect(()=>{if(!automatic)return;const click=(event:Event)=>{const element=event.target instanceof Element?event.target.closest('button,a,summary'):null;if(!element||element.closest('.demo-guide,[role="dialog"],.mini-modal'))return;if(interactionCompletes(step,(element.textContent??'').trim()))advance();};document.addEventListener('click',click,true);return()=>document.removeEventListener('click',click,true);},[automatic,index,tour]);
   const launchTarget=()=>{
     if(!isDemoTaskSurface(step,location.pathname+location.search))return false;
-    const reveal:Record<string,RegExp>={times:/^Horas/,photos:/^Fotos de la intervención/,signatures:/^Firma/,work_materials:/^Material utilizado/};
+    const reveal:Record<string,RegExp>={times:/^Horas/,signatures:/^Firma/,work_materials:/^Material utilizado/};
     if(reveal[step.goal??''])for(const summary of document.querySelectorAll<HTMLElement>('main details>summary'))if(reveal[step.goal!].test((summary.textContent??'').trim()))summary.closest('details')!.open=true;
     const target=findDemoTarget(step);if(!target||target.closest('[role="dialog"],.mini-modal'))return false;
     // A page heading can appear before its action has loaded. Keep waiting for creation controls.

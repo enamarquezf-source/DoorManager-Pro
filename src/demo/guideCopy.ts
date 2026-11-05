@@ -5,7 +5,6 @@ const benefits: Record<string,string> = {
   works:'El aviso se convierte en trabajo trazable para todo el equipo.',
   assignments:'SAT y el técnico trabajan sobre el mismo parte, sin duplicar información.',
   checks:'Cada componente conserva su resultado: un defecto no afecta a los demás.',
-  photos:'La evidencia queda vinculada al equipo y al problema concreto.',
   work_notes:'SAT podrá entender la intervención sin perseguir notas o mensajes.',
   times:'Las horas alimentan los costes del trabajo con su tarifa vigente.',
   signatures:'La firma queda registrada junto al trabajo realizado.',
@@ -25,8 +24,7 @@ export function guideCopy(step:DemoStep) {
   sites:['Elige el cliente que acabas de crear, añade su centro y guarda.','Crear centro'],
   works:['Crea el trabajo de ese cliente y centro. Puedes continuar sin conocer el equipo.','Crear parte'],
   assignments:['Abre Gestionar asignaciones, elige al técnico Demo y guarda la visita.','Asignar este parte'],
-  checks:['Abre un equipo y una sección. Elige Favorable o la gravedad del defecto. Si hay un problema, selecciona su componente, explica qué ocurre y añade una foto ficticia. Guarda cada bloque y pulsa Finalizar check.','Continuar revisión'],
-  photos:['Añade una imagen ficticia y guarda. Quedará preparada para enviarse al finalizar.','Ir a fotos'],
+  checks:['Abre un equipo y una sección. Si todo está bien, marca Todo favorable. Guarda cada bloque y pulsa Finalizar check.','Continuar revisión'],
   work_notes:['Escribe qué has hecho y pulsa Guardar. No hace falta enviarlo aparte para continuar.','Escribir trabajo realizado'],
   times:['Completar parte → Registro → Horas. Pulsa Añadir horas; indica Inicio y Fin o Duración manual minutos, y guarda.','Abrir formulario de horas'],
   signatures:['Cierre → Firma. Escribe un nombre ficticio, dibuja en el recuadro, marca la casilla de confirmación y pulsa Guardar firma.','Ir a la firma paso a paso'],
@@ -43,6 +41,5 @@ export function guideCopy(step:DemoStep) {
  const reading:Record<string,string>={'Registra la factura del proveedor':'Abre la factura desde tu compra: DMP copia sus artículos e importes. Revisa el borrador, pulsa Registrar factura y después Registrar pago. Si has creado un borrador manual vacío, añade sus líneas antes de registrarlo.','Comprueba los conceptos':'Revisa horas, materiales, precios y facturabilidad. Si procede cobrar el parte, comprueba su opción Facturable, decide los conceptos y aprueba la revisión económica.','Prepara un presupuesto':'Crea el presupuesto y añade al menos una línea con cantidad y precio. La guía continúa al guardar la línea.','Explora el contrato de mantenimiento':'Pulsa Nuevo contrato, elige cliente, equipos y periodo, y guarda el plan.','Explora una empresa con actividad':'Abre un trabajo de la lista para consultar su actividad.','Haz un estudio de costes':'Pulsa Analizar periodo si aún no hay datos. Revisa los costes y guarda el estudio para continuar.'};
  const navigation:Record<string,string>={'Registra el envío del presupuesto':'Registrar envío de prueba','Simula la aceptación del cliente':'Ir al estado del presupuesto','Convierte el presupuesto en trabajo':'Generar parte del presupuesto','Tu jornada preparada':'Abrir mi parte','Un aviso, tres equipos':'Abrir mi parte','Consulta el aviso':'Abrir los checks','Revisión componente a componente':'Abrir los checks','De campo a Oficina':'Abrir parte para facturar','Recibe un trabajo revisado':'Abrir ejemplo de Oficina','Cobros a la vista':'Ver calendario de cobros','Entiende el margen':'Ver rentabilidad','Compara margen y costes':'Ver rentabilidad','Comprueba los conceptos':'Revisar conceptos','Analiza el tiempo':'Ver horas por empleado','Haz un estudio de costes':'Ver estudios de costes'};
  const quoteConversion=step.title==='Convierte el presupuesto en trabajo';
- const withoutEquipment=step.goal==='photos'&&step.target==='.component-photo';
- return { action:withoutEquipment?'Este parte va sin equipo identificado: no necesita checks de equipo. Abre Fotos de la intervención y añade una imagen ficticia.':quoteConversion?'Pulsa Generar parte. Revisa cliente y centro; SAT asignará al técnico después.':tasks[step.goal??'']?.[0]??reading[step.title]??step.text.split(/(?<=[.!?])\s/)[0],cta:quoteConversion?'Generar parte del presupuesto':tasks[step.goal??'']?.[1]??navigation[step.title]??'Ir a esta tarea', benefit:step.role?'Cambia de perspectiva conservando la misma empresa y sus datos de prueba.':benefits[step.goal??'']??'Abre los registros y sigue el origen de la información, en lugar de quedarte solo con un resumen.' };
+ return { action:quoteConversion?'Pulsa Generar parte. Revisa cliente y centro; SAT asignará al técnico después.':tasks[step.goal??'']?.[0]??reading[step.title]??step.text.split(/(?<=[.!?])\s/)[0],cta:quoteConversion?'Generar parte del presupuesto':tasks[step.goal??'']?.[1]??navigation[step.title]??'Ir a esta tarea', benefit:step.role?'Cambia de perspectiva conservando la misma empresa y sus datos de prueba.':benefits[step.goal??'']??'Abre los registros y sigue el origen de la información, en lugar de quedarte solo con un resumen.' };
 }

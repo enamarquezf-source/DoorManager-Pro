@@ -1,6 +1,9 @@
 import type { DemoSession, DemoTour } from './model';
 export const sharedJourney = (tour:DemoTour) => tour==='connected'||tour==='discover';
-export const journeyProgressKey = (session:DemoSession,tour:DemoTour) => session.id+':'+(sharedJourney(tour)?'journey':session.role)+':'+tour;
+export function journeyProgressKey(session: DemoSession, tour: DemoTour) {
+ const key = session.id + ':' + (sharedJourney(tour) ? 'journey' : session.role) + ':' + tour;
+ return tour === 'connected' || (tour === 'work' && session.role === 'Tecnico') ? key + ':v2' : key;
+}
 export type MissionEvidence = { baseline:number; saved:boolean; scope?:string };
 /** Counts are observations, not proof that a particular invoice belongs to a particular work. */
 export function observeMission(previous:MissionEvidence|undefined,count:number):MissionEvidence {

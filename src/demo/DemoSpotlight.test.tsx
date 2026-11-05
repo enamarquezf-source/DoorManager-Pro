@@ -8,6 +8,14 @@ afterEach(() => { document.body.innerHTML = ''; vi.restoreAllMocks(); });
 function visible() {
   vi.spyOn(HTMLElement.prototype, 'getClientRects').mockReturnValue([{ width: 100, height: 44 }] as unknown as DOMRectList);
 }
+it('points at the hours section until it opens, then at the add-hours button', () => {
+  document.body.innerHTML = '<main><details><summary id="hours" data-demo-hours>Horas</summary><button id="add">Añadir horas</button></details></main>';
+  visible();
+  const mission = { ...step, goal: 'times', target: '[data-demo-hours]' };
+  expect(findDemoTarget(mission)?.id).toBe('hours');
+  document.querySelector('details')!.open = true;
+  expect(findDemoTarget(mission)?.id).toBe('add');
+});
 it('marks the actual creation action rather than the entire header or a disabled action', () => {
   document.body.innerHTML = '<main><header class="page-head">Clientes</header><button disabled>Crear cliente</button><button id="create">Crear cliente</button></main>';
   visible();

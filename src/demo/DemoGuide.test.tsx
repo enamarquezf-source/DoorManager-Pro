@@ -133,11 +133,11 @@ const original=HTMLElement.prototype.getClientRects;HTMLElement.prototype.getCli
 try{await act(async()=>root.render(<MemoryRouter initialEntries={['/app/clientes']}><Harness/></MemoryRouter>));await act(async()=>host.querySelector<HTMLButtonElement>('.demo-guide-next')!.click());expect(create).not.toHaveBeenCalled();expect(host.querySelector('.demo-guide-next')?.textContent).toContain('Preparando');await act(async()=>reveal());expect(create).toHaveBeenCalledOnce();}finally{HTMLElement.prototype.getClientRects=original;await act(async()=>root.unmount());host.remove();}});
 it('continues after confirmed economic approval on the same work page',async()=>{
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;const host=document.createElement('div');document.body.append(host);const root=createRoot(host);let approve:()=>void=()=>{};
-function Harness(){const[p,setP]=useState({step:13,open:true});const[approved,setApproved]=useState(false);approve=()=>setApproved(true);return <><main><section data-economic-review={approved?'approved':'pending'}/></main><DemoGuide session={{...session,role:'Oficina'}} tour="connected" progress={p} setProgress={setP} onRole={async()=>{}}/></>;}
+function Harness(){const[p,setP]=useState({step:12,open:true});const[approved,setApproved]=useState(false);approve=()=>setApproved(true);return <><main><section data-economic-review={approved?'approved':'pending'}/></main><DemoGuide session={{...session,role:'Oficina'}} tour="connected" progress={p} setProgress={setP} onRole={async()=>{}}/></>;}
 try{await act(async()=>root.render(<MemoryRouter initialEntries={['/app/partes/work']}><Harness/></MemoryRouter>));expect(host.querySelector('h2')?.textContent).toBe('Comprueba los conceptos');await act(async()=>approve());expect(host.querySelector('h2')?.textContent).toBe('Prepara la factura');}finally{await act(async()=>root.unmount());host.remove();}});
 it('finishes the study mission only after persistence confirms success',async()=>{
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
-function Harness(){const[p,setP]=useState({step:19,open:true});return <><main><button>Guardar estudio</button></main><DemoGuide session={{...session,role:'Gerencia'}} tour="connected" progress={p} setProgress={setP} onRole={async()=>{}}/></>;}
+function Harness(){const[p,setP]=useState({step:18,open:true});return <><main><button>Guardar estudio</button></main><DemoGuide session={{...session,role:'Gerencia'}} tour="connected" progress={p} setProgress={setP} onRole={async()=>{}}/></>;}
 try{await act(async()=>root.render(<MemoryRouter><Harness/></MemoryRouter>));await act(async()=>host.querySelector<HTMLButtonElement>('main button')!.click());expect(host.querySelector('h2')?.textContent).toBe('Haz un estudio de costes');await act(async()=>window.dispatchEvent(new CustomEvent('dmp-cost-study-saved')));expect(host.querySelector('h2')?.textContent).toBe('Del aviso al resultado');}finally{await act(async()=>root.unmount());host.remove();}});
 
 it.each([
@@ -182,13 +182,13 @@ it('continues the standalone office tour when the loaded economic review is alre
 it('opens Registro from the checks view for connected mission 9 rather than pointing at the field tabs',async()=>{
  (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
  const original=HTMLElement.prototype.getClientRects;HTMLElement.prototype.getClientRects=function(){return [{width:100,height:40}] as any;};const focus=vi.spyOn(HTMLElement.prototype,'focus');
- function Harness(){const location=useLocation();return <><output>{location.search}</output><main><nav className="technician-work-tabs">{location.search==='?vista=records'?'Registro':'En campo'}</nav>{location.search==='?vista=records'&&<textarea aria-label="Trabajo realizado" className="technician-work-textarea"/>}</main><DemoGuide session={{...session,role:'Tecnico',work_order_id:'work'}} tour="connected" progress={{step:8,open:true}} setProgress={()=>{}} onRole={async()=>{}}/></>;}
+ function Harness(){const location=useLocation();return <><output>{location.search}</output><main><nav className="technician-work-tabs">{location.search==='?vista=records'?'Registro':'En campo'}</nav>{location.search==='?vista=records'&&<textarea aria-label="Trabajo realizado" className="technician-work-textarea"/>}</main><DemoGuide session={{...session,role:'Tecnico',work_order_id:'work'}} tour="connected" progress={{step:7,open:true}} setProgress={()=>{}} onRole={async()=>{}}/></>;}
  try{await act(async()=>root.render(<MemoryRouter initialEntries={['/app/tecnico/trabajo/work?vista=checks']}><Harness/></MemoryRouter>));await act(async()=>host.querySelector<HTMLButtonElement>('.demo-guide-next')!.click());expect(host.querySelector('output')?.textContent).toBe('?vista=records');expect(host.querySelector('textarea')).not.toBeNull();expect(focus).toHaveBeenCalled();}finally{HTMLElement.prototype.getClientRects=original;focus.mockRestore();await act(async()=>root.unmount());host.remove();}
 });
 
 it('keeps the closure on the technician work currently opened rather than the initial example',async()=>{
  (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
- function Harness(){const location=useLocation();return <><output>{location.pathname+location.search}</output><main><div className="technician-close-review">Resumen de cierre</div></main><DemoGuide session={{...session,role:'Tecnico',work_order_id:'initial-example'}} tour="connected" progress={{step:11,open:true}} setProgress={()=>{}} onRole={async()=>{}}/></>;}
+ function Harness(){const location=useLocation();return <><output>{location.pathname+location.search}</output><main><div className="technician-close-review">Resumen de cierre</div></main><DemoGuide session={{...session,role:'Tecnico',work_order_id:'initial-example'}} tour="connected" progress={{step:10,open:true}} setProgress={()=>{}} onRole={async()=>{}}/></>;}
  const original=HTMLElement.prototype.getClientRects;HTMLElement.prototype.getClientRects=function(){return [{width:100,height:40}] as any;};const scroll=vi.spyOn(HTMLElement.prototype,'scrollIntoView').mockImplementation(()=>{});
  try{await act(async()=>root.render(<MemoryRouter initialEntries={['/app/tecnico/trabajo/current-work?vista=records']}><Harness/></MemoryRouter>));await act(async()=>host.querySelector<HTMLButtonElement>('.demo-guide-next')!.click());expect(host.querySelector('output')?.textContent).toBe('/app/tecnico/trabajo/current-work?vista=close');expect(mocks.progress).toHaveBeenCalledWith(expect.anything(),'completed_work','current-work');}finally{HTMLElement.prototype.getClientRects=original;scroll.mockRestore();await act(async()=>root.unmount());host.remove();}
 });
@@ -201,7 +201,7 @@ it('keeps the quick tour on the check until an equipment review is finished',asy
  try{
   await act(async()=>root.render(<MemoryRouter initialEntries={['/app/checks/first']}><Harness/></MemoryRouter>));
   expect(host.querySelector('h2')?.textContent).toBe('Revisión componente a componente');
-  expect(host.textContent).toContain('selecciona su componente');
+  expect(host.textContent).toContain('marca Todo favorable');
   mocks.progress.mockResolvedValue({checks:1,work_checks:3});
   await act(async()=>window.dispatchEvent(new Event('focus')));
   expect(host.querySelector('h2')?.textContent).toBe('De campo a Oficina');

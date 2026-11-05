@@ -111,9 +111,9 @@ export function findDemoTarget(step: DemoStep): HTMLElement | null {
     const save=[...document.querySelectorAll<HTMLElement>('main button')].find(element=>available(element)&&/^Guardar firma(?: local)?$/.test((element.textContent??'').trim()));if(save)return save;
     if(name)return name;
   }
-  if(step.goal==='photos') {
-    const photo=[...document.querySelectorAll<HTMLElement>('label.component-photo')].find(available);
-    if(photo)return photo;
+  if (step.goal === 'times') {
+    const summary = document.querySelector<HTMLElement>('main details:not([open]) > summary[data-demo-hours]');
+    if (summary && available(summary)) return summary;
   }
   const action = step.goal && actions[step.goal];
   if (action) {
@@ -162,7 +162,7 @@ export function DemoSpotlight({ step, number }: { step: DemoStep; number: number
     };
     const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
     const observer = new MutationObserver(schedule);
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'aria-expanded', 'disabled'] });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'aria-expanded', 'disabled', 'open'] });
     const resize = new ResizeObserver(schedule); resize.observe(document.body);
     window.addEventListener('scroll', schedule, true); window.addEventListener('resize', schedule);
     document.addEventListener('input',schedule,true);document.addEventListener('change',schedule,true);document.addEventListener('focusin',schedule,true);

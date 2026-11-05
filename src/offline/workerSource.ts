@@ -2,7 +2,7 @@ export function offlineWorkerSource(cache: string, files: string[]) {
   return `
 const CACHE = ${JSON.stringify(cache)};
 const FILES = ${JSON.stringify(files)};
-const ONLINE_CACHE_PREFIX = 'dmp-shell-online-';
+const ONLINE_CACHE_PREFIX = 'dmp-shell-fresh-';
 const isLegacyCache = name => name.startsWith('dmp-shell-') && !name.startsWith(ONLINE_CACHE_PREFIX);
 self.addEventListener('install', event => event.waitUntil((async () => {
   const existing = await caches.keys();
@@ -39,11 +39,13 @@ self.addEventListener('fetch', event => {
     let networkError;
     if (navigation) {
       try {
-        networkResponse = await fetch(event.request, {
-          cache: 'no-cache',
+        networkResponse = await fetch(new URL('/', self.location.origin).href, {
+          cache: 'no-store',
           signal: typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(5000) : undefined,
         });
-        if (networkResponse.status < 500) return networkResponse;
+        if (networkResponse.ok) {
+          return new Response(networkResponse.body, { status: networkResponse.status, headers: networkResponse.headers });
+        }
       } catch (error) {
         networkError = error;
       }

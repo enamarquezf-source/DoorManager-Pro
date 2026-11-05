@@ -20,7 +20,7 @@ it('opens the published app on navigation and falls back to the installed shell 
     return result.then(response => response.text());
   }
   await expect(respond()).resolves.toBe('Demo nueva');
-  expect(fetch).toHaveBeenNthCalledWith(1, request, expect.objectContaining({ cache: 'no-cache' }));
+  expect(fetch).toHaveBeenNthCalledWith(1, 'https://dmp.test/', expect.objectContaining({ cache: 'no-store' }));
   await expect(respond()).resolves.toBe('Demo guardada');
   await expect(respond()).resolves.toBe('Demo guardada');
   await expect(respond({ ...request, url: 'https://dmp.test/assets/app.js', mode: 'cors' })).resolves.toBe('Asset guardado');
@@ -83,15 +83,15 @@ it('falls back to the server when the device shell cache is unavailable', async 
   const request = { url: 'https://dmp.test/app/inicio', method: 'GET', mode: 'navigate' };
   handlers.fetch({ request, respondWith: (promise: Promise<Response>) => { result = promise; } });
   expect(await (await result).text()).toBe('DMP online');
-  expect(fetch).toHaveBeenCalledExactlyOnceWith(request, expect.objectContaining({ cache: 'no-cache' }));
+  expect(fetch).toHaveBeenCalledExactlyOnceWith('https://dmp.test/', expect.objectContaining({ cache: 'no-store' }));
 });
 
 it('keeps routine updates waiting unless explicitly requested', async () => {
   const handlers: Record<string, (event: any) => void> = {};
   const skipWaiting = vi.fn(async () => undefined);
-  runInNewContext(offlineWorkerSource('dmp-shell-online-next', []), {
+  runInNewContext(offlineWorkerSource('dmp-shell-fresh-next', []), {
     self: { skipWaiting, addEventListener: (name: string, callback: any) => { handlers[name] = callback; } },
-    caches: { keys: async () => ['dmp-shell-old', 'dmp-shell-online-current'], open: async () => ({ addAll: async () => undefined }) },
+    caches: { keys: async () => ['dmp-shell-old', 'dmp-shell-fresh-current'], open: async () => ({ addAll: async () => undefined }) },
   });
   await new Promise<void>(resolve => handlers.install({ waitUntil: async (promise: Promise<void>) => { await promise; resolve(); } }));
   expect(skipWaiting).not.toHaveBeenCalled();
@@ -106,7 +106,7 @@ it('keeps routine updates waiting unless explicitly requested', async () => {
 it('activates the first online-navigation worker and preserves chunks for existing tabs', async () => {
   const handlers: Record<string, (event: any) => void> = {};
   const legacy = 'dmp-shell-old';
-  const current = 'dmp-shell-online-first';
+  const current = 'dmp-shell-fresh-first';
   const names = [legacy];
   const remove = vi.fn();
   const skipWaiting = vi.fn(async () => undefined);

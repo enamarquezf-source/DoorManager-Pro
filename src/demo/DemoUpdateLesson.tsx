@@ -20,7 +20,7 @@ export function DemoUpdateLesson({ role }: { role: DemoRole }) {
     catch {setError('No se ha podido abrir el actualizador. Guarda tu trabajo y vuelve a intentarlo.');}
   };
   return <section className="demo-update-lesson" aria-label="Aprende a actualizar DMP">
-    <p>En el menú encontrarás <strong>Buscar actualizaciones</strong>. Si aparece <strong>Actualizar ahora</strong>, hay una versión nueva. También puedes comprobarlo aquí:</p>
+    <p>DMP carga la última versión al abrir la web con conexión. Puedes comprobar aquí qué versión estás usando:</p>
     <button type="button" className="demo-update-check" disabled={busy} onClick={()=>void check()}><RefreshCw size={16}/>{busy?'Comprobando…':'Comprobar mi versión'}</button>
     <div role="status" aria-live="polite">
       {result?.status==='current'&&<p className="demo-update-success"><CheckCircle2 size={18}/>Estás al día. No necesitas actualizar ahora.</p>}

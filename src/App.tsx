@@ -432,7 +432,7 @@ function SidebarUpdateCheck() {
     try { setState(await checkForNewVersion()); } finally { setChecking(false); }
   };
 
-  return <button type="button" data-demo-update="true" className={`sidebar-update${available ? ' needs-update' : ''}`} onClick={click} disabled={checking} role="status" aria-live="polite" title={available ? `Nueva versión ${state.latest.version} disponible. Actualiza para aplicar los cambios.` : checking ? 'Buscando actualizaciones…' : state.status === 'current' ? 'Ya estás usando la última versión de DoorManager Pro' : 'Buscar actualizaciones'}><RefreshCw {...iconProps} /><span>{checking ? 'Buscando…' : available ? `Actualizar ahora (${state.latest.version})` : 'Buscar actualizaciones'}</span></button>;
+  return <button type="button" data-demo-update="true" className={`sidebar-update${available ? ' needs-update' : ''}`} onClick={click} disabled={checking} role="status" aria-live="polite" title={available ? `Nueva versión ${state.latest.version} disponible. Se cargará al volver a abrir la web.` : checking ? 'Buscando actualizaciones…' : state.status === 'current' ? 'Ya estás usando la última versión de DoorManager Pro' : 'Buscar actualizaciones'}><RefreshCw {...iconProps} /><span>{checking ? 'Buscando…' : available ? 'Nueva versión disponible' : 'Buscar actualizaciones'}</span></button>;
 }
 
 function ConnectivityBanner() {

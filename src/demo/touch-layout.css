@@ -1,0 +1,7 @@
+@media (hover: none) and (pointer: coarse) {
+  /* Apply inside scrollable panels too. More specific rules, such as signature
+     canvas gestures, can still override this default. */
+  :where(html.demo-touch-layout, html.demo-touch-layout *) {
+    touch-action: pan-x pan-y;
+  }
+}

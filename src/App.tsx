@@ -413,15 +413,6 @@ function SidebarUpdateCheck() {
   const [state, setState] = useState<VersionCheckResult>({ status: 'current', current: currentBuild, latest: currentBuild });
   const [checking, setChecking] = useState(false);
 
-  useEffect(() => {
-    const run = () => { setChecking(true); checkForNewVersion().then(setState).finally(() => setChecking(false)); };
-    run();
-    const interval = window.setInterval(run, 5 * 60 * 1000);
-    const onVisible = () => { if (document.visibilityState === 'visible') run(); };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => { window.clearInterval(interval); document.removeEventListener('visibilitychange', onVisible); };
-  }, []);
-
   const available = state.status === 'update-available';
   const click = async () => {
     if (available) {

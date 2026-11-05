@@ -182,6 +182,8 @@ export function canCreateCheck(profile: Profile | null | undefined) { return has
 export function canExecuteCheck(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Tecnico']); }
 export function canManageCheck(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT']); }
 export function canManageEquipmentTypes(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT']); }
+export function canCreateEquipment(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Gerencia']); }
+export function canEditEquipment(profile: Profile | null | undefined) { return hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina']); }
 export function canViewCheck(profile: Profile | null | undefined, check?: any) {
   if (!profile || !isActiveProfile(profile) || !canOperateCompanyWorkOrder(profile, check)) return false;
   if (hasAny(profile, ['superadmin', 'SAT', 'Gerencia', 'Oficina', 'Comercial'])) return true;

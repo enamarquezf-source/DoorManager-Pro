@@ -43,3 +43,30 @@ body{margin:0} .public-demo-entry{font-family:Inter,ui-sans-serif,system-ui,-app
 
 .demo-author-credit { flex: 0 0 100%; margin: 2px 0 0; line-height: 1.55; }
 .demo-author-credit strong { color: #173f47; }
+
+.demo-intro-copy > .demo-mobile-intro { display: none; }
+
+@media (max-width: 540px) {
+  .demo-wordmark { padding-bottom: 8px; }
+  .demo-welcome { padding: 12px 0 14px; }
+  .demo-welcome h1 { font-size: clamp(23px, 6.4vw, 29px); }
+  .demo-welcome .demo-eyebrow,
+  .demo-intro-copy > .demo-desktop-intro,
+  .demo-intro-copy > .demo-intro-scope,
+  .demo-start-heading .demo-eyebrow,
+  .demo-start-note,
+  .demo-entry-paths span,
+  .demo-role > span,
+  .demo-scenario:not(.has-role),
+  .demo-scenario p { display: none; }
+  .demo-intro-copy > .demo-mobile-intro { display: block; font-size: 14px; }
+  .demo-entry-paths { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .demo-entry-paths button { padding: 8px; font-size: 13px; }
+  .demo-role-options { gap: 6px; }
+  .demo-role { min-height: 44px; flex-direction: row; align-items: center; padding: 6px 26px 6px 8px; }
+  .demo-role > svg:first-of-type { flex: none; padding: 0; }
+  .demo-role-check { width: 14px; right: 8px; top: 50%; transform: translateY(-50%); }
+  .demo-scenario { align-items: center; padding: 7px 8px; margin: 8px 0; }
+  .demo-scenario strong { font-size: 13px; }
+  .demo-launch { margin-top: 8px; }
+}

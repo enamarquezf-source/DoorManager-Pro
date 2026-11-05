@@ -10,6 +10,26 @@ const mocks=vi.hoisted(()=>({progress:vi.fn(async()=>({clients:0})),session:vi.f
 vi.mock('./service',()=>({publicDemoService:mocks}));
 const session:any={id:'demo',role:'SAT',work_order_id:null};
 afterEach(()=>{vi.clearAllMocks();mocks.progress.mockResolvedValue({clients:0});localStorage.clear();document.body.innerHTML='';});
+it('starts collapsed on a phone and returns to the bar after dismissing the instructions',async()=>{
+ vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);
+ vi.stubGlobal('innerWidth',390);
+ const host=document.createElement('div');
+ document.body.append(host);
+ const root=createRoot(host);
+ try {
+  await act(async()=>root.render(<MemoryRouter><DemoGuide session={session} progress={{step:0,open:true}} setProgress={()=>{}} onRole={async()=>{}}/></MemoryRouter>));
+  expect(host.querySelector('.demo-guide-mini')?.textContent).toContain('Crea tu primer cliente');
+  expect(host.querySelector('.demo-guide-v2')).toBeNull();
+  await act(async()=>host.querySelector<HTMLButtonElement>('.demo-guide-mini button')!.click());
+  expect(host.querySelector('.demo-guide-v2 h2')?.textContent).toBe('Crea tu primer cliente');
+  await act(async()=>host.querySelector<HTMLButtonElement>('.demo-guide-expand')!.click());
+  expect(host.querySelector('.demo-guide-mini')).not.toBeNull();
+ } finally {
+  await act(async()=>root.unmount());
+  host.remove();
+  vi.unstubAllGlobals();
+ }
+});
 it('automatically advances after a new record is saved without needing a Next click',async()=>{
  (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
  const host=document.createElement('div');document.body.append(host);const root=createRoot(host);

@@ -13,7 +13,7 @@ function offlineShellPlugin() {
       handler(this: any, _options: any, bundle: Record<string, any>) {
         const publicFiles = (directory: string, prefix = ''): string[] => readdirSync(directory, { withFileTypes: true }).filter(entry => !entry.name.startsWith('_') && !entry.name.startsWith('.')).flatMap(entry => entry.isDirectory() ? publicFiles(join(directory, entry.name), `${prefix}${entry.name}/`) : [`/${prefix}${entry.name}`]);
         const files = [...new Set(['/index.html', ...Object.keys(bundle).filter(name => !name.endsWith('.map')).map(name => `/${name}`), ...publicFiles('public')])];
-        const cache = `dmp-shell-${Date.now()}`;
+        const cache = `dmp-shell-online-${Date.now()}`;
         this.emitFile({ type: 'asset', fileName: 'sw.js', source: offlineWorkerSource(cache, files) });
       },
     },

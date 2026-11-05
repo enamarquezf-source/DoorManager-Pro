@@ -86,12 +86,12 @@ it('falls back to the server when the device shell cache is unavailable', async 
   expect(fetch).toHaveBeenCalledExactlyOnceWith(request, expect.objectContaining({ cache: 'no-cache' }));
 });
 
-it('activates an update only after the explicit update message', async () => {
+it('keeps routine updates waiting unless explicitly requested', async () => {
   const handlers: Record<string, (event: any) => void> = {};
   const skipWaiting = vi.fn(async () => undefined);
-  runInNewContext(offlineWorkerSource('dmp-shell-test', []), {
+  runInNewContext(offlineWorkerSource('dmp-shell-online-next', []), {
     self: { skipWaiting, addEventListener: (name: string, callback: any) => { handlers[name] = callback; } },
-    caches: { open: async () => ({ addAll: async () => undefined }) },
+    caches: { keys: async () => ['dmp-shell-old', 'dmp-shell-online-current'], open: async () => ({ addAll: async () => undefined }) },
   });
   await new Promise<void>(resolve => handlers.install({ waitUntil: async (promise: Promise<void>) => { await promise; resolve(); } }));
   expect(skipWaiting).not.toHaveBeenCalled();
@@ -101,6 +101,35 @@ it('activates an update only after the explicit update message', async () => {
   handlers.message({ data: { type: 'DMP_ACTIVATE_UPDATE' }, waitUntil });
   expect(skipWaiting).toHaveBeenCalledOnce();
   await waitUntil.mock.calls[0][0];
+});
+
+it('activates the first online-navigation worker and preserves chunks for existing tabs', async () => {
+  const handlers: Record<string, (event: any) => void> = {};
+  const legacy = 'dmp-shell-old';
+  const current = 'dmp-shell-online-first';
+  const names = [legacy];
+  const remove = vi.fn();
+  const skipWaiting = vi.fn(async () => undefined);
+  const precache = vi.fn(async () => { names.push(current); });
+  const claim = vi.fn(async () => undefined);
+  const fetch = vi.fn();
+  runInNewContext(offlineWorkerSource(current, ['/index.html']), {
+    self: { location: { origin: 'https://dmp.test' }, clients: { claim }, skipWaiting, addEventListener: (name: string, fn: any) => { handlers[name] = fn; } },
+    caches: { keys: async () => [...names], open: async () => ({ addAll: precache, match: async () => undefined }), match: async () => new Response('Old chunk'), delete: remove },
+    URL, Response, fetch,
+  });
+  const lifecycle = (name: string) => new Promise<void>((resolve, reject) => handlers[name]({
+    waitUntil: (promise: Promise<void>) => { void promise.then(resolve, reject); },
+  }));
+  await lifecycle('install');
+  expect(precache).toHaveBeenCalledBefore(skipWaiting);
+  await lifecycle('activate');
+  expect(claim).toHaveBeenCalledOnce();
+  expect(remove).not.toHaveBeenCalledWith(legacy);
+  let result!: Promise<Response>;
+  handlers.fetch({ request: { url: 'https://dmp.test/assets/old-chunk.js', method: 'GET', mode: 'cors' }, respondWith: (promise: Promise<Response>) => { result = promise; } });
+  expect(await (await result).text()).toBe('Old chunk');
+  expect(fetch).not.toHaveBeenCalled();
 });
 
 it('never intercepts version checks or updater files, even when present in the precache manifest',()=>{

@@ -2,12 +2,37 @@ import { runInNewContext } from 'node:vm';
 import { expect, it, vi } from 'vitest';
 import { offlineWorkerSource } from './workerSource';
 
+it('opens the published app on navigation and falls back to the installed shell when unavailable', async () => {
+  const handlers: Record<string, (event: any) => void> = {};
+  const fetch = vi.fn()
+    .mockResolvedValueOnce(new Response('Demo nueva'))
+    .mockRejectedValueOnce(new Error('Offline'))
+    .mockResolvedValueOnce(new Response('Unavailable', { status: 503 }));
+  runInNewContext(offlineWorkerSource('dmp-shell-test', ['/index.html', '/assets/app.js']), {
+    self: { location: { origin: 'https://dmp.test' }, addEventListener: (name: string, handler: any) => { handlers[name] = handler; } },
+    caches: { open: async () => ({ match: async (path: string) => new Response(path === '/index.html' ? 'Demo guardada' : 'Asset guardado') }) },
+    fetch, URL, Response, AbortSignal,
+  });
+  const request = { url: 'https://dmp.test/app/inicio', method: 'GET', mode: 'navigate' };
+  function respond(input = request) {
+    let result!: Promise<Response>;
+    handlers.fetch({ request: input, respondWith: (promise: Promise<Response>) => { result = promise; } });
+    return result.then(response => response.text());
+  }
+  await expect(respond()).resolves.toBe('Demo nueva');
+  expect(fetch).toHaveBeenNthCalledWith(1, request, expect.objectContaining({ cache: 'no-cache' }));
+  await expect(respond()).resolves.toBe('Demo guardada');
+  await expect(respond()).resolves.toBe('Demo guardada');
+  await expect(respond({ ...request, url: 'https://dmp.test/assets/app.js', mode: 'cors' })).resolves.toBe('Asset guardado');
+  expect(fetch).toHaveBeenCalledTimes(3);
+});
+
 it('reopens deep routes and loads assets from the installed shell without a network', async () => {
   const handlers: Record<string, (event: any) => void> = {};
   const contents = new Map<string, any>();
   const cache = { addAll: async (urls: string[]) => { for (const url of urls) contents.set(url, `downloaded:${url}`); }, match: async (url: string) => contents.get(url) };
   const fetch = vi.fn(() => { throw new Error('Offline'); });
-  runInNewContext(offlineWorkerSource('dmp-shell-test', ['/index.html', '/assets/app.js']), { self: { location: { origin: 'https://dmp.test' }, clients: { claim: vi.fn() }, addEventListener: (name: string, callback: any) => { handlers[name] = callback; } }, caches: { open: async () => cache, keys: async () => [], delete: vi.fn() }, fetch, URL });
+  runInNewContext(offlineWorkerSource('dmp-shell-test', ['/index.html', '/assets/app.js']), { self: { location: { origin: 'https://dmp.test' }, clients: { claim: vi.fn() }, addEventListener: (name: string, callback: any) => { handlers[name] = callback; } }, caches: { open: async () => cache, keys: async () => [], delete: vi.fn() }, fetch, URL, AbortSignal });
   let installed!: Promise<void>;
   handlers.install({ waitUntil: (promise: any) => { installed = promise; } });
   await installed;
@@ -16,7 +41,7 @@ it('reopens deep routes and loads assets from the installed shell without a netw
     handlers.fetch({ request: { url: `https://dmp.test${path}`, method: 'GET', mode }, respondWith: (promise: any) => { response = promise; } });
     expect(await response).toBe(`downloaded:${expected}`);
   }
-  expect(fetch).not.toHaveBeenCalled();
+  expect(fetch).toHaveBeenCalledOnce();
   // Private APIs and signed Storage URLs must never enter the shared shell cache.
   const respondWith = vi.fn();
   handlers.fetch({ request: { url: 'https://project.supabase.co/rest/v1/profiles', method: 'GET' }, respondWith });
@@ -34,7 +59,7 @@ it('serves Cloudflare redirected cached HTML as a non-redirected navigation resp
   const fetch = vi.fn(() => { throw new Error('Offline'); });
   runInNewContext(offlineWorkerSource('dmp-shell-test', ['/index.html']), {
     self: { location: { origin: 'https://dmp.test' }, addEventListener: (name: string, callback: any) => { handlers[name] = callback; } },
-    caches: { open: async () => ({ match: async () => stored }) }, fetch, URL, Response,
+    caches: { open: async () => ({ match: async () => stored }) }, fetch, URL, Response, AbortSignal,
   });
   let result!: Promise<Response>;
   handlers.fetch({ request: { url: 'https://dmp.test/app/superadmin/sincronizacion', method: 'GET', mode: 'navigate', redirect: 'manual' }, respondWith: (promise: Promise<Response>) => { result = promise; } });
@@ -44,7 +69,7 @@ it('serves Cloudflare redirected cached HTML as a non-redirected navigation resp
   expect(response.headers.get('Content-Type')).toBe('text/html');
   expect(response.headers.get('X-DMP')).toBe('preserved');
   expect(await response.text()).toBe('<main>DMP offline</main>');
-  expect(fetch).not.toHaveBeenCalled();
+  expect(fetch).toHaveBeenCalledOnce();
 });
 
 it('falls back to the server when the device shell cache is unavailable', async () => {
@@ -52,13 +77,13 @@ it('falls back to the server when the device shell cache is unavailable', async 
   const fetch = vi.fn(async () => new Response('DMP online'));
   runInNewContext(offlineWorkerSource('dmp-shell-test', ['/index.html']), {
     self: { location: { origin: 'https://dmp.test' }, addEventListener: (name: string, callback: any) => { handlers[name] = callback; } },
-    caches: { open: async () => { throw new Error('Storage unavailable'); } }, fetch, URL, Response,
+    caches: { open: async () => { throw new Error('Storage unavailable'); } }, fetch, URL, Response, AbortSignal,
   });
   let result!: Promise<Response>;
   const request = { url: 'https://dmp.test/app/inicio', method: 'GET', mode: 'navigate' };
   handlers.fetch({ request, respondWith: (promise: Promise<Response>) => { result = promise; } });
   expect(await (await result).text()).toBe('DMP online');
-  expect(fetch).toHaveBeenCalledExactlyOnceWith(request);
+  expect(fetch).toHaveBeenCalledExactlyOnceWith(request, expect.objectContaining({ cache: 'no-cache' }));
 });
 
 it('activates an update only after the explicit update message', async () => {

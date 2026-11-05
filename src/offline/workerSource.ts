@@ -18,16 +18,32 @@ self.addEventListener('fetch', event => {
   if (url.pathname === '/actualizar.html' || url.pathname === '/actualizar' || url.pathname === '/build-info.json' || url.pathname === '/sw.js' || url.pathname === '/update-shell.js') return;
   const navigation = event.request.mode === 'navigate' && (url.pathname === '/' || url.pathname === '/app' || url.pathname.startsWith('/app/'));
   if (!navigation && !FILES.includes(url.pathname)) return;
-  event.respondWith(caches.open(CACHE).then(async cache => {
-    const stored = await cache.match(navigation ? '/index.html' : url.pathname);
-    const response = stored || await fetch(event.request);
+  event.respondWith((async () => {
+    let networkResponse;
+    let networkError;
+    if (navigation) {
+      try {
+        networkResponse = await fetch(event.request, {
+          cache: 'no-cache',
+          signal: typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(5000) : undefined,
+        });
+        if (networkResponse.status < 500) return networkResponse;
+      } catch (error) {
+        networkError = error;
+      }
+    }
+    const stored = await caches.open(CACHE)
+      .then(cache => cache.match(navigation ? '/index.html' : url.pathname))
+      .catch(() => undefined);
+    if (!stored && networkError) throw networkError;
+    const response = stored || networkResponse || await fetch(event.request);
     // Pages redirects /index.html to /. A redirected cached response cannot be
     // returned for a navigation whose redirect mode is manual (Fetch network error).
     // Rebuild only the navigation response; retain its HTML and response headers.
     return navigation && response.redirected
       ? new Response(response.body, { status: response.status, statusText: response.statusText, headers: response.headers })
       : response;
-  }).catch(() => fetch(event.request)));
+  })());
 });
 `;
 }

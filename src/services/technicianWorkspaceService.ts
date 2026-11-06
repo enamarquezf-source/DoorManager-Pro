@@ -107,8 +107,11 @@ export const technicianWorkspaceService = {
         if (!rows.some(item => item.id === row.id)) rows.push({ ...row, work_order_code: work.code, client_name: work.clients?.legal_name, site_name: work.sites?.name });
       }
     }
-    const closed = new Set((await technicianOfflineService.list()).filter(item => item.type === 'check-finish').map(item => item.checkId));
-    return rows.map(row => closed.has(row.id) ? { ...row, status: 'Realizado', _local: true } : row).filter(row => (row.status === 'Realizado') === done);
+    const changes = (await technicianOfflineService.list()).filter(item =>
+      item.type === 'check-finish' || (item.type === 'check-block' && item.status !== 'synced'),
+    );
+    return rows.map(row => changes.some(item => item.checkId === row.id) ? overlayFieldCheck(row, changes, '') : row)
+      .filter(row => (row.status === 'Realizado') === done);
   },
   async prepare(onProgress: (message: string) => void) {
     if (!connectionAvailable()) throw new Error('Conecta para descargar la jornada.');

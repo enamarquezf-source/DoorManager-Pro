@@ -249,6 +249,8 @@ main { padding: 24px; }
 .equipment-photo-actions small { color: var(--text-soft); flex-basis: 100%; }
 .equipment-photo-history { display: flex; flex-wrap: wrap; gap: 8px; }
 .equipment-photo-history img { width: 72px; height: 56px; object-fit: cover; border-radius: 8px; }
+.equipment-photo-history button { display: grid; justify-items: center; gap: 5px; min-height: 44px; padding: 5px 8px; font-size: 12px; }
+.equipment-photo-history button[aria-pressed="true"] { border-color: #26786d; background: #e8f4ef; }
 .equipment-check-visual { display: grid; gap: 10px; }
 .equipment-template-reference { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text-soft); font-size: 12px; font-weight: 750; }
 .equipment-template-reference img { width: 72px; height: 48px; object-fit: contain; border-radius: 6px; background: var(--surface-soft); }

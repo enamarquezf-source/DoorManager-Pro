@@ -31,12 +31,12 @@ describe('equipmentPhotosService', () => {
 
     expect(storageFrom).toHaveBeenCalledWith('dmp-files');
     expect(upload.mock.calls[0][0]).toBe('company-1/equipment/equipment-1/local-1.jpg');
-    expect(rpc).toHaveBeenCalledWith('dmp_register_equipment_photo', expect.objectContaining({ p_payload: expect.objectContaining({ equipment_id: 'equipment-1', make_primary: true }) }));
+    expect(rpc).toHaveBeenCalledWith('dmp_register_equipment_photo', expect.objectContaining({ p_payload: expect.objectContaining({ equipment_id: 'equipment-1', is_primary: true }) }));
   });
 
   it('changes the selected primary through the dedicated RPC', async () => {
     const { equipmentPhotosService } = await import('./equipmentPhotosService');
     await equipmentPhotosService.setPrimary('photo-1');
-    expect(rpc).toHaveBeenCalledWith('dmp_set_equipment_primary_photo', { p_equipment_photo_id: 'photo-1' });
+    expect(rpc).toHaveBeenCalledWith('dmp_set_equipment_primary_photo', { p_photo_id: 'photo-1' });
   });
 });

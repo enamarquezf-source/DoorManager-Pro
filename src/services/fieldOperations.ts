@@ -24,9 +24,10 @@ export function overlayFieldWork(work: any, changes: OfflineChange[], profile: P
     if (item.type === 'material-entry') update('materials', { ...row, used_quantity: payload.quantity });
     if (item.type === 'photo' && !item.checkId) update('photos', { ...row, signed_url: payload.dataUrl });
     if (item.type === 'signature') update('signatures', { ...row, signed_url: payload.dataUrl, signer_name: payload.signerName ?? payload.signer_name, accepted_terms: true });
-    if (item.type === 'check-finish') result.checks = (result.checks ?? []).map((check: any) => check.id === item.checkId ? { ...check, status: 'Realizado', _local: true } : check);
     if (item.type === 'work-finish') { result._finishPending = item.status !== 'synced'; if (item.status === 'synced') result.status = 'Finalizado tecnicamente'; }
   }
+  const checkChanges = rows.filter(item => item.checkId && (item.type === 'check-block' || item.type === 'check-finish'));
+  if (checkChanges.length) result.checks = (result.checks ?? []).map((check: any) => overlayFieldCheck(check, checkChanges, savedAt));
   return result;
 }
 
@@ -37,14 +38,18 @@ export function overlayFieldCheck(check: any, changes: OfflineChange[], savedAt:
       const payload = item.payload;
       const sectionId = item.sectionId ?? payload.sectionId;
       result.check_section_results = [...(result.check_section_results ?? []).filter((row: any) => row.section_id !== sectionId), {
-        section_id: sectionId, result: payload.persistedStatus, observations: payload.observations, intervention: payload.intervention,
+        section_id: sectionId, result: payload.persistedStatus ?? payload.status, observations: payload.observations, intervention: payload.intervention,
         severity: payload.severity, affected_item_ids: payload.selectedItemIds, favorable_item_ids: payload.favorableItemIds,
         components: payload.components, updated_at: payload.expectedSectionUpdatedAt, _local: true,
       }];
       const ids = new Set((payload.items ?? []).map((row: any) => row.id));
       result.check_item_results = [...(result.check_item_results ?? []).filter((row: any) => !ids.has(row.item_id)), ...(payload.items ?? []).map((row: any) => ({ ...row, item_id: row.id }))];
     }
-    if (item.type === 'check-finish') result.status = 'Realizado';
+    if (item.type === 'check-finish') {
+      result.status = 'Realizado';
+      result.global_result = item.payload.result ?? result.global_result;
+      result._local = true;
+    }
     if (item.type === 'photo') {
       result.check_photos = [...(result.check_photos ?? []).filter((row: any) => row.id !== item.id), {
         id: item.id, signed_url: item.payload.dataUrl, description: item.payload.description,

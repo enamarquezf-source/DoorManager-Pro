@@ -18,7 +18,7 @@ export const equipmentPhotosService = {
     const rows = await expectData<any[]>(supabase.from('equipment_photos').select('*, files!equipment_photos_file_id_fkey(*)').eq('equipment_id', equipmentId).order('is_primary', { ascending: false }).order('taken_at', { ascending: false }));
     return Promise.all(rows.map(withSignedFileUrl));
   },
-  async upload(equipmentId: string, photo: LocalPhoto) {
+  async upload(equipmentId: string, photo: LocalPhoto, makePrimary = true) {
     const companyId = await currentCompanyId();
     if (!companyId) throw new Error('No se ha podido determinar la empresa para subir la foto.');
     const mime = String(photo.type ?? '');
@@ -30,14 +30,17 @@ export const equipmentPhotosService = {
     const { error } = await supabase.storage.from(filesBucket).upload(path, blob, { contentType: mime || uploadedMime, upsert: true });
     if (error) throw new Error(`No se ha podido subir el archivo a Storage. ${error.message}`);
     try {
-      return await expectData<string>(supabase.rpc('dmp_register_equipment_photo', { p_payload: { equipment_id: equipmentId, bucket: filesBucket, path, name, mime_type: mime || uploadedMime, size_bytes: blob.size, make_primary: true, metadata: { source: 'equipment' } } }));
+      return await expectData<string>(supabase.rpc('dmp_register_equipment_photo', { p_payload: { equipment_id: equipmentId, bucket: filesBucket, path, name, mime_type: mime || uploadedMime, size_bytes: blob.size, is_primary: makePrimary, metadata: { source: 'equipment' } } }));
     } catch (error) {
       await supabase.storage.from(filesBucket).remove([path]);
       throw error;
     }
   },
   setPrimary(photoId: string) {
-    return expectData<string>(supabase.rpc('dmp_set_equipment_primary_photo', { p_equipment_photo_id: photoId }));
+    return expectData<void>(supabase.rpc('dmp_set_equipment_primary_photo', { p_photo_id: photoId }));
+  },
+  archive(photoId: string) {
+    return expectData<void>(supabase.rpc('dmp_archive_equipment_photo', { p_photo_id: photoId }), 'Borrar foto del equipo');
   },
   prepare(file: File) {
     return fileToLocalPhoto(file);

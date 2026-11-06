@@ -32,11 +32,13 @@ it('shows roles before importing the application and retains the selection after
     await act(async () => button('Verificar prueba').click());
     calls.start.mockRejectedValueOnce(new Error('Conexión interrumpida'));
     await act(async () => button('Probar DMP').click());
+    await act(async () => host.querySelector<HTMLButtonElement>('dialog .demo-preview-start')!.click());
     expect(host.textContent).toContain('Conexión interrumpida');
     expect(host.querySelector<HTMLInputElement>('input[value=Tecnico]')!.checked).toBe(true);
     expect(calls.application).not.toHaveBeenCalled();
     await act(async () => button('Verificar prueba').click());
     await act(async () => button('Probar DMP').click());
+    await act(async () => host.querySelector<HTMLButtonElement>('dialog .demo-preview-start')!.click());
     expect(host.textContent).toBe('Aplicación completa');
     expect(window.location.pathname).toBe('/app/tecnico');
   } finally { await act(async () => root.unmount()); host.remove(); }

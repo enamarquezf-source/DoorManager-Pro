@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowRight, Building2, BriefcaseBusiness, ChartNoAxesCombined, ClipboardList, Wrench, Check, ScanLine, ShieldCheck } from 'lucide-react';
 import { BrandMark } from '../components/BrandMark';
 import { ProjectCredit } from '../components/ProjectCredit';
+import { DemoWelcomePreview } from './DemoWelcomePreview';
 import { demoRoles, type DemoRole, type DemoSession } from './model';
 import { DemoTurnstile } from './Turnstile';
 const icons = { chart: ChartNoAxesCombined, office: Building2, planning: ClipboardList, sales: BriefcaseBusiness, tools: Wrench };
@@ -12,6 +13,7 @@ export function PublicDemoEntry({ checkReady, start, onReady, siteKey = import.m
   const [role, setRole] = useState<DemoRole | null>(null); const [ready, setReady] = useState(false); const [checked, setChecked] = useState(false);
   const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [token, setToken] = useState(''); const [reset, setReset] = useState(0);
   const [experience,setExperience]=useState<'work'|'connected'|'discover'>('work');
+  const [preview, setPreview] = useState(false);
   useEffect(() => { let active = true; checkReady().then(value => { if (active) setReady(value); }).catch(() => { if (active) setReady(false); }).finally(() => { if (active) setChecked(true); }); return () => { active = false; }; }, [checkReady]);
   const launch = async () => {
     if (busy || !ready || !token || !role) return; setBusy(true); setError('');
@@ -32,7 +34,12 @@ export function PublicDemoEntry({ checkReady, start, onReady, siteKey = import.m
     {checked && (!ready || !siteKey) && <p role="status" className="demo-preparing">Estamos preparando la demostración. El acceso estará disponible cuando terminemos de configurar los espacios temporales.</p>}
     {ready && siteKey && <DemoTurnstile siteKey={siteKey} onToken={setToken} resetKey={reset} />}
     {error && <p role="alert" className="form-error">{error}</p>}
-    <button className="demo-launch" type="button" disabled={!role || !ready || !siteKey || !token || busy} onClick={() => void launch()}>{busy ? 'Preparando tu espacio…' : 'Probar DMP'}<ArrowRight size={18} aria-hidden="true" /></button>
+    <button className="demo-launch" type="button" disabled={!role || !ready || !siteKey || !token || busy} onClick={() => setPreview(true)}>{busy ? 'Preparando tu espacio…' : 'Probar DMP'}<ArrowRight size={18} aria-hidden="true" /></button>
+    {preview && role && <DemoWelcomePreview role={role} experience={experience} onClose={() => setPreview(false)} onStart={() => {
+      setPreview(false);
+      if (token) void launch();
+      else setError('La verificación ha caducado. Complétala para empezar.');
+    }} />}
     <p className="demo-privacy">Sin correo ni contraseña. Espacio temporal y separado para cada visitante. Usa datos ficticios: se eliminan al finalizar o tras 30 minutos sin actividad, con un máximo de dos horas. La limpieza por caducidad se procesa periódicamente.</p>
     </section><section className="demo-beyond"><div><span className="demo-eyebrow">ESTO ES SOLO EL PRINCIPIO</span><h2>Una pequeña muestra.<br />Mucho DMP por descubrir.</h2><p>La demo te invita a recorrer algunos procesos con datos ficticios. La aplicación va mucho más allá: conecta el trabajo de campo con la planificación, las compras y la gestión económica de tu empresa.</p></div><div className="demo-capabilities">{[{icon:ClipboardList,title:'Planifica y conecta',text:'Clientes, centros, equipos, contratos y visitas de mantenimiento.'},{icon:Wrench,title:'Trabaja sobre el terreno',text:'Partes, checks por componente, fotos, horas y trabajo sin cobertura con la jornada preparada.'},{icon:ChartNoAxesCombined,title:'Entiende tu negocio',text:'Materiales, compras, facturación, cobros y estudios de costes y rentabilidad.'}].map(({icon:Icon,title,text})=><article key={title}><Icon size={22} aria-hidden="true"/><div><h3>{title}</h3><p>{text}</p></div></article>)}</div></section><footer className="demo-entry-footer"><BrandMark size={22} /><span>DoorManager Pro · Del primer aviso al resultado.</span><span>Demo pública · Usa siempre datos ficticios</span>
       <ProjectCredit className="demo-author-credit" />

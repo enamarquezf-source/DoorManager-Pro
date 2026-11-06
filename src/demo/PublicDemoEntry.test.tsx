@@ -17,6 +17,9 @@ it('requires a role choice and prepares the selected technician scenario rather 
     expect(launch().disabled).toBe(true);
     await act(async()=>[...host.querySelectorAll('button')].find(button=>button.textContent==='Verificación de prueba')!.click());
     await act(async()=>launch().click());
+    expect(host.querySelector('dialog')?.textContent).toContain('Prueba de Técnico');
+    expect(start).not.toHaveBeenCalled();
+    await act(async()=>host.querySelector<HTMLButtonElement>('dialog .demo-preview-start')!.click());
     expect(start).toHaveBeenCalledExactlyOnceWith('Tecnico','verified-token');expect(onReady).toHaveBeenCalledExactlyOnceWith(session);
   }finally{await act(async()=>root.unmount());host.remove();}
 });
@@ -39,6 +42,8 @@ it('uses the selected business role guide instead of forcing the quick technicia
   await act(async()=>host.querySelector<HTMLInputElement>('input[value="Oficina"]')!.click());
   await act(async()=>[...host.querySelectorAll('button')].find(button=>button.textContent==='Verificación de prueba')!.click());
   await act(async()=>host.querySelector<HTMLButtonElement>('.demo-launch')!.click());
+  expect(host.querySelector('dialog')?.textContent).toContain('Prueba de Oficina');
+  await act(async()=>host.querySelector<HTMLButtonElement>('dialog .demo-preview-start')!.click());
   expect(start).toHaveBeenCalledExactlyOnceWith('Oficina','verified-token');expect(localStorage.getItem('dmp-demo-tour-choice:role-choice')).toBe('work');
  }finally{await act(async()=>root.unmount());host.remove();localStorage.clear();}
 });

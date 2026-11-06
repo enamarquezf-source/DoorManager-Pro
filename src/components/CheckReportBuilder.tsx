@@ -63,7 +63,16 @@ export function CheckReportBuilder({ onClose }: { onClose: () => void }) {
     try {
       let report;
       if (source === 'part') {
-        report = await workOrdersService.getWorkOrderFullDetail(id);
+        const part = await workOrdersService.getWorkOrderFullDetail(id);
+        report = {
+          id,
+          code: part.work_order.code,
+          title: part.work_order.title,
+          clients: part.client,
+          sites: part.site,
+          checks: part.checks,
+          deficiencies: part.deficiencies,
+        };
       } else if (source === 'maintenance') {
         const contract = contracts?.find(row => row.id === id);
         if (!contract) throw new Error('Selecciona un mantenimiento.');
@@ -76,7 +85,7 @@ export function CheckReportBuilder({ onClose }: { onClose: () => void }) {
           title: contract.title,
           clients: contract.client,
           sites: contract.site,
-          checks: visits.flatMap(visit => visit.checks.map(check => ({ ...check, reportPartCode: visit.code }))),
+          checks: visits.flatMap(visit => visit.checks.map(check => ({ ...check, reportPartCode: visit.work_order.code }))),
           deficiencies: visits.flatMap(visit => visit.deficiencies),
         };
       } else {

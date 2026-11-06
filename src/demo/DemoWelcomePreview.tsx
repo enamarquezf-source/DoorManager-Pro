@@ -19,7 +19,11 @@ const roleSteps: Record<DemoRole, readonly string[]> = {
 };
 
 const roleVideos: Record<DemoRole, string> = {
-  Tecnico: 'tecnico-pantalla-completa', SAT: 'sat', Oficina: 'oficina', Comercial: 'comercial', Gerencia: 'gerencia',
+  Tecnico: 'tecnico-pantalla-completa',
+  SAT: 'sat-pantalla-completa',
+  Oficina: 'oficina-pantalla-completa',
+  Comercial: 'comercial-pantalla-completa',
+  Gerencia: 'gerencia-pantalla-completa',
 };
 
 export function DemoWelcomePreview({ role, experience, onClose, onStart }: {
@@ -41,7 +45,7 @@ export function DemoWelcomePreview({ role, experience, onClose, onStart }: {
     : roleSteps[role];
   const title = experience === 'discover' ? 'Descubrir DMP' : experience === 'connected' ? 'Mi recorrido completo' : `Prueba de ${demoRoles.find(option => option.id === role)?.title}`;
   const video = experience === 'discover' ? 'descubrir' : experience === 'connected' ? 'recorrido' : roleVideos[role];
-  const recorded = video === roleVideos.Tecnico;
+  const recorded = experience === 'work';
 
   return <dialog ref={dialog} className={`demo-welcome-preview${recorded ? ' is-wide' : ''}`} aria-labelledby="demo-welcome-title" onCancel={event => { event.preventDefault(); onClose(); }}>
     <span>{recorded ? 'RECORRIDO GRABADO EN LA DEMO' : `VÍDEO DE INTRODUCCIÓN · ${experience === 'connected' ? '28' : '21'} S`}</span>

@@ -4,7 +4,14 @@ import { demoRoles, type DemoRole } from './model';
 import './welcome-preview.css';
 
 const roleSteps: Record<DemoRole, readonly string[]> = {
-  Tecnico: ['Abre el parte de ejemplo y revisa uno de sus equipos.', 'Marca el resultado de cada comprobación. Si todo está bien, puedes dejarlo como favorable.', 'En el recorrido completo, anota un trabajo ficticio, registra sus horas y firma antes de enviarlo.'],
+  Tecnico: [
+    'En Mi jornada, abre el parte asignado. En En campo, revisa cliente, centro y aviso.',
+    'En Checks, abre cada equipo y revisa sus secciones. Marca Todo favorable si corresponde. Si hay un defecto, selecciona el componente afectado y descríbelo. La foto es opcional.',
+    'Confirma cada bloque y finaliza cada check para sincronizarlo. Completa los tres equipos antes de cerrar el parte.',
+    'En Completar parte → Registro, describe el trabajo y guarda. En Horas, selecciona trabajador y fecha. Introduce 90 minutos de ejemplo o indica Inicio y Fin.',
+    'En Cierre, escribe un nombre ficticio, dibuja la firma y confirma que es de prueba. Guarda la firma.',
+    'Pulsa Finalizar parte y Enviar a revisión. Cambia a SAT para consultar el mismo parte, ya finalizado técnicamente.',
+  ],
   SAT: ['Crea un cliente y un centro con nombres y dirección ficticios.', 'Crea un parte, describe el aviso y asigna a Alex Demo.', 'Puedes cambiar a Técnico para ejecutarlo y volver a SAT para revisar el resultado.'],
   Oficina: ['Abre el parte ficticio preparado para facturar.', 'Revisa los conceptos y prepara el borrador. Puedes simular la emisión y el cobro con una referencia inventada.', 'En Cobros podrás comprobar cómo cambia el importe pendiente.'],
   Comercial: ['Crea un cliente con un nombre ficticio y abre un presupuesto.', 'Añade una descripción, una cantidad y un precio de ejemplo.', 'Simula la aceptación y genera un parte para que SAT pueda asignarlo.'],
@@ -12,7 +19,7 @@ const roleSteps: Record<DemoRole, readonly string[]> = {
 };
 
 const roleVideos: Record<DemoRole, string> = {
-  Tecnico: 'tecnico', SAT: 'sat', Oficina: 'oficina', Comercial: 'comercial', Gerencia: 'gerencia',
+  Tecnico: 'tecnico-recorrido', SAT: 'sat', Oficina: 'oficina', Comercial: 'comercial', Gerencia: 'gerencia',
 };
 
 export function DemoWelcomePreview({ role, experience, onClose, onStart }: {
@@ -34,11 +41,12 @@ export function DemoWelcomePreview({ role, experience, onClose, onStart }: {
     : roleSteps[role];
   const title = experience === 'discover' ? 'Descubrir DMP' : experience === 'connected' ? 'Mi recorrido completo' : `Prueba de ${demoRoles.find(option => option.id === role)?.title}`;
   const video = experience === 'discover' ? 'descubrir' : experience === 'connected' ? 'recorrido' : roleVideos[role];
+  const recorded = video === 'tecnico-recorrido';
 
   return <dialog ref={dialog} className="demo-welcome-preview" aria-labelledby="demo-welcome-title" onCancel={event => { event.preventDefault(); onClose(); }}>
-    <span>VÍDEO DE INTRODUCCIÓN · {experience === 'connected' ? '28' : '21'} S</span>
+    <span>{recorded ? 'RECORRIDO GRABADO EN LA DEMO' : `VÍDEO DE INTRODUCCIÓN · ${experience === 'connected' ? '28' : '21'} S`}</span>
     <h2 id="demo-welcome-title">{title}</h2>
-    <video key={video} className="demo-preview-video" src={`/demo-intros/${video}.mp4`} aria-label={`Vídeo de introducción. ${title}`} controls autoPlay muted playsInline preload="metadata" />
+    <video key={video} className={`demo-preview-video${recorded ? ' is-recorded' : ''}`} src={`/demo-intros/${video}.mp4`} aria-label={`Vídeo de introducción. ${title}`} controls autoPlay muted playsInline preload="metadata" />
     <details className="demo-preview-transcript"><summary>Qué vas a rellenar</summary><ol>{steps.map(step => <li key={step}>{step}</li>)}</ol></details>
     <p className="demo-preview-note">Usa solo datos ficticios. Tu espacio de prueba es temporal.</p>
     <footer><button type="button" onClick={onClose}>Volver</button><button type="button" className="demo-preview-start" onClick={onStart}>Empezar la demo <ArrowRight size={17} aria-hidden="true" /></button></footer>

@@ -7,6 +7,7 @@
 .demo-welcome-preview li { margin-bottom: 8px; padding-left: 4px; font-size: 14px; line-height: 1.45; }
 .demo-welcome-preview li::marker { font-weight: 750; color: #286d63; }
 .demo-preview-video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #102c33; border-radius: 12px; }
+.demo-preview-video.is-recorded { aspect-ratio: 20 / 17; max-height: min(55dvh, 520px); object-fit: contain; }
 .demo-preview-transcript { margin: 12px 0; font-size: 14px; }
 .demo-preview-transcript summary { cursor: pointer; font-weight: 650; }
 .demo-welcome-preview .demo-preview-note { padding: 10px; border-radius: 8px; background: #edf6f0; font-size: 12px; }

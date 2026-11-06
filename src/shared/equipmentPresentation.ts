@@ -17,6 +17,13 @@ function clean(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
+export function checkEquipmentName(equipment: EquipmentRecord | null | undefined, fallback?: string | null) {
+  const type = clean(equipment?.equipment_types?.name) ?? clean(equipment?.type_name) ?? clean(equipment?.equipment_type) ?? clean(fallback);
+  const location = clean(equipment?.internal_location);
+  const label = [type, location].filter(Boolean).join(' · ');
+  return label || [clean(equipment?.brand), clean(equipment?.model)].filter(Boolean).join(' ') || 'Equipo sin identificar';
+}
+
 export function equipmentOperationalLabel(equipment: EquipmentRecord | null | undefined) {
   const type = clean(equipment?.equipment_types?.name) ?? clean(equipment?.type_name) ?? clean(equipment?.equipment_type);
   const code = clean(equipment?.code) ?? 'Código no informado';

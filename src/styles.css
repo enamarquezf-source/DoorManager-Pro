@@ -548,6 +548,12 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
 .component-select input { width: auto; min-height: auto; }
 .confirm-bar { position: sticky; bottom: 8px; z-index: 6; display: grid; gap: 8px; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--color-surface-muted); }
 .block-page { padding-bottom: 18px; }
+.check-mobile > .check-block-header { display: grid; gap: 16px; padding: clamp(16px, 4vw, 24px); }
+.check-block-heading { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 10px 16px; }
+.check-block-heading .eyebrow { margin: 0 0 6px; }
+.check-block-heading h2 { margin: 0; font-size: clamp(22px, 5vw, 28px); }
+.check-block-equipment { display: grid; gap: 4px; color: var(--muted); overflow-wrap: anywhere; }
+.check-block-navigation.actions { margin: 0; padding-top: 14px; border-top: 1px solid var(--line); gap: 8px; }
 .photo-list { display: grid; gap: 8px; margin-top: 10px; }
 .photo-list span { border: 1px solid var(--line); border-radius: 12px; padding: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #f8fafc; }
 .photo-list button { border: 0; color: var(--danger); background: transparent; font-weight: 900; }

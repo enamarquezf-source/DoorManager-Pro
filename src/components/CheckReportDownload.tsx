@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Download } from 'lucide-react';
-import { buildFunctionalCheckBlocks, equipmentTypeName } from '../checks/checkBlocks';
+import { buildFunctionalCheckBlocks } from '../checks/checkBlocks';
 import { checkResultLabel } from '../checks/resultPresentation';
+import { checkEquipmentName } from '../shared/equipmentPresentation';
 import { formatDate, fullName } from '../shared/labels';
 
 export function CheckReportDownload({ work }: { work: any }) {
@@ -24,7 +25,7 @@ export function CheckReportDownload({ work }: { work: any }) {
         checks: checks.map((check: any) => {
           const itemResults = new Map<string, any>((check.check_item_results ?? []).map((item: any) => [item.item_id, item]));
           return {
-            heading: [check.equipment?.code ?? equipmentTypeName(check.equipment), check.code].filter(Boolean).join(' · ') || 'Check',
+            heading: [checkEquipmentName(check.equipment, check.check_templates?.equipment_types?.name), check.code].filter(Boolean).join(' · ') || 'Check',
             result: checkResultLabel(check.global_result, check.check_section_results),
             detail: [check.finished_at ? formatDate(check.finished_at) : '', check.profiles ? fullName(check.profiles) : ''].filter(Boolean).join(' · '),
             local: Boolean(check._local || check.check_section_results?.some((row: any) => row._local)),

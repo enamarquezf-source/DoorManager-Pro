@@ -18,6 +18,7 @@ it('requires a role choice and prepares the selected technician scenario rather 
     await act(async()=>[...host.querySelectorAll('button')].find(button=>button.textContent==='Verificación de prueba')!.click());
     await act(async()=>launch().click());
     expect(host.querySelector('dialog')?.textContent).toContain('Prueba de Técnico');
+    expect(host.querySelector('dialog video')?.getAttribute('src')).toBe('/demo-intros/tecnico.mp4');
     expect(start).not.toHaveBeenCalled();
     await act(async()=>host.querySelector<HTMLButtonElement>('dialog .demo-preview-start')!.click());
     expect(start).toHaveBeenCalledExactlyOnceWith('Tecnico','verified-token');expect(onReady).toHaveBeenCalledExactlyOnceWith(session);
@@ -43,6 +44,7 @@ it('uses the selected business role guide instead of forcing the quick technicia
   await act(async()=>[...host.querySelectorAll('button')].find(button=>button.textContent==='Verificación de prueba')!.click());
   await act(async()=>host.querySelector<HTMLButtonElement>('.demo-launch')!.click());
   expect(host.querySelector('dialog')?.textContent).toContain('Prueba de Oficina');
+  expect(host.querySelector('dialog video')?.getAttribute('src')).toBe('/demo-intros/oficina.mp4');
   await act(async()=>host.querySelector<HTMLButtonElement>('dialog .demo-preview-start')!.click());
   expect(start).toHaveBeenCalledExactlyOnceWith('Oficina','verified-token');expect(localStorage.getItem('dmp-demo-tour-choice:role-choice')).toBe('work');
  }finally{await act(async()=>root.unmount());host.remove();localStorage.clear();}

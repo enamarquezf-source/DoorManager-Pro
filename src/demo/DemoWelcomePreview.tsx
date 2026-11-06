@@ -11,6 +11,10 @@ const roleSteps: Record<DemoRole, readonly string[]> = {
   Gerencia: ['Abre el ejemplo de rentabilidad y compara ventas y costes.', 'Elige un periodo para analizar la actividad de cada empleado.', 'Prueba un estudio con horas, costes y notas ficticios. Puedes descargarlo en PDF.'],
 };
 
+const roleVideos: Record<DemoRole, string> = {
+  Tecnico: 'tecnico', SAT: 'sat', Oficina: 'oficina', Comercial: 'comercial', Gerencia: 'gerencia',
+};
+
 export function DemoWelcomePreview({ role, experience, onClose, onStart }: {
   role: DemoRole;
   experience: 'work' | 'connected' | 'discover';
@@ -29,12 +33,13 @@ export function DemoWelcomePreview({ role, experience, onClose, onStart }: {
     ? ['En SAT, inventa un cliente y un centro, describe el aviso y asigna el parte a Alex Demo.', 'Como Técnico, revisa el equipo, anota el trabajo y registra las horas. Envía el parte y vuelve a SAT para validarlo.', 'En Oficina, revisa la factura y simula el cobro. En Gerencia, consulta cómo queda reflejado en los resultados.']
     : roleSteps[role];
   const title = experience === 'discover' ? 'Descubrir DMP' : experience === 'connected' ? 'Mi recorrido completo' : `Prueba de ${demoRoles.find(option => option.id === role)?.title}`;
+  const video = experience === 'discover' ? 'descubrir' : experience === 'connected' ? 'recorrido' : roleVideos[role];
 
   return <dialog ref={dialog} className="demo-welcome-preview" aria-labelledby="demo-welcome-title" onCancel={event => { event.preventDefault(); onClose(); }}>
-    <span>ANTES DE EMPEZAR</span>
+    <span>VÍDEO DE INTRODUCCIÓN · {experience === 'connected' ? '28' : '21'} S</span>
     <h2 id="demo-welcome-title">{title}</h2>
-    <p>Esto es lo que harás en la prueba. La guía te acompañará paso a paso.</p>
-    <ol>{steps.map(step => <li key={step}>{step}</li>)}</ol>
+    <video key={video} className="demo-preview-video" src={`/demo-intros/${video}.mp4`} aria-label={`Vídeo de introducción. ${title}`} controls autoPlay muted playsInline preload="metadata" />
+    <details className="demo-preview-transcript"><summary>Qué vas a rellenar</summary><ol>{steps.map(step => <li key={step}>{step}</li>)}</ol></details>
     <p className="demo-preview-note">Usa solo datos ficticios. Tu espacio de prueba es temporal.</p>
     <footer><button type="button" onClick={onClose}>Volver</button><button type="button" className="demo-preview-start" onClick={onStart}>Empezar la demo <ArrowRight size={17} aria-hidden="true" /></button></footer>
   </dialog>;

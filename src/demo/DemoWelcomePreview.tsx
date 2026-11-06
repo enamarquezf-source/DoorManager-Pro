@@ -19,7 +19,7 @@ const roleSteps: Record<DemoRole, readonly string[]> = {
 };
 
 const roleVideos: Record<DemoRole, string> = {
-  Tecnico: 'tecnico-recorrido', SAT: 'sat', Oficina: 'oficina', Comercial: 'comercial', Gerencia: 'gerencia',
+  Tecnico: 'tecnico-pantalla-completa', SAT: 'sat', Oficina: 'oficina', Comercial: 'comercial', Gerencia: 'gerencia',
 };
 
 export function DemoWelcomePreview({ role, experience, onClose, onStart }: {
@@ -41,9 +41,9 @@ export function DemoWelcomePreview({ role, experience, onClose, onStart }: {
     : roleSteps[role];
   const title = experience === 'discover' ? 'Descubrir DMP' : experience === 'connected' ? 'Mi recorrido completo' : `Prueba de ${demoRoles.find(option => option.id === role)?.title}`;
   const video = experience === 'discover' ? 'descubrir' : experience === 'connected' ? 'recorrido' : roleVideos[role];
-  const recorded = video === 'tecnico-recorrido';
+  const recorded = video === roleVideos.Tecnico;
 
-  return <dialog ref={dialog} className="demo-welcome-preview" aria-labelledby="demo-welcome-title" onCancel={event => { event.preventDefault(); onClose(); }}>
+  return <dialog ref={dialog} className={`demo-welcome-preview${recorded ? ' is-wide' : ''}`} aria-labelledby="demo-welcome-title" onCancel={event => { event.preventDefault(); onClose(); }}>
     <span>{recorded ? 'RECORRIDO GRABADO EN LA DEMO' : `VÍDEO DE INTRODUCCIÓN · ${experience === 'connected' ? '28' : '21'} S`}</span>
     <h2 id="demo-welcome-title">{title}</h2>
     <video key={video} className={`demo-preview-video${recorded ? ' is-recorded' : ''}`} src={`/demo-intros/${video}.mp4`} aria-label={`Vídeo de introducción. ${title}`} controls autoPlay muted playsInline preload="metadata" />

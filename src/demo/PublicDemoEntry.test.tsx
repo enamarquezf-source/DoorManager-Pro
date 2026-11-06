@@ -18,7 +18,7 @@ it('requires a role choice and prepares the selected technician scenario rather 
     await act(async()=>[...host.querySelectorAll('button')].find(button=>button.textContent==='Verificación de prueba')!.click());
     await act(async()=>launch().click());
     expect(host.querySelector('dialog')?.textContent).toContain('Prueba de Técnico');
-    expect(host.querySelector('dialog video')?.getAttribute('src')).toBe('/demo-intros/tecnico-recorrido.mp4');
+    expect(host.querySelector('dialog video')?.getAttribute('src')).toBe('/demo-intros/tecnico-pantalla-completa.mp4');
     expect(start).not.toHaveBeenCalled();
     await act(async()=>host.querySelector<HTMLButtonElement>('dialog .demo-preview-start')!.click());
     expect(start).toHaveBeenCalledExactlyOnceWith('Tecnico','verified-token');expect(onReady).toHaveBeenCalledExactlyOnceWith(session);

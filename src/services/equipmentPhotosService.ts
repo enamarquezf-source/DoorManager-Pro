@@ -14,6 +14,10 @@ function dataUrlToBlob(dataUrl: string) {
 }
 
 export const equipmentPhotosService = {
+  async listPrimary(equipmentId: string) {
+    const rows = await expectData<any[]>(supabase.from('equipment_photos').select('*, files!equipment_photos_file_id_fkey(*)').eq('equipment_id', equipmentId).eq('is_primary', true).limit(1));
+    return Promise.all(rows.map(withSignedFileUrl));
+  },
   async list(equipmentId: string) {
     const rows = await expectData<any[]>(supabase.from('equipment_photos').select('*, files!equipment_photos_file_id_fkey(*)').eq('equipment_id', equipmentId).order('is_primary', { ascending: false }).order('taken_at', { ascending: false }));
     return Promise.all(rows.map(withSignedFileUrl));

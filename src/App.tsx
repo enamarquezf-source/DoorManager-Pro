@@ -1792,7 +1792,7 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
           }}
         />
       </div>
-      {workspace === 'tecnico' ? <details className="technician-work-details" open={publicDemoEnabled || undefined}><summary>Foto y referencia del equipo</summary><EquipmentCheckImage equipmentId={data.equipment?.id} template={template} templateImage={template?.image} className="door-check" refreshKey={equipmentPhotoVersion} /><EquipmentPhotoPanel equipmentId={data.equipment?.id} canManage={canExecuteCheck(profile) && Boolean(data.work_order_id)} contextWorkOrderId={data.work_order_id} onChanged={() => setEquipmentPhotoVersion((value) => value + 1)} compact /></details> : <><EquipmentCheckImage equipmentId={data.equipment?.id} template={template} templateImage={template?.image} className="door-check" refreshKey={equipmentPhotoVersion} /><EquipmentPhotoPanel equipmentId={data.equipment?.id} canManage={canExecuteCheck(profile) && Boolean(data.work_order_id)} contextWorkOrderId={data.work_order_id} onChanged={() => setEquipmentPhotoVersion((value) => value + 1)} compact /></>}
+      {workspace === 'tecnico' ? <details className="technician-work-details" open={publicDemoEnabled || undefined}><summary>Foto del equipo</summary><EquipmentPhotoPanel equipmentId={data.equipment?.id} canManage={canExecuteCheck(profile) && Boolean(data.work_order_id)} contextWorkOrderId={data.work_order_id} templateImage={template?.image} compact /></details> : <><EquipmentCheckImage equipmentId={data.equipment?.id} template={template} templateImage={template?.image} className="door-check" refreshKey={equipmentPhotoVersion} /><EquipmentPhotoPanel equipmentId={data.equipment?.id} canManage={canExecuteCheck(profile) && Boolean(data.work_order_id)} contextWorkOrderId={data.work_order_id} onChanged={() => setEquipmentPhotoVersion((value) => value + 1)} compact /></>}
       <div
         className="block-list status-summary"
         aria-label="Resumen de bloques revisados"
@@ -3786,27 +3786,30 @@ function Card({ title, action, children }: { title: string; action?: ReactNode; 
 function Badge({ tone, children }: { tone: Severity; children: ReactNode }) { return <span className={`badge ${tone}`}>{typeof children === 'string' ? visibleLabel(children) : children}</span>; }
 function InfoGrid({ items }: { items: [string, any][] }) { return <dl className="info-grid">{items.map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value ?? '-'}</dd></div>)}</dl>; }
 function canManageEquipmentPhotoUi(profile: any) { return (profile?.roles ?? []).some((role: string) => ['superadmin', 'SAT', 'Gerencia', 'Oficina'].includes(role)); }
-function EquipmentPhotoPanel({ equipmentId, canManage, contextWorkOrderId, onChanged, compact = false }: { equipmentId?: string; canManage: boolean; contextWorkOrderId?: string; onChanged?: () => void; compact?: boolean }) {
+function EquipmentPhotoPanel({ equipmentId, canManage, contextWorkOrderId, onChanged, compact = false, templateImage }: { equipmentId?: string; canManage: boolean; contextWorkOrderId?: string; onChanged?: () => void; compact?: boolean; templateImage?: string }) {
   const { workspace } = useAuth();
-  const photos = useLoad(() => equipmentId ? (workspace === 'tecnico' ? technicianWorkspaceService.photos(equipmentId) : equipmentPhotosService.list(equipmentId)) : Promise.resolve([]), [equipmentId], [] as any[]);
+  const photos = useLoad(() => equipmentId ? (workspace === 'tecnico' ? technicianWorkspaceService.photos(equipmentId) : equipmentPhotosService.list(equipmentId)) : Promise.resolve([]), [equipmentId, workspace], [] as any[]);
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirmArchive, setConfirmArchive] = useState<string | null>(null);
   const busy = useRef(false);
   const primary = primaryEquipmentPhoto(photos.data);
-  const selected = photos.data.find(photo => photo.id === selectedId) ?? primary ?? photos.data[0];
+  const selected = workspace === 'tecnico' ? primary : photos.data.find(photo => photo.id === selectedId) ?? primary ?? photos.data[0];
   const canChoosePrimary = canManage && workspace !== 'tecnico';
   const canArchive = canManage && (workspace === 'sat' || workspace === 'superadmin');
-  if (!equipmentId) return null;
+  if (!equipmentId && !templateImage) return null;
   const upload = async (file: File | undefined) => {
-    if (!file || busy.current) return;
+    if (!equipmentId || !file || busy.current) return;
     busy.current = true; setSaving(true); setMessage('');
     try {
       const photo = await equipmentPhotosService.prepare(file);
       const photoId = await equipmentPhotosService.upload(equipmentId, photo, !primary);
       setSelectedId(photoId);
       setMessage('Foto guardada.');
+      if (workspace === 'tecnico' && !primary) {
+        await technicianWorkspaceService.photos(equipmentId, true).catch(() => setMessage('Foto guardada. Actualiza la jornada para ver la portada.'));
+      }
       photos.reload();
       onChanged?.();
     } catch (error) {
@@ -3839,15 +3842,16 @@ function EquipmentPhotoPanel({ equipmentId, canManage, contextWorkOrderId, onCha
   return <Card title={compact ? 'Foto del equipo' : 'Fotos del equipo'}>
     <div className="equipment-photo-panel">
       {selected?.signed_url ? <img className="equipment-primary-photo" src={selected.signed_url} alt={selected.is_primary ? 'Foto principal del equipo' : 'Foto seleccionada del equipo'} />
+        : !photos.loading && !selected && templateImage ? <img className="equipment-primary-photo" src={templateImage} alt="Referencia del equipo" />
         : <div className="equipment-photo-empty">{photos.loading ? 'Cargando fotos…' : photos.error || selected ? 'Foto no disponible' : 'Sin fotos del equipo'}</div>}
-      {photos.data.length > 1 && <div className="equipment-photo-history" role="group" aria-label="Galería de fotos del equipo">
+      {workspace !== 'tecnico' && photos.data.length > 1 && <div className="equipment-photo-history" role="group" aria-label="Galería de fotos del equipo">
         {photos.data.map((photo, index) => <button type="button" key={photo.id} aria-pressed={photo.id === selected?.id} onClick={() => { setSelectedId(photo.id); setConfirmArchive(null); }}>
           {photo.signed_url && <img src={photo.signed_url} alt="" loading="lazy" />}
           <span>Foto {index + 1}{photo.is_primary ? ' · Principal' : ''}</span>
         </button>)}
       </div>}
       <div className="equipment-photo-actions">
-        {canManage && <label className="component-photo">Añadir foto<input type="file" disabled={saving || photos.loading} accept="image/*" capture="environment" onChange={(event) => { void upload(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>}
+        {equipmentId && canManage && <label className="component-photo">Añadir foto<input type="file" disabled={saving || photos.loading} accept="image/*" capture="environment" onChange={(event) => { void upload(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>}
         {selected?.signed_url && <a href={selected.signed_url} target="_blank" rel="noreferrer">Ver imagen completa</a>}
         {canChoosePrimary && selected && !selected.is_primary && <button type="button" disabled={saving || photos.loading} onClick={() => void changePhoto(selected.id, 'primary')}>Marcar como principal</button>}
         {canArchive && selected && confirmArchive !== selected.id && <button type="button" className="danger" disabled={saving || photos.loading} onClick={() => setConfirmArchive(selected.id)}>Borrar foto</button>}
@@ -3878,8 +3882,7 @@ function formatEntityTableValue(row: any, column: string) {
   return normalizeEntityOptionLabel(displayStatus(value));
 }
 function EquipmentCheckImage({ equipmentId, template, templateImage, className = 'door-check', refreshKey = 0 }: { equipmentId?: string; template: any; templateImage?: string; className?: string; refreshKey?: number }) {
-  const { workspace } = useAuth();
-  const photos = useLoad(() => equipmentId ? (workspace === 'tecnico' ? technicianWorkspaceService.photos(equipmentId) : equipmentPhotosService.list(equipmentId)) : Promise.resolve([]), [equipmentId, refreshKey], [] as any[]);
+  const photos = useLoad(() => equipmentId ? equipmentPhotosService.listPrimary(equipmentId) : Promise.resolve([]), [equipmentId, refreshKey], [] as any[]);
   const primary = primaryEquipmentPhoto(photos.data);
   return <div className="equipment-check-visual"><div className={`${className} ${template?.placeholder ? 'placeholder' : ''}`} aria-label="Imagen del equipo"><>{primary?.signed_url ? <img src={primary.signed_url} alt="Foto real del equipo" /> : templateImage ? <img src={templateImage} alt={template?.name ?? 'Equipo'} /> : <div className="equipment-placeholder"><Factory size={48} /><strong>{template?.name ?? 'Equipo'}</strong><span>Imagen específica pendiente</span></div>}</></div>{primary?.signed_url && templateImage && <figure className="equipment-template-reference"><img src={templateImage} alt="Referencia visual de plantilla" /><figcaption>Referencia de plantilla</figcaption></figure>}</div>;
 }

@@ -4,8 +4,9 @@ const upload = vi.fn();
 const remove = vi.fn();
 const storageFrom = vi.fn(() => ({ upload, remove }));
 const rpc = vi.fn();
+const from = vi.fn();
 
-vi.mock('../lib/supabase/client', () => ({ supabase: { storage: { from: storageFrom }, rpc } }));
+vi.mock('../lib/supabase/client', () => ({ supabase: { from, storage: { from: storageFrom }, rpc } }));
 vi.mock('./query', () => ({
   currentCompanyId: vi.fn().mockResolvedValue('company-1'),
   expectData: vi.fn(async (request: Promise<any>) => {
@@ -38,5 +39,20 @@ describe('equipmentPhotosService', () => {
     const { equipmentPhotosService } = await import('./equipmentPhotosService');
     await equipmentPhotosService.setPrimary('photo-1');
     expect(rpc).toHaveBeenCalledWith('dmp_set_equipment_primary_photo', { p_photo_id: 'photo-1' });
+  });
+
+  it('filters to the equipment cover in the database before resolving file URLs', async () => {
+    const query = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+    };
+    from.mockReturnValue(query);
+    const { equipmentPhotosService } = await import('./equipmentPhotosService');
+
+    expect(await equipmentPhotosService.listPrimary('equipment-1')).toEqual([]);
+    expect(from).toHaveBeenCalledWith('equipment_photos');
+    expect(query.eq.mock.calls).toEqual([['equipment_id', 'equipment-1'], ['is_primary', true]]);
+    expect(query.limit).toHaveBeenCalledWith(1);
   });
 });

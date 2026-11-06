@@ -12,6 +12,7 @@ import { hourRatesService } from './hourRatesService';
 import { offlineWorkspaceStore, readDeviceFirst, workspaceIdentity, assertWorkspaceIdentity, connectionAvailable } from './offlineWorkspaceStore';
 import { technicianOfflineService } from './technicianOfflineService';
 import { localDateKey } from '../shared/localDate';
+import { primaryEquipmentPhoto } from '../shared/equipmentPhotoPresentation';
 
 export type PreparedJourney = {
   downloadVersion: number;
@@ -73,7 +74,11 @@ export const technicianWorkspaceService = {
   work: (id: string, refresh = false) => readDeviceFirst<any>(`work:${id}`, async () => { const work = await workOrdersService.getTechnicianAssigned(id); if (refresh) work.documents = await documentsService.linked('Parte', id); return refresh ? downloadMedia(work) : work; }, refresh),
   async check(id: string, refresh = false) { const check = await readDeviceFirst<any>(`check:${id}`, async () => { const check = await checksService.getTechnicianAssigned(id); return refresh ? downloadMedia(check) : check; }, refresh); const snapshot = await offlineWorkspaceStore.get(`check:${id}`); return overlayFieldCheck(check, await technicianOfflineService.list(), snapshot?.savedAt ?? ''); },
   workers: (id: string, refresh = false) => readDeviceFirst(`workers:${id}`, () => workOrdersService.timeWorkerOptions(id), refresh),
-  photos: (id: string, refresh = false) => readDeviceFirst(`photos:${id}`, () => equipmentPhotosService.list(id), refresh),
+  async photos(id: string, refresh = false) {
+    const rows = await readDeviceFirst(`photos:${id}`, () => equipmentPhotosService.listPrimary(id), refresh);
+    const primary = primaryEquipmentPhoto(rows);
+    return primary ? [primary] : [];
+  },
   history: (id: string, refresh = false) => readDeviceFirst(`history:${id}`, () => equipmentService.technicianContext(id), refresh),
   costs: (refresh = false) => readDeviceFirst('cost-catalog', () => hourRatesService.catalog('', undefined, 'cost', false), refresh),
   materials: async (search = '', refresh = false) => {
@@ -154,7 +159,7 @@ export const technicianWorkspaceService = {
       if (work.primary_equipment?.id) equipment.add(work.primary_equipment.id);
     }
     for (const id of equipment) {
-      onProgress('Guardando fotos e historial de equipos…');
+      onProgress('Guardando fotos de portada e historial de equipos…');
       await offlineWorkspaceStore.put(`photos:${id}`, await downloadMedia(await this.photos(id, true)), owner);
       await offlineWorkspaceStore.put(`history:${id}`, await downloadMedia(await this.history(id, true)), owner);
     }

@@ -5,7 +5,7 @@ vi.mock('./documentsService', () => ({ documentsService: { linked: async () => [
 vi.mock('./assignmentsService', () => ({ assignmentsService: { assignedActiveWork: remote.day } }));
 vi.mock('./workOrdersService', () => ({ workOrdersService: { getTechnicianAssigned: remote.work, timeWorkerOptions: remote.workers, warehousesCatalog: remote.warehouses, warehouseStockCatalog: remote.stock, technicianStockOptions: async()=>({warehouses:await remote.warehouses(),stock:await remote.stock()}) } }));
 vi.mock('./checksService', () => ({ checksService: { getTechnicianAssigned: remote.check, pendingForCurrentTechnician: remote.pending, completedForCurrentTechnician: remote.done } }));
-vi.mock('./equipmentPhotosService', () => ({ equipmentPhotosService: { list: remote.photos } }));
+vi.mock('./equipmentPhotosService', () => ({ equipmentPhotosService: { listPrimary: remote.photos } }));
 vi.mock('./equipmentService', () => ({ equipmentService: { technicianContext: remote.history } }));
 vi.mock('./hourRatesService', () => ({ hourRatesService: { catalog: remote.costs } }));
 vi.mock('./technicianOfflineService', () => ({ technicianOfflineService: { reconcileActiveWork: vi.fn(), list: async () => [] } }));
@@ -50,7 +50,7 @@ it('automatically downloads every part and its unseen checks before enabling the
   remote.pending.mockResolvedValue([]);
   remote.work.mockImplementation(async (id: string) => ({ id, checks: [{ id: `check-${id}` }], primary_equipment: { id: `equipment-${id}` } }));
   remote.check.mockImplementation(async (id: string) => ({ id, check_templates: { check_template_sections: [{ id: `section-${id}`, check_template_items: [{ id: `motor-${id}` }] }] } }));
-  remote.photos.mockResolvedValue([{ signed_url: 'data:image/png;base64,downloaded-photo' }]);
+  remote.photos.mockResolvedValue([{ is_primary: true, signed_url: 'data:image/png;base64,downloaded-photo' }]);
   let finishLastFile!: (value: any) => void;
   remote.history.mockImplementation((id: string) => id === 'equipment-two'
     ? new Promise(resolve => { finishLastFile = resolve; })
@@ -78,6 +78,15 @@ it('automatically downloads every part and its unseen checks before enabling the
     expect(await workspace.history(`equipment-${id}`)).toEqual({ workOrders: [], deficiencies: [] });
   }
   expect(Object.values(remote).map(mock => mock.mock.calls.length)).toEqual(callsBeforeOpening);
+});
+
+it('only exposes the cover when an older offline journey still contains a gallery', async () => {
+  const cover = { id: 'cover', is_primary: true, signed_url: 'data:image/png;base64,cover' };
+  await offlineWorkspaceStore.put('photos:equipment', [{ id: 'other', is_primary: false }, cover]);
+  vi.stubGlobal('navigator', { onLine: false });
+
+  expect(await workspace.photos('equipment')).toEqual([cover]);
+  expect(remote.photos).not.toHaveBeenCalled();
 });
 
 it('reuses a complete current journey without downloading it on every visit', async () => {

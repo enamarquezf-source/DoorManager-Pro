@@ -59,7 +59,7 @@ async function withCheckContext(rows: any[]) {
   }
   const [orders, equipment, sections] = await Promise.all([
     ids.length ? expectData<any[]>(supabase.from('work_orders').select('id, clients!work_orders_client_id_fkey(legal_name), sites!work_orders_site_id_fkey(name)').in('id', ids)) : Promise.resolve([]),
-    equipmentIds.length ? expectData<any[]>(supabase.from('equipment').select('id, code, internal_location, brand, model, equipment_types!equipment_equipment_type_id_fkey(name)').in('id', equipmentIds)) : Promise.resolve([]),
+    equipmentIds.length ? expectData<any[]>(supabase.from('equipment').select('id, code, internal_location, brand, model, equipment_types!equipment_equipment_type_id_fkey(name), clients!equipment_client_id_fkey(legal_name), sites!equipment_site_id_fkey(name)').in('id', equipmentIds)) : Promise.resolve([]),
     Promise.all(sectionQueries),
   ]);
   const byId = new Map(orders.map((order) => [order.id, order]));
@@ -70,7 +70,17 @@ async function withCheckContext(rows: any[]) {
     related.push(section);
     sectionsByCheck.set(section.check_id, related);
   }
-  return rows.map((row) => { const order = byId.get(row.work_order_id); return { ...row, check_section_results: sectionsByCheck.get(row.id) ?? [], equipment: equipmentById.get(row.equipment_id) ?? row.equipment, client_name: row.client_name || order?.clients?.legal_name, site_name: row.site_name || order?.sites?.name }; });
+  return rows.map(row => {
+    const order = byId.get(row.work_order_id);
+    const item = equipmentById.get(row.equipment_id) ?? row.equipment;
+    return {
+      ...row,
+      check_section_results: sectionsByCheck.get(row.id) ?? [],
+      equipment: item,
+      client_name: row.client_name || order?.clients?.legal_name || item?.clients?.legal_name,
+      site_name: row.site_name || order?.sites?.name || item?.sites?.name,
+    };
+  });
 }
 
 export const checksService = {

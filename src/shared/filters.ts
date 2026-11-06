@@ -20,6 +20,37 @@ export function checkTabFromParams(params: URLSearchParams): 'pending' | 'done' 
   return normalizeParam(params.get('estado')) === 'realizado' ? 'done' : 'pending';
 }
 
+export function filterChecks<T extends {
+  code?: string;
+  client_name?: string;
+  site_name?: string;
+  equipment_name?: string;
+  equipment_code?: string;
+  work_order_code?: string;
+  work_orders?: { code?: string };
+  equipment?: {
+    code?: string;
+    brand?: string;
+    model?: string;
+    internal_location?: string;
+    equipment_types?: { name?: string };
+    clients?: { legal_name?: string };
+    sites?: { name?: string };
+  };
+}>(checks: T[], search: string): T[] {
+  const terms = search.trim().split(/\s+/).map(normalizeParam).filter(Boolean);
+  if (!terms.length) return checks;
+  return checks.filter(check => {
+    const equipment = check.equipment;
+    const fields = [
+      check.client_name, check.site_name, equipment?.clients?.legal_name, equipment?.sites?.name,
+      equipment?.brand, equipment?.model, equipment?.internal_location, equipment?.equipment_types?.name,
+      check.equipment_name, check.equipment_code, equipment?.code, check.code, check.work_order_code, check.work_orders?.code,
+    ].map(normalizeParam);
+    return terms.every(term => fields.some(field => field.includes(term)));
+  });
+}
+
 export function deficiencyFiltersFromParams(params: URLSearchParams) {
   const state = normalizeParam(params.get('estado'));
   const severity = normalizeParam(params.get('gravedad'));

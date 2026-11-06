@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkTabFromParams, deficiencyFiltersFromParams, isOpenDeficiencyStatus, workOrderFilterFromParams } from './filters';
+import { checkTabFromParams, deficiencyFiltersFromParams, filterChecks, isOpenDeficiencyStatus, workOrderFilterFromParams } from './filters';
 
 describe('URL filter mapping', () => {
   it('maps management KPI params to work order filters', () => {
@@ -27,4 +27,16 @@ describe('URL filter mapping', () => {
     expect(checkTabFromParams(new URLSearchParams())).toBe('pending');
     expect(checkTabFromParams(new URLSearchParams('estado=desconocido'))).toBe('pending');
   });
+});
+
+it('finds checks by model, client and site, including checks without an assigned work order', () => {
+  const checks = [
+    { code: 'CHK-1', client_name: 'Logística Norte', site_name: 'Almacén central', equipment: { model: 'PARK 80' } },
+    { code: 'CHK-2', equipment: { model: 'PARK 80', clients: { legal_name: 'Taller Sur' }, sites: { name: 'Centro Aragón' } } },
+  ];
+  expect(filterChecks(checks, 'park 80')).toEqual(checks);
+  expect(filterChecks(checks, 'logistica almacen')).toEqual([checks[0]]);
+  expect(filterChecks(checks, 'park sur aragon')).toEqual([checks[1]]);
+  expect(filterChecks(checks, 'aragon norte')).toEqual([]);
+  expect(filterChecks(checks, ' ')).toBe(checks);
 });

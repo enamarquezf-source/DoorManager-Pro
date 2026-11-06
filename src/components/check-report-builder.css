@@ -1,0 +1,8 @@
+.check-report-builder { display: grid; gap: 1rem; padding: 1rem; }
+.check-report-builder fieldset { border: 0; padding: 0; }
+.check-report-sources { display: flex; flex-wrap: wrap; gap: .5rem; }
+.check-report-sources label, .check-report-options label { display: flex; align-items: center; gap: .5rem; }
+.check-report-builder :is(input[type="radio"], input[type="checkbox"]) { width: 1rem; height: 1rem; min-height: 0; flex-shrink: 0; }
+.check-report-options { max-height: 18rem; overflow: auto; border-block: 1px solid #bdd8d1; }
+.check-report-options label { padding: .55rem 0; border-bottom: 1px solid #edf6f3; }
+.check-report-options small { display: block; }

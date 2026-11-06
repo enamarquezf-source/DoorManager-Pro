@@ -84,6 +84,18 @@ async function withCheckContext(rows: any[]) {
 }
 
 export const checksService = {
+  async reportCatalog() {
+    const companyId = await currentCompanyId();
+    const rows: any[] = [];
+    for (let offset = 0; ; offset += 500) {
+      let query = supabase.from('checks').select('id,code,status,work_order_id,equipment:equipment!checks_equipment_id_fkey(id,code,brand,model,internal_location,equipment_types!equipment_equipment_type_id_fkey(name)),work_orders!checks_work_order_id_fkey(id,code,title,clients!work_orders_client_id_fkey(legal_name),sites!work_orders_site_id_fkey(name))')
+        .is('deleted_at', null).order('created_at', { ascending: false }).order('id').range(offset, offset + 499);
+      if (companyId) query = query.eq('company_id', companyId);
+      const page = await expectData<any[]>(query);
+      rows.push(...page);
+      if (page.length < 500) return rows;
+    }
+  },
   async list(search = '', companyScope?: string | null, archiveFilter: ArchiveFilter = 'active') {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
     let query = applyArchiveFilter(supabase.from('checks').select('*, companies!checks_company_id_fkey(name), equipment!checks_equipment_id_fkey(code), work_orders!checks_work_order_id_fkey(code), profiles!checks_technician_id_fkey(first_name,last_name)'), archiveFilter).order('created_at', { ascending: false });

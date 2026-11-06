@@ -90,7 +90,7 @@ export async function createCheckReportPdf(report: CheckReport) {
   const checkCount = checked.reduce((count, equipment) => count + equipment.checks.length, 0);
   const deficiencyCount = report.equipment.reduce((count, equipment) => count + (equipment.deficiencies?.length ?? 0), 0);
   y += 2;
-  write(`${checked.length} ${checked.length === 1 ? 'equipo revisado' : 'equipos revisados'}   ·   ${checkCount} ${checkCount === 1 ? 'check' : 'checks'}   ·   ${deficiencyCount} ${deficiencyCount === 1 ? 'deficiencia registrada' : 'deficiencias registradas'}`, { bold: true });
+  write(`${checked.length} ${checked.length === 1 ? 'equipo' : 'equipos'}   ·   ${checkCount} ${checkCount === 1 ? 'check' : 'checks'}   ·   ${deficiencyCount} ${deficiencyCount === 1 ? 'deficiencia registrada' : 'deficiencias registradas'}`, { bold: true });
   if (checked.some(equipment => equipment.checks.some(check => check.local))) {
     write('Incluye resultados de la copia local del dispositivo.', { size: 8, color: muted });
   }
@@ -169,7 +169,7 @@ export async function createCheckReportPdf(report: CheckReport) {
     for (const deficiency of equipment.deficiencies ?? []) {
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(9);
-      const details = [deficiency.description, deficiency.action && `Acción recomendada: ${deficiency.action}`].filter(Boolean);
+      const details = [deficiency.description, deficiency.action && `Acción recomendada: ${deficiency.action}`].filter((detail): detail is string => Boolean(detail));
       height += 5.87 + details.reduce((lines, detail) => lines + pdf.splitTextToSize(detail, width - 6).length, 0) * 3.87;
     }
     return height;

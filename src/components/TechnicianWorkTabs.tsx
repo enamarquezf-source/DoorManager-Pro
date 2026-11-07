@@ -1,6 +1,6 @@
 import { useId, useRef, type ReactNode, type KeyboardEvent } from 'react';
 
-export type TechnicianWorkTab = 'work' | 'checks' | 'records' | 'close';
+export type TechnicianWorkTab = 'work' | 'checks' | 'records' | 'photos' | 'close';
 type Panel = { id: TechnicianWorkTab; label: string; detail: string; icon: ReactNode; content: ReactNode };
 
 export function TechnicianWorkTabs({ panels, active, onChange, staged = false }: { panels: Panel[]; active: TechnicianWorkTab; onChange: (id: TechnicianWorkTab) => void; staged?: boolean }) {
@@ -29,7 +29,7 @@ export function TechnicianWorkTabs({ panels, active, onChange, staged = false }:
         <button type="button" data-stage="field" aria-pressed={stage === 'field'} onClick={() => select(lastTab.current.field)}><span className="technician-stage-number" aria-hidden="true">01</span><span><strong>En campo</strong><small>Consultar y revisar</small></span></button>
         <button type="button" data-stage="report" aria-pressed={stage === 'report'} onClick={() => select(lastTab.current.report)}><span className="technician-stage-number" aria-hidden="true">02</span><span><strong>Completar parte</strong><small>Registrar y cerrar</small></span></button>
       </div>}
-    <div className={`technician-work-tabs${staged ? ' technician-work-subtabs' : ''}`} role="tablist" aria-label={staged ? stage === 'field' ? 'Trabajo en campo' : 'Registro de la intervención' : 'Secciones del parte'}>
+    <div className={`technician-work-tabs${staged ? ' technician-work-subtabs' : ''}`} style={{gridTemplateColumns: `repeat(${visiblePanels.length}, minmax(0, 1fr))`}} role="tablist" aria-label={staged ? stage === 'field' ? 'Trabajo en campo' : 'Registro de la intervención' : 'Secciones del parte'}>
       {panels.map(panel => <button type="button" role="tab" key={panel.id} id={`${id}-tab-${panel.id}`} data-tab={panel.id} hidden={staged && stageFor(panel.id) !== stage} aria-controls={`${id}-panel-${panel.id}`} aria-selected={active === panel.id} tabIndex={active === panel.id ? 0 : -1} onClick={() => select(panel.id)} onKeyDown={event => keyDown(event, visiblePanels.findIndex(row => row.id === panel.id))}>
         {panel.icon}<span>{panel.label}</span><small>{panel.detail}</small>
       </button>)}

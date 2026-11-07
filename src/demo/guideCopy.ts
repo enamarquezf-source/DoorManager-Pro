@@ -29,7 +29,7 @@ export function guideCopy(step:DemoStep) {
   times:['Completar parte → Registro → Horas. Pulsa Añadir horas; indica Inicio y Fin o Duración manual minutos, y guarda.','Abrir formulario de horas'],
   signatures:['Cierre → Firma. Escribe un nombre ficticio, dibuja en el recuadro, marca la casilla de confirmación y pulsa Guardar firma.','Ir a la firma paso a paso'],
   completed_work:['Completar parte → Cierre. Revisa el resumen, pulsa Finalizar parte y confirma con Enviar a revisión. Espera a que se envíe a SAT para continuar.','Abrir Cierre y revisar el envío'],
-  sat_approved:['Pulsa Enviar a destino, selecciona Facturación y confirma.','Revisar este parte'],
+  sat_approved:['Revisa el trabajo recibido y abre Revisión económica. Decide qué conceptos son facturables y pulsa APROBAR REVISIÓN ECONÓMICA. Después pulsa Enviar a destino, selecciona Facturación y confirma.','Revisar este parte'],
   invoices:['En Facturación, localiza el parte que revisaste. Pulsa Preparar factura y verifica los conceptos del borrador.','Ir a facturación'],
   payments:['Abre el borrador que preparaste, emítelo y pulsa Registrar cobro. Introduce un importe y una referencia ficticios. No hay ningún cargo bancario real.','Ir a la factura'],
   catalog_materials:['Crea un material con sus precios. Las existencias se registran por separado.','Crear material'],

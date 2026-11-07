@@ -1418,7 +1418,7 @@ function TechnicianWorkPage() {
   const { id = '' } = useParams();
   const [pageParams, setPageParams] = useSearchParams();
   const requestedTab = pageParams.get('vista');
-  const activeTab: TechnicianWorkTab = requestedTab === 'checks' || requestedTab === 'records' || requestedTab === 'close' ? requestedTab : 'work';
+  const activeTab: TechnicianWorkTab = requestedTab === 'checks' || requestedTab === 'records' || requestedTab === 'photos' || requestedTab === 'close' ? requestedTab : 'work';
   const changeWorkTab = (tab: TechnicianWorkTab) => setPageParams(current => { const next = new URLSearchParams(current); next.set('vista', tab); return next; }, { replace: true, preventScrollReset: true });
   const { profile } = useAuth();
   const { data, loading, error, reload } = useLoad(async () => { const work = await technicianWorkspaceService.work(id); const snapshot = await offlineWorkspaceStore.get(`work:${id}`); return overlayFieldWork(work, await technicianOfflineService.list(), profile, snapshot?.savedAt ?? ''); }, [id], null as any);
@@ -1455,11 +1455,11 @@ function TechnicianWorkPage() {
     <div className="technician-workstation-head"><div><p className="eyebrow technician-order-code"><Wrench size={14} aria-hidden="true" /> {data.code}</p><h2>{data.clients?.legal_name ?? 'Cliente no informado'}</h2><p>{data.sites?.name ?? 'Centro no informado'}</p><p className="technician-work-title">{data.title}</p></div><Badge tone={severityForStatus(data.status)}>{displayStatus(data.status)}</Badge></div>
     <div className="technician-operation-strip"><span><ClipboardCheck size={15} aria-hidden="true" />Checks <strong>{progress.checks.done}/{progress.checks.total}</strong></span><span><FileUp size={15} aria-hidden="true" />{publicDemoEnabled?'Fotos del parte':'Fotos'} <strong>{progress.photos}</strong></span><span className="technician-local-indicator" role="status">{unsavedWork ? 'Texto sin guardar' : data._finishPending ? 'Cierre pendiente' : 'Copia local'}</span></div>
     {message && <p className="success-note" role="status">{message}</p>}{actionError && <p className="form-error" role="alert">{actionError}</p>}
-    <TechnicianWorkTabs staged active={activeTab} onChange={changeWorkTab} panels={[
+    <TechnicianWorkTabs active={activeTab} onChange={changeWorkTab} panels={[
       { id: 'work', label: 'Intervención', detail: 'Aviso y equipo', icon: <Wrench size={20} aria-hidden="true" />, content: <>
         {data.description && <div className="technician-task-brief"><strong>Aviso del cliente</strong><p>{data.description}</p>{data.description.length > 180 && <details><summary>Leer aviso completo</summary><p>{data.description}</p></details>}</div>}
         <details className="technician-work-details"><summary>Datos y ubicación del parte</summary>    <Card title="CABECERA DEL PARTE"><InfoGrid items={[[ 'Código', data.code ], [ 'Cliente', data.clients?.legal_name ?? '-' ], [ 'Centro', data.sites?.name ?? '-' ], [ 'Equipos', (data.associated_equipment ?? []).map((row: any) => (row.equipment ?? row).code).filter(Boolean).join(', ') || data.primary_equipment?.code || '-' ], [ 'Tipo de trabajo', displayStatus(data.type ?? 'Trabajo técnico') ], [ 'Prioridad', displayStatus(data.priority ?? 'Normal') ], [ 'Aviso inicial', data.description ?? '-' ], [ 'Responsable', fullName(data.primary_technician) || 'No asignado' ], [ 'Estado operativo', displayStatus(data.status) ]]} /></Card></details>
-        <details className="technician-work-details"><summary>Fotos de la intervención<span>Captura lo que ves durante el trabajo</span></summary><WorkOrderPhotoForm workOrderId={data.id} /></details>
+
         <details className="technician-work-details"><summary>Historial técnico de los equipos</summary>{Array.from(new Map([...(data.associated_equipment ?? []).map((row: any) => row.equipment ?? row), data.primary_equipment].filter((equipment: any) => equipment?.id).map((equipment: any) => [equipment.id, equipment])).values()).map((equipment: any) => <TechnicianEquipmentHistory key={equipment.id} equipment={equipment} currentWorkOrderId={data.id} />)}</details>
         {(data.documents ?? []).length > 0 && <details className="technician-work-details"><summary>Documentación del parte</summary><div className="compact-list">{data.documents.map((document: any) => <article key={document.id}><strong>{document.title}</strong>{document.signed_url ? <a className="primary" download={document.files?.name ?? document.title} href={document.signed_url}>Abrir archivo descargado</a> : <span>{document.observations ?? 'Sin archivo adjunto'}</span>}</article>)}</div></details>}
       </> },
@@ -1476,6 +1476,10 @@ function TechnicianWorkPage() {
         <details className="technician-work-details technician-entry-group"><summary>Material utilizado<span>{(data.materials ?? []).length} registros</span></summary><TechnicianMaterialsCard workOrder={data} onChanged={reload} /></details>
         <details className="technician-work-details technician-entry-group"><summary>Desplazamientos<span>{(data.cost_entries ?? []).filter(isTravelCost).length} registros</span></summary><TechnicianTravelCard workOrder={data} onChanged={reload} /></details>
         <details className="technician-work-details technician-entry-group"><summary>Otros recursos y costes<span>{(data.cost_entries ?? []).filter((row: any) => !row.deleted_at && !isTravelCost(row)).length} registros</span></summary><WorkOrderCostsCard workOrder={{...data, cost_entries:(data.cost_entries ?? []).filter((row: any) => !row.deleted_at && !isTravelCost(row))}} onChanged={reload}/></details>
+      </> },
+      { id: 'photos', label: 'Fotos', detail: progress.photos + ' guardadas', icon: <FileUp size={20} aria-hidden="true" />, content: <>
+        <WorkOrderPhotoForm workOrderId={data.id} />
+        <MediaGallery photos={data.photos ?? []} signatures={[]} />
       </> },
       { id: 'close', label: 'Cierre', detail: 'Fotos y firma', icon: <CheckCircle2 size={20} aria-hidden="true" />, content: <>
         <div className="technician-close-review" aria-label="Resumen antes del cierre">

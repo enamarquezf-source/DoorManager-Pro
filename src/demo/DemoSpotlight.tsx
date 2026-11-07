@@ -44,6 +44,10 @@ export function findDemoTarget(step: DemoStep): HTMLElement | null {
       ?? inputs.find(element=>element===document.activeElement) ?? null;
   }
   if (document.querySelector('[role="dialog"], .modal-overlay, .mini-modal, .overlay')) return null;
+  if(step.goal==='sat_approved') {
+    const review=document.querySelector<HTMLElement>('main [data-economic-review="pending"]');
+    if(review&&available(review))return review;
+  }
   if(step.title==='De campo a Oficina'||step.title==='Recibe un trabajo revisado') {
     const example=[...document.querySelectorAll<HTMLElement>('main a[href*="/app/partes/"]')].find(element=>available(element)&&((element.getAttribute('aria-label')??'')+' '+element.textContent).includes('Cliente ejemplo Oficina 1'));
     if(example)return example;

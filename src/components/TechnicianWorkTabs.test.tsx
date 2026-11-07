@@ -10,6 +10,7 @@ function Harness({ staged = false }: { staged?: boolean }) {
     { id: 'work', label: 'Trabajo', detail: 'Intervención', icon: null, content: <textarea aria-label="Trabajo realizado" defaultValue="" /> },
     { id: 'checks', label: 'Checks', detail: '0/2', icon: null, content: <a href="/app/checks/check">Equipo</a> },
     { id: 'records', label: 'Registros', detail: 'Horas y material', icon: null, content: <input aria-label="Duración" defaultValue="" /> },
+    { id: 'photos', label: 'Fotos', detail: 'Imágenes', icon: null, content: <p>Fotos del parte</p> },
     { id: 'close', label: 'Cierre', detail: 'Firma', icon: null, content: <canvas aria-label="Firma del cliente" /> },
   ]} />;
 }
@@ -23,11 +24,14 @@ it('shows one mobile section at a time and preserves text and the signature canv
     await act(async () => root.render(<Harness />));
     const panels = () => [...host.querySelectorAll<HTMLDivElement>('[role="tabpanel"]')];
     const visible = () => panels().filter(panel => !panel.hidden);
-    expect(panels()).toHaveLength(4); expect(visible()).toHaveLength(1);
+    expect(panels()).toHaveLength(5); expect(visible()).toHaveLength(1);
+    const tabs=()=>[...host.querySelectorAll<HTMLButtonElement>('[role=tab]')].filter(button=>!button.hidden).map(button=>button.dataset.tab);
+    expect(tabs()).toEqual(['work','checks','records','photos','close']);
     const text = host.querySelector('textarea')!; text.value = 'Motor revisado. Falta ajustar el final de carrera.';
     const canvas = host.querySelector('canvas')!; canvas.dataset.strokes = 'existing-signature';
     await act(async () => host.querySelector<HTMLButtonElement>('[data-tab="close"]')!.click());
     expect(visible()).toHaveLength(1); expect(visible()[0].contains(canvas)).toBe(true);
+    expect(tabs()).toEqual(['work','checks','records','photos','close']);
     await act(async () => host.querySelector<HTMLButtonElement>('[data-tab="checks"]')!.click());
     expect(visible()[0].querySelector('a')?.getAttribute('href')).toBe('/app/checks/check');
     await act(async () => host.querySelector<HTMLButtonElement>('[data-tab="work"]')!.click());
@@ -49,7 +53,7 @@ it('separates field work from reporting and remembers each stage without resetti
     const hours = host.querySelector('input')!; hours.value = '90';
     const signature = host.querySelector('canvas')!;
     await act(async () => host.querySelector<HTMLButtonElement>('.technician-stage-switch [data-stage="report"]')!.click());
-    expect(visibleTabs()).toEqual(['records', 'close']);
+    expect(visibleTabs()).toEqual(['records', 'photos', 'close']);
     expect(host.querySelector('[data-tab="records"]')?.getAttribute('aria-selected')).toBe('true');
     await act(async () => host.querySelector<HTMLButtonElement>('[data-tab="close"]')!.click());
     await act(async () => host.querySelector<HTMLButtonElement>('.technician-stage-switch [data-stage="field"]')!.click());
@@ -59,7 +63,7 @@ it('separates field work from reporting and remembers each stage without resetti
     expect(host.querySelector('input')).toBe(hours);
     expect(hours.value).toBe('90');
     expect(host.querySelector('canvas')).toBe(signature);
-    expect(host.querySelectorAll('[role="tabpanel"]')).toHaveLength(4);
+    expect(host.querySelectorAll('[role="tabpanel"]')).toHaveLength(5);
   } finally { await act(async () => root.unmount()); host.remove(); }
 });
 

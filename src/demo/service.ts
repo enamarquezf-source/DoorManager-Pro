@@ -45,7 +45,7 @@ export const publicDemoService = {
     const progress=await rpc('dmp_demo_progress') as Record<string,number>;
     if(session&&activeWorkId&&session.role!=='Tecnico'){
       delete progress.sat_approved;
-      const review=await supabase.from('work_orders').select('id',{count:'exact',head:true}).eq('company_id',session.company_id).eq('id',activeWorkId).eq('sat_review_status','approved').is('deleted_at',null);
+      const review=await supabase.from('work_orders').select('id',{count:'exact',head:true}).eq('company_id',session.company_id).eq('id',activeWorkId).eq('sat_review_status','approved').eq('economic_review_status','approved').is('deleted_at',null);
       if(!review.error&&typeof review.count==='number')progress.sat_approved=review.count;
     }
     if(scopedTechnical&&session?.work_order_id){

@@ -108,3 +108,13 @@ it('keeps the pointer on a pending check and matches the invoice record',()=>{
  expect(findDemoTarget({...step,goal:'completed_work'})?.id).toBe('close');
  expect(isDemoTaskSurface({...step,route:'/app/modulos/facturas-proveedor?id=own'},'/app/modulos/facturas-proveedor?id=other')).toBe(false);
 });
+it('points to saving a loaded cost study instead of continually refreshing it',()=>{
+ document.body.innerHTML='<main><section class="cost-study-panel"><button>Nuevo estudio</button><input required value="Estudio de prueba"><button id="refresh">Actualizar datos</button><button id="save">Guardar estudio</button></section></main>';
+ visible();
+ const mission={...step,title:'Haz un estudio de costes',goal:undefined};
+ expect(findDemoTarget(mission)?.id).toBe('save');
+ document.querySelector('input')!.value='';
+ expect(findDemoTarget(mission)).toBe(document.querySelector('input'));
+ document.body.innerHTML='<main><section class="cost-study-panel"><button>Nuevo estudio</button><button id="analyse">Analizar periodo</button></section></main>';
+ expect(findDemoTarget(mission)?.id).toBe('analyse');
+});

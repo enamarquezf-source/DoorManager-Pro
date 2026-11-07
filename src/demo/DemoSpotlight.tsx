@@ -32,7 +32,7 @@ export function isDemoTaskSurface(step:DemoStep,location:string) {
 
 // Prefer a concrete action. Inside a form, guide the current field or next button.
 export function findDemoTarget(step: DemoStep): HTMLElement | null {
-  const available = (element: HTMLElement) => !element.closest('.demo-guide, .demo-session-bar, .demo-role-menu, [hidden], [aria-hidden="true"]') && !(element as HTMLButtonElement).disabled && element.getClientRects().length > 0;
+  const available = (element: HTMLElement) => !element.closest('.demo-guide, .demo-session-bar, .demo-role-menu, [hidden], [aria-hidden="true"]') && !element.matches(':disabled') && element.getClientRects().length > 0;
   const dialogs = [...document.querySelectorAll<HTMLElement>('[role="dialog"], .mini-modal')].filter(available);
   const dialog = dialogs.at(-1);
   if (dialog) {
@@ -66,7 +66,21 @@ export function findDemoTarget(step: DemoStep): HTMLElement | null {
     const account=document.querySelector<HTMLSelectElement>('main .supplier-payment-entry select');if(account&&available(account)&&!account.value)return account;
     const payment=[...document.querySelectorAll<HTMLElement>('main button')].find(element=>available(element)&&/^Registrar pago$/.test((element.textContent??'').trim()));if(payment)return payment;
   }
-  const reading:Record<string,RegExp>={'Analiza el tiempo':/^Últimos 3 meses$/,'Haz un estudio de costes':/^(Analizar periodo|Actualizar datos|Guardar estudio)$/,'Registra la factura del proveedor':/^(Crear factura proveedor|Registrar factura)$/,'Prepara un presupuesto':/^(Añadir concepto|Añadir línea|Crear presupuesto)$/,'Explora el contrato de mantenimiento':/^Nuevo contrato$/};
+  if(step.title==='Haz un estudio de costes') {
+    const study=document.querySelector<HTMLElement>('main .cost-study-panel');
+    if(study) {
+      const controls=[...study.querySelectorAll<HTMLButtonElement>('button')].filter(available);
+      const save=controls.find(button=>button.textContent?.trim()==='Guardar estudio');
+      if(save) {
+        const missing=[...study.querySelectorAll<HTMLInputElement>('input[required]')].find(input=>available(input)&&!input.value.trim());
+        return missing??save;
+      }
+      return controls.find(button=>button.textContent?.trim()==='Analizar periodo')
+        ??controls.find(button=>button.textContent?.trim()==='Nuevo estudio')
+        ??null;
+    }
+  }
+  const reading:Record<string,RegExp>={'Analiza el tiempo':/^Últimos 3 meses$/,'Registra la factura del proveedor':/^(Crear factura proveedor|Registrar factura)$/,'Prepara un presupuesto':/^(Añadir concepto|Añadir línea|Crear presupuesto)$/,'Explora el contrato de mantenimiento':/^Nuevo contrato$/};
   if(reading[step.title]){const control=[...document.querySelectorAll<HTMLElement>('main button')].find(element=>available(element)&&reading[step.title].test((element.textContent??'').trim()));if(control)return control;}
   if(['Registra el envío del presupuesto','Simula la aceptación del cliente','Convierte el presupuesto en trabajo'].includes(step.title)){
     if(step.title==='Simula la aceptación del cliente'){const status=document.querySelector<HTMLElement>('main .status-selector select');if(status&&available(status))return status;}

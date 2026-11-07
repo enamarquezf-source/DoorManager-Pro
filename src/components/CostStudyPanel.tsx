@@ -77,7 +77,7 @@ export function CostStudyPanel() {
       validateStudyInputs(inputs, from, to);
       const result = await costStudiesService.preview(from, to);
       usePayrollCosts(result);
-      setSources(result); setLoadedRange(`${from}/${to}`);
+      setSources({...result,period_from:from,period_to:to}); setLoadedRange(`${from}/${to}`);
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'No se ha podido cargar el estudio.'); }
     finally { setBusy(false); }
   }

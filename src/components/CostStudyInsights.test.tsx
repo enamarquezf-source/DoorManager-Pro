@@ -36,3 +36,12 @@ describe('company cost exploration', () => {
     expect(html).not.toContain('Infinity');
   });
 });
+it('distinguishes quarter payroll totals from monthly averages',()=>{
+ const sources={...emptyStudySources(),period_from:'2026-08-01',period_to:'2026-10-31',profiles:[{id:'p',first_name:'Alex',last_name:'Demo'}]};
+ const inputs:StudyInputs={...emptyStudyInputs(),employees:[{profile_id:'p',payroll_cost:7500,paid_hours:480,presence_hours:480,standard_completed_hours:null,standard_basis:''}]};
+ const html=renderToStaticMarkup(<MemoryRouter><CostStudyInsights report={calculateCostStudy(sources,inputs)} sources={sources} inputs={inputs} onConfigure={()=>{}}/></MemoryRouter>);
+ expect(html).toContain('01/08/2026');
+ expect(html).toContain('31/10/2026');
+ expect(html).toContain('media mensual');
+ expect(html).toContain((2500).toLocaleString('es-ES',{style:'currency',currency:'EUR',maximumFractionDigits:2}));
+});

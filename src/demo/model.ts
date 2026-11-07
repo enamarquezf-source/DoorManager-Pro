@@ -91,7 +91,7 @@ export function demoTourSteps(session: DemoSession,tour:DemoTour='work'): DemoSt
   {title:'Observa el resultado',text:'Cambia a Gerencia para estudiar la actividad y el impacto económico de los trabajos.',route:'/app/modulos/rentabilidad',target:'.flow-hero',role:'Gerencia'}
  ];
  if(session.role==='Gerencia') return [
-  {title:'Explora una empresa con actividad',text:'Hay 12 trabajos ficticios repartidos en las últimas semanas, varios clientes y costes registrados. También se conserva cualquier trabajo creado en otros perfiles.',route:'/app/inicio',target:'.page-head'},
+  {title:'Explora una empresa con actividad',text:'Hay 12 trabajos ficticios repartidos en las últimas semanas. Abre un parte de la lista para ver su cliente, intervención y costes. Después compararemos la rentabilidad.',route:'/app/partes',target:'.page-head'},
   {title:'Compara margen y costes',text:'En Rentabilidad filtra por cliente y trabajo. Compara mantenimientos rentables con reparaciones que incluyen un coste externo no repercutido. Abre el parte para rastrear los importes.',route:'/app/modulos/rentabilidad',target:'.flow-hero'},
   {title:'Analiza el tiempo',text:'Abre Resumen y elige Últimos 3 meses para incluir todo el ejemplo. Compara horas y costes por empleado; interpreta los resultados junto al tipo de trabajo.',route:'/app/gerencia',target:'.cost-study-panel'},
   {title:'Haz un estudio de costes',text:'En los estudios del Resumen revisa las fuentes, define horas disponibles y costes generales ficticios y guarda un escenario. No confundas horas registradas con productividad: hacen falta horas de presencia y una referencia de trabajo.',route:'/app/gerencia',target:'.page-head'},

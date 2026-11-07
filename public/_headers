@@ -1,3 +1,18 @@
+/
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/app
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/app/*
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/demo-intros/descubrir.mp4
+  Cache-Control: no-cache, must-revalidate
+
+/demo-intros/recorrido.mp4
+  Cache-Control: no-cache, must-revalidate
+
 /index.html
   Cache-Control: no-cache, no-store, must-revalidate
 

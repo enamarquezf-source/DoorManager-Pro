@@ -101,3 +101,10 @@ it('follows the component defect through selection, description, other results a
  (document.getElementById('note') as HTMLTextAreaElement).value='Defecto ficticio';expect(findDemoTarget(mission)?.id).toBe('remaining');expect((document.querySelector('#remaining input') as HTMLInputElement).checked).toBe(false);
  (document.querySelector('#remaining input') as HTMLInputElement).checked=true;expect(findDemoTarget(mission)?.id).toBe('confirm');
 });
+it('keeps the pointer on a pending check and matches the invoice record',()=>{
+ document.body.innerHTML='<main><a class="work-order-check-link" id="done">Finalizado</a><a class="work-order-check-link" id="pending">Pendiente</a><button id="close">Finalizar parte</button></main>';
+ visible();
+ expect(findDemoTarget({...step,goal:'checks',target:'.work-order-check-link'})?.id).toBe('pending');
+ expect(findDemoTarget({...step,goal:'completed_work'})?.id).toBe('close');
+ expect(isDemoTaskSurface({...step,route:'/app/modulos/facturas-proveedor?id=own'},'/app/modulos/facturas-proveedor?id=other')).toBe(false);
+});

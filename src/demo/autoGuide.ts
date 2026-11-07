@@ -5,7 +5,7 @@ export function navigationCompletes(step:DemoStep,before:string,after:string) {
  const name=step.title;
  if(name==='Un aviso, tres equipos'||name==='Tu jornada preparada')return /^\/app\/tecnico\/trabajo\//.test(after);
  if(name==='Consulta el aviso')return /[?&]vista=checks(?:&|$)/.test(after);
- if(name==='De campo a Oficina'||name==='Recibe un trabajo revisado'||name==='Comprueba los conceptos')return /^\/app\/partes\/[^/?]+/.test(after);
+ if(name==='De campo a Oficina'||name==='Recibe un trabajo revisado')return /^\/app\/partes\/[^/?]+/.test(after);
  if(name==='Entiende el margen'||name==='Compara margen y costes')return /^\/app\/partes\/[^/?]+/.test(after);
  if(name==='Comprueba las existencias')return /^\/app\/modulos\/materiales\/[^/?]+/.test(after);
  if(name==='Explora una empresa con actividad')return /^\/app\/partes\/[^/?]+/.test(after);

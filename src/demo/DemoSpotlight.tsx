@@ -11,7 +11,7 @@ const actions: Record<string, RegExp> = {
   suppliers: /^(crear|nuevo) proveedor$/i,
   purchase_orders: /^nuevo pedido$/i,
   assignments: /^gestionar asignaciones$/i,
-  completed_work: /^FINALIZAR TRABAJO EN CAMPO$/i,
+  completed_work: /^(Finalizar trabajo en campo|Finalizar parte)$/i,
   sat_approved: /^Enviar a destino$/i,
   ordered_purchases: /^Marcar pedido$/i,
   purchase_receipts: /^Registrar recepción$/i,
@@ -27,8 +27,7 @@ export function isDemoTaskSurface(step:DemoStep,location:string) {
   if((step.goal==='checks'||step.goal==='photos')&&/^\/app\/checks\/[^/]+/.test(current.pathname))return true;
   const expected=new URL(step.route,'https://dmp.local');
   if(current.pathname!==expected.pathname&&!current.pathname.startsWith(expected.pathname+'/'))return false;
-  const view=expected.searchParams.get('vista');
-  return !view||current.searchParams.get('vista')===view;
+  return ['vista','id','nuevo','order','supplier'].every(key=>!expected.searchParams.has(key)||current.searchParams.get(key)===expected.searchParams.get(key));
 }
 
 // Prefer a concrete action. Inside a form, guide the current field or next button.
@@ -124,6 +123,9 @@ export function findDemoTarget(step: DemoStep): HTMLElement | null {
     const links=[...document.querySelectorAll<HTMLElement>('main a[href*="/app/partes/"]')].filter(available);
     const work=links.find(element=>((element.getAttribute('aria-label')??'')+' '+element.textContent).includes('Sin asignar'))??links[0];
     if(work)return work;
+  }
+  if(step.goal==='checks'&&step.target==='.work-order-check-link') {
+    return [...document.querySelectorAll<HTMLElement>(step.target)].find(element=>available(element)&&!/Finalizado/.test(element.textContent??''))??null;
   }
   const selector = step.target.replaceAll('.page-head', '.page-head, .section-header');
   return [...document.querySelectorAll<HTMLElement>(selector)].find(available) ?? null;

@@ -49,3 +49,20 @@ it('uses the selected business role guide instead of forcing the quick technicia
   expect(start).toHaveBeenCalledExactlyOnceWith('Oficina','verified-token');expect(localStorage.getItem('dmp-demo-tour-choice:role-choice')).toBe('work');
  }finally{await act(async()=>root.unmount());host.remove();localStorage.clear();}
 });
+it.each([
+ ['Descubrir DMP','/demo-intros/tecnico-pantalla-completa.mp4',3],
+ ['Crear mi propio recorrido','/demo-intros/sat-pantalla-completa.mp4',4],
+] as const)('uses the complete recordings for %s and continues to the next role',async(label,source,chapters)=>{
+ (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
+ const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ try {
+  await act(async()=>root.render(<PublicDemoEntry checkReady={async()=>true} start={vi.fn()} onReady={async()=>{}} siteKey="site"/>));
+  await act(async()=>[...host.querySelectorAll('button')].find(button=>button.textContent?.includes(label))!.click());
+  await act(async()=>[...host.querySelectorAll('button')].find(button=>button.textContent==='Verificación de prueba')!.click());
+  await act(async()=>host.querySelector<HTMLButtonElement>('.demo-launch')!.click());
+  expect(host.querySelector('dialog video')?.getAttribute('src')).toBe(source);
+  expect(host.querySelectorAll('.demo-preview-chapters button')).toHaveLength(chapters);
+  await act(async()=>host.querySelector('dialog video')!.dispatchEvent(new Event('ended')));
+  expect(host.querySelector('dialog video')?.getAttribute('src')).toBe(label==='Descubrir DMP'?'/demo-intros/oficina-pantalla-completa.mp4':'/demo-intros/tecnico-pantalla-completa.mp4');
+ } finally {await act(async()=>root.unmount());host.remove();}
+});

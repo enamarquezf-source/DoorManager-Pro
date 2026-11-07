@@ -243,3 +243,32 @@ it('hands the reviewed work to Office instead of requiring a maintenance contrac
   expect(onRole).toHaveBeenCalledExactlyOnceWith('Oficina',{step:1,route:'/app/partes/reviewed-work'});
  }finally{await act(async()=>root.unmount());host.remove();}
 });
+it('waits for all equipment checks in the complete technical journey',async()=>{
+ (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
+ mocks.progress.mockResolvedValue({checks:0,work_checks:3});
+ const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ function Harness(){const[progress,setProgress]=useState({step:2,open:true});return <DemoGuide session={{...session,role:'Tecnico',work_order_id:'own'}} progress={progress} setProgress={setProgress} onRole={async()=>{}} tour="work"/>;}
+ try{
+  await act(async()=>root.render(<MemoryRouter initialEntries={['/app/tecnico/trabajo/own?vista=checks']}><Harness/></MemoryRouter>));
+  mocks.progress.mockResolvedValue({checks:1,work_checks:3});
+  await act(async()=>window.dispatchEvent(new Event('focus')));
+  expect(host.querySelector('h2')?.textContent).toBe('Revisa los componentes');
+  expect(host.textContent).toContain('1 de 3 checks finalizados');
+  mocks.progress.mockResolvedValue({checks:3,work_checks:3});
+  await act(async()=>window.dispatchEvent(new Event('focus')));
+  expect(host.querySelector('h2')?.textContent).toBe('Explica el trabajo realizado');
+ }finally{await act(async()=>root.unmount());host.remove();}
+});
+it('explains parts without identified equipment before explicitly continuing',async()=>{
+ (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
+ mocks.progress.mockResolvedValue({checks:0,work_checks:0});
+ const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ function Harness(){const[progress,setProgress]=useState({step:2,open:true});return <DemoGuide session={{...session,role:'Tecnico',work_order_id:'own'}} progress={progress} setProgress={setProgress} onRole={async()=>{}}/>;}
+ try{
+  await act(async()=>root.render(<MemoryRouter><Harness/></MemoryRouter>));
+  expect(host.querySelector('h2')?.textContent).toBe('Revisa los componentes');
+  expect(host.textContent).toContain('sin equipo identificado');
+  await act(async()=>host.querySelector<HTMLButtonElement>('.demo-skip')!.click());
+  expect(host.querySelector('h2')?.textContent).toBe('Explica el trabajo realizado');
+ }finally{await act(async()=>root.unmount());host.remove();}
+});

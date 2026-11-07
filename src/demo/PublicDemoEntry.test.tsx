@@ -50,9 +50,9 @@ it('uses the selected business role guide instead of forcing the quick technicia
  }finally{await act(async()=>root.unmount());host.remove();localStorage.clear();}
 });
 it.each([
- ['Descubrir DMP','/demo-intros/tecnico-pantalla-completa.mp4',3],
- ['Crear mi propio recorrido','/demo-intros/sat-pantalla-completa.mp4',4],
-] as const)('uses the complete recordings for %s and continues to the next role',async(label,source,chapters)=>{
+ ['Descubrir DMP','/demo-intros/descubrir-dmp-20261107.mp4'],
+ ['Crear mi propio recorrido','/demo-intros/crear-recorrido-dmp-20261107.mp4'],
+] as const)('plays a dedicated complete movie for %s without replacing it with a role video',async(label,source)=>{
  (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
  const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
  try {
@@ -61,8 +61,8 @@ it.each([
   await act(async()=>[...host.querySelectorAll('button')].find(button=>button.textContent==='Verificación de prueba')!.click());
   await act(async()=>host.querySelector<HTMLButtonElement>('.demo-launch')!.click());
   expect(host.querySelector('dialog video')?.getAttribute('src')).toBe(source);
-  expect(host.querySelectorAll('.demo-preview-chapters button')).toHaveLength(chapters);
+  expect(host.querySelector('dialog video')?.getAttribute('poster')).toBe(source.replace('.mp4','.jpg'));
   await act(async()=>host.querySelector('dialog video')!.dispatchEvent(new Event('ended')));
-  expect(host.querySelector('dialog video')?.getAttribute('src')).toBe(label==='Descubrir DMP'?'/demo-intros/oficina-pantalla-completa.mp4':'/demo-intros/tecnico-pantalla-completa.mp4');
+  expect(host.querySelector('dialog video')?.getAttribute('src')).toBe(source);
  } finally {await act(async()=>root.unmount());host.remove();}
 });

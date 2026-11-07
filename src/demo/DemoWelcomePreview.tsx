@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { demoRoles, type DemoRole } from './model';
 import './welcome-preview.css';
@@ -44,21 +44,21 @@ export function DemoWelcomePreview({ role, experience, onClose, onStart }: {
     ? ['En SAT, inventa un cliente y un centro, describe el aviso y asigna el parte a Alex Demo.', 'Como Técnico, revisa el equipo, anota el trabajo y registra las horas. Envía el parte y vuelve a SAT para validarlo.', 'En Oficina, revisa la factura y simula el cobro. En Gerencia, consulta cómo queda reflejado en los resultados.']
     : roleSteps[role];
   const title = experience === 'discover' ? 'Descubrir DMP' : experience === 'connected' ? 'Mi recorrido completo' : `Prueba de ${demoRoles.find(option => option.id === role)?.title}`;
-  const chapters: DemoRole[] = experience === 'discover'
-    ? ['Tecnico', 'Oficina', 'Gerencia']
+  const video = experience === 'discover'
+    ? 'descubrir-dmp-20261107'
     : experience === 'connected'
-    ? ['SAT', 'Tecnico', 'Oficina', 'Gerencia']
-    : [role];
-  const [chapter, setChapter] = useState(0);
-  const activeRole = chapters[chapter] ?? chapters[0];
-  const video = roleVideos[activeRole];
+    ? 'crear-recorrido-dmp-20261107'
+    : roleVideos[role];
+  const poster = experience === 'work' ? undefined : `/demo-intros/${video}.jpg`;
   const recorded = true;
 
   return <dialog ref={dialog} className={`demo-welcome-preview${recorded ? ' is-wide' : ''}`} aria-labelledby="demo-welcome-title" onCancel={event => { event.preventDefault(); onClose(); }}>
-    <span>RECORRIDO GRABADO EN LA DEMO</span>
+    <span>{experience === 'work' ? 'RECORRIDO GRABADO EN LA DEMO' : experience === 'discover' ? 'DESCUBRE EL CIRCUITO · PANTALLAS REALES' : 'TU RECORRIDO PASO A PASO · PANTALLAS REALES'}</span>
     <h2 id="demo-welcome-title">{title}</h2>
-    {chapters.length > 1 && <div className="demo-preview-chapters" role="group" aria-label="Capítulos de la presentación">{chapters.map((item, index) => <button key={item} type="button" aria-pressed={index === chapter} onClick={() => setChapter(index)}>{index + 1} · {demoRoles.find(option => option.id === item)?.title}</button>)}</div>}
-    <video key={video} className={`demo-preview-video${recorded ? ' is-recorded' : ''}`} src={`/demo-intros/${video}.mp4`} aria-label={`Vídeo de introducción. ${demoRoles.find(option => option.id === activeRole)?.title}`} controls autoPlay muted playsInline preload="metadata" onEnded={() => { if (chapter < chapters.length - 1) setChapter(chapter + 1); }} />
+    <video key={video} className={`demo-preview-video${recorded ? ' is-recorded' : ''}${experience === 'work' ? '' : ' is-overview'}`} src={`/demo-intros/${video}.mp4`} poster={poster} aria-label={`Vídeo de introducción. ${title}`} controls autoPlay muted playsInline preload="metadata">
+      {experience !== 'work' && <track kind="chapters" src={`/demo-intros/${video}.vtt`} srcLang="es" label="Etapas del recorrido" />}
+    </video>
+    {experience !== 'work' && <p className="demo-preview-note">{experience === 'discover' ? 'Una visita de 2 min 32 s con casos preparados. Después podrás explorar la demo a tu ritmo.' : 'Un recorrido de 3 min 40 s para saber qué crear, rellenar y validar en cada perfil.'}</p>}
     <details className="demo-preview-transcript"><summary>Qué vas a rellenar</summary><ol>{steps.map(step => <li key={step}>{step}</li>)}</ol></details>
     <p className="demo-preview-note">Usa solo datos ficticios. Tu espacio de prueba es temporal.</p>
     <footer><button type="button" onClick={onClose}>Volver</button><button type="button" className="demo-preview-start" onClick={onStart}>Empezar la demo <ArrowRight size={17} aria-hidden="true" /></button></footer>

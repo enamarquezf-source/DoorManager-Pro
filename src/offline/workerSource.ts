@@ -30,6 +30,8 @@ self.addEventListener('activate', event => event.waitUntil((async () => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET' || url.origin !== self.location.origin) return;
+  // Let the browser stream videos with Range requests and revalidate them normally.
+  if (url.pathname.startsWith('/demo-intros/')) return;
   if (url.pathname === '/actualizar.html' || url.pathname === '/actualizar' || url.pathname === '/build-info.json' || url.pathname === '/sw.js' || url.pathname === '/update-shell.js') return;
   const navigation = event.request.mode === 'navigate' && (url.pathname === '/' || url.pathname === '/app' || url.pathname.startsWith('/app/'));
   const asset = url.pathname.startsWith('/assets/');

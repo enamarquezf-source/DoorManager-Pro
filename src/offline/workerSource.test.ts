@@ -140,3 +140,15 @@ it('never intercepts version checks or updater files, even when present in the p
  const postMessage=vi.fn();handlers.message({data:{type:'DMP_SHELL_INFO'},ports:[{postMessage}]});
  expect(postMessage).toHaveBeenCalledExactlyOnceWith({cache:'dmp-shell-current'});
 });
+it('leaves intro video range requests to the browser even when an old shell listed the video',()=>{
+ const handlers:Record<string,(event:any)=>void>={};
+ const fetch=vi.fn();
+ runInNewContext(offlineWorkerSource('dmp-shell-video-test',['/index.html','/demo-intros/recorrido.mp4']),{
+  self:{location:{origin:'https://dmp.test'},addEventListener:(name:string,handler:any)=>{handlers[name]=handler;}},
+  fetch,URL,
+ });
+ const respondWith=vi.fn();
+ handlers.fetch({request:{url:'https://dmp.test/demo-intros/recorrido.mp4',method:'GET',headers:{Range:'bytes=0-1023'}},respondWith});
+ expect(respondWith).not.toHaveBeenCalled();
+ expect(fetch).not.toHaveBeenCalled();
+});

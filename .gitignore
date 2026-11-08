@@ -1,5 +1,6 @@
 node_modules/
 dist/
+.demo-tools/
 .env.local
 .env.*.local
 *.tsbuildinfo

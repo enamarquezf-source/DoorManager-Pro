@@ -18,7 +18,7 @@ it('requires a role choice and prepares the selected technician scenario rather 
     await act(async()=>[...host.querySelectorAll('button')].find(button=>button.textContent==='Verificación de prueba')!.click());
     await act(async()=>launch().click());
     expect(host.querySelector('dialog')?.textContent).toContain('Prueba de Técnico');
-    expect(host.querySelector('dialog video')?.getAttribute('src')).toBe('/demo-intros/tecnico-studio-20261108.mp4');
+    expect(host.querySelector('dialog video')?.getAttribute('src')).toBe('/demo-intros/tecnico-f2-20261108.mp4');
     expect(start).not.toHaveBeenCalled();
     await act(async()=>host.querySelector<HTMLButtonElement>('dialog .demo-preview-start')!.click());
     expect(start).toHaveBeenCalledExactlyOnceWith('Tecnico','verified-token');expect(onReady).toHaveBeenCalledExactlyOnceWith(session);
@@ -44,14 +44,14 @@ it('uses the selected business role guide instead of forcing the quick technicia
   await act(async()=>[...host.querySelectorAll('button')].find(button=>button.textContent==='Verificación de prueba')!.click());
   await act(async()=>host.querySelector<HTMLButtonElement>('.demo-launch')!.click());
   expect(host.querySelector('dialog')?.textContent).toContain('Prueba de Oficina');
-  expect(host.querySelector('dialog video')?.getAttribute('src')).toBe('/demo-intros/oficina-studio-20261108.mp4');
+  expect(host.querySelector('dialog video')?.getAttribute('src')).toBe('/demo-intros/oficina-f2-20261108.mp4');
   await act(async()=>host.querySelector<HTMLButtonElement>('dialog .demo-preview-start')!.click());
   expect(start).toHaveBeenCalledExactlyOnceWith('Oficina','verified-token');expect(localStorage.getItem('dmp-demo-tour-choice:role-choice')).toBe('work');
  }finally{await act(async()=>root.unmount());host.remove();localStorage.clear();}
 });
 it.each([
- ['Descubrir DMP','/demo-intros/descubrir-studio-20261108.mp4'],
- ['Crear mi propio recorrido','/demo-intros/recorrido-studio-20261108.mp4'],
+ ['Descubrir DMP','/demo-intros/descubrir-f2-20261108.mp4'],
+ ['Crear mi propio recorrido','/demo-intros/recorrido-f2-20261108.mp4'],
 ] as const)('plays a dedicated complete movie for %s without replacing it with a role video',async(label,source)=>{
  (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
  const host=document.createElement('div');document.body.append(host);const root=createRoot(host);

@@ -1,65 +1,79 @@
 [
   {
     "id": "descubrir",
-    "name": "descubrir-studio-20261108",
-    "seconds": 56,
-    "bytes": 814538,
+    "name": "descubrir-f2-20261108",
+    "seconds": 61.667,
+    "bytes": 1461214,
     "width": 1440,
     "height": 1080,
-    "fps": 30
+    "fps": 30,
+    "voice": "F2",
+    "synthetic": true
   },
   {
     "id": "recorrido",
-    "name": "recorrido-studio-20261108",
-    "seconds": 86,
-    "bytes": 1223130,
+    "name": "recorrido-f2-20261108",
+    "seconds": 95,
+    "bytes": 2210003,
     "width": 1440,
     "height": 1080,
-    "fps": 30
+    "fps": 30,
+    "voice": "F2",
+    "synthetic": true
   },
   {
     "id": "sat",
-    "name": "sat-studio-20261108",
-    "seconds": 32,
-    "bytes": 457432,
+    "name": "sat-f2-20261108",
+    "seconds": 38.967,
+    "bytes": 876358,
     "width": 1440,
     "height": 1080,
-    "fps": 30
+    "fps": 30,
+    "voice": "F2",
+    "synthetic": true
   },
   {
     "id": "tecnico",
-    "name": "tecnico-studio-20261108",
-    "seconds": 41,
-    "bytes": 557825,
+    "name": "tecnico-f2-20261108",
+    "seconds": 48.567,
+    "bytes": 1071002,
     "width": 1440,
     "height": 1080,
-    "fps": 30
+    "fps": 30,
+    "voice": "F2",
+    "synthetic": true
   },
   {
     "id": "oficina",
-    "name": "oficina-studio-20261108",
-    "seconds": 29,
-    "bytes": 499373,
+    "name": "oficina-f2-20261108",
+    "seconds": 31.8,
+    "bytes": 826828,
     "width": 1440,
     "height": 1080,
-    "fps": 30
+    "fps": 30,
+    "voice": "F2",
+    "synthetic": true
   },
   {
     "id": "comercial",
-    "name": "comercial-studio-20261108",
-    "seconds": 31,
-    "bytes": 477871,
+    "name": "comercial-f2-20261108",
+    "seconds": 37.1,
+    "bytes": 872819,
     "width": 1440,
     "height": 1080,
-    "fps": 30
+    "fps": 30,
+    "voice": "F2",
+    "synthetic": true
   },
   {
     "id": "gerencia",
-    "name": "gerencia-studio-20261108",
-    "seconds": 28,
-    "bytes": 409130,
+    "name": "gerencia-f2-20261108",
+    "seconds": 32.667,
+    "bytes": 759920,
     "width": 1440,
     "height": 1080,
-    "fps": 30
+    "fps": 30,
+    "voice": "F2",
+    "synthetic": true
   }
 ]

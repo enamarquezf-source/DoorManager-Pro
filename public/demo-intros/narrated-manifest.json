@@ -1,0 +1,79 @@
+[
+  {
+    "id": "descubrir",
+    "name": "descubrir-f2-20261108",
+    "seconds": 61.667,
+    "bytes": 1461214,
+    "width": 1440,
+    "height": 1080,
+    "fps": 30,
+    "voice": "F2",
+    "synthetic": true
+  },
+  {
+    "id": "recorrido",
+    "name": "recorrido-f2-20261108",
+    "seconds": 95,
+    "bytes": 2210003,
+    "width": 1440,
+    "height": 1080,
+    "fps": 30,
+    "voice": "F2",
+    "synthetic": true
+  },
+  {
+    "id": "sat",
+    "name": "sat-f2-20261108",
+    "seconds": 38.967,
+    "bytes": 876358,
+    "width": 1440,
+    "height": 1080,
+    "fps": 30,
+    "voice": "F2",
+    "synthetic": true
+  },
+  {
+    "id": "tecnico",
+    "name": "tecnico-f2-20261108",
+    "seconds": 48.567,
+    "bytes": 1071002,
+    "width": 1440,
+    "height": 1080,
+    "fps": 30,
+    "voice": "F2",
+    "synthetic": true
+  },
+  {
+    "id": "oficina",
+    "name": "oficina-f2-20261108",
+    "seconds": 31.8,
+    "bytes": 826828,
+    "width": 1440,
+    "height": 1080,
+    "fps": 30,
+    "voice": "F2",
+    "synthetic": true
+  },
+  {
+    "id": "comercial",
+    "name": "comercial-f2-20261108",
+    "seconds": 37.1,
+    "bytes": 872819,
+    "width": 1440,
+    "height": 1080,
+    "fps": 30,
+    "voice": "F2",
+    "synthetic": true
+  },
+  {
+    "id": "gerencia",
+    "name": "gerencia-f2-20261108",
+    "seconds": 32.667,
+    "bytes": 759920,
+    "width": 1440,
+    "height": 1080,
+    "fps": 30,
+    "voice": "F2",
+    "synthetic": true
+  }
+]

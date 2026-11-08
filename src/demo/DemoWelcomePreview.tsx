@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowRight, Volume2, VolumeX } from 'lucide-react';
 import { demoRoles, type DemoRole } from './model';
+import { introVideos } from './introVideos';
 import './welcome-preview.css';
 
 const roleSteps: Record<DemoRole, readonly string[]> = {
@@ -18,12 +19,8 @@ const roleSteps: Record<DemoRole, readonly string[]> = {
   Gerencia: ['Abre el ejemplo de rentabilidad y compara ventas y costes.', 'Elige un periodo para analizar la actividad de cada empleado.', 'Prueba un estudio con horas, costes y notas ficticios. Puedes descargarlo en PDF.'],
 };
 
-const roleVideos: Record<DemoRole, string> = {
-  Tecnico: 'tecnico-studio-20261108',
-  SAT: 'sat-studio-20261108',
-  Oficina: 'oficina-studio-20261108',
-  Comercial: 'comercial-studio-20261108',
-  Gerencia: 'gerencia-studio-20261108',
+const roleVideos: Record<DemoRole, keyof typeof introVideos> = {
+  Tecnico: 'tecnico', SAT: 'sat', Oficina: 'oficina', Comercial: 'comercial', Gerencia: 'gerencia',
 };
 
 export function DemoWelcomePreview({ role, experience, onClose, onStart }: {
@@ -33,6 +30,20 @@ export function DemoWelcomePreview({ role, experience, onClose, onStart }: {
   onStart: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const player = useRef<HTMLVideoElement>(null);
+  const hasListened = useRef(false);
+  const [narrationEnabled, setNarrationEnabled] = useState(false);
+  const toggleNarration = () => {
+    const enabled = !narrationEnabled;
+    setNarrationEnabled(enabled);
+    if (player.current) {
+      player.current.muted = !enabled;
+      if (enabled) {
+        if (!hasListened.current) { player.current.currentTime = 0; hasListened.current = true; }
+        void player.current.play().catch(() => { /* Native controls remain available. */ });
+      }
+    }
+  };
   useEffect(() => {
     const element = dialog.current;
     element?.showModal();
@@ -44,21 +55,20 @@ export function DemoWelcomePreview({ role, experience, onClose, onStart }: {
     ? ['En SAT, inventa un cliente y un centro, describe el aviso y asigna el parte a Alex Demo.', 'Como Técnico, revisa el equipo, anota el trabajo y registra las horas. Envía el parte y vuelve a SAT para validarlo.', 'En Oficina, revisa la factura y simula el cobro. En Gerencia, consulta cómo queda reflejado en los resultados.']
     : roleSteps[role];
   const title = experience === 'discover' ? 'Descubrir DMP' : experience === 'connected' ? 'Mi recorrido completo' : `Prueba de ${demoRoles.find(option => option.id === role)?.title}`;
-  const video = experience === 'discover'
-    ? 'descubrir-studio-20261108'
-    : experience === 'connected'
-    ? 'recorrido-studio-20261108'
-    : roleVideos[role];
+  const film = introVideos[experience === 'discover' ? 'descubrir' : experience === 'connected' ? 'recorrido' : roleVideos[role]];
+  const video = film.file;
   const poster = `/demo-intros/${video}.jpg`;
-  const duration = experience === 'discover' ? '56 s' : experience === 'connected' ? '1 min 26 s' : ({ Tecnico: '41 s', SAT: '32 s', Oficina: '29 s', Comercial: '31 s', Gerencia: '28 s' } satisfies Record<DemoRole, string>)[role];
+  const duration = film.seconds < 60 ? `${film.seconds} s` : `${Math.floor(film.seconds / 60)} min ${film.seconds % 60} s`;
   const recorded = true;
 
   return <dialog ref={dialog} className={`demo-welcome-preview${recorded ? ' is-wide' : ''}`} aria-labelledby="demo-welcome-title" onCancel={event => { event.preventDefault(); onClose(); }}>
     <span>PANTALLAS REALES · {duration}</span>
     <h2 id="demo-welcome-title">{title}</h2>
-    <video key={video} className={`demo-preview-video${recorded ? ' is-recorded' : ''}${experience === 'work' ? '' : ' is-overview'}`} src={`/demo-intros/${video}.mp4`} poster={poster} aria-label={`Vídeo de introducción. ${title}`} controls autoPlay muted playsInline preload="metadata">
+    <video ref={player} key={video} className={`demo-preview-video${recorded ? ' is-recorded' : ''}${experience === 'work' ? '' : ' is-overview'}`} src={`/demo-intros/${video}.mp4`} poster={poster} aria-label={`Vídeo de introducción. ${title}`} controls autoPlay muted={!narrationEnabled} playsInline preload="metadata">
       <track kind="chapters" src={`/demo-intros/${video}.vtt`} srcLang="es" label="Etapas del recorrido" />
+      <track kind="subtitles" src={`/demo-intros/${video}.es.vtt`} srcLang="es" label="Español" />
     </video>
+    <div className="demo-preview-audio"><button type="button" aria-pressed={narrationEnabled} onClick={toggleNarration}>{narrationEnabled ? <VolumeX size={17} aria-hidden="true" /> : <Volume2 size={17} aria-hidden="true" />}{narrationEnabled ? 'Silenciar narración' : 'Escuchar narración'}</button><span>Narración con voz de IA</span></div>
     <p className="demo-preview-note">{experience === 'discover' ? 'Una vista rápida de casos preparados. Después podrás explorar la demo a tu ritmo.' : experience === 'connected' ? 'Qué crear, rellenar y validar en cada perfil. Montaje de casos ficticios de la demo.' : 'Una presentación breve. La guía te indicará cada acción al entrar.'}</p>
     <details className="demo-preview-transcript"><summary>Qué vas a rellenar</summary><ol>{steps.map(step => <li key={step}>{step}</li>)}</ol></details>
     <p className="demo-preview-note">Usa solo datos ficticios. Tu espacio de prueba es temporal.</p>

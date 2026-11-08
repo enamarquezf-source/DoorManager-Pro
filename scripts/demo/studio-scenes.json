@@ -1,0 +1,478 @@
+{
+  "descubrir": {
+    "label": "DESCUBRE DMP",
+    "scenes": [
+      {
+        "frame": "gerencia-inicio",
+        "seconds": 5,
+        "title": "Un aviso. Un equipo. Todo conectado.",
+        "detail": "Descubre una pequeña muestra de lo que puede hacer DMP.",
+        "narration": "Un aviso, un equipo. Descubre cómo todo se conecta en de eme pe."
+      },
+      {
+        "frame": "tecnico-jornada",
+        "seconds": 5,
+        "title": "Empieza por el trabajo real.",
+        "detail": "Abre el parte preparado. Tu jornada también está disponible sin cobertura.",
+        "narration": "Abre tu parte. La jornada preparada también está disponible sin cobertura."
+      },
+      {
+        "frame": "tecnico-equipos",
+        "seconds": 5,
+        "title": "Cada equipo tiene su revisión.",
+        "detail": "Pulsa una tarjeta para entrar en su check.",
+        "narration": "Pulsa el equipo que vas a revisar para abrir su check."
+      },
+      {
+        "frame": "tecnico-bloque",
+        "seconds": 6,
+        "title": "Comprueba. Marca. Confirma.",
+        "detail": "Si todo está bien, elige Todo favorable. Las fotos de defectos son opcionales.",
+        "narration": "Comprueba cada componente. Si está bien, marca todo favorable."
+      },
+      {
+        "frame": "tecnico-favorable",
+        "seconds": 5,
+        "title": "El resultado queda claro.",
+        "detail": "Confirma el bloque y completa las demás secciones antes de finalizar el check.",
+        "narration": "Confirma cada bloque y termina las secciones antes de finalizar el check."
+      },
+      {
+        "frame": "oficina-revision",
+        "seconds": 6,
+        "title": "Del trabajo a la factura.",
+        "detail": "En Oficina, revisa otro caso preparado: conceptos, impuestos y total.",
+        "narration": "En Oficina, revisa un ejemplo preparado con sus conceptos e impuestos."
+      },
+      {
+        "frame": "oficina-cobros",
+        "seconds": 5,
+        "title": "Lo pendiente, a primera vista.",
+        "detail": "Consulta cobros, vencimientos e importes atrasados.",
+        "narration": "Consulta lo cobrado, lo pendiente y los importes atrasados."
+      },
+      {
+        "frame": "oficina-calendario",
+        "seconds": 5,
+        "title": "Anticípate a los próximos cobros.",
+        "detail": "El calendario reúne las fechas que necesitas seguir.",
+        "narration": "El calendario te ayuda a seguir los próximos vencimientos."
+      },
+      {
+        "frame": "gerencia-rentabilidad",
+        "seconds": 6,
+        "title": "Entiende de dónde sale el margen.",
+        "detail": "Compara venta y coste. Detecta desviaciones antes de tomar decisiones.",
+        "narration": "En Gerencia, compara ventas y costes para entender el margen."
+      },
+      {
+        "frame": "gerencia-estudio",
+        "seconds": 5,
+        "title": "Convierte actividad en decisiones.",
+        "detail": "Prueba un estudio de costes y explora el resultado del periodo.",
+        "narration": "Elige un periodo y explora un estudio de costes."
+      },
+      {
+        "frame": null,
+        "seconds": 3,
+        "title": "Ahora, pon DMP a prueba.",
+        "detail": "Elige tu perfil. La guía te acompaña dentro de la demo.",
+        "narration": "Ahora te toca a ti. Prueba de eme pe."
+      }
+    ]
+  },
+  "recorrido": {
+    "label": "CREA TU PROPIO RECORRIDO",
+    "scenes": [
+      {
+        "frame": "sat-inicio",
+        "seconds": 4,
+        "title": "Tu cliente. Tu trabajo. Tu recorrido.",
+        "detail": "Crea un caso ficticio y síguelo entre los perfiles de tu empresa de prueba.",
+        "narration": "Crea tu propio caso y síguelo por toda la empresa."
+      },
+      {
+        "frame": "sat-cliente",
+        "seconds": 5,
+        "title": "SAT · Da de alta el cliente.",
+        "detail": "Usa los datos de ejemplo o escribe unos inventados. Revisa antes de guardar.",
+        "narration": "En SAT, crea el cliente con datos ficticios o de ejemplo."
+      },
+      {
+        "frame": "sat-cliente-revision",
+        "seconds": 4,
+        "title": "Comprueba la ficha y guárdala.",
+        "detail": "La guía continúa al completar la acción.",
+        "narration": "Revisa su ficha y guarda. La guía continuará contigo."
+      },
+      {
+        "frame": "sat-centro",
+        "seconds": 5,
+        "title": "Añade el centro de trabajo.",
+        "detail": "Vincula la ubicación con el cliente que acabas de crear.",
+        "narration": "Añade el centro de trabajo y vincúlalo con tu cliente."
+      },
+      {
+        "frame": "sat-parte",
+        "seconds": 6,
+        "title": "Describe el aviso y asigna el técnico.",
+        "detail": "Selecciona cliente, centro, tipo de trabajo y un técnico de prueba.",
+        "narration": "Describe el aviso, elige el trabajo y asigna al técnico."
+      },
+      {
+        "frame": "sat-equipos",
+        "seconds": 6,
+        "title": "El equipo, a tu manera.",
+        "detail": "Selecciona uno existente o crea uno para practicar checks. Sin identificar también permite continuar.",
+        "narration": "Incluye un equipo, crea uno nuevo o continúa sin identificarlo."
+      },
+      {
+        "frame": "tecnico-parte",
+        "seconds": 5,
+        "title": "Técnico · Abre el trabajo asignado.",
+        "detail": "Intervención, Checks, Registro, Fotos y Cierre: cada cosa tiene su sitio.",
+        "narration": "Cambia a Técnico y abre el parte que has preparado."
+      },
+      {
+        "frame": "tecnico-check",
+        "seconds": 5,
+        "title": "Revisa las secciones de cada equipo.",
+        "detail": "Estos planos muestran un equipo de ejemplo de la demo.",
+        "narration": "Cada equipo tiene sus secciones. Aquí ves un ejemplo de revisión."
+      },
+      {
+        "frame": "tecnico-bloque",
+        "seconds": 6,
+        "title": "Registra el resultado de los componentes.",
+        "detail": "Marca favorable si corresponde. Confirma cada bloque y finaliza cada check.",
+        "narration": "Marca el resultado de cada componente, confirma y finaliza cada check."
+      },
+      {
+        "frame": "tecnico-registro",
+        "seconds": 5,
+        "title": "Deja constancia del trabajo.",
+        "detail": "En Registro, escribe lo realizado y guarda. Añade los recursos utilizados.",
+        "narration": "En Registro, explica lo realizado y guarda los recursos utilizados."
+      },
+      {
+        "frame": "tecnico-horas",
+        "seconds": 6,
+        "title": "Registra el tiempo de la visita.",
+        "detail": "Comprueba trabajador y fecha. Usa 90 minutos de ejemplo o indica Inicio y Fin.",
+        "narration": "Comprueba trabajador y fecha. Indica la duración, revisa y guarda."
+      },
+      {
+        "frame": "tecnico-cierre",
+        "seconds": 6,
+        "title": "Revisa, firma y envía.",
+        "detail": "En Cierre, añade una firma ficticia, finaliza el parte y espera la sincronización.",
+        "narration": "En Cierre, revisa el resumen, guarda una firma ficticia y envía el parte."
+      },
+      {
+        "frame": null,
+        "seconds": 6,
+        "title": "SAT · Valida antes de facturar.",
+        "detail": "Revisa trabajo, checks y recursos. Acepta la revisión económica y envía a Facturación.",
+        "narration": "De vuelta en SAT, valida el trabajo y aprueba también la revisión económica."
+      },
+      {
+        "frame": "oficina-revision",
+        "seconds": 5,
+        "title": "Oficina · Revisa la factura.",
+        "detail": "Comprueba los conceptos y el total antes de simular su emisión.",
+        "narration": "En Oficina, comprueba los conceptos y el total antes de emitir."
+      },
+      {
+        "frame": "oficina-cobros",
+        "seconds": 4,
+        "title": "Registra y sigue los cobros.",
+        "detail": "La demo utiliza datos ficticios. No realiza cargos bancarios.",
+        "narration": "Prueba el cobro con datos ficticios, sin cargos reales."
+      },
+      {
+        "frame": "gerencia-rentabilidad",
+        "seconds": 5,
+        "title": "Gerencia · Consulta el resultado.",
+        "detail": "Explora los ejemplos y compara la venta con los costes registrados.",
+        "narration": "En Gerencia, consulta cómo se relacionan la venta y los costes."
+      },
+      {
+        "frame": null,
+        "seconds": 3,
+        "title": "Ahora, pon DMP a prueba.",
+        "detail": "Elige tu perfil. La guía te acompaña dentro de la demo.",
+        "narration": "Ya puedes empezar tu propio recorrido."
+      }
+    ]
+  },
+  "sat": {
+    "label": "SAT · ORGANIZA EL TRABAJO",
+    "scenes": [
+      {
+        "frame": "sat-inicio",
+        "seconds": 4,
+        "title": "Todo empieza con un aviso.",
+        "detail": "Cliente, ubicación, equipo y técnico. Un trabajo bien preparado.",
+        "narration": "Un trabajo bien preparado empieza con la información del aviso."
+      },
+      {
+        "frame": "sat-cliente",
+        "seconds": 5,
+        "title": "Crea el cliente de prueba.",
+        "detail": "Rellena la ficha, revisa los datos y guarda.",
+        "narration": "Crea un cliente ficticio, revisa la ficha y guarda."
+      },
+      {
+        "frame": "sat-centro",
+        "seconds": 4,
+        "title": "Sitúa el trabajo en su centro.",
+        "detail": "Selecciona el cliente y añade una ubicación ficticia.",
+        "narration": "Añade el centro y selecciona el cliente al que pertenece."
+      },
+      {
+        "frame": "sat-parte",
+        "seconds": 6,
+        "title": "Crea el parte y asigna el técnico.",
+        "detail": "Describe el aviso, elige el tipo de trabajo y comprueba la asignación.",
+        "narration": "Describe el aviso, elige el tipo de trabajo y asigna al técnico."
+      },
+      {
+        "frame": "sat-equipos",
+        "seconds": 6,
+        "title": "Identifica los equipos sin bloquearte.",
+        "detail": "Incluye uno existente, crea uno o continúa sin identificar si todavía no lo conoces.",
+        "narration": "Incluye un equipo existente, crea uno o continúa sin identificarlo."
+      },
+      {
+        "frame": null,
+        "seconds": 4,
+        "title": "Del aviso a la revisión.",
+        "detail": "Guarda el parte. Después podrás cambiar a Técnico y volver a SAT para validarlo.",
+        "narration": "Guarda el parte. Después podrás ejecutarlo y volver a SAT para revisarlo."
+      },
+      {
+        "frame": null,
+        "seconds": 3,
+        "title": "Ahora, pon DMP a prueba.",
+        "detail": "Elige tu perfil. La guía te acompaña dentro de la demo.",
+        "narration": "El siguiente paso te espera dentro de la demo."
+      }
+    ]
+  },
+  "tecnico": {
+    "label": "TÉCNICO · TRABAJA CON CLARIDAD",
+    "scenes": [
+      {
+        "frame": "tecnico-jornada",
+        "seconds": 4,
+        "title": "Tu jornada, lista para empezar.",
+        "detail": "Abre el parte preparado y consulta el aviso.",
+        "narration": "Abre tu parte y consulta el aviso antes de empezar."
+      },
+      {
+        "frame": "tecnico-equipos",
+        "seconds": 4,
+        "title": "Pulsa el equipo que vas a revisar.",
+        "detail": "Cada tarjeta abre su check.",
+        "narration": "Pulsa la tarjeta del equipo para entrar en su check."
+      },
+      {
+        "frame": "tecnico-check",
+        "seconds": 4,
+        "title": "Entra en cada sección.",
+        "detail": "La foto de referencia te ayuda a identificar el equipo.",
+        "narration": "La foto te ayuda a identificar el equipo. Abre una sección."
+      },
+      {
+        "frame": "tecnico-bloque",
+        "seconds": 6,
+        "title": "Comprueba los componentes.",
+        "detail": "Si están bien, marca Todo favorable. Después confirma el bloque.",
+        "narration": "Comprueba los componentes. Si están bien, marca todo favorable y confirma."
+      },
+      {
+        "frame": "tecnico-favorable",
+        "seconds": 4,
+        "title": "Completa los checks del parte.",
+        "detail": "Confirma cada sección y finaliza cada check para sincronizarlo.",
+        "narration": "Repite las secciones y finaliza cada check para sincronizarlo."
+      },
+      {
+        "frame": "tecnico-registro",
+        "seconds": 5,
+        "title": "Explica el trabajo realizado.",
+        "detail": "Guarda el texto y registra los materiales y recursos usados.",
+        "narration": "En Registro, describe lo realizado y guarda los recursos usados."
+      },
+      {
+        "frame": "tecnico-horas",
+        "seconds": 6,
+        "title": "Añade las horas de la visita.",
+        "detail": "Comprueba trabajador y fecha. Indica duración o Inicio y Fin; revisa y guarda.",
+        "narration": "Comprueba trabajador y fecha. Indica duración o inicio y fin."
+      },
+      {
+        "frame": "tecnico-cierre",
+        "seconds": 5,
+        "title": "Cierra con el resumen a la vista.",
+        "detail": "Guarda una firma ficticia, finaliza el parte y envíalo a revisión.",
+        "narration": "Revisa el cierre, guarda una firma ficticia y envía el parte."
+      },
+      {
+        "frame": null,
+        "seconds": 3,
+        "title": "Ahora, pon DMP a prueba.",
+        "detail": "Elige tu perfil. La guía te acompaña dentro de la demo.",
+        "narration": "Tu jornada de prueba está preparada."
+      }
+    ]
+  },
+  "oficina": {
+    "label": "OFICINA · DEL PARTE AL COBRO",
+    "scenes": [
+      {
+        "frame": "oficina-pendientes",
+        "seconds": 5,
+        "title": "El trabajo está hecho. Ahora, factúralo.",
+        "detail": "Abre un parte preparado y revisa qué se va a facturar.",
+        "narration": "Abre el trabajo preparado y revisa qué se va a facturar."
+      },
+      {
+        "frame": "oficina-borrador",
+        "seconds": 5,
+        "title": "Prepara el borrador.",
+        "detail": "Comprueba el cliente y los conceptos asociados al trabajo.",
+        "narration": "Comprueba el cliente y los conceptos del borrador."
+      },
+      {
+        "frame": "oficina-revision",
+        "seconds": 6,
+        "title": "Verifica los importes antes de emitir.",
+        "detail": "Revisa bases, impuestos y total. Todo es una simulación con datos ficticios.",
+        "narration": "Revisa los importes e impuestos antes de simular la emisión."
+      },
+      {
+        "frame": "oficina-cobros",
+        "seconds": 5,
+        "title": "Controla lo pendiente.",
+        "detail": "Explora el registro de cobros, los atrasos y los próximos vencimientos.",
+        "narration": "Consulta los cobros pendientes, los atrasos y los próximos vencimientos."
+      },
+      {
+        "frame": "oficina-calendario",
+        "seconds": 5,
+        "title": "Cada fecha, en su sitio.",
+        "detail": "Consulta el calendario para organizar el seguimiento.",
+        "narration": "El calendario reúne las fechas para organizar el seguimiento."
+      },
+      {
+        "frame": null,
+        "seconds": 3,
+        "title": "Ahora, pon DMP a prueba.",
+        "detail": "Elige tu perfil. La guía te acompaña dentro de la demo.",
+        "narration": "Entra y prueba el recorrido de Oficina."
+      }
+    ]
+  },
+  "comercial": {
+    "label": "COMERCIAL · CONVIERTE UNA NECESIDAD EN TRABAJO",
+    "scenes": [
+      {
+        "frame": "comercial-inicio",
+        "seconds": 4,
+        "title": "De la oportunidad a la propuesta.",
+        "detail": "Clientes, presupuestos y seguimiento comercial en el mismo espacio.",
+        "narration": "De la oportunidad a la propuesta, con toda la información conectada."
+      },
+      {
+        "frame": "comercial-propuesta",
+        "seconds": 5,
+        "title": "Prepara el presupuesto.",
+        "detail": "Selecciona cliente, tipo de trabajo y una descripción clara.",
+        "narration": "Selecciona cliente, tipo de trabajo y una descripción clara."
+      },
+      {
+        "frame": "comercial-revision",
+        "seconds": 4,
+        "title": "Revisa y crea la propuesta.",
+        "detail": "Comprueba los datos antes de guardar.",
+        "narration": "Revisa los datos antes de crear el presupuesto."
+      },
+      {
+        "frame": "comercial-linea",
+        "seconds": 6,
+        "title": "Añade los conceptos.",
+        "detail": "Indica descripción, cantidad, coste, precio de venta e IVA.",
+        "narration": "Añade los conceptos con cantidad, coste, precio de venta e IVA."
+      },
+      {
+        "frame": "comercial-importes",
+        "seconds": 5,
+        "title": "Conoce los importes y el margen.",
+        "detail": "Distingue coste interno, total del cliente y beneficio estimado.",
+        "narration": "Consulta el total del cliente y el beneficio estimado."
+      },
+      {
+        "frame": "comercial-presupuesto",
+        "seconds": 4,
+        "title": "Continúa con el seguimiento.",
+        "detail": "Marca el envío, simula la aceptación y genera el parte cuando esté aceptado.",
+        "narration": "Tras la aceptación, podrás generar el parte para continuar."
+      },
+      {
+        "frame": null,
+        "seconds": 3,
+        "title": "Ahora, pon DMP a prueba.",
+        "detail": "Elige tu perfil. La guía te acompaña dentro de la demo.",
+        "narration": "Ahora, prepara tu propia propuesta de prueba."
+      }
+    ]
+  },
+  "gerencia": {
+    "label": "GERENCIA · ENTIENDE TU NEGOCIO",
+    "scenes": [
+      {
+        "frame": "gerencia-inicio",
+        "seconds": 4,
+        "title": "Más información. Mejores decisiones.",
+        "detail": "Explora un negocio ficticio con actividad ya preparada.",
+        "narration": "Explora un negocio ficticio con actividad ya preparada."
+      },
+      {
+        "frame": "gerencia-rentabilidad",
+        "seconds": 6,
+        "title": "Compara venta, coste y margen.",
+        "detail": "Detecta qué trabajos necesitan atención y consulta el origen de los importes.",
+        "narration": "Compara venta, coste y margen para detectar trabajos que necesitan atención."
+      },
+      {
+        "frame": "gerencia-periodo",
+        "seconds": 5,
+        "title": "Elige el periodo que quieres estudiar.",
+        "detail": "Los costes de personal se acumulan según el intervalo seleccionado.",
+        "narration": "Elige las fechas. Los costes se acumulan en ese periodo."
+      },
+      {
+        "frame": "gerencia-estudio",
+        "seconds": 6,
+        "title": "Analiza el resultado.",
+        "detail": "Revisa horas registradas, costes y actividad. Un dato útil necesita contexto.",
+        "narration": "Consulta horas, costes y actividad para interpretar el resultado."
+      },
+      {
+        "frame": null,
+        "seconds": 4,
+        "title": "Guarda tus conclusiones.",
+        "detail": "Puedes conservar el estudio y descargar su informe visual para revisarlo después.",
+        "narration": "Guarda el estudio y descarga su informe para revisarlo después."
+      },
+      {
+        "frame": null,
+        "seconds": 3,
+        "title": "Ahora, pon DMP a prueba.",
+        "detail": "Elige tu perfil. La guía te acompaña dentro de la demo.",
+        "narration": "Entra y descubre la visión de Gerencia."
+      }
+    ]
+  }
+}

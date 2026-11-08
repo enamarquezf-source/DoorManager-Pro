@@ -21,7 +21,7 @@ Si trabajas en instalación, mantenimiento o servicio técnico, me gustaría sab
 ¿qué parte de vuestro día a día sigue costando más organizar?
 
 También busco empresas interesadas en valorar una prueba adaptada a su actividad.
-Puedes escribirme en enamarquezf@gmail.com.
+Puedes escribirme en doormanagerpro@gmail.com.
 
 #Mantenimiento #ServicioTecnico #GestionEmpresarial
 
@@ -69,7 +69,7 @@ necesitáis al finalizar el trabajo. Si os interesa, podemos hablar de vuestro c
 
 Un saludo,
 Francisco Javier Ena Márquez
-enamarquezf@gmail.com
+doormanagerpro@gmail.com
 
 ## Preguntas para recoger comentarios
 

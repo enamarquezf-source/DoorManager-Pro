@@ -41,7 +41,7 @@ export function demoHeadTags(preview = false) {
 
 export function demoIndexHtml(html) {
   return html.replace(/<title>[^<]*<\/title>/, `<title>${demoTitle}</title>`)
-    .replace('<div id="root"></div>', `<div id="root"><main style="max-width:960px;margin:64px auto;padding:24px;font-family:system-ui;color:#173f47"><p>DOORMANAGER PRO · BETA PÚBLICA</p><h1>Del aviso al cobro, todo conectado.</h1><p>Software de partes y mantenimiento para empresas instaladoras: clientes, equipos, checks y gestión económica.</p><p>Explora una pequeña muestra de DMP con una guía paso a paso, sin registro y con datos ficticios.</p><p role="status">Preparando la demo…</p><noscript><p>Activa JavaScript para entrar en la demo interactiva. Contacto: enamarquezf@gmail.com.</p></noscript></main></div>`);
+    .replace('<div id="root"></div>', `<div id="root"><main style="max-width:960px;margin:64px auto;padding:24px;font-family:system-ui;color:#173f47"><p>DOORMANAGER PRO · BETA PÚBLICA</p><h1>Del aviso al cobro, todo conectado.</h1><p>Software de partes y mantenimiento para empresas instaladoras: clientes, equipos, checks y gestión económica.</p><p>Explora una pequeña muestra de DMP con una guía paso a paso, sin registro y con datos ficticios.</p><p role="status">Preparando la demo…</p><noscript><p>Activa JavaScript para entrar en la demo interactiva. Contacto: doormanagerpro@gmail.com.</p></noscript></main></div>`);
 }
 
 export function demoRobots(preview = false) {

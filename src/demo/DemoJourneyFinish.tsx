@@ -6,7 +6,7 @@ export function DemoJourneyFinish({steps,evidence,onTour}:{steps:DemoStep[];evid
  const [copyStatus,setCopyStatus]=useState('');
  const saved=steps.filter((step,index)=>step.goal&&evidence[index]?.saved);
  const handsOn=steps.some(step=>step.goal);
- const configured=import.meta.env.VITE_DEMO_CONTACT_URL??'mailto:enamarquezf@gmail.com?subject=Quiero%20probar%20DMP%20en%20mi%20empresa';
+ const configured='mailto:doormanagerpro@gmail.com?subject=Quiero%20probar%20DMP%20en%20mi%20empresa';
  let contact:string|undefined;try{const url=new URL(configured);if(url.protocol==='https:'||url.protocol==='mailto:')contact=url.href;}catch{/* Contact is optional until the owner supplies a destination. */}
  const email=contact?.startsWith('mailto:')?decodeURIComponent(new URL(contact).pathname):undefined;
  const copy=async()=>{try{await navigator.clipboard.writeText(email!);setCopyStatus('Correo copiado. Pégalo en tu servicio de correo cuando quieras.');}catch{setCopyStatus('Selecciona la dirección y cópiala manualmente. No se ha enviado ningún mensaje.');}};

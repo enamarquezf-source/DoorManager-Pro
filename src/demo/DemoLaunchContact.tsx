@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ArrowRight, Copy, Link2 } from 'lucide-react';
 import './launch-contact.css';
 
-const email = 'enamarquezf@gmail.com';
+const email = 'doormanagerpro@gmail.com';
 const demoUrl = 'https://demo-doormanager-pro.pages.dev/';
 export function DemoLaunchContact() {
   const [open, setOpen] = useState(false);

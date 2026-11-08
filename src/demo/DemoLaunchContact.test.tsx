@@ -12,10 +12,10 @@ it('shows contact without sending a message and copies the public link on reques
     await act(async () => root.render(<DemoLaunchContact />));
     const button = (text: string) => [...host.querySelectorAll('button')].find(b => b.textContent?.includes(text))!;
     await act(async () => button('Quiero probar').click());
-    expect(host.querySelector('input')?.value).toBe('enamarquezf@gmail.com');
+    expect(host.querySelector('input')?.value).toBe('doormanagerpro@gmail.com');
     expect(host.querySelector('form')).toBeNull(); expect(host.querySelector('a')).toBeNull();
     await act(async () => button('Copiar correo').click());
-    expect(copy).toHaveBeenLastCalledWith('enamarquezf@gmail.com');
+    expect(copy).toHaveBeenLastCalledWith('doormanagerpro@gmail.com');
     await act(async () => button('Copiar enlace').click());
     expect(copy).toHaveBeenLastCalledWith('https://demo-doormanager-pro.pages.dev/');
     expect(host.querySelector('[role="status"]')?.textContent).toContain('Enlace copiado');

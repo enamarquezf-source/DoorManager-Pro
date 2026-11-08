@@ -3,6 +3,7 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { demoBuildTarget, demoHeadTags, demoIndexHtml, demoRobots, demoSitemap } from './scripts/demo/public-site.mjs';
 
 function offlineShellPlugin() {
   return {
@@ -12,7 +13,7 @@ function offlineShellPlugin() {
       order: 'post' as const,
       handler(this: any, _options: any, bundle: Record<string, any>) {
         const publicFiles = (directory: string, prefix = ''): string[] => readdirSync(directory, { withFileTypes: true }).filter(entry => !entry.name.startsWith('_') && !entry.name.startsWith('.')).flatMap(entry => entry.isDirectory() ? publicFiles(join(directory, entry.name), `${prefix}${entry.name}/`) : [`/${prefix}${entry.name}`]);
-        const files = [...new Set(['/index.html', ...Object.keys(bundle).filter(name => !name.endsWith('.map')).map(name => `/${name}`), ...publicFiles('public').filter(name => !name.startsWith('/demo-intros/'))])];
+        const files = [...new Set(['/index.html', ...Object.keys(bundle).filter(name => !name.endsWith('.map')).map(name => `/${name}`), ...publicFiles('public').filter(name => !name.startsWith('/demo-intros/') && !name.startsWith('/demo-share/'))])];
         const cache = `dmp-shell-fresh-${Date.now()}`;
         this.emitFile({ type: 'asset', fileName: 'sw.js', source: offlineWorkerSource(cache, files) });
       },
@@ -38,23 +39,26 @@ function buildInfoPlugin() {
   };
 }
 
-function demoMetadataPlugin(enabled: boolean) {
+function demoMetadataPlugin(enabled: boolean, preview: boolean) {
   return {
     name: 'dmp-demo-metadata',
-    transformIndexHtml() {
-      if (enabled) return [{ tag: 'meta', attrs: { name: 'description', content: 'Prueba DoorManager Pro sin registro: clientes, partes, checks, mantenimiento, compras y gestión económica, con datos ficticios y una guía paso a paso.' }, injectTo: 'head' as const }];
+    transformIndexHtml(html: string) {
+      if (enabled) return { html: demoIndexHtml(html), tags: demoHeadTags(preview) };
     },
     generateBundle() {
-      if (enabled) this.emitFile({ type: 'asset', fileName: 'robots.txt', source: 'User-agent: *\nAllow: /\nDisallow: /app\nDisallow: /actualizar\n' });
+      if (enabled) {
+        this.emitFile({ type: 'asset', fileName: 'robots.txt', source: demoRobots(preview) });
+        if (!preview) this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: demoSitemap });
+      }
     },
   };
 }
 
 export default defineConfig(({ mode }) => {
   const environment = loadEnv(mode, process.cwd(), 'VITE_');
-  const demo = (process.env.VITE_SUPABASE_URL ?? environment.VITE_SUPABASE_URL)?.replace(/\/$/, '') === 'https://xlhzyhotzfflemjnqvqn.supabase.co';
+  const demo = demoBuildTarget({ ...environment, ...process.env });
   return {
-  plugins: [react(), buildInfoPlugin(), demoMetadataPlugin(demo), offlineShellPlugin()],
+  plugins: [react(), buildInfoPlugin(), demoMetadataPlugin(demo.enabled, demo.preview), offlineShellPlugin()],
   build: {
     rollupOptions: {
       output: {

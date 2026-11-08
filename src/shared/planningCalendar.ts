@@ -13,7 +13,10 @@ export function movePlanningDate(anchor:string, view:'month'|'week', direction:n
 export function planningEntries(works:any[]) {
  return works.flatMap(work=>{
   const assignments=(work.assignments??[]).filter((row:any)=>row.assignment_date&&!row.deleted_at&&row.status!=='Cancelado');
-  if(assignments.length)return assignments.map((assignment:any)=>({work,date:assignment.assignment_date,technicianId:assignment.technician_id??'',name:[assignment.profiles?.first_name,assignment.profiles?.last_name].filter(Boolean).join(' ')||'Técnico',start:assignment.planned_start_time??work.scheduled_time??'',end:assignment.planned_end_time??'',assignmentId:assignment.id}));
-  return work.scheduled_date?[{work,date:work.scheduled_date,technicianId:'',name:work.main_technician_name||'Sin técnico asignado',start:work.scheduled_time??'',end:'',assignmentId:''}]:[];
+  const rows=assignments.map((assignment:any)=>({work,date:assignment.assignment_date,technicianId:assignment.technician_id??'',name:[assignment.profiles?.first_name,assignment.profiles?.last_name].filter(Boolean).join(' ')||'Técnico',start:assignment.planned_start_time??work.scheduled_time??'',end:assignment.planned_end_time??'',assignmentId:assignment.id,role:'technical'}));
+  const responsible=work.responsible;
+  const commercial=responsible?.primary_area==='Comercial'||responsible?.profile_roles?.some((row:any)=>row.roles?.name==='Comercial');
+  if(commercial&&work.current_responsible_id&&work.scheduled_date&&!rows.some((row:any)=>row.technicianId===work.current_responsible_id))rows.push({work,date:work.scheduled_date,technicianId:work.current_responsible_id,name:[responsible.first_name,responsible.last_name].filter(Boolean).join(' ')||'Comercial',start:work.scheduled_time??'',end:'',assignmentId:'commercial',role:'commercial'});
+  return rows.length?rows:work.scheduled_date?[{work,date:work.scheduled_date,technicianId:'',name:'Sin asignar',start:work.scheduled_time??'',end:'',assignmentId:'',role:'unassigned'}]:[];
  }).sort((a,b)=>`${a.date}${a.start}`.localeCompare(`${b.date}${b.start}`));
 }

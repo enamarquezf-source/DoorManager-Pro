@@ -12,3 +12,10 @@ it('shows actual assignment dates per technician rather than duplicating the sch
  expect(rows.map(row=>[row.work.id,row.date,row.technicianId])).toEqual([['unassigned','2026-11-03',''],['work','2026-11-03','one'],['work','2026-11-04','two']]);
  expect(rows.find(row=>row.technicianId==='one')?.name).toBe('Ana');
 });
+it('includes scheduled commercial visits and avoids counting non-commercial responsible people',()=>{
+ const works=[{id:'visit',scheduled_date:'2026-11-10',scheduled_time:'11:00',current_responsible_id:'sales',responsible:{first_name:'Carlos',primary_area:'Comercial'}},{id:'mixed',scheduled_date:'2026-11-11',current_responsible_id:'sales',responsible:{first_name:'Carlos',profile_roles:[{roles:{name:'Comercial'}}]},assignments:[{technician_id:'tech',assignment_date:'2026-11-12'}]},{id:'sat',scheduled_date:'2026-11-13',current_responsible_id:'sat',responsible:{primary_area:'SAT'}}];
+ const rows=planningEntries(works);
+ expect(rows.filter(row=>row.role==='commercial').map(row=>[row.work.id,row.date,row.technicianId])).toEqual([['visit','2026-11-10','sales'],['mixed','2026-11-11','sales']]);
+ expect(rows.find(row=>row.work.id==='mixed'&&row.role==='technical')?.date).toBe('2026-11-12');
+ expect(rows.find(row=>row.work.id==='sat')?.technicianId).toBe('');
+});

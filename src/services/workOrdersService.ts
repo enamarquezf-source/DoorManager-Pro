@@ -142,6 +142,13 @@ export const workOrdersService = {
       checks: checks.filter((item) => item.work_order_id === work.id),
     }));
   },
+  async listPlanning() {
+    const works = await this.listWithAssignments();
+    if (!works.length) return works;
+    const responsibleRows = await expectData<any[]>(supabase.from('work_orders').select('id,current_responsible_id,responsible:profiles!work_orders_current_responsible_id_fkey(id,first_name,last_name,primary_area,profile_roles!profile_roles_profile_id_fkey(roles!profile_roles_role_id_fkey(name)))').in('id', works.map(work => work.id)).is('deleted_at', null));
+    const byId = new Map(responsibleRows.map(row => [row.id, row]));
+    return works.map(work => ({ ...work, ...byId.get(work.id) }));
+  },
   async options(companyScope?: string | null) {
     const companyId = companyScope === undefined ? await currentCompanyId() : companyScope;
     let query = supabase.from('work_orders').select('id, code, title, client_id, site_id, main_equipment_id, status').is('deleted_at', null).order('scheduled_date', { ascending: false });

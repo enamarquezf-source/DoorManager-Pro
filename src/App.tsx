@@ -2881,16 +2881,18 @@ async function loadModuleRows(moduleId: string): Promise<[string, string, Severi
 
 function PlanningModule() {
  const { profile } = useAuth();
- const { data, loading, error, reload } = useLoad(() => workOrdersService.listWithAssignments(), [], [] as any[]);
+ const { data, loading, error, reload } = useLoad(() => workOrdersService.listPlanning(), [], [] as any[]);
  const technicians = useLoad(() => profilesService.listTechnicians(), [], [] as any[]);
+ const commercials = useLoad(() => profilesService.listCommercials(), [], [] as any[]);
  const [creatingDate,setCreatingDate]=useState<string|null>(null);
+ const [commercialVisit,setCommercialVisit]=useState(false);
  const [assignment,setAssignment]=useState<any>(null);
  const [opening,setOpening]=useState(false);
  const [actionError,setActionError]=useState('');
  const openAssignment=async(work:any,date:string)=>{if(opening)return;setOpening(true);setActionError('');try{const detail=await workOrdersService.get(work.id);setAssignment({...detail,scheduled_date:date});}catch(err){setActionError(err instanceof Error?err.message:'No se ha podido abrir la asignación.');}finally{setOpening(false);}};
- return <section className="page"><Breadcrumb items={['SAT','Planificación']}/><SectionHeader title="Planificación de trabajos" description="Elige un día, consulta la agenda de cada técnico y programa las próximas intervenciones." eyebrow="OPERACIONES"/>{actionError&&<p className="form-error" role="alert">{actionError}</p>}{opening&&<p role="status">Abriendo asignación...</p>}
- <StateBlock loading={loading||technicians.loading} error={error||technicians.error} retry={()=>{reload();technicians.reload();}}><PlanningCalendar works={data} technicians={technicians.data} canCreate={canCreateWorkOrder(profile)} canAssign={canManageWorkOrderAssignments(profile)} onCreate={setCreatingDate} onAssign={openAssignment}/></StateBlock>
- {creatingDate&&<WorkOrderForm initial={{scheduled_date:creatingDate}} onClose={()=>setCreatingDate(null)} onSaved={()=>{setCreatingDate(null);reload();}}/>}
+ return <section className="page"><Breadcrumb items={['SAT','Planificación']}/><SectionHeader title="Planificación de trabajos" description="Elige un día, consulta la agenda de técnicos y comerciales y programa trabajos o visitas comerciales." eyebrow="OPERACIONES"/>{actionError&&<p className="form-error" role="alert">{actionError}</p>}{opening&&<p role="status">Abriendo asignación...</p>}
+ <StateBlock loading={loading||technicians.loading||commercials.loading} error={error||technicians.error||commercials.error} retry={()=>{reload();technicians.reload();commercials.reload();}}><PlanningCalendar works={data} technicians={technicians.data} commercials={commercials.data} canCreate={canCreateWorkOrder(profile)} canAssign={canManageWorkOrderAssignments(profile)} onCreate={(date,isCommercial=false)=>{setCommercialVisit(isCommercial);setCreatingDate(date);}} onAssign={openAssignment}/></StateBlock>
+ {creatingDate&&<WorkOrderForm initial={{scheduled_date:creatingDate,...(commercialVisit?{type:'Visita Comercial'}:{})}} onClose={()=>setCreatingDate(null)} onSaved={(id:string)=>{const date=creatingDate;setCreatingDate(null);reload();if(commercialVisit&&canManageWorkOrderAssignments(profile))void openAssignment({id},date);}}/>}
  {assignment&&<AssignmentForm workOrder={assignment} workOrderId={assignment.id} companyId={assignment.company_id} onClose={()=>setAssignment(null)} onSaved={()=>{setAssignment(null);reload();}}/>}</section>;
 }
 
@@ -3667,7 +3669,7 @@ function AssignmentsCard({ workOrder, canManage, onManage, onChanged }: { workOr
 
 function AssignmentForm({ workOrder, workOrderId, companyId, onClose, onSaved }: any) {
   const currentRows = assignmentRows(workOrder ?? {});
-  const [values, setValues] = useState<Record<string, any>>({ assignment_date: workOrder?.scheduled_date ?? localDateKey(), planned_start_time: workOrder?.scheduled_time ?? '', planned_end_time: '', main_technician_id: workOrder?.main_technician_id ?? currentRows.find((row: any) => row.type === 'Técnico principal')?.id ?? '', support_technician_ids: currentRows.filter((row: any) => row.type === 'Técnico de apoyo').map((row: any) => row.id), commercial_id: isCommercialProfile(workOrder?.responsible) ? workOrder?.current_responsible_id : '' });
+  const [values, setValues] = useState<Record<string, any>>({ assignment_date: workOrder?.scheduled_date ?? localDateKey(), planned_start_time: workOrder?.scheduled_time ?? currentRows.find((row: any) => row.type === 'Técnico principal')?.planned_start_time ?? '', planned_end_time: currentRows.find((row: any) => row.type === 'Técnico principal')?.planned_end_time ?? '', main_technician_id: workOrder?.main_technician_id ?? currentRows.find((row: any) => row.type === 'Técnico principal')?.id ?? '', support_technician_ids: currentRows.filter((row: any) => row.type === 'Técnico de apoyo').map((row: any) => row.id), commercial_id: isCommercialProfile(workOrder?.responsible) ? workOrder?.current_responsible_id : '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const technicians = useLoad(() => profilesService.listTechnicians(companyId), [companyId], [] as any[]);

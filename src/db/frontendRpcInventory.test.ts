@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const servicesDir = resolve(process.cwd(), 'src/services');
 const migrationsDir = resolve(process.cwd(), 'supabase/migrations');
+const demoDir = resolve(process.cwd(), 'supabase/demo');
 const draftsDir = resolve(process.cwd(), 'docs/drafts');
 const rpcReconcileMigration = readFileSync(resolve(migrationsDir, '018_rpc_reconcile_missing_frontend_functions.sql'), 'utf8');
 
@@ -34,9 +35,13 @@ describe('frontend RPC inventory', () => {
       readdirSync(draftsDir).filter((file) => file.endsWith('.sql')).map((file) => readFileSync(resolve(draftsDir, file), 'utf8')).join('\n'),
       /create\s+(?:or\s+replace\s+)?function\s+public\.([a-zA-Z0-9_]+)\s*\(/gi,
     );
+    const demoRpc = uniqueMatches(
+      readdirSync(demoDir).filter(file => file.endsWith('.sql')).map(file => readFileSync(resolve(demoDir,file),'utf8')).join('\n'),
+      /create\s+(?:or\s+replace\s+)?function\s+public\.([a-zA-Z0-9_]+)\s*\(/gi,
+    );
 
     expect(frontendRpc.length).toBeGreaterThanOrEqual(27);
-    expect(frontendRpc.filter((name) => !activeRpc.includes(name) && !draftRpc.includes(name))).toEqual([]);
+    expect(frontendRpc.filter((name) => !activeRpc.includes(name) && !draftRpc.includes(name) && !(name.startsWith('dmp_demo_') && demoRpc.includes(name)))).toEqual([]);
   });
 
   it('repone en la nueva reconciliacion las RPC ausentes en Supabase real', () => {

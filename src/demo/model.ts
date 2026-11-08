@@ -64,7 +64,7 @@ export function demoTourSteps(session: DemoSession,tour:DemoTour='work'): DemoSt
  }
  if (session.role === 'Tecnico') return [
   {title:'Tu jornada preparada',text:'Abre el parte asignado. Si vienes de SAT, conserva el cliente y el trabajo que acabas de crear. Prepara la jornada para trabajar sin cobertura.',route:'/app/tecnico',target:dayTarget},
-  {title:'Consulta el aviso',text:'En En campo revisa cliente, centro, equipo y motivo del aviso. Comprueba que tienes la información necesaria antes de empezar y pulsa Checks para revisar los equipos.',route:work+'?vista=work',target:'.technician-workstation-head'},
+  {title:'Consulta el aviso',text:'En Intervención revisa cliente, centro, equipo y motivo del aviso. Comprueba que tienes la información necesaria antes de empezar y pulsa Checks para revisar los equipos.',route:work+'?vista=work',target:'.technician-workstation-head'},
   {title:'Revisa los componentes',text:'Abre un equipo y una sección. Primero verás el componente y debajo qué comprobar. Si todo está bien, puedes marcar todos los componentes como favorables. Guarda y sincroniza la respuesta. La guía reconocerá el resultado y te indicará la siguiente tarea.',route:work+'?vista=checks',target:'.work-order-check-link',goal:'checks'},
   {title:'Explica el trabajo realizado',text:'En Completar parte escribe qué has hecho y guarda. Ejemplo: ajuste de finales de carrera y prueba de seguridad.',route:work+'?vista=records',target:'.technician-work-tabs',goal:'work_notes'},
   {title:'Registra el tiempo',text:'Añade las horas realmente empleadas. Guarda y envía los cambios; si hay un fallo, revísalo en Pendientes antes de continuar.',route:work+'?vista=records',target:'[data-demo-hours]',goal:'times'},

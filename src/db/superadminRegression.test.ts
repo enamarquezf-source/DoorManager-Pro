@@ -9,7 +9,7 @@ const routes = readFileSync(new URL('../routing/appRoutes.ts', import.meta.url),
 describe('superadmin regression coverage', () => {
   it('protege la edición administrativa de checks con permisos centralizados', () => {
     expect(permissions).toContain('function canManageCheck');
-    expect(app).toContain('const manageAllowed = canManageCheck(profile)');
+    expect(app).toContain("const manageAllowed = workspace !== 'tecnico' && canManageCheck(profile)");
     expect(app).toContain("{manageAllowed && <button onClick={() => setMode('edit')}>Modificar check</button>}");
   });
 

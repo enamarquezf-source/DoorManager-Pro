@@ -20,7 +20,8 @@ function clean(value: unknown) {
 export function checkEquipmentName(equipment: EquipmentRecord | null | undefined, fallback?: string | null) {
   const type = clean(equipment?.equipment_types?.name) ?? clean(equipment?.type_name) ?? clean(equipment?.equipment_type) ?? clean(fallback);
   const location = clean(equipment?.internal_location);
-  const label = [type, location].filter(Boolean).join(' · ');
+  const sameLocation = type && location && type.localeCompare(location, 'es', { sensitivity: 'base' }) === 0;
+  const label = [type, sameLocation ? null : location].filter(Boolean).join(' · ');
   return label || [clean(equipment?.brand), clean(equipment?.model)].filter(Boolean).join(' ') || 'Equipo sin identificar';
 }
 

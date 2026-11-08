@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { equipmentOperationalLabel } from './equipmentPresentation';
+import { checkEquipmentName, equipmentOperationalLabel } from './equipmentPresentation';
 
 describe('equipment operational presentation', () => {
+  it('does not repeat the same type as its location in check cards', () => {
+    expect(checkEquipmentName({equipment_types:{name:'Puerta seccional'},internal_location:'puerta seccional'})).toBe('Puerta seccional');
+    expect(checkEquipmentName({equipment_types:{name:'Puerta seccional'},internal_location:'Muelle 2'})).toBe('Puerta seccional · Muelle 2');
+  });
   it('prioriza la identidad operativa y mantiene tipo, código, contexto y detalle', () => {
     const label = equipmentOperationalLabel({
       internal_location: 'Muelle 4 · Zona expediciones',

@@ -18,8 +18,9 @@ export function isSupportedAlertRoute(alert: any) {
   return Boolean(alert?.related_entity && alert?.related_id && alertRoutes[alert.related_entity]);
 }
 
-export function routeForAlert(alert: any) {
+export function routeForAlert(alert: any, workspace?: string) {
   if (!isSupportedAlertRoute(alert)) return alert?.related_entity ? `/app/avisos?entidad-no-soportada=${encodeURIComponent(String(alert.related_entity))}` : '/app/avisos';
+  if (workspace === 'tecnico' && alert.related_entity === 'work_orders') return `/app/tecnico/trabajo/${String(alert.related_id)}`;
   return alertRoutes[alert.related_entity](String(alert.related_id));
 }
 

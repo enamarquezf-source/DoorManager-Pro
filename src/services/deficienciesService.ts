@@ -26,7 +26,7 @@ export const deficienciesService = {
       work_orders!deficiencies_work_order_id_fkey(*),
       checks!deficiencies_check_id_fkey(*),
       profiles!deficiencies_responsible_profile_id_fkey(first_name,last_name)
-    `).eq('id', id).maybeSingle());
+    `).eq('id', id).is('deleted_at', null).maybeSingle());
     if (!row) throw new Error('No se ha encontrado la deficiencia solicitada.');
     return row;
   },

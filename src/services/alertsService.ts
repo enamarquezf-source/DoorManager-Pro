@@ -3,6 +3,9 @@ import { supabase } from '../lib/supabase/client';
 import { contains, currentProfileId, expectData } from './query';
 
 export const alertsService = {
+  listManageable() {
+    return expectData<any[]>(supabase.rpc('dmp_list_manageable_alerts'));
+  },
   listPersonal(search = '') {
     return expectData<any[]>(supabase.rpc('dmp_list_personal_alerts', { p_search: search }));
   },

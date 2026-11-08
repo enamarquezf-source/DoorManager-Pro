@@ -22,6 +22,10 @@ it('restricts both RPC and direct reads to the recipient role, person or company
     grant usage on schema auth to authenticated;
     grant select on alerts,alert_recipients to authenticated;`);
     await db.exec(sql);
+    await db.exec(`alter table profiles add column first_name text,add column last_name text;
+      alter table alerts add column code text,add column alert_date timestamptz;
+      create function has_permission(text) returns boolean language sql as $$select has_any_role(array['superadmin','SAT','Oficina','Gerencia'])$$;`);
+    await db.exec(readFileSync('supabase/migrations/189_alert_management_inbox.sql','utf8'));
     const company='00000000-0000-0000-0000-000000000001';
     const actor='00000000-0000-0000-0000-000000000002';
     const other='00000000-0000-0000-0000-000000000003';
@@ -40,6 +44,8 @@ it('restricts both RPC and direct reads to the recipient role, person or company
       expect(rpc.rows.map(row=>row.item.alerts.title).sort()).toEqual(expected);
       const recipients=await db.query(`select * from alert_recipients`);
       expect(recipients.rows).toHaveLength(expected.length);
+      const managed=await db.query(`select dmp_list_manageable_alerts()`);
+      expect(managed.rows).toHaveLength(4);
       await db.exec('reset role');
     }
     await db.query(`select set_config('dmp.actor',$1,false)`,[actor]);
@@ -49,12 +55,26 @@ it('restricts both RPC and direct reads to the recipient role, person or company
       expect((await db.query<{title:string}>(`select title from alerts`)).rows.map(row=>row.title)).toEqual(['3']);
       const rpc=await db.query<{item:any}>(`select dmp_list_personal_alerts('') as item`);
       expect(rpc.rows.map(row=>row.item.alerts.title)).toEqual(['3']);
+      if (['Comercial','Tecnico'].includes(role)) await expect(db.query(`select dmp_list_manageable_alerts()`)).rejects.toThrow('no puedes gestionar');
       await expect(db.query(`select dmp_update_alert_recipient('00000000-0000-0000-0000-000000000012','close')`)).rejects.toThrow('aviso no disponible');
       await db.exec('reset role');
     }
+    await db.exec('reset role');
+    await db.query(`update profiles set primary_area='SAT' where id=$1`,[actor]);
+    await db.exec(`alter table alerts add column updated_at timestamptz;
+      create function is_platform_superadmin() returns boolean language sql as $$select has_any_role(array['superadmin'])$$;
+      create table audit_log(company_id uuid,table_name text,record_id uuid,operation text,changed_by uuid,old_data jsonb,new_data jsonb);`);
+    const deletion=readFileSync('supabase/migrations/160_operational_deletion_and_superadmin.sql','utf8');
+    await db.exec(deletion.slice(deletion.indexOf('create or replace function public.dmp_delete_operational_record'),deletion.indexOf('-- Superadmin de plataforma')));
+    await db.exec('set role authenticated');
+    await db.query(`select dmp_delete_operational_record('alert','00000000-0000-0000-0000-000000000012')`);
+    await db.exec('reset role');
+    expect((await db.query(`select * from alerts where id='00000000-0000-0000-0000-000000000012' and deleted_at is not null`)).rows).toHaveLength(1);
+    expect((await db.query(`select * from audit_log`)).rows).toHaveLength(1);
     await db.query(`update profiles set company_id='00000000-0000-0000-0000-000000000099' where id=$1`,[actor]);
     await db.exec('set role authenticated');
     expect((await db.query(`select * from alerts`)).rows).toEqual([]);
     expect((await db.query(`select dmp_list_personal_alerts('')`)).rows).toEqual([]);
+    expect((await db.query(`select dmp_list_manageable_alerts()`)).rows).toEqual([]);
   } finally { await db.close(); }
 },30000);

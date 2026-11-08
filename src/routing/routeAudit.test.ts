@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest';
 import { navForWorkspace } from '../App';
 import { canAccessModule, canAccessRoute } from '../auth/permissions';
 import { moduleRegistry } from './moduleCatalog';
+import { moduleAliases } from './sidebarRoutes';
+import { parseManualRoute } from './appRoutes';
 import type { Profile, RoleName, Workspace } from '../shared/types';
 
 const roles: [Workspace, RoleName][] = [['sat', 'SAT'], ['tecnico', 'Tecnico'], ['oficina', 'Oficina'], ['comercial', 'Comercial'], ['gerencia', 'Gerencia'], ['superadmin', 'superadmin']];
@@ -17,6 +19,16 @@ describe('cross-profile route audit', () => {
     const denied = visible.filter(item => !canAccessRoute(actor, item.path));
     expect(denied.map(item => ({ id: item.id, path: item.path }))).toEqual([]);
     expect(new Set(visible.map(item => item.path)).size).toBe(visible.length);
+    expect(new Set(visible.map(item => item.id)).size).toBe(visible.length);
+    expect(visible.filter(item => item.id in moduleAliases)).toEqual([]);
+  });
+
+  it.each(roles)('every %s menu opens an implemented route, including admin routes', (workspace) => {
+    const source = readFileSync('src/App.tsx', 'utf8');
+    const declared = [...source.matchAll(/<Route path="([^"]+)"/g)].map(match => match[1]).filter(path => !path.includes('*'));
+    const adminPages = [...source.matchAll(/'([^']+)': </g)].map(match => match[1]);
+    const resolves = (path: string) => declared.includes(path) || adminPages.includes(path) || Boolean(parseManualRoute(path)) || Object.values(moduleRegistry).some(module => module.route === path);
+    expect(navForWorkspace(workspace).filter(item => !resolves(item.path))).toEqual([]);
   });
 
   it.each(roles)('inactive %s cannot open any menu or module destination', (workspace, role) => {

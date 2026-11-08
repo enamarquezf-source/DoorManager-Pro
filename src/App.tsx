@@ -37,7 +37,7 @@ import { OperationalRegistersModule } from './modules/OperationalRegistersModule
 import { BrandMark } from './components/BrandMark';
 import { ProjectCredit } from './components/ProjectCredit';
 import { RecordTableRow } from './components/RecordTableRow';
-import { Component, createContext, useContext, useEffect, useId, useMemo, useRef, useState, type ComponentProps, type ErrorInfo, type FormEvent, type PointerEvent, type ReactNode } from 'react';
+import { Fragment, Component, createContext, useContext, useEffect, useId, useMemo, useRef, useState, type ComponentProps, type ErrorInfo, type FormEvent, type PointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { BrowserRouter, Link as RouterLink, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Bell, BriefcaseBusiness, Building2, CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, Eye, EyeOff, Factory, FileText, FileUp, Gauge, Home, LogOut, Menu, PackageCheck, Palette, PanelLeftClose, PanelLeftOpen, PieChart, RefreshCw, Search, Settings, ShieldAlert, Truck, UserRound, UsersRound, Warehouse, Wrench, X } from 'lucide-react';
@@ -115,6 +115,7 @@ import { useLoad } from './query/useLoad';
 import { homeRouteForWorkspace, restoredEntryRoute, matchesRouteOrChild, parseManualRoute, superadminSharedRoutes } from './routing/appRoutes';
 import { alertRouteFallbackReason, isSupportedAlertRoute, routeForAlert } from './routing/alertRoutes';
 import { moduleRegistry } from './routing/moduleCatalog';
+import { canonicalSidebar, canonicalModulePath, moduleAliases } from './routing/sidebarRoutes';
 import type { Profile, RoleName, Severity, Workspace } from './shared/types';
 import { entityLabels, entityLifecycleService, isArchivedRecord, type ArchiveFilter, type LifecycleEntity, type LifecycleSummary } from './services/entityLifecycleService';
 import { quotePurgeBlocks, quotePurgeCanShowButton, quotePurgeExpectedConfirmation, quotePurgePlanMatchesScope, quotePurgeResultOk, quotePurgeScope, quotePurgeScopeKey, type QuotePurgeScopeKey } from './services/quotePurgeFlow';
@@ -484,16 +485,16 @@ function navForWorkspace(workspace: Workspace) {
   const treasury = { id: 'tesoreria', label: 'Tesorería', path: '/app/modulos/tesoreria', icon: ClipboardList };
   superadmin.push(treasury);
   const withPurchases = (items: typeof oficina) => items.some((item) => item.id === purchases.id) ? items : [...items, purchases];
-  if (workspace === 'superadmin') { const all = [...superadmin]; for (const item of [...sat, ...comercial, ...oficina, ...gerencia]) if (!all.some(existing => existing.id === item.id || existing.path === item.path)) all.push(item); return withPurchases(all); }
+  if (workspace === 'superadmin') { const all = [...superadmin]; for (const item of [...sat, ...comercial, ...oficina, ...gerencia]) if (!all.some(existing => existing.id === item.id || existing.path === item.path)) all.push(item); return canonicalSidebar(withPurchases(all)); }
   if (workspace === 'tecnico') return [{ id: 'jornada', label: 'Mi jornada', path: '/app/tecnico', icon: CalendarClock }, { id: 'checks', label: 'Checks', path: '/app/checks', icon: ClipboardCheck }, { id: 'avisos', label: 'Avisos', path: '/app/avisos', icon: Bell }];
   const records = oficina.filter(item => ['vehiculos', 'prl', 'documentos'].includes(item.id));
   for (const items of [sat, gerencia]) for (const item of records) if (!items.some(existing => existing.id === item.id)) items.push(item);
-  if (workspace === 'sat') return withPurchases(sat);
-  if (workspace === 'comercial') return comercial;
+  if (workspace === 'sat') return canonicalSidebar(withPurchases(sat));
+  if (workspace === 'comercial') return canonicalSidebar(comercial);
   oficina.push(treasury);
   gerencia.push(treasury);
-  if (workspace === 'oficina') return withPurchases(oficina);
-  return withPurchases(gerencia);
+  if (workspace === 'oficina') return canonicalSidebar(withPurchases(oficina));
+  return canonicalSidebar(withPurchases(gerencia));
 }
 
 function homeForWorkspace(workspace: Workspace) {
@@ -2826,7 +2827,7 @@ type ModuleRenderer = (context: ModuleRenderContext) => ReactNode;
 const moduleRenderers: Record<string, ModuleRenderer> = {
   'tipos-equipo': () => <EquipmentTypesPage />, planificacion: () => <PlanningModule />, tecnicos: () => <TechniciansModule />, comerciales: () => <CommercialProfilesModule />, ventas: () => <SalesModule mode="ventas" />, oportunidades: () => <SalesModule mode="oportunidades" />, presupuestos: () => <QuotesModule />, materiales: () => <MaterialsModule />, proveedores: () => <SuppliersModule />, compras: () => <PurchaseOrdersModule />, 'tarifas-horas': () => <RateCatalogModuleV2 />, operaciones: () => <OperationsModule />, mantenimientos: () => <MaintenanceModule />, informes: () => <ManagementPage060 />, personal: () => <Navigate to="/app/modulos/tecnicos" replace />, rentabilidad: () => <ProfitabilityModule />, administracion: () => <CompanySettingsModule />, facturacion: ({ profile, canDeleteDraft }) => <BillingModule mode="invoices" profile={profile} canDeleteDraft={canDeleteDraft} />, cobros: ({ profile }) => <BillingModule mode="collections" profile={profile} canDeleteDraft={false} />, 'facturas-proveedor': ({ profile }) => <SupplierInvoicesModule profile={profile} />, tesoreria: ({ profile }) => <TreasuryModule profile={profile} />, operational: () => <OperationalModule />,
 };
-function ModulePage() { const { moduleId = '' } = useParams(); const { profile } = useAuth(); const definition = moduleRegistry[moduleId]; if (!definition) return <ModuleNotFound />; const render = moduleRenderers[definition.renderer]; if (!render) return <ModuleNotFound />; return <>{render({ profile, canDeleteDraft: canDeleteInvoiceDraft(profile) })}</>; }
+function ModulePage() { const { moduleId = '' } = useParams(); const { profile } = useAuth(); const location = useLocation(); if (moduleAliases[moduleId]) return <Navigate to={`${canonicalModulePath(moduleId)}${location.search}`} replace />; const definition = moduleRegistry[moduleId]; if (!definition) return <ModuleNotFound />; const render = moduleRenderers[definition.renderer]; if (!render) return <ModuleNotFound />; return <Fragment key={moduleId}>{render({ profile, canDeleteDraft: canDeleteInvoiceDraft(profile) })}</Fragment>; }
 
 function ModuleNotFound() { const { workspace } = useAuth(); return <section className="page"><Card title="Módulo no encontrado"><p className="large-note">El módulo solicitado no pertenece al catálogo disponible.</p><Link className="primary" to={homeRouteForWorkspace(workspace)}>Volver al inicio</Link></Card></section>; }
 
@@ -2851,7 +2852,7 @@ function CompanySettingsForm({ initial, onClose, onSaved }: { initial: any; onCl
 function OperationalModule() {
   const { workspace, profile } = useAuth();
   const { moduleId = '' } = useParams();
-  if (moduleId === 'vehiculos' || moduleId === 'prl') return <OperationalRegistersModule kind={moduleId === 'vehiculos' ? 'vehicle' : 'prl'} profile={profile} />;
+  if (moduleId === 'vehiculos' || moduleId === 'prl') return <OperationalRegistersModule key={moduleId} kind={moduleId === 'vehiculos' ? 'vehicle' : 'prl'} profile={profile} />;
   if (moduleId === 'facturas-proveedor') return <SupplierInvoicesModule profile={profile} />;
   if (moduleId === 'tesoreria') return <TreasuryModule profile={profile} />;
   const meta = moduleRegistry[moduleId] ?? { title: 'Módulo operativo', description: 'Registros relacionados disponibles.', links: [] };

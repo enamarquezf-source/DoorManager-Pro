@@ -55,12 +55,10 @@ export function BillingModule({ mode, profile, canDeleteDraft = false }: { mode:
   useEffect(() => { reload(); }, [reload]);
   useEffect(() => {
     if (loading || (!invoiceId && !paymentId)) return;
-    const open = async () => {
-      const source = invoiceId ? invoices : await billingService.invoices();
-      const invoice = source.find((row) => row.id === invoiceId || (paymentId && (row.invoice_payments ?? []).some((payment: any) => payment.id === paymentId)));
-      if (invoice) setAction({ kind: 'view', row: paymentId ? { ...invoice, __selectedPayment: (invoice.invoice_payments ?? []).find((payment: any) => payment.id === paymentId) } : invoice });
-    };
-    void open();
+    // Payments are already included in the invoice query. Avoid reloading the
+    // entire ledger (and racing a later navigation) for a payment deep link.
+    const invoice = invoices.find((row) => row.id === invoiceId || (paymentId && (row.invoice_payments ?? []).some((payment: any) => payment.id === paymentId)));
+    if (invoice) setAction({ kind: 'view', row: paymentId ? { ...invoice, __selectedPayment: (invoice.invoice_payments ?? []).find((payment: any) => payment.id === paymentId) } : invoice });
   }, [invoiceId, paymentId, loading, invoices]);
   const prepare = async (work: any) => { if (!permissions.canWrite) { setError('No tienes permiso para preparar facturas.'); return; } const started = await prepareInvoiceOnce(preparingRef.current, work.id, async () => { setPreparing(new Set(preparingRef.current)); setError(''); try { const id = await billingService.prepareInvoice(work.id, { tax_rate: 21 }); setAction({ kind: 'draft', row: await loadDraft(id) }); } catch (err) { setError(errorText(err)); } }); if (started) setPreparing(new Set(preparingRef.current)); };
   const paymentVisibility = (invoice: any) => {

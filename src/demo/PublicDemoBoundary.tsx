@@ -10,7 +10,7 @@ import { guideCopy } from './guideCopy';
 import {journeyProgressKey,sharedJourney,observeMission,readEvidence,type MissionEvidence} from './journey';
 import {DemoJourneyFinish} from './DemoJourneyFinish';
 import {readDemoWork,rememberDemoWork} from './workFocus';
-import {navigationCompletes,interactionCompletes} from './autoGuide';
+import {navigationCompletes,interactionCompletes,navigationMission} from './autoGuide';
 import { Sparkles, CheckCircle2, MousePointer2 } from 'lucide-react';
 
 type Progress = { step: number; open: boolean };
@@ -59,8 +59,8 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
     if(!progress.open || !roleSwitchAvailable) return;
     let active=true; let pending=false;
     const update=async()=>{if(pending||document.visibilityState==='hidden')return;pending=true;try{const value=await publicDemoService.progress(session,step.goal,guidedWork??undefined);if(active){setCompletion({scope:evidenceKey,value});setEvidence(previous=>{const next={...previous};steps.forEach((mission,n)=>{if(mission.goal&&(!mission.requiredRole||mission.requiredRole===session.role)&&Number.isFinite(value[mission.goal])){const scoped=mission.goal==='sat_approved'&&guidedWork;next[n]={...observeMission(scoped&&previous[n]?.scope!==guidedWork?undefined:previous[n],value[mission.goal]),...(scoped?{scope:guidedWork}:{})};}});try{localStorage.setItem(evidenceKey,JSON.stringify(next));}catch{}return next;});}}catch{/* Older demo SQL keeps the guide manual. */}finally{pending=false;}};
-    void update();const timer=setInterval(()=>void update(),2000);window.addEventListener('focus',update);window.addEventListener('dmp-offline-queue-changed',update);
-    return()=>{active=false;clearInterval(timer);window.removeEventListener('focus',update);window.removeEventListener('dmp-offline-queue-changed',update);};
+    void update();const timer=step.goal?setInterval(()=>void update(),2000):null;window.addEventListener('focus',update);window.addEventListener('dmp-offline-queue-changed',update);
+    return()=>{active=false;if(timer!==null)clearInterval(timer);window.removeEventListener('focus',update);window.removeEventListener('dmp-offline-queue-changed',update);};
   },[session.role,session.id,progress.open,roleSwitchAvailable,index,tour,evidenceKey,guidedWork]);
   const required=step.requiredRole&&step.requiredRole!==session.role?step.requiredRole:step.role;
   const allChecks=step.goal==='checks'&&tour!=='discover';
@@ -77,6 +77,19 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
   useEffect(()=>{const expected=step.title==='Registra el envío del presupuesto'?'Enviado':step.title==='Simula la aceptación del cliente'?'Aceptado':null;if(!automatic||!expected)return;const saved=(event:Event)=>{if((event as CustomEvent).detail?.status===expected)advance();};window.addEventListener('dmp-quote-status-saved',saved);return()=>window.removeEventListener('dmp-quote-status-saved',saved);},[automatic,index,tour]);
   useEffect(()=>{if(!automatic||formOpen||step.title!=='Comprueba los conceptos')return;const scan=()=>{if(document.querySelector('main [data-economic-review="approved"]'))advance();};scan();const observer=new MutationObserver(scan);observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['data-economic-review']});return()=>observer.disconnect();},[automatic,formOpen,index,tour,location.pathname]);
   useEffect(()=>{const path=location.pathname+location.search;const before=lastLocation.current;lastLocation.current=path;if(automatic&&navigationCompletes(step,before,path))advance();},[location.pathname,location.search,automatic,index,tour]);
+  useEffect(()=>{
+    if(!automatic)return;
+    const followMenu=(event:MouseEvent)=>{
+      if(event.defaultPrevented||event.button!==0||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;
+      const link=event.target instanceof Element?event.target.closest('aside.sidebar nav a[href]'):null;
+      const path=link?.getAttribute('href');if(!path?.startsWith('/app/'))return;
+      const next=navigationMission(steps,index,path,session.role);
+      // Move the instruction only. No skipped task receives saved evidence.
+      if(next>=0){setProgress({step:next,open:true});setExpanded(false);}
+    };
+    document.addEventListener('click',followMenu,true);
+    return()=>document.removeEventListener('click',followMenu,true);
+  },[automatic,index,tour,session.role]);
   useEffect(()=>{if(!automatic)return;const click=(event:Event)=>{const element=event.target instanceof Element?event.target.closest('button,a,summary'):null;if(!element||element.closest('.demo-guide,[role="dialog"],.mini-modal'))return;if(interactionCompletes(step,(element.textContent??'').trim()))advance();};document.addEventListener('click',click,true);return()=>document.removeEventListener('click',click,true);},[automatic,index,tour]);
   const launchTarget=()=>{
     if(!isDemoTaskSurface(step,location.pathname+location.search))return false;

@@ -45,16 +45,15 @@ export const dashboardService = {
 
   async getOfficeDashboardData() {
     const companyId = await currentProfileCompanyId();
-    const [documents, materials, materialRequests, workOrderMaterials, alerts, workOrders, suppliers] = await Promise.all([
-      expectData<any[]>(supabase.from('documents').select('*, document_links!document_links_document_id_fkey(*)').eq('company_id', companyId).is('deleted_at', null).order('updated_at', { ascending: false })),
-      expectData<any[]>(supabase.from('materials').select('*').eq('company_id', companyId).is('deleted_at', null).order('description')),
+    const [documents, materialRequests, workOrderMaterials, alerts, workOrders, suppliers] = await Promise.all([
+      expectData<any[]>(supabase.from('documents').select('id,title,type,valid,file_id,updated_at').eq('company_id', companyId).is('deleted_at', null).order('updated_at', { ascending: false })),
       expectData<any[]>(supabase.from('material_requests').select('*, work_orders!material_requests_work_order_id_fkey(code,title,status)').eq('company_id', companyId).is('deleted_at', null).order('created_at', { ascending: false })),
       expectData<any[]>(supabase.from('work_order_materials').select('*, work_orders!work_order_materials_work_order_id_fkey(code,title,status), materials!work_order_materials_material_id_fkey(code,description)').eq('company_id', companyId).order('created_at', { ascending: false })),
       expectData<any[]>(supabase.from('alerts').select('*').eq('company_id', companyId).is('deleted_at', null).order('created_at', { ascending: false })),
       expectData<any[]>(supabase.from('v_work_order_full_detail').select('*').eq('company_id', companyId).order('scheduled_date', { ascending: false })),
       expectData<any[]>(supabase.from('suppliers').select('*').eq('company_id', companyId).is('deleted_at', null).order('name')),
     ]);
-    return { documents, materials, materialRequests, workOrderMaterials, alerts, workOrders, suppliers };
+    return { documents, materialRequests, workOrderMaterials, alerts, workOrders, suppliers };
   },
 
   async getManagementDashboardData() {

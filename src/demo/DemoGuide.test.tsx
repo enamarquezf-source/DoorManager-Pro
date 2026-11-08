@@ -9,6 +9,31 @@ import {DemoGuide,PublicDemoBoundary} from './PublicDemoBoundary';
 const mocks=vi.hoisted(()=>({progress:vi.fn(async()=>({clients:0})),session:vi.fn(),journeysAvailable:vi.fn(),prepareJourney:vi.fn()}));
 vi.mock('./service',()=>({publicDemoService:mocks}));
 const session:any={id:'demo',role:'SAT',work_order_id:null};
+
+it('does not poll the server every two seconds while the mission is only reading',async()=>{
+ (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
+ vi.useFakeTimers();
+ const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ try{
+  await act(async()=>root.render(<MemoryRouter><DemoGuide session={{...session,role:'Oficina'}} progress={{step:0,open:true}} setProgress={()=>{}} onRole={async()=>{}}/></MemoryRouter>));
+  expect(mocks.progress).toHaveBeenCalledTimes(1);
+  await act(async()=>vi.advanceTimersByTimeAsync(10000));
+  expect(mocks.progress).toHaveBeenCalledTimes(1);
+ }finally{await act(async()=>root.unmount());vi.useRealTimers();}
+});
+
+it('follows a deliberate sidebar visit to billing without marking skipped tasks as saved',async()=>{
+ (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
+ const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ function Harness(){const[progress,setProgress]=useState({step:0,open:true});return <><aside className="sidebar"><nav><a href="/app/modulos/facturacion" onClick={e=>e.preventDefault()}>Facturación</a></nav></aside><DemoGuide session={{...session,role:'Oficina'}} progress={progress} setProgress={setProgress} onRole={async()=>{}}/></>;}
+ try{
+  await act(async()=>root.render(<MemoryRouter initialEntries={['/app/inicio']}><Harness/></MemoryRouter>));
+  expect(host.textContent).toContain('Recibe un trabajo revisado');
+  await act(async()=>host.querySelector<HTMLAnchorElement>('.sidebar a')!.click());
+  expect(host.querySelector('.demo-guide h2')?.textContent??host.textContent).toContain('Prepara la factura');
+  expect(localStorage.getItem('dmp-demo-evidence')).toBeNull();
+ }finally{await act(async()=>root.unmount());}
+});
 afterEach(()=>{vi.clearAllMocks();mocks.progress.mockResolvedValue({clients:0});localStorage.clear();document.body.innerHTML='';});
 it('starts collapsed on a phone and returns to the bar after dismissing the instructions',async()=>{
  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);

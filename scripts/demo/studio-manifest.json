@@ -1,0 +1,65 @@
+[
+  {
+    "id": "descubrir",
+    "name": "descubrir-studio-20261108",
+    "seconds": 56,
+    "bytes": 814538,
+    "width": 1440,
+    "height": 1080,
+    "fps": 30
+  },
+  {
+    "id": "recorrido",
+    "name": "recorrido-studio-20261108",
+    "seconds": 86,
+    "bytes": 1223130,
+    "width": 1440,
+    "height": 1080,
+    "fps": 30
+  },
+  {
+    "id": "sat",
+    "name": "sat-studio-20261108",
+    "seconds": 32,
+    "bytes": 457432,
+    "width": 1440,
+    "height": 1080,
+    "fps": 30
+  },
+  {
+    "id": "tecnico",
+    "name": "tecnico-studio-20261108",
+    "seconds": 41,
+    "bytes": 557825,
+    "width": 1440,
+    "height": 1080,
+    "fps": 30
+  },
+  {
+    "id": "oficina",
+    "name": "oficina-studio-20261108",
+    "seconds": 29,
+    "bytes": 499373,
+    "width": 1440,
+    "height": 1080,
+    "fps": 30
+  },
+  {
+    "id": "comercial",
+    "name": "comercial-studio-20261108",
+    "seconds": 31,
+    "bytes": 477871,
+    "width": 1440,
+    "height": 1080,
+    "fps": 30
+  },
+  {
+    "id": "gerencia",
+    "name": "gerencia-studio-20261108",
+    "seconds": 28,
+    "bytes": 409130,
+    "width": 1440,
+    "height": 1080,
+    "fps": 30
+  }
+]

@@ -15,7 +15,7 @@ import { AppearancePreferences } from './components/AppearancePreferences';
 import { useUserAppearance } from './shared/useUserAppearance';
 import { RecordNavigationHint } from './components/RecordNavigationHint';
 import { TechnicianWorkTabs, type TechnicianWorkTab } from './components/TechnicianWorkTabs';
-import { technicianWorkspaceService, type PreparedJourney } from './services/technicianWorkspaceService';
+import { technicianWorkspaceService, getTechnicianJourneyMode, setTechnicianJourneyMode, type PreparedJourney, type TechnicianJourneyMode } from './services/technicianWorkspaceService';
 import { offlineWorkspaceStore, connectionAvailable } from './services/offlineWorkspaceStore';
 import { resolveOfflineProfile, clearOfflineProfile } from './services/offlineProfile';
 import { overlayFieldWork, saveFieldOperation } from './services/fieldOperations';
@@ -1377,30 +1377,42 @@ function TechnicianDayPage() {
   const navigate = useNavigate();
   const [refreshMessage, setRefreshMessage] = useState('');
   const [preparing, setPreparing] = useState(false);
+  const [mode, setMode] = useState(getTechnicianJourneyMode);
+  const offlineMode = mode === 'offline';
   const forceDownload = useRef(false);
-  const active = useLoad(async () => {const expected=publicDemoEnabled&&profile?.id?expectedDemoWork(profile.id):undefined;const result=await technicianWorkspaceService.loadJourney(setRefreshMessage,forceDownload.current,expected);if(result.ready&&profile?.id)clearExpectedDemoWork(profile.id);return result;}, [], { rows: [] as any[], ready: null as PreparedJourney | null }, { retry: false, refetchOnReconnect: false });
+  const active = useLoad(async () => {const expected=publicDemoEnabled&&profile?.id?expectedDemoWork(profile.id):undefined;const result=await technicianWorkspaceService.loadJourney(setRefreshMessage,forceDownload.current,expected,mode);if(expected&&profile?.id&&result.rows.some(row=>row.work_order_id===expected))clearExpectedDemoWork(profile.id);return result;}, [mode], { rows: [] as any[], ready: null as PreparedJourney | null }, { retry: false, refetchOnReconnect: false });
   const ready = active.data.ready;
-  const downloading = preparing || active.loading || active.refreshing;
+  const busy = preparing || active.loading || active.refreshing;
+  const downloading = offlineMode && busy;
   const { pending } = useOfflineQueue();
   const refresh = async () => {
-    if (downloading) return;
-    forceDownload.current = true; setPreparing(true);
+    if (busy) return;
+    forceDownload.current = offlineMode; setPreparing(true);
     try { await active.reload(); }
     finally { forceDownload.current = false; setPreparing(false); }
   };
+  const changeMode = (next: TechnicianJourneyMode) => {
+    setTechnicianJourneyMode(next);
+    setRefreshMessage('');
+    setMode(next);
+  };
   return <section className="page technician-page technician-day-simple">
-    <div className="technician-day-toolbar"><span role="status">{refreshMessage}</span><button className="primary" onClick={refresh} disabled={downloading}>{downloading ? 'Descargando jornada…' : ready ? 'Actualizar jornada' : 'Cargar todos los partes'}</button><SyncButton onSynced={active.reload} hideWhenEmpty /></div><p className="large-note">{downloading ? 'Descargando todos los partes y sus datos. No necesitas abrirlos uno a uno.' : ready ? `Disponible sin conexión · ${ready.workOrderIds.length} partes · Descargado ${new Date(ready.preparedAt).toLocaleString('es-ES')}` : 'Se descargan todos los partes, checks y archivos antes de habilitar su apertura. Espera la confirmación antes de salir sin cobertura.'}</p>
+    <div className="technician-journey-mode" role="group" aria-label="Modo de carga de partes">
+      <button type="button" aria-pressed={offlineMode} className={offlineMode ? 'primary' : undefined} disabled={busy} onClick={() => changeMode('offline')}>Modo offline</button>
+      <button type="button" aria-pressed={!offlineMode} className={!offlineMode ? 'primary' : undefined} disabled={busy} onClick={() => changeMode('coverage')}>Con cobertura</button>
+    </div>
+    <div className="technician-day-toolbar"><span role="status">{refreshMessage}</span><button className="primary" onClick={refresh} disabled={busy}>{!offlineMode ? 'Actualizar lista' : downloading ? 'Descargando jornada…' : ready ? 'Actualizar jornada' : 'Cargar todos los partes'}</button><SyncButton onSynced={active.reload} hideWhenEmpty /></div><p className="large-note">{!offlineMode ? 'Cada parte se carga al abrirlo. Para preparar toda la jornada antes de salir sin cobertura, activa Modo offline.' : downloading ? 'Descargando todos los partes y sus datos. No necesitas abrirlos uno a uno.' : ready ? `Disponible sin conexión · ${ready.workOrderIds.length} partes · Descargado ${new Date(ready.preparedAt).toLocaleString('es-ES')}` : 'Se descargan todos los partes, checks y archivos antes de habilitar su apertura. Espera la confirmación antes de salir sin cobertura.'}</p>
     <StateBlock loading={active.loading} error={active.error} retry={refresh} empty={false}>
       {!active.data.rows.length ? <Card title="Sin partes pendientes"><p>No tienes partes pendientes asignados.</p></Card> : active.data.rows.map((work: any) => {
         const local = pending.filter((item) => item.workOrderId === work.work_order_id).length;
-        return <button type="button" className="technician-day-card" data-work-order-id={work.work_order_id} key={work.assignment_id ?? work.work_order_id} disabled={downloading || !ready?.workOrderIds.includes(work.work_order_id)} onClick={() => navigate('/app/tecnico/trabajo/' + work.work_order_id)}>
+        return <button type="button" className="technician-day-card" data-work-order-id={work.work_order_id} key={work.assignment_id ?? work.work_order_id} disabled={offlineMode && (downloading || !ready?.workOrderIds.includes(work.work_order_id))} onClick={() => navigate('/app/tecnico/trabajo/' + work.work_order_id)}>
           <span className="technician-day-card-top"><span>{work.code ?? work.work_order_code}</span><Badge tone={severityForStatus(work.work_order_status)}>{displayStatus(work.work_order_status)}</Badge></span>
           <strong>{work.client_name || work.title}</strong>
           {work.site_name && <span>{work.site_name}</span>}
           {work.client_name && <span className="technician-day-work-title">{work.title}</span>}
           {work.equipment_code && <span className="technician-day-meta">{work.equipment_code}</span>}
           <span className="technician-day-meta">{[work.assignment_date ? formatDate(work.assignment_date) : '', work.planned_start_time].filter(Boolean).join(' · ') || 'Sin hora asignada'}{['Alta', 'Critica', 'Crítica', 'Urgente'].includes(work.priority) ? ' · ' + displayStatus(work.priority) : ''}</span>
-          <span className="technician-day-meta">{ready?.workOrderIds.includes(work.work_order_id) && !downloading ? 'Descarga completa · Disponible sin conexión' : 'Pendiente de descargar el parte completo'}</span>
+          <span className="technician-day-meta">{!offlineMode ? 'Carga al abrir' : ready?.workOrderIds.includes(work.work_order_id) && !downloading ? 'Descarga completa · Disponible sin conexión' : 'Pendiente de descargar el parte completo'}</span>
           {Number(work.pending_checks_count) > 0 && <span className="technician-day-meta">{work.pending_checks_count} {Number(work.pending_checks_count) === 1 ? 'check pendiente' : 'checks pendientes'}</span>}
           {local > 0 && <span className="technician-day-meta">{local} cambios pendientes de sincronizar</span>}
         </button>;

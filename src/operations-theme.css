@@ -352,6 +352,8 @@ textarea { resize: none; }
 
 .technician-shell .topbar { position: static; }
 .technician-day-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.technician-journey-mode { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: min(100%, 360px); }
+.technician-journey-mode button { min-height: 44px; }
 .technician-day-toolbar > span { color: var(--muted); font-size: 13px; }
 .technician-day-card { display: flex; flex-direction: column; align-items: stretch; gap: 8px; width: 100%; text-align: left; padding: 18px; border-radius: 16px; background: #fff; color: #173f47; border: 1px solid #dce6e8; box-shadow: 0 3px 14px #173f4706; white-space: normal; overflow-wrap: anywhere; }
 .technician-day-card:hover { border-color: #35847f; background: #f5fbfa; }

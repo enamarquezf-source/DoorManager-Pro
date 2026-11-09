@@ -13,6 +13,7 @@ import { offlineWorkspaceStore, readDeviceFirst, workspaceIdentity, assertWorksp
 import { technicianOfflineService } from './technicianOfflineService';
 import { localDateKey } from '../shared/localDate';
 import { primaryEquipmentPhoto } from '../shared/equipmentPhotoPresentation';
+import { isConnectionFailure } from '../shared/connectionFailure';
 
 export type PreparedJourney = {
   downloadVersion: number;
@@ -21,6 +22,25 @@ export type PreparedJourney = {
   checkIds: string[];
   preparedAt: string;
 };
+
+export type TechnicianJourneyMode = 'offline' | 'coverage';
+const journeyModeKey = 'dmp-technician-journey-mode';
+
+export function getTechnicianJourneyMode(): TechnicianJourneyMode {
+  try {
+    return globalThis.localStorage?.getItem(journeyModeKey) === 'offline' ? 'offline' : 'coverage';
+  } catch {
+    return 'coverage';
+  }
+}
+
+export function setTechnicianJourneyMode(mode: TechnicianJourneyMode) {
+  try {
+    globalThis.localStorage?.setItem(journeyModeKey, mode);
+  } catch {
+    // The current page can still use the selected mode.
+  }
+}
 
 export function journeyMatches(ready: PreparedJourney | undefined, rows: any[], today = localDateKey()) {
   if (!ready || ready.downloadVersion !== 2 || localDateKey(new Date(ready.preparedAt)) !== today) return false;
@@ -49,9 +69,21 @@ async function downloadMedia<T>(value: T): Promise<T> {
 
 export const technicianWorkspaceService = {
   day: (refresh = false) => readDeviceFirst('day', () => assignmentsService.assignedActiveWork(), refresh),
-  async loadJourney(onProgress: (message: string) => void, force = false, expectedWorkOrderId?:string) {
-    // Showing the list must prepare the whole package, not defer the download
-    // until somebody happens to open each individual work order.
+  async loadJourney(onProgress: (message: string) => void, force = false, expectedWorkOrderId?:string, mode: TechnicianJourneyMode = 'offline') {
+    if (mode === 'coverage') {
+      if (connectionAvailable()) {
+        onProgress('Cargando lista de partes…');
+        try {
+          const rows = await this.day(true);
+          onProgress('');
+          return { rows, ready: null };
+        } catch (error) {
+          if (!isConnectionFailure(error)) throw error;
+        }
+      }
+      onProgress('Sin cobertura. Puedes abrir los partes guardados en este dispositivo.');
+      return { rows: await this.day(), ready: null };
+    }
     const rows = await this.day();
     const cached = (await offlineWorkspaceStore.get<PreparedJourney>('ready'))?.data;
     if (!connectionAvailable()) {
@@ -99,12 +131,12 @@ export const technicianWorkspaceService = {
   },
   warehouses: (refresh = false) => readDeviceFirst('warehouses', async () => (await technicianWorkspaceService.stockOptions(refresh)).warehouses, refresh),
   stock: (refresh = false) => readDeviceFirst('stock', async () => (await technicianWorkspaceService.stockOptions(refresh)).stock, refresh),
-  async checks(done: boolean) {
+  async checks(done: boolean, mode: TechnicianJourneyMode = getTechnicianJourneyMode()) {
     const [pending, completed] = await Promise.all([
       readDeviceFirst<any[]>('checks-pending', () => checksService.pendingForCurrentTechnician()),
       readDeviceFirst<any[]>('checks-done', () => checksService.completedForCurrentTechnician()),
     ]);
-    const day = await this.day();
+    const day = mode === 'offline' ? await this.day() : [];
     const rows: any[] = [...pending, ...completed];
     for (const assignment of day) {
       const work: any = await this.work(assignment.work_order_id);

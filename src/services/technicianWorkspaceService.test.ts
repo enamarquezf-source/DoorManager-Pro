@@ -39,6 +39,20 @@ it('prepares a complete journey and reopens its part and exact check template of
   expect((await workspace.check('check')).check_templates.check_template_sections[0].check_template_items[0].id).toBe('motor');
   expect((await offlineWorkspaceStore.get<any>('ready'))?.data.preparedAt).toBeTruthy();
 });
+it('loads only the list in coverage mode and fetches the selected part on demand', async () => {
+  remote.day.mockResolvedValue([{ work_order_id: 'work' }, { work_order_id: 'another' }]);
+  const result = await workspace.loadJourney(vi.fn(), false, undefined, 'coverage');
+  expect(result.rows).toHaveLength(2);
+  expect(result.ready).toBeNull();
+  expect(remote.work).not.toHaveBeenCalled();
+  expect(remote.check).not.toHaveBeenCalled();
+  expect(workspace.materials).not.toHaveBeenCalled();
+  await workspace.work('work');
+  expect(remote.work.mock.calls).toEqual([['work']]);
+  vi.stubGlobal('navigator', { onLine: false });
+  expect((await workspace.loadJourney(vi.fn(), false, undefined, 'coverage')).rows).toEqual(result.rows);
+  expect(remote.day).toHaveBeenCalledOnce();
+});
 it('never marks a partial download as available offline', async () => {
   remote.workers.mockRejectedValueOnce(new Error('Download interrupted'));
   await expect(workspace.prepare(vi.fn())).rejects.toThrow('interrupted');

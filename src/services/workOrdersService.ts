@@ -297,17 +297,36 @@ export const workOrdersService = {
       throw new Error(error instanceof Error ? `Error al cargar el parte completo. ${error.message}` : 'Error al cargar el parte completo.');
     }
   },
-  async create(payload: Record<string, any>, role: string) {
+  async create(payload: Record<string, any>, role: string, followup?: { originId: string; kind: 'continuacion' | 'garantia' }) {
     const companyId = payload.company_id || await currentCompanyId();
     const profileId = await currentProfileId();
     const rpcPayload = { ...payload, company_id: companyId, created_by: profileId, created_role: role };
     try {
+      if (followup) return await expectData<string>(supabase.rpc('dmp_create_work_order_followup', {
+        p_origin_id: followup.originId, p_kind: followup.kind, p_payload: rpcPayload,
+      }));
       return await expectData<string>(supabase.rpc('dmp_create_work_order_full', { p_payload: rpcPayload }), { service: 'workOrdersService', operation: 'create work order', resource: 'dmp_create_work_order_full' });
     } catch (failure: any) {
       const error=failure?.originalError??failure;
       console.error('create_work_order_full failed', JSON.stringify({ code: error?.code, message: error?.message, details: error?.details, hint: error?.hint }));
       throw failure;
     }
+  },
+  async followups(id: string) {
+    const fields = 'id,code,title,status,scheduled_date,economic_status,deleted_at';
+    return expectData<any[]>(supabase.from('work_order_followups')
+      .select(`origin_id,followup_id,kind,origin:work_orders!work_order_followups_origin_id_fkey(${fields}),followup:work_orders!work_order_followups_followup_id_fkey(${fields})`)
+      .or(`origin_id.eq.${id},followup_id.eq.${id}`).order('created_at', { ascending: false }));
+  },
+  followupCandidates(work: { id: string; company_id: string; client_id: string }) {
+    return expectData<any[]>(supabase.from('work_orders').select('id,code,title,status')
+      .eq('company_id', work.company_id).eq('client_id', work.client_id).neq('id', work.id)
+      .is('deleted_at', null).order('created_at', { ascending: false }));
+  },
+  linkFollowup(originId: string, followupId: string, kind: 'continuacion' | 'garantia') {
+    return expectData<void>(supabase.rpc('dmp_link_work_order_followup', {
+      p_origin_id: originId, p_followup_id: followupId, p_kind: kind,
+    }));
   },
   update(id: string, payload: Record<string, any>) {
     if ('equipment_selection' in payload) return expectData<string>(supabase.rpc('dmp_update_work_intake',{p_work_id:id,p_payload:payload}),{service:'workOrdersService',operation:'actualizar parte y equipos'});

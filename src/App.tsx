@@ -1851,11 +1851,11 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
         <div className="actions">
           {manageAllowed && <button onClick={() => setMode('edit')}>Modificar check</button>}
           <SyncButton
+            hideWhenEmpty={workspace === "tecnico"}
             checkId={id}
             remoteLocalChangeIds={remoteLocalChangeIds(data)}
             onSynced={reload}
           />
-            hideWhenEmpty={workspace === "tecnico"}
           {entityPurgeCanShowButton('checks', data, workspace) && (
             <button
               className="danger-action"
@@ -2069,7 +2069,7 @@ function CheckBlockPageV2({
     JSON.stringify(existing?.components ?? []),JSON.stringify(existing?.affected_item_ids??[]),JSON.stringify(existing?.favorable_item_ids??[]),JSON.stringify(itemResults.map((row:any)=>[row.item_id,row.result,row.observations])),
     JSON.stringify(remoteLocalChangeIds(data)),
   ]);
-  if (!loading && data && !canViewCheck(profile, data)) return <AccessDenied />;
+  if (workspace !== "tecnico" && !loading && data && !canViewCheck(profile, data)) return <AccessDenied />;
   if (workspace === "tecnico" && !loading && !data && (!error || isWorkAccessFailure(error)))
     return <AccessDenied />;
   if (loading || error || !data)

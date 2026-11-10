@@ -37,7 +37,7 @@ describe('technician workstation', () => {
     const block = app.slice(app.indexOf('function CheckBlockPageV2('), app.indexOf('function DeficienciesPage('));
     expect(block).toContain('Confirmar selección');
     expect(block).toContain('setConfirmedStatus(status)');
-    expect(block).toContain('const nextBlock = workspace === "tecnico" && zones.slice(zones.indexOf(zone) + 1)');
+    expect(block).toContain('const nextBlock = workspace === "tecnico" && [...zones.slice(zones.indexOf(zone) + 1)');
     expect(block).toContain('navigate(nextBlock ? `${checkPath}/bloque/${nextBlock.sectionId}` : checkPath)');
     expect(block).toContain('window.scrollTo({ top: 0, behavior: "auto" })');
     expect(block).toContain('setSaveState("error");');

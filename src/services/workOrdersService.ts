@@ -161,7 +161,7 @@ export const workOrdersService = {
   async getWorkOrderSummary(workOrderId: string, technicianOnly = false): Promise<WorkOrderSummary> {
     if (technicianOnly) {
       const profileId = await currentProfileId();
-      const assignment = await expectData<any>(supabase.from('work_order_assignments').select('id,status,work_orders!work_order_assignments_work_order_id_fkey(status,deleted_at)').eq('work_order_id', workOrderId).eq('technician_id', profileId).is('deleted_at', null).not('status', 'in', '(Finalizado,Cancelado)').maybeSingle(), { service: 'workOrdersService', operation: 'Permiso técnico / resumen del parte', resource: workOrderId });
+      const assignment = await expectData<any>(supabase.from('work_order_assignments').select('id,status,work_orders!work_order_assignments_work_order_id_fkey(status,deleted_at)').eq('work_order_id', workOrderId).eq('technician_id', profileId).is('deleted_at', null).not('status', 'in', '(Finalizado,Cancelado)').limit(1).maybeSingle(), { service: 'workOrdersService', operation: 'Permiso técnico / resumen del parte', resource: workOrderId });
       if (!assignment || !canAssignTechnicalWorkOrder(assignment.work_orders)) throw new Error('No tienes permiso para acceder a este trabajo');
     }
     const officeValidationAvailable = await this.hasOfficeValidation();
@@ -194,7 +194,7 @@ export const workOrdersService = {
   },
   async getTechnicianAssigned(id: string) {
     const profileId = await currentProfileId();
-    const assignment = await expectData<any>(supabase.from('work_order_assignments').select('id, status, work_orders!work_order_assignments_work_order_id_fkey(status,deleted_at)').eq('work_order_id', id).eq('technician_id', profileId).is('deleted_at', null).not('status', 'in', '(Finalizado,Cancelado)').maybeSingle(), { service: 'workOrdersService', operation: 'Permiso técnico / asignación activa', resource: 'work_order_assignments' });
+    const assignment = await expectData<any>(supabase.from('work_order_assignments').select('id, status, work_orders!work_order_assignments_work_order_id_fkey(status,deleted_at)').eq('work_order_id', id).eq('technician_id', profileId).is('deleted_at', null).not('status', 'in', '(Finalizado,Cancelado)').limit(1).maybeSingle(), { service: 'workOrdersService', operation: 'Permiso técnico / asignación activa', resource: 'work_order_assignments' });
     if (!assignment) {
       const work = await expectData<any>(supabase.from('work_orders').select('status,deleted_at').eq('id', id).maybeSingle(), { service: 'workOrdersService', operation: 'Motivo de bloqueo tecnico', resource: id });
       if (work?.status) throw new Error(`Parte bloqueado. Motivo: ${work.status === 'Finalizado tecnicamente' ? 'Finalizado técnicamente' : work.status === 'Cerrado' ? 'Cerrado por SAT' : work.status === 'Cancelado' ? 'Cancelado' : 'Usuario sin asignación activa'}.`);

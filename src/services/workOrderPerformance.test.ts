@@ -11,6 +11,7 @@ const workOrderEquipmentSchema = initialSchema.slice(initialSchema.indexOf('crea
 describe('work order performance foundation', () => {
   it('keeps list payload explicit and provides a lightweight summary', () => {
     expect(service).toContain("select('id,company_id,code,title,description,type,priority,status,origin,economic_status,scheduled_date,scheduled_time,case_code,client_code,client_name,site_code,site_name,equipment_code,equipment_type,main_technician_name,created_by_name,deleted_at')");
+    expect(service.match(/Finalizado,Cancelado[^\n]*limit\(1\)\.maybeSingle\(\)[^\n]*Permiso técnico/g)).toHaveLength(2);
     expect(service).toContain('async getWorkOrderSummary(workOrderId: string, technicianOnly = false)');
     expect(service).toContain('const officeValidationAvailable = await this.hasOfficeValidation()');
     expect(service).toContain("const officeValidationColumns = officeValidationAvailable ? 'office_validation_status, office_validation_reason,' : ''");

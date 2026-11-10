@@ -561,6 +561,12 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
 .check-field .check-block-heading h2 { font-size: clamp(18px, 4vw, 22px); }
 .check-field .equipment-primary-photo { width: 100%; max-height: 140px; }
 .check-field .equipment-photo-empty { min-height: 44px; }
+.check-field .card:has(.check-photo-disclosure) > header { display: none; }
+.check-field .check-photo-disclosure { margin: 0; }
+.check-field .check-photo-disclosure > summary { min-height: 44px; }
+.check-field .equipment-photo-actions .component-photo { position: relative; min-height: 44px; flex: 1; padding: 6px 14px; border-radius: 10px; }
+.check-field .equipment-photo-actions .component-photo input { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; opacity: 0; cursor: pointer; }
+.check-field .equipment-photo-actions .component-photo:focus-within { outline: 2px solid var(--info); outline-offset: 2px; }
 .check-field .equipment-photo-panel, .check-field .block-list { gap: 6px; }
 .check-field .block-list a { min-height: 44px; padding: 7px 10px; }
 .check-field .work-detail-list article { padding-block: 6px; }

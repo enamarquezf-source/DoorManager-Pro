@@ -1822,15 +1822,15 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
     <section className={workspace === "tecnico" ? "check-mobile check-field" : "check-mobile"}>
       <BackButton />
       <header>
-        <p className="eyebrow">
+        {workspace !== "tecnico" && <p className="eyebrow">
           Check {data.check_templates?.name ?? "Plantilla no informada"}
-        </p>
+        </p>}
         <h2>
           {equipmentName}
         </h2>
-        <p>
+        {workspace !== 'tecnico' && <p>
           {[data.equipment?.code, data.code].filter(Boolean).join(' · ')} · {reviewed} de {zones.length} bloques revisados
-        </p>
+        </p>}
         {!typeName && (
           <p className="form-error">
             Tipo de equipo no disponible. Corrige el equipo antes de ejecutar
@@ -1855,6 +1855,7 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
             remoteLocalChangeIds={remoteLocalChangeIds(data)}
             onSynced={reload}
           />
+            hideWhenEmpty={workspace === "tecnico"}
           {entityPurgeCanShowButton('checks', data, workspace) && (
             <button
               className="danger-action"
@@ -1866,10 +1867,10 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
         </div>
       </header>
       {finishMessage&&<p role="status" className="state-warning">{finishMessage}</p>}{actionError && <p className="form-error" role="alert">{actionError}</p>}
-      <div className="progress">
+      <div className="progress" role="progressbar" aria-label="Bloques revisados" aria-valuenow={reviewed} aria-valuemax={zones.length || 1}>
         <span
           style={{
-            width: `${Math.min(100, (reviewed / zones.length) * 100)}%`,
+            width: `${Math.min(100, (reviewed / (zones.length || 1)) * 100)}%`,
           }}
         />
       </div>
@@ -2417,7 +2418,7 @@ function CheckBlockPageV2({
               disabled={!hasChanges || saving || status === "Sin revisar"}
               onClick={save}
             >
-              {saving ? "Guardando..." : "Confirmar selección"}
+              {saving ? "Guardando..." : workspace === "tecnico" ? "Guardar y continuar" : "Confirmar selección"}
             </button>
             {saveState === "saved" && (
               <p className="success-note">
@@ -4144,11 +4145,13 @@ function EquipmentPhotoPanel({ equipmentId, canManage, contextWorkOrderId, onCha
     }
   };
   const success = /^(Foto guardada|Foto principal guardada|Foto borrada)/.test(message);
-  return <Card title={compact ? 'Foto del equipo' : 'Fotos del equipo'}>
-    <div className="equipment-photo-panel">
-      {selected?.signed_url ? <img className="equipment-primary-photo" src={selected.signed_url} alt={selected.is_primary ? 'Foto principal del equipo' : 'Foto seleccionada del equipo'} />
+  const collapsiblePhoto = compact && workspace === 'tecnico';
+  const image = selected?.signed_url ? <img className="equipment-primary-photo" src={selected.signed_url} alt={selected.is_primary ? 'Foto principal del equipo' : 'Foto seleccionada del equipo'} />
         : !photos.loading && !selected && templateImage ? <img className="equipment-primary-photo" src={templateImage} alt="Referencia del equipo" />
-        : <div className="equipment-photo-empty">{photos.loading ? 'Cargando fotos…' : photos.error || selected ? 'Foto no disponible' : 'Sin fotos del equipo'}</div>}
+        : <div className="equipment-photo-empty">{photos.loading ? 'Cargando fotos…' : photos.error || selected ? 'Foto no disponible' : 'Sin fotos del equipo'}</div>;
+  return <Card title={collapsiblePhoto ? '' : compact ? 'Foto del equipo' : 'Fotos del equipo'}>
+    <div className="equipment-photo-panel">
+      {collapsiblePhoto ? <details className="technician-work-details check-photo-disclosure"><summary>Ver foto del equipo</summary>{image}</details> : image}
       {workspace !== 'tecnico' && photos.data.length > 1 && <div className="equipment-photo-history" role="group" aria-label="Galería de fotos del equipo">
         {photos.data.map((photo, index) => <button type="button" key={photo.id} aria-pressed={photo.id === selected?.id} onClick={() => { setSelectedId(photo.id); setConfirmArchive(null); }}>
           {photo.signed_url && <img src={photo.signed_url} alt="" loading="lazy" />}

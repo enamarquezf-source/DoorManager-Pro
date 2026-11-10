@@ -109,7 +109,7 @@ export function findDemoTarget(step: DemoStep): HTMLElement | null {
       }
       const selected=results.querySelector('button.active');
       if(selected&&!/^Sin revisar$/.test((selected.textContent??'').trim())) {
-        const confirm=[...document.querySelectorAll<HTMLElement>('main button')].find(element=>available(element)&&/^Confirmar selección$/.test((element.textContent??'').trim()));
+        const confirm=[...document.querySelectorAll<HTMLElement>('main button')].find(element=>available(element)&&/^(?:Confirmar selección|Guardar y continuar)$/.test((element.textContent??'').trim()));
         if(confirm)return confirm;
       }
       return results;
@@ -173,7 +173,7 @@ export function checkTaskHint(target:HTMLElement|null) {
   if(target?.matches('.check-affected-items'))return 'Selecciona solo el componente afectado';
   if(target?.matches('.check-item-note textarea'))return 'Describe qué le ocurre a ese componente';
   if(target?.matches('.check-remaining-choice'))return 'Confirma los demás solo si los has revisado';
-  if(target?.matches('button')&&/^Confirmar selección$/.test((target.textContent??'').trim()))return 'Guarda este bloque para continuar';
+  if(target?.matches('button')&&/^(?:Confirmar selección|Guardar y continuar)$/.test((target.textContent??'').trim()))return 'Guarda este bloque para continuar';
   return 'Elige el resultado de este bloque';
 }
 

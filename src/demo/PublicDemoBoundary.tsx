@@ -101,7 +101,7 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
     if((['clients','sites','works','catalog_materials','suppliers','purchase_orders'].includes(step.goal??'')||['Un aviso, tres equipos','Tu jornada preparada','De campo a Oficina','Recibe un trabajo revisado','Cobros a la vista','Comprueba los pendientes','Entiende el margen','Compara margen y costes','Comprueba las existencias'].includes(step.title))&&!target.matches('button,a,summary'))return false;
     setLaunchTask(false);
     const safeClick=!['invoices','payments','completed_work','sat_approved','ordered_purchases','purchase_receipts','signatures'].includes(step.goal??'')&&step.title!=='Registra la factura del proveedor'&&step.title!=='Haz un estudio de costes';
-    const confirmsResult=/^(Confirmar selección|Finalizar check|Reintentar finalizar y enviar)$/i.test((target.textContent??'').trim());
+    const confirmsResult=/^((?:Confirmar selección|Guardar y continuar)|Finalizar check|Reintentar finalizar y enviar)$/i.test((target.textContent??'').trim());
     if(safeClick&&!confirmsResult&&target.matches('button,a,summary')){target.click();return true;}
     target.scrollIntoView({behavior:'smooth',block:'center'});if(target.matches('input,textarea,select'))target.focus();return true;
   };

@@ -902,7 +902,7 @@ function WorkOrderDetailPageV2({ forcedId }: { forcedId?: string } = {}) {
   const { id: routeId = '' } = useParams();
   const { profile, workspace, companyId } = useAuth();
   const id = forcedId ?? routeId;
-  const [mode, setMode] = useState<'edit' | 'assign' | 'check' | 'time' | 'material' | 'cost' | null>(null);
+  const [mode, setMode] = useState<'edit' | 'case' | 'assign' | 'check' | 'time' | 'material' | 'cost' | null>(null);
   const [tab, setTab] = useState<'resumen' | 'trabajo' | 'checks' | 'horas' | 'materiales' | 'costes' | 'media' | 'historial'>('resumen');
   const [message, setMessage] = useState('');
   const [actionError, setActionError] = useState('');
@@ -931,7 +931,7 @@ function WorkOrderDetailPageV2({ forcedId }: { forcedId?: string } = {}) {
   const operationalChanged = (text: string) => reloadKeepingContext(text);
   const countedTab=(label:string,count:number)=>detailQuery.data?`${label} (${count})`:label;
   const tabs = [['resumen','Resumen'], ['trabajo','Trabajo'], ['checks',countedTab('Checks',(data.checks??[]).length)], ['horas',countedTab('Horas',(data.time_entries??[]).length)], ['materiales',countedTab('Materiales',(data.materials??[]).length)], ['costes',countedTab('Recursos y costes',(data.cost_entries??[]).length)], ['media',countedTab('Fotos y firmas',(data.photos??[]).length+(data.signatures??[]).length)], ['historial',countedTab('Historial',(data.status_history??[]).length)]] as [any,string][];
-  return <section className="page work-detail"><BackButton /><div className="work-summary"><div><p className="eyebrow">Ficha completa del parte</p><h2>{data.code} · {data.title}</h2><p>{data.clients?.legal_name ?? 'Cliente no informado'} · {data.sites?.name ?? 'Centro no informado'} · {data.primary_equipment?.code ?? 'Sin equipo'} · {equipmentTypeName(data.primary_equipment) ?? 'Tipo de equipo no disponible'}</p></div><Badge tone={severityForStatus(data.status)}>{displayStatus(data.status)}</Badge></div><div className="actions work-actions"><button onClick={() => setMode('edit')} disabled={!canEditWorkOrder(profile, data)}>Editar datos</button>{manageAllowed && <button className="primary" disabled={!canAssignTechnicalWorkOrder(data)} title={!canAssignTechnicalWorkOrder(data) ? assignmentBlockedMessage : undefined} onClick={() => setMode('assign')}>Gestionar asignaciones</button>}{canCreateCheck(profile) && <button onClick={() => setMode('check')}>Crear/abrir check</button>}<button onClick={() => setMode('time')} disabled={!canManageWorkOrderTime(profile, data)}>Añadir horas</button><button onClick={() => setMode('material')} disabled={!canManageWorkOrderMaterials(profile, data)}>Añadir material</button><button onClick={() => setMode('cost')} disabled={!canManageWorkOrderCosts(profile, data)}>Añadir recurso/coste</button><SyncButton workOrderId={data.id} onSynced={reload} />{data.main_equipment_id && <Link to={'/app/equipos/' + data.main_equipment_id}>Abrir/corregir equipo</Link>}{workOrderPurgeCanShowButton(data, workspace) && <button className="danger-action" onClick={() => setPurgeOpen(true)}>Eliminar definitivamente</button>}</div><WorkOrderStatusSelector workOrder={data} onChanged={() => operationalChanged('Estado actualizado y persistido.')} onError={setActionError} />{message && <p className="success-note">{message}</p>}{actionError && <p className="form-error">{actionError}</p>}<div className="tabs detail-tabs">{tabs.map(([key, label]) => <button key={key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{label}</button>)}</div>{tab === 'resumen' && <><div className="work-overview-grid"><Card title="Resumen operativo"><InfoGrid items={[[ 'Estado', displayStatus(data.status) ], [ 'Prioridad', displayStatus(data.priority) ], [ 'Técnico principal', fullName(data.primary_technician) ], [ 'Apoyos', (data.support_technicians ?? []).map(fullName).join(', ') || '-' ], [ 'Fecha/hora', (data.scheduled_date ?? '-') + ' ' + (data.scheduled_time ?? '') ], [ 'Tiempo total', formatMinutes(totalMinutes) ], [ 'Checks pendientes', String((data.checks ?? []).filter((check: any) => check.status !== 'Realizado').length) ], [ 'Materiales', String((data.materials ?? []).length) ]]}/></Card><Card title="Cliente y ubicación"><InfoGrid items={[[ 'Cliente', data.clients?.legal_name ?? '-' ], [ 'Centro', data.sites?.name ?? '-' ], [ 'Dirección', data.sites?.address ?? '-' ], [ 'Equipo', data.primary_equipment?.code ?? '-' ], [ 'Acceso', data.access_requirement?.description ?? '-' ], [ 'Material previsto', data.planned_material ?? '-' ], [ 'Presupuesto origen', data.quotes?.code ?? '-' ]]}/></Card></div><AssignmentsCard workOrder={data} canManage={manageAllowed} onManage={() => setMode('assign')} onChanged={changed} /></>}{tab === 'trabajo' && <div className="grid half"><WorkOrderOperationalCard workOrder={data} onChanged={() => operationalChanged('Trabajo del parte actualizado.')} /><Card title="Historial de notas"><CompactRows rows={(data.notes ?? []).map((note: any) => [formatDate(note.created_at), note.note ?? note.description ?? 'Nota sin texto', 'info'])} empty="Sin notas." /></Card></div>}{tab === 'checks' && <Card title="Checks vinculados" action={<CheckReportDownload work={data} />}><div className="compact-list">{(data.checks ?? []).map((check: any) => <CheckSummaryCard key={check.id} check={check} />)}</div>{!(data.checks ?? []).length && <p className="large-note">Sin checks vinculados.</p>}</Card>}{tab === 'horas' && <WorkOrderTimeCard workOrder={data} onChanged={reload} />}{tab === 'materiales' && <WorkOrderMaterialsCard workOrder={data} onChanged={reload} />}{tab === 'costes' && <WorkOrderCostsCard workOrder={data} onChanged={() => operationalChanged('Recursos y costes actualizados.')} />}{tab === 'media' && <MediaGallery photos={data.photos ?? []} signatures={data.signatures ?? []} />}{tab === 'historial' && <><WorkProgress history={data.status_history ?? []} current={data.status} /><Card title="Historial · Timeline events"><ActivityTimeline events={activity} formatDate={formatDate} /></Card></>}{mode === 'edit' && <WorkOrderForm initial={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); operationalChanged('Parte actualizado.'); }} />}{mode === 'assign' && <AssignmentForm workOrder={data} workOrderId={data.id} companyId={data.company_id} onClose={() => setMode(null)} onSaved={() => { setMode(null); changed(); }} />}{mode === 'check' && <CheckForm initial={{ work_order_id: data.id, company_id: data.company_id, equipment_id: data.main_equipment_id }} onClose={() => setMode(null)} onSaved={() => { setMode(null); operationalChanged('Check creado.'); }} />}{mode === 'time' && <WorkOrderTimeForm workOrder={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); operationalChanged('Horas registradas.'); }} />}{mode === 'material' && <WorkOrderMaterialForm workOrder={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); operationalChanged('Material registrado.'); }} />}{mode === 'cost' && <WorkOrderCostForm workOrder={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); operationalChanged('Recurso o coste registrado.'); }} />}{purgeOpen && <WorkOrderPurgeModal workOrder={data} onClose={() => setPurgeOpen(false)} onDeleted={() => { setPurgeOpen(false); navigate('/app/partes'); }} />}</section>;
+  return <section className="page work-detail"><BackButton /><div className="work-summary"><div><p className="eyebrow">Ficha completa del parte</p><h2>{data.code} · {data.title}</h2><p>{data.clients?.legal_name ?? 'Cliente no informado'} · {data.sites?.name ?? 'Centro no informado'} · {data.primary_equipment?.code ?? 'Sin equipo'} · {equipmentTypeName(data.primary_equipment) ?? 'Tipo de equipo no disponible'}</p></div><Badge tone={severityForStatus(data.status)}>{displayStatus(data.status)}</Badge></div><div className="actions work-actions"><button onClick={() => setMode('edit')} disabled={!canEditWorkOrder(profile, data)}>Editar datos</button>{manageAllowed && <button className="primary" disabled={!canAssignTechnicalWorkOrder(data)} title={!canAssignTechnicalWorkOrder(data) ? assignmentBlockedMessage : undefined} onClick={() => setMode('assign')}>Gestionar asignaciones</button>}{canEditWorkOrder(profile, data) && <button onClick={() => setMode('case')}>Gestionar expediente</button>}{canCreateCheck(profile) && <button onClick={() => setMode('check')}>Crear/abrir check</button>}<button onClick={() => setMode('time')} disabled={!canManageWorkOrderTime(profile, data)}>Añadir horas</button><button onClick={() => setMode('material')} disabled={!canManageWorkOrderMaterials(profile, data)}>Añadir material</button><button onClick={() => setMode('cost')} disabled={!canManageWorkOrderCosts(profile, data)}>Añadir recurso/coste</button><SyncButton workOrderId={data.id} onSynced={reload} />{data.main_equipment_id && <Link to={'/app/equipos/' + data.main_equipment_id}>Abrir/corregir equipo</Link>}{workOrderPurgeCanShowButton(data, workspace) && <button className="danger-action" onClick={() => setPurgeOpen(true)}>Eliminar definitivamente</button>}</div><WorkOrderStatusSelector workOrder={data} onChanged={() => operationalChanged('Estado actualizado y persistido.')} onError={setActionError} />{message && <p className="success-note">{message}</p>}{actionError && <p className="form-error">{actionError}</p>}<div className="tabs detail-tabs">{tabs.map(([key, label]) => <button key={key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{label}</button>)}</div>{tab === 'resumen' && <><div className="work-overview-grid"><Card title="Resumen operativo"><InfoGrid items={[[ 'Estado', displayStatus(data.status) ], [ 'Prioridad', displayStatus(data.priority) ], [ 'Técnico principal', fullName(data.primary_technician) ], [ 'Apoyos', (data.support_technicians ?? []).map(fullName).join(', ') || '-' ], [ 'Fecha/hora', (data.scheduled_date ?? '-') + ' ' + (data.scheduled_time ?? '') ], [ 'Tiempo total', formatMinutes(totalMinutes) ], [ 'Checks pendientes', String((data.checks ?? []).filter((check: any) => check.status !== 'Realizado').length) ], [ 'Materiales', String((data.materials ?? []).length) ]]}/></Card><Card title="Cliente y ubicación"><InfoGrid items={[[ 'Cliente', data.clients?.legal_name ?? '-' ], [ 'Centro', data.sites?.name ?? '-' ], [ 'Dirección', data.sites?.address ?? '-' ], [ 'Equipo', data.primary_equipment?.code ?? '-' ], [ 'Acceso', data.access_requirement?.description ?? '-' ], [ 'Material previsto', data.planned_material ?? '-' ], [ 'Presupuesto origen', data.quotes?.code ?? '-' ]]}/></Card></div><AssignmentsCard workOrder={data} canManage={manageAllowed} onManage={() => setMode('assign')} onChanged={changed} /></>}{tab === 'trabajo' && <div className="grid half"><WorkOrderOperationalCard workOrder={data} onChanged={() => operationalChanged('Trabajo del parte actualizado.')} /><Card title="Historial de notas"><CompactRows rows={(data.notes ?? []).map((note: any) => [formatDate(note.created_at), note.note ?? note.description ?? 'Nota sin texto', 'info'])} empty="Sin notas." /></Card></div>}{tab === 'checks' && <Card title="Checks vinculados" action={<CheckReportDownload work={data} />}><div className="compact-list">{(data.checks ?? []).map((check: any) => <CheckSummaryCard key={check.id} check={check} />)}</div>{!(data.checks ?? []).length && <p className="large-note">Sin checks vinculados.</p>}</Card>}{tab === 'horas' && <WorkOrderTimeCard workOrder={data} onChanged={reload} />}{tab === 'materiales' && <WorkOrderMaterialsCard workOrder={data} onChanged={reload} />}{tab === 'costes' && <WorkOrderCostsCard workOrder={data} onChanged={() => operationalChanged('Recursos y costes actualizados.')} />}{tab === 'media' && <MediaGallery photos={data.photos ?? []} signatures={data.signatures ?? []} />}{tab === 'historial' && <><WorkProgress history={data.status_history ?? []} current={data.status} /><Card title="Historial · Timeline events"><ActivityTimeline events={activity} formatDate={formatDate} /></Card></>}{mode === 'case' && canEditWorkOrder(profile, data) && <WorkOrderCaseLink work={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); reload(); }} />}{mode === 'edit' && <WorkOrderForm initial={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); operationalChanged('Parte actualizado.'); }} />}{mode === 'assign' && <AssignmentForm workOrder={data} workOrderId={data.id} companyId={data.company_id} onClose={() => setMode(null)} onSaved={() => { setMode(null); changed(); }} />}{mode === 'check' && <CheckForm initial={{ work_order_id: data.id, company_id: data.company_id, equipment_id: data.main_equipment_id }} onClose={() => setMode(null)} onSaved={() => { setMode(null); operationalChanged('Check creado.'); }} />}{mode === 'time' && <WorkOrderTimeForm workOrder={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); operationalChanged('Horas registradas.'); }} />}{mode === 'material' && <WorkOrderMaterialForm workOrder={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); operationalChanged('Material registrado.'); }} />}{mode === 'cost' && <WorkOrderCostForm workOrder={data} onClose={() => setMode(null)} onSaved={() => { setMode(null); operationalChanged('Recurso o coste registrado.'); }} />}{purgeOpen && <WorkOrderPurgeModal workOrder={data} onClose={() => setPurgeOpen(false)} onDeleted={() => { setPurgeOpen(false); navigate('/app/partes'); }} />}</section>;
 }
 
 function money(value: any) { return `${Number(value ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`; }
@@ -1006,6 +1006,7 @@ function WorkOrderStatusSelector({ workOrder, onChanged, onError }: { workOrder:
 
 function WorkOrderSatReviewCard({ workOrder, onChanged, onError }: { workOrder: any; onChanged: () => void; onError: (message: string) => void }) {
   const { profile, companyId } = useAuth();
+  const [returnVisit, setReturnVisit] = useState(false);
   const [decision, setDecision] = useState<'approved' | 'returned' | null>(null);
   const [destination, setDestination] = useState<'comercial' | 'facturacion'>('facturacion');
   const [commercialProfileId, setCommercialProfileId] = useState('');
@@ -1030,9 +1031,56 @@ function WorkOrderSatReviewCard({ workOrder, onChanged, onError }: { workOrder: 
   return <Card title="Revisión SAT" action={<Badge tone={status === 'approved' ? 'ok' : status === 'returned' ? 'danger' : 'warn'}>{status === 'approved' ? 'Revisado' : status === 'returned' ? 'Devuelto a SAT' : 'Pendiente'}</Badge>}>
      <InfoGrid items={[[ 'Destino', workOrder.sat_review_destination === 'comercial' ? 'Comercial' : workOrder.sat_review_destination === 'facturacion' ? 'Facturación' : '-' ], [ 'Observaciones internas', workOrder.sat_review_reason && workOrder.sat_review_reason !== 'Sin observaciones internas' ? workOrder.sat_review_reason : '-' ], [ 'Indicadores', satReviewFlagLabels(workOrder.sat_review_flags).join(', ') || 'Ninguno' ]]} /><WarrantyBillingDecisionPanel workOrder={workOrder} lines={workOrder.planned_quote_lines ?? []} canDecide={canDecideWarranty} onChanged={onChanged} />
      {['not_started', 'pending', 'returned'].includes(status) && canReviewWorkOrderSat(profile) && <div className="actions"><button className="primary" onClick={() => { setDecision('approved'); setReason(''); }}>Enviar a destino</button><button className="danger" onClick={() => { setDecision('returned'); setReason(''); }}>Devolver a SAT</button></div>}
+     {canReviewWorkOrderSat(profile) && ['Finalizado tecnicamente', 'Devuelto por SAT'].includes(workOrder.status) &&
+       !workOrder.deleted_at && !['facturado', 'cobrado'].includes(workOrder.economic_status) &&
+       <div className="actions"><button type="button" onClick={() => setReturnVisit(true)}>Programar nueva visita</button></div>}
+     {returnVisit && <WorkOrderReturnVisit work={workOrder} onClose={() => setReturnVisit(false)}
+       onSaved={() => { setReturnVisit(false); onChanged(); }} />}
      {decision && <div className="mini-modal" role="dialog" aria-modal="true"><div><h3>{decision === 'approved' ? 'Enviar parte desde SAT' : 'Mantener parte en SAT'}</h3>{reviewError && <p className="form-error" role="alert">{reviewError}</p>}{decision === 'approved' && <label>Destino<select value={destination} onChange={(event) => { const next = event.target.value as 'comercial' | 'facturacion'; setDestination(next); if (next === 'facturacion') setCommercialProfileId(''); }}><option value="facturacion">Facturación</option><option value="comercial">Comercial</option></select></label>}{decision === 'approved' && destination === 'comercial' && <label>Comercial responsable *<select value={commercialProfileId} onChange={(event) => setCommercialProfileId(event.target.value)} required><option value="">Selecciona un comercial</option>{commercials.data.map((commercial: any) => <option key={commercial.id} value={commercial.id}>{fullName(commercial)}</option>)}</select></label>}<fieldset className="sat-review-flags"><legend>Indicadores de revisión</legend>{satReviewFlags.map(([key, label]) => <label className="sat-review-flag" key={key}><input type="checkbox" checked={flags[key]} onChange={(event) => setFlags((current) => ({ ...current, [key]: event.target.checked }))} /><span>{label}</span></label>)}</fieldset><label>Observaciones internas<textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Opcional" /></label><div className="modal-footer"><button onClick={() => setDecision(null)} disabled={saving}>Cancelar</button><button className={decision === 'approved' ? 'primary' : 'danger'} onClick={submit} disabled={saving || (decision === 'approved' && destination === 'comercial' && !commercialProfileId)}>{saving ? 'Guardando...' : decision === 'approved' ? destination === 'comercial' ? 'Enviar a Comercial' : 'Enviar a Facturación' : 'Devolver a SAT'}</button></div></div></div>}
   </Card>;
 }
+
+
+function WorkOrderReturnVisit({ work, onClose, onSaved }: { work: any; onClose: () => void; onSaved: () => void }) {
+  const technicians = useProfiles(work.company_id, 'technicians');
+  const [technicianId, setTechnicianId] = useState('');
+  const [date, setDate] = useState(localDateKey());
+  const [time, setTime] = useState('');
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const submitting = useRef(false);
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (submitting.current || !technicianId || !date || !reason.trim()) return;
+    submitting.current = true;
+    setSaving(true);
+    setError('');
+    try {
+      await workOrdersService.scheduleReturnVisit(work.id, technicianId, date, time || null, reason.trim());
+      onSaved();
+    } catch (cause) {
+      setError(formErrorMessage(cause, 'No se ha podido programar la nueva visita.'));
+    } finally {
+      submitting.current = false;
+      setSaving(false);
+    }
+  };
+
+  return <ModalForm title="Programar nueva visita" onClose={onClose} onSubmit={submit} saving={saving} error={error} submitLabel="Asignar nueva visita">
+    <p className="large-note">Se reabrirá el parte {work.code} y el motivo se guardará como nota para el técnico. Las intervenciones anteriores quedarán en el historial.</p>
+    <FormSelect label="Técnico de la nueva visita" required value={technicianId} onChange={setTechnicianId}
+      loading={technicians.isPending} options={(technicians.data ?? []).map(person => ({ value: person.id, label: fullName(person) }))} />
+    {technicians.error && <p className="form-error" role="alert">No se han podido cargar los técnicos.</p>}
+    <div className="form-grid">
+      <label>Fecha de la visita<input type="date" required value={date} onChange={event => setDate(event.target.value)} /></label>
+      <label>Hora prevista<input type="time" value={time} onChange={event => setTime(event.target.value)} /></label>
+    </div>
+    <label>Motivo e indicaciones<textarea required value={reason} onChange={event => setReason(event.target.value)} /></label>
+  </ModalForm>;
+}
+
 
 function WorkOrderCommercialReviewCard({ workOrder, onChanged, onError }: { workOrder: any; onChanged: () => void; onError: (message: string) => void }) {
   const { profile } = useAuth();
@@ -1473,6 +1521,8 @@ function TechnicianWorkPage() {
     <div className="technician-workstation-head"><div><p className="eyebrow technician-order-code"><Wrench size={14} aria-hidden="true" /> {data.code}</p><h2>{data.clients?.legal_name ?? 'Cliente no informado'}</h2><p>{data.sites?.name ?? 'Centro no informado'}</p><p className="technician-work-title">{data.title}</p></div><Badge tone={severityForStatus(data.status)}>{displayStatus(data.status)}</Badge></div>
     <div className="technician-operation-strip"><span><ClipboardCheck size={15} aria-hidden="true" />Checks <strong>{progress.checks.done}/{progress.checks.total}</strong></span><span><FileUp size={15} aria-hidden="true" />{publicDemoEnabled?'Fotos del parte':'Fotos'} <strong>{progress.photos}</strong></span><span className="technician-local-indicator" role="status">{unsavedWork ? 'Texto sin guardar' : data._finishPending ? 'Cierre pendiente' : 'Copia local'}</span></div>
     {message && <p className="success-note" role="status">{message}</p>}{actionError && <p className="form-error" role="alert">{actionError}</p>}
+    {(data.notes ?? []).filter((note: any) => String(note.note ?? '').startsWith('Nueva visita: ')).slice(-1).map((note: any) =>
+      <p key={note.id} className="large-note">{note.note}</p>)}
     <TechnicianWorkTabs active={activeTab} onChange={changeWorkTab} panels={[
       { id: 'work', label: 'Intervención', detail: 'Aviso y equipo', icon: <Wrench size={20} aria-hidden="true" />, content: <>
         {data.description && <div className="technician-task-brief"><strong>Aviso del cliente</strong><p>{data.description}</p>{data.description.length > 180 && <details><summary>Leer aviso completo</summary><p>{data.description}</p></details>}</div>}
@@ -2897,6 +2947,8 @@ function PlanningModule() {
  const { data, loading, error, reload } = useLoad(() => workOrdersService.listPlanning(), [], [] as any[]);
  const technicians = useLoad(() => profilesService.listTechnicians(), [], [] as any[]);
  const commercials = useLoad(() => profilesService.listCommercials(), [], [] as any[]);
+ const [planningDate, setPlanningDate] = useState<string | null>(null);
+ const [selectedQuote, setSelectedQuote] = useState<any>(null);
  const [creatingDate,setCreatingDate]=useState<string|null>(null);
  const [commercialVisit,setCommercialVisit]=useState(false);
  const [assignment,setAssignment]=useState<any>(null);
@@ -2904,9 +2956,72 @@ function PlanningModule() {
  const [actionError,setActionError]=useState('');
  const openAssignment=async(work:any,date:string)=>{if(opening)return;setOpening(true);setActionError('');try{const detail=await workOrdersService.get(work.id);setAssignment({...detail,scheduled_date:date});}catch(err){setActionError(err instanceof Error?err.message:'No se ha podido abrir la asignación.');}finally{setOpening(false);}};
  return <section className="page"><Breadcrumb items={['SAT','Planificación']}/><SectionHeader title="Planificación de trabajos" description="Elige un día, consulta la agenda de técnicos y comerciales y programa trabajos o visitas comerciales." eyebrow="OPERACIONES"/>{actionError&&<p className="form-error" role="alert">{actionError}</p>}{opening&&<p role="status">Abriendo asignación...</p>}
- <StateBlock loading={loading||technicians.loading||commercials.loading} error={error||technicians.error||commercials.error} retry={()=>{reload();technicians.reload();commercials.reload();}}><PlanningCalendar works={data} technicians={technicians.data} commercials={commercials.data} canCreate={canCreateWorkOrder(profile)} canAssign={canManageWorkOrderAssignments(profile)} onCreate={(date,isCommercial=false)=>{setCommercialVisit(isCommercial);setCreatingDate(date);}} onAssign={openAssignment}/></StateBlock>
- {creatingDate&&<WorkOrderForm initial={{scheduled_date:creatingDate,...(commercialVisit?{type:'Visita comercial'}:{})}} onClose={()=>setCreatingDate(null)} onSaved={()=>{setCreatingDate(null);reload();}}/>}
+ <StateBlock loading={loading||technicians.loading||commercials.loading} error={error||technicians.error||commercials.error} retry={()=>{reload();technicians.reload();commercials.reload();}}><PlanningCalendar works={data} technicians={technicians.data} commercials={commercials.data} canCreate={canCreateWorkOrder(profile)} canAssign={canManageWorkOrderAssignments(profile)} onCreate={(date,isCommercial=false)=>{if (isCommercial) { setCommercialVisit(true); setCreatingDate(date); } else setPlanningDate(date);}} onAssign={openAssignment}/></StateBlock>
+ {planningDate && <PlanningSourcePicker
+   works={data}
+   canAssign={canManageWorkOrderAssignments(profile)}
+   onClose={() => setPlanningDate(null)}
+   onNew={() => { setCommercialVisit(false); setCreatingDate(planningDate); setPlanningDate(null); }}
+   onPart={async work => { await openAssignment(work, planningDate); setPlanningDate(null); }}
+   onQuote={quote => { setCommercialVisit(false); setSelectedQuote(quote); setCreatingDate(planningDate); setPlanningDate(null); }}
+ />}
+ {creatingDate&&<WorkOrderForm sourceQuote={selectedQuote} initial={{...(selectedQuote ? quoteWorkOrderInitial(selectedQuote, selectedQuote.quote_lines ?? []) : {}),scheduled_date:creatingDate,...(commercialVisit?{type:'Visita comercial'}:{})}} onClose={()=>{setCreatingDate(null);setSelectedQuote(null);}} onSaved={()=>{setCreatingDate(null);setSelectedQuote(null);reload();}}/>}
  {assignment&&<AssignmentForm workOrder={assignment} workOrderId={assignment.id} companyId={assignment.company_id} onClose={()=>setAssignment(null)} onSaved={()=>{setAssignment(null);reload();}}/>}</section>;
+}
+
+function PlanningSourcePicker({ works, canAssign, onClose, onNew, onPart, onQuote }: {
+  works: any[]; canAssign: boolean; onClose: () => void; onNew: () => void;
+  onPart: (work: any) => Promise<void>; onQuote: (quote: any) => void;
+}) {
+  const [source, setSource] = useState<'part' | 'quote'>(canAssign ? 'part' : 'quote');
+  const [id, setId] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const quotes = useLoad(() => quotesService.list(), [], [] as any[]);
+  const eligibleWorks = works.filter(canAssignTechnicalWorkOrder);
+  const options = source === 'part'
+    ? (canAssign ? eligibleWorks : [])
+    : quotes.data.filter(quote => ['Aceptado', 'Ejecutado en cliente'].includes(quote.status));
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!id || saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      if (source === 'part') {
+        await onPart({ id });
+        return;
+      }
+      const quote = await quotesService.get(id);
+      const linkedIds = new Set([...(quote.generated_work_orders ?? []).map((work: any) => work.id), quote.work_order_id].filter(Boolean));
+      if (linkedIds.size) {
+        const linked = eligibleWorks.filter(work => linkedIds.has(work.id));
+        if (!canAssign || linked.length !== 1) throw new Error('El presupuesto ya tiene partes vinculados. Selecciona el parte que quieras programar en «Parte existente».');
+        await onPart(linked[0]);
+      } else {
+        if (quote.status !== 'Aceptado') throw new Error('El presupuesto debe estar aceptado para generar su parte.');
+        onQuote(quote);
+      }
+    } catch (reason) {
+      setError(formErrorMessage(reason, 'No se ha podido abrir el registro para programarlo.'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return <ModalForm title="Programar trabajo" onClose={onClose} onSubmit={submit} saving={saving} error={error} submitLabel="Continuar">
+    <div className="actions">
+      {canAssign && <button type="button" aria-pressed={source === 'part'} onClick={() => { setSource('part'); setId(''); setError(''); }}>Parte existente</button>}
+      <button type="button" aria-pressed={source === 'quote'} onClick={() => { setSource('quote'); setId(''); setError(''); }}>Presupuesto existente</button>
+      <button type="button" onClick={onNew}>Trabajo nuevo</button>
+    </div>
+    {source === 'quote' && <p className="large-note">Selecciona un presupuesto aceptado. Si ya tiene parte, se reutilizará.</p>}
+    {source === 'quote' && quotes.error && <p className="form-error" role="alert">{quotes.error}</p>}
+    <FormSelect label={source === 'part' ? 'Parte' : 'Presupuesto'} value={id} onChange={setId} required
+      loading={source === 'quote' && quotes.loading}
+      emptyLabel={options.length ? 'Seleccionar' : 'Sin registros disponibles'}
+      options={options.map(row => ({ value: row.id, label: [row.code, row.title, row.client_name ?? row.clients?.legal_name].filter(Boolean).join(' · ') }))} />
+  </ModalForm>;
 }
 
 function TechniciansModule() {
@@ -3156,6 +3271,50 @@ function ComponentForm({ equipmentId, initial, onClose, onSaved }: any) {
   return <ModalForm title={initial?.id ? 'Editar componente' : 'Añadir componente'} onClose={onClose} onSubmit={submit} saving={saving} error={error} submitLabel="Guardar componente"><p className="large-note">Selecciona el tipo. Puedes completar los demás datos cuando dispongas de ellos.</p><div className="form-grid"><FormSelect label="Tipo de componente" value={values.component_type} onChange={(value) => set('component_type', value)} required options={['Motor','Cuadro','Fotocelulas','Banda de seguridad','Activacion','Otros'].map((value) => ({ value, label: value === 'Fotocelulas' ? 'Fotocélulas' : value === 'Activacion' ? 'Activación / radar' : value }))} /><FormSelect label="Estado" value={values.status} onChange={(value) => set('status', value)} options={['Operativo','Averiado','Pendiente de revision','Sustituido'].map((value) => ({ value, label: displayStatus(value) }))} />{[['brand','Marca'],['model','Modelo / referencia'],['serial_number','Número de serie']].map(([key,label]) => <label key={key}>{label}<input value={values[key] ?? ''} onChange={(event) => set(key,event.target.value)} /></label>)}<label>Fecha de instalación<input type="date" value={values.installed_at ?? ''} onChange={(event) => set('installed_at',event.target.value)} /></label></div><label>Información técnica / observaciones<textarea rows={4} value={values.notes ?? ''} onChange={(event) => set('notes',event.target.value)} placeholder="Ubicación, características o indicaciones útiles para próximas intervenciones" /></label></ModalForm>;
 }
 function CaseForm({ title, initial, onClose, onSaved }: any) { const clients = useLoad(() => clientsService.list('', initial?.company_id), [initial?.company_id], [] as any[]); const sites = useLoad(() => sitesService.list('', initial?.company_id), [initial?.company_id], [] as any[]); const fields = [[ 'title','Título',true ],[ 'description','Descripción' ],[ 'type','Tipo',true ],[ 'priority','Prioridad' ],[ 'status','Estado' ],[ 'client_id','Cliente',true ],[ 'site_id','Centro' ],[ 'origin','Origen',true ]]; return <EntityForm title={title} fields={fields} selects={{ type: ['Averia','Mantenimiento','Obra','Inspeccion','Garantia','Reclamacion','Mejora','Comercial'].map((value) => ({ value, label: displayStatus(value) })), priority: ['Baja','Normal','Alta','Critica'].map((value) => ({ value, label: displayStatus(value) })), status: ['Abierto','En curso','Pendiente','Cerrado','Cancelado'].map((value) => ({ value, label: displayStatus(value) })), origin: ['SAT','Comercial','Gerencia','Aviso','Check','Visita','Cliente','Sistema'].map((value) => ({ value, label: displayStatus(value) })), client_id: clients.data.map((client) => ({ value: client.id, label: `${client.code} · ${client.legal_name}` })), site_id: (current: any) => sites.data.filter((site) => current.client_id && site.client_id === current.client_id).map((site) => ({ value: site.id, label: `${site.code} · ${site.name}` })) }} initial={{ type: 'Averia', priority: 'Normal', status: 'Abierto', origin: 'SAT', ...initial }} help={!initial?.id ? 'El código de expediente se generará automáticamente al guardar.' : undefined} onClose={onClose} onSubmit={(values: any) => initial?.id ? casesService.update(initial.id, values) : casesService.create(values)} onSaved={onSaved} />; }
+
+
+function WorkOrderCaseLink({ work, onClose, onSaved }: { work: any; onClose: () => void; onSaved: () => void }) {
+  const cases = useLoad(() => casesService.list('', work.company_id), [work.company_id], [] as any[]);
+  const [caseId, setCaseId] = useState(work.case_id ?? '');
+  const [created, setCreated] = useState<any>(null);
+  const [creating, setCreating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const compatible = cases.data.filter(row => row.client_id === work.client_id &&
+    (!row.site_id || row.site_id === work.site_id) && (!['Cerrado', 'Cancelado'].includes(row.status) || row.id === work.case_id));
+  if (created && !compatible.some(row => row.id === created.id)) compatible.push(created);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (saving || !compatible.some(row => row.id === caseId)) return;
+    setSaving(true);
+    setError('');
+    try {
+      const updated = await workOrdersService.update(work.id, { case_id: caseId });
+      if (updated?.case_id !== caseId) throw new Error('El enlace no se ha confirmado.');
+      onSaved();
+    } catch (reason) {
+      setError(formErrorMessage(reason, 'No se ha podido enlazar el expediente.'));
+    } finally {
+      setSaving(false);
+    }
+  };
+  if (creating) return <ModalShell title="Crear expediente desde el parte" onClose={() => setCreating(false)}>
+    <CaseQuickCreate initial={{ company_id: work.company_id, client_id: work.client_id, site_id: work.site_id, title: work.title }}
+      onClose={() => setCreating(false)}
+      onSaved={(result: string | { id: string; title?: string }) => {
+        const row = typeof result === 'string' ? { id: result, title: work.title } : result;
+        setCreated(row);
+        setCaseId(row.id);
+        setCreating(false);
+        void cases.reload();
+      }} />
+  </ModalShell>;
+  return <ModalForm title="Gestionar expediente del parte" onClose={onClose} onSubmit={submit} saving={saving} error={error || cases.error} submitLabel="Enlazar expediente">
+    <FormSelect label="Expediente" value={caseId} onChange={setCaseId} loading={cases.loading && !created} required
+      options={compatible.map(row => ({ value: row.id, label: [row.code, row.title].filter(Boolean).join(' · ') }))} />
+    {work.client_id && <button type="button" disabled={saving} onClick={() => setCreating(true)}>Crear expediente</button>}
+  </ModalForm>;
+}
 
 function CaseQuickCreate({ initial, onClose, onSaved }: any) {
   const [values, setValues] = useState<Record<string, any>>({ title: '', description: '', type: 'Averia', priority: 'Normal', status: 'Abierto', origin: 'SAT', ...initial });
@@ -3605,6 +3764,8 @@ function WorkOrderForm({ initial, sourceQuote, onClose, onSaved }: any) {
   const [saving, setSaving] = useState(false); const operation = useRef<{ fingerprint: string; id: string } | null>(null);
   const [error, setError] = useState('');
   const [creatingSite,setCreatingSite]=useState(false);
+  const [creatingCase, setCreatingCase] = useState(false);
+  const [createdCase, setCreatedCase] = useState<{ id: string; title: string; client_id: string; site_id?: string } | null>(null);
   const [quoteEquipmentMappingError, setQuoteEquipmentMappingError] = useState('');
   const quoteEquipmentInitialized = useRef(false);
   const clients = useLoad(() => clientsService.list('', initial?.company_id), [initial?.company_id], [] as any[]);
@@ -3618,7 +3779,8 @@ function WorkOrderForm({ initial, sourceQuote, onClose, onSaved }: any) {
   const commercialsQuery = useProfiles(initial?.company_id ?? companyId, 'commercials');
   const filteredSites = filterSitesForClient(sites.data, values.client_id);
   const filteredEquipment = filterEquipmentForContext(equipment.data, values.client_id, values.site_id);
-  const filteredCases = cases.data.filter((item) => (!values.client_id || item.client_id === values.client_id) && (!values.site_id || !item.site_id || item.site_id === values.site_id) && !['Cerrado', 'Cancelado'].includes(item.status));
+  const availableCases = createdCase && !cases.data.some(row => row.id === createdCase.id) ? [...cases.data, createdCase] : cases.data;
+  const filteredCases = availableCases.filter((item) => (!values.client_id || item.client_id === values.client_id) && (!values.site_id || !item.site_id || item.site_id === values.site_id) && !['Cerrado', 'Cancelado'].includes(item.status));
   useEffect(() => {
     if (quoteEquipmentInitialized.current || !initial?.quote_id || !initial.quote_equipment_lines || equipmentTypes.loading) return;
     quoteEquipmentInitialized.current = true;
@@ -3649,7 +3811,18 @@ function WorkOrderForm({ initial, sourceQuote, onClose, onSaved }: any) {
     finally { setSaving(false); }
   };
   if(creatingSite)return <SiteForm title="Crear centro" initial={{company_id:initial?.company_id,client_id:values.client_id}} onClose={()=>setCreatingSite(false)} onSaved={(id:string)=>{set('site_id',id);sites.reload();setCreatingSite(false);}}/>;
-  return <ModalForm title={initial?.id ? 'Modificar parte' : 'Crear parte'} onClose={onClose} onSubmit={submit} saving={saving} error={error}><FormStep title="Cliente y trabajo" description="Elige el tipo de trabajo y dónde se realizará."><div className="flow-work-kind" role="group" aria-label="Tipo de trabajo">{workCategories.filter(category => category.id !== 'all').map(category => <button key={category.id} type="button" aria-pressed={workCategory(values.type) === category.id} onClick={() => set('type', category.type)}><strong>{category.label}</strong><small>{category.description}</small></button>)}</div><div className="flow-section-title"><span className="flow-step-number">1</span><div><h3>Cliente y ubicación</h3><p>¿Dónde hay que realizar el trabajo?</p></div></div><FormSelect label="Cliente" value={values.client_id} onChange={(value) => changeContext('client_id', value)} required options={clients.data.map((client) => ({ value: client.id, label: `${client.code} · ${client.legal_name}` }))} loading={clients.loading} /><FormSelect label="Centro" value={values.site_id} onChange={(value) => changeContext('site_id', value)} required options={filteredSites.map((site) => ({ value: site.id, label: `${site.code} · ${site.name}` }))} loading={sites.loading} disabled={!values.client_id} />{values.client_id&&!sites.loading&&!filteredSites.length&&<div className="flow-info"><p>Este cliente todavía no tiene centro. Créalo aquí y continuarás con los datos del parte conservados.</p><button type="button" onClick={()=>setCreatingSite(true)}>Crear centro para este cliente</button></div>}<FormSelect label="Expediente" value={values.case_id} onChange={(value) => set('case_id', value)} options={filteredCases.map((item) => ({ value: item.id, label: `${item.code} · ${item.title}` }))} disabled={!values.client_id} /><div className="form-grid"><FormSelect label="Tipo" value={values.type} onChange={(value) => set('type', value)} required options={['Averia urgente','Correctivo','Preventivo','Mantenimiento','Inspeccion','Instalacion','Visita tecnica','Visita comercial','Garantia','Mejora'].map((value) => ({ value, label: displayStatus(value) }))} /><FormSelect label="Prioridad" value={values.priority} onChange={(value) => set('priority', value)} options={['Baja','Normal','Alta','Critica'].map((value) => ({ value, label: displayStatus(value) }))} /><label>Título *<input value={values.title ?? ''} onChange={(event) => set('title', event.target.value)} required /></label><label>Fecha<input type="date" value={values.scheduled_date ?? ''} onChange={(event) => set('scheduled_date', event.target.value)} /></label><label>Hora<input type="time" value={values.scheduled_time ?? ''} onChange={(event) => set('scheduled_time', event.target.value)} /></label><label>Duración (minutos)<input type="number" min="1" value={values.estimated_duration_minutes ?? ''} onChange={(event) => set('estimated_duration_minutes', event.target.value)} /></label></div>{canAssignTechnician?(isCommercialVisit?<FormSelect label={initial?.id ? 'Comercial responsable (cambios desde Gestionar asignaciones)' : 'Comercial responsable'} disabled={Boolean(initial?.id)} value={initial?.id?initial.current_responsible_id:values.commercial_id} onChange={(value)=>set('commercial_id',value)} loading={commercialsQuery.isPending} options={(commercialsQuery.data??[]).map(person=>({value:person.id,label:fullName(person)}))}/>:<FormSelect label={initial?.id ? 'Técnico principal (cambios desde Gestionar asignaciones)' : 'Técnico principal'} disabled={Boolean(initial?.id)} value={values.technician_id} onChange={(value) => set('technician_id', value)} options={technicians.data.map((person) => ({ value: person.id, label: fullName(person) }))} />):<p className="flow-info">El parte se creará sin técnico asignado. SAT o Gerencia organizarán la visita desde Gestionar asignaciones.</p>}</FormStep><FormStep title="Equipos" description="Selecciona, crea o deja los equipos pendientes de identificar.">{quoteEquipmentMappingError && <p className="flow-info">{quoteEquipmentMappingError} Puedes continuar y completar la identificación más adelante.</p>}<MultiEquipmentPicker values={values} setValues={setValues} filteredEquipment={filteredEquipment} equipmentTypes={equipmentTypes} installation /></FormStep><FormStep title="Indicaciones" description="Indica qué necesita el cliente y qué debe saber el técnico."><div className="flow-section-title"><span className="flow-step-number">3</span><div><h3>Trabajo previsto</h3><p>Describe qué necesita el cliente y lo que debe saber el técnico.</p></div></div><label>Descripción<textarea value={values.description ?? ''} onChange={(event) => set('description', event.target.value)} /></label><label>Material previsto<textarea value={values.planned_material ?? ''} onChange={(event) => set('planned_material', event.target.value)} /></label><label>Observaciones<textarea value={values.observations ?? ''} onChange={(event) => set('observations', event.target.value)} /></label></FormStep></ModalForm>;
+  if (creatingCase) return <ModalShell title="Crear expediente desde el parte" onClose={() => setCreatingCase(false)}>
+    <CaseQuickCreate initial={{ company_id: initial?.company_id, client_id: values.client_id, site_id: values.site_id, title: values.title ?? '' }}
+      onClose={() => setCreatingCase(false)}
+      onSaved={(result: string | { id: string; title?: string }) => {
+        const id = typeof result === 'string' ? result : result.id;
+        setCreatedCase({ id, title: typeof result === 'string' ? 'Expediente recién creado' : result.title ?? 'Expediente recién creado', client_id: values.client_id, site_id: values.site_id });
+        set('case_id', id);
+        setCreatingCase(false);
+        void cases.reload();
+      }} />
+  </ModalShell>;
+  return <ModalForm title={initial?.id ? 'Modificar parte' : 'Crear parte'} onClose={onClose} onSubmit={submit} saving={saving} error={error}><FormStep title="Cliente y trabajo" description="Elige el tipo de trabajo y dónde se realizará."><div className="flow-work-kind" role="group" aria-label="Tipo de trabajo">{workCategories.filter(category => category.id !== 'all').map(category => <button key={category.id} type="button" aria-pressed={workCategory(values.type) === category.id} onClick={() => set('type', category.type)}><strong>{category.label}</strong><small>{category.description}</small></button>)}</div><div className="flow-section-title"><span className="flow-step-number">1</span><div><h3>Cliente y ubicación</h3><p>¿Dónde hay que realizar el trabajo?</p></div></div><FormSelect label="Cliente" value={values.client_id} onChange={(value) => changeContext('client_id', value)} required options={clients.data.map((client) => ({ value: client.id, label: `${client.code} · ${client.legal_name}` }))} loading={clients.loading} /><FormSelect label="Centro" value={values.site_id} onChange={(value) => changeContext('site_id', value)} required options={filteredSites.map((site) => ({ value: site.id, label: `${site.code} · ${site.name}` }))} loading={sites.loading} disabled={!values.client_id} />{values.client_id&&!sites.loading&&!filteredSites.length&&<div className="flow-info"><p>Este cliente todavía no tiene centro. Créalo aquí y continuarás con los datos del parte conservados.</p><button type="button" onClick={()=>setCreatingSite(true)}>Crear centro para este cliente</button></div>}<FormSelect label="Expediente" value={values.case_id} onChange={(value) => set('case_id', value)} options={filteredCases.map((item) => ({ value: item.id, label: `${item.code} · ${item.title}` }))} disabled={!values.client_id} />{values.client_id && <button type="button" onClick={() => setCreatingCase(true)}>Crear expediente</button>}<div className="form-grid"><FormSelect label="Tipo" value={values.type} onChange={(value) => set('type', value)} required options={['Averia urgente','Correctivo','Preventivo','Mantenimiento','Inspeccion','Instalacion','Visita tecnica','Visita comercial','Garantia','Mejora'].map((value) => ({ value, label: displayStatus(value) }))} /><FormSelect label="Prioridad" value={values.priority} onChange={(value) => set('priority', value)} options={['Baja','Normal','Alta','Critica'].map((value) => ({ value, label: displayStatus(value) }))} /><label>Título *<input value={values.title ?? ''} onChange={(event) => set('title', event.target.value)} required /></label><label>Fecha<input type="date" value={values.scheduled_date ?? ''} onChange={(event) => set('scheduled_date', event.target.value)} /></label><label>Hora<input type="time" value={values.scheduled_time ?? ''} onChange={(event) => set('scheduled_time', event.target.value)} /></label><label>Duración (minutos)<input type="number" min="1" value={values.estimated_duration_minutes ?? ''} onChange={(event) => set('estimated_duration_minutes', event.target.value)} /></label></div>{canAssignTechnician?(isCommercialVisit?<FormSelect label={initial?.id ? 'Comercial responsable (cambios desde Gestionar asignaciones)' : 'Comercial responsable'} disabled={Boolean(initial?.id)} value={initial?.id?initial.current_responsible_id:values.commercial_id} onChange={(value)=>set('commercial_id',value)} loading={commercialsQuery.isPending} options={(commercialsQuery.data??[]).map(person=>({value:person.id,label:fullName(person)}))}/>:<FormSelect label={initial?.id ? 'Técnico principal (cambios desde Gestionar asignaciones)' : 'Técnico principal'} disabled={Boolean(initial?.id)} value={values.technician_id} onChange={(value) => set('technician_id', value)} options={technicians.data.map((person) => ({ value: person.id, label: fullName(person) }))} />):<p className="flow-info">El parte se creará sin técnico asignado. SAT o Gerencia organizarán la visita desde Gestionar asignaciones.</p>}</FormStep><FormStep title="Equipos" description="Selecciona, crea o deja los equipos pendientes de identificar.">{quoteEquipmentMappingError && <p className="flow-info">{quoteEquipmentMappingError} Puedes continuar y completar la identificación más adelante.</p>}<MultiEquipmentPicker values={values} setValues={setValues} filteredEquipment={filteredEquipment} equipmentTypes={equipmentTypes} installation /></FormStep><FormStep title="Indicaciones" description="Indica qué necesita el cliente y qué debe saber el técnico."><div className="flow-section-title"><span className="flow-step-number">3</span><div><h3>Trabajo previsto</h3><p>Describe qué necesita el cliente y lo que debe saber el técnico.</p></div></div><label>Descripción<textarea value={values.description ?? ''} onChange={(event) => set('description', event.target.value)} /></label><label>Material previsto<textarea value={values.planned_material ?? ''} onChange={(event) => set('planned_material', event.target.value)} /></label><label>Observaciones<textarea value={values.observations ?? ''} onChange={(event) => set('observations', event.target.value)} /></label></FormStep></ModalForm>;
 }
 
 function assignmentRows(workOrder: any) {

@@ -368,6 +368,15 @@ export const workOrdersService = {
     if (!String(reason ?? '').trim()) throw new Error('validacion del formulario: el motivo o comentario es obligatorio');
     return expectData<any>(supabase.rpc('dmp_review_work_order_office', { p_work_order_id: workOrderId, p_decision: decision, p_reason: reason.trim() }), { service: 'workOrdersService', operation: 'Validar parte en oficina', resource: workOrderId });
   },
+  scheduleReturnVisit(workOrderId: string, technicianId: string, date: string, time: string | null, reason: string) {
+    return expectData<string>(supabase.rpc('dmp_schedule_work_order_return_visit', {
+      p_work_order_id: workOrderId,
+      p_technician_id: technicianId,
+      p_date: date,
+      p_time: time,
+      p_reason: reason,
+    }), { service: 'workOrdersService', operation: 'Programar nueva visita', resource: workOrderId });
+  },
   reviewWorkOrderSat(workOrderId: string, decision: SatReviewDecision, destination: SatReviewDestination | null, commercialProfileId: string | null, flags: Record<string, boolean>, reason: string) {
     if (!isValidUuid(workOrderId)) throw new Error('validacion del formulario: falta un parte valido');
     if (!['approved', 'returned'].includes(decision)) throw new Error('revision SAT: decision no valida');

@@ -1819,16 +1819,16 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
     finally{finishLock.current=false;setFinishing(false);}
   };
   return (
-    <section className={workspace === "tecnico" ? "check-mobile check-field" : "check-mobile"}>
+    <section className={workspace === "tecnico" || workspace === "sat" ? "check-mobile check-field" : "check-mobile"}>
       <BackButton />
       <header>
-        {workspace !== "tecnico" && <p className="eyebrow">
+        {workspace !== "tecnico" && workspace !== "sat" && <p className="eyebrow">
           Check {data.check_templates?.name ?? "Plantilla no informada"}
         </p>}
         <h2>
           {equipmentName}
         </h2>
-        {workspace !== 'tecnico' && <p>
+        {workspace !== 'tecnico' && workspace !== 'sat' && <p>
           {[data.equipment?.code, data.code].filter(Boolean).join(' · ')} · {reviewed} de {zones.length} bloques revisados
         </p>}
         {!typeName && (
@@ -1851,7 +1851,7 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
         <div className="actions">
           {manageAllowed && <button onClick={() => setMode('edit')}>Modificar check</button>}
           <SyncButton
-            hideWhenEmpty={workspace === "tecnico"}
+            hideWhenEmpty={workspace === "tecnico" || workspace === "sat"}
             checkId={id}
             remoteLocalChangeIds={remoteLocalChangeIds(data)}
             onSynced={reload}
@@ -2216,7 +2216,16 @@ function CheckBlockPageV2({
       setConfirmedStatus(status);
       setSaveState("saved");
       const checkPath = workspace === "superadmin" ? `/app/superadmin/checks/${id}` : `/app/checks/${id}`;
-      const nextBlock = workspace === "tecnico" && [...zones.slice(zones.indexOf(zone) + 1), ...zones.slice(0, zones.indexOf(zone))].find(block => normalizeCheckStatus(block.result?.result ?? "Sin revisar") === "Sin revisar");
+      // Use fresh results and include saved blocks that are still in the local queue.
+      const latestCheck = await (workspace === "tecnico"
+        ? technicianWorkspaceService.check(id)
+        : workspace === "sat" ? checksService.get(id) : Promise.resolve(null)).catch(() => null);
+      const latestBlocks = latestCheck ? buildFunctionalCheckBlocks(latestCheck) : [];
+      const pending = latestCheck ? await technicianOfflineService.pendingForCheck(id, remoteLocalChangeIds(latestCheck)).catch(() => null) : null;
+      const saved = new Set(pending?.filter(change => change.type === "check-block" && normalizeCheckStatus(change.payload.status) !== "Sin revisar").map(change => change.sectionId ?? change.blockId));
+      const currentIndex = latestBlocks.findIndex(block => block.sectionId === section.id);
+      const nextBlock = pending && [...latestBlocks.slice(currentIndex + 1), ...latestBlocks.slice(0, Math.max(currentIndex, 0))]
+        .find(block => block.sectionId !== section.id && !saved.has(block.sectionId) && normalizeCheckStatus(block.result?.result) === "Sin revisar");
       navigate(nextBlock ? `${checkPath}/bloque/${nextBlock.sectionId}` : checkPath);
       window.scrollTo({ top: 0, behavior: "auto" });
     } catch {
@@ -2226,11 +2235,11 @@ function CheckBlockPageV2({
     }
   };
   return (
-    <section className={workspace === "tecnico" ? "check-mobile block-page check-field" : "check-mobile block-page"}>
+    <section className={workspace === "tecnico" || workspace === "sat" ? "check-mobile block-page check-field" : "check-mobile block-page"}>
       <header className="check-block-header">
         <div className="check-block-heading">
           <div>
-            <p className="eyebrow">{workspace === "tecnico" ? `Bloque ${zones.indexOf(zone) + 1} de ${zones.length}` : "Detalle del bloque"}</p>
+            <p className="eyebrow">{workspace === "tecnico" || workspace === "sat" ? `Bloque ${zones.indexOf(zone) + 1} de ${zones.length}` : "Detalle del bloque"}</p>
             <h2>{zone.name}</h2>
           </div>
           <Badge tone={checkResultTone(checkResultLabel(status, [{ result: status, severity }]))}>{checkResultLabel(status, [{ result: status, severity }])}</Badge>
@@ -2418,7 +2427,7 @@ function CheckBlockPageV2({
               disabled={!hasChanges || saving || status === "Sin revisar"}
               onClick={save}
             >
-              {saving ? "Guardando..." : workspace === "tecnico" ? "Guardar y continuar" : "Confirmar selección"}
+              {saving ? "Guardando..." : workspace === "tecnico" || workspace === "sat" ? "Guardar y continuar" : "Confirmar selección"}
             </button>
             {saveState === "saved" && (
               <p className="success-note">
@@ -4145,7 +4154,7 @@ function EquipmentPhotoPanel({ equipmentId, canManage, contextWorkOrderId, onCha
     }
   };
   const success = /^(Foto guardada|Foto principal guardada|Foto borrada)/.test(message);
-  const collapsiblePhoto = compact && workspace === 'tecnico';
+  const collapsiblePhoto = compact && (workspace === 'tecnico' || workspace === 'sat');
   const image = selected?.signed_url ? <img className="equipment-primary-photo" src={selected.signed_url} alt={selected.is_primary ? 'Foto principal del equipo' : 'Foto seleccionada del equipo'} />
         : !photos.loading && !selected && templateImage ? <img className="equipment-primary-photo" src={templateImage} alt="Referencia del equipo" />
         : <div className="equipment-photo-empty">{photos.loading ? 'Cargando fotos…' : photos.error || selected ? 'Foto no disponible' : 'Sin fotos del equipo'}</div>;

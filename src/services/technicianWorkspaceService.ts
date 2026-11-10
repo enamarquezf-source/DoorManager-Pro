@@ -24,23 +24,6 @@ export type PreparedJourney = {
 };
 
 export type TechnicianJourneyMode = 'offline' | 'coverage';
-const journeyModeKey = 'dmp-technician-journey-mode';
-
-export function getTechnicianJourneyMode(): TechnicianJourneyMode {
-  try {
-    return globalThis.localStorage?.getItem(journeyModeKey) === 'offline' ? 'offline' : 'coverage';
-  } catch {
-    return 'coverage';
-  }
-}
-
-export function setTechnicianJourneyMode(mode: TechnicianJourneyMode) {
-  try {
-    globalThis.localStorage?.setItem(journeyModeKey, mode);
-  } catch {
-    // The current page can still use the selected mode.
-  }
-}
 
 export function journeyMatches(ready: PreparedJourney | undefined, rows: any[], today = localDateKey()) {
   if (!ready || ready.downloadVersion !== 2 || localDateKey(new Date(ready.preparedAt)) !== today) return false;
@@ -131,12 +114,12 @@ export const technicianWorkspaceService = {
   },
   warehouses: (refresh = false) => readDeviceFirst('warehouses', async () => (await technicianWorkspaceService.stockOptions(refresh)).warehouses, refresh),
   stock: (refresh = false) => readDeviceFirst('stock', async () => (await technicianWorkspaceService.stockOptions(refresh)).stock, refresh),
-  async checks(done: boolean, mode: TechnicianJourneyMode = getTechnicianJourneyMode()) {
+  async checks(done: boolean, mode: TechnicianJourneyMode = 'coverage') {
     const [pending, completed] = await Promise.all([
       readDeviceFirst<any[]>('checks-pending', () => checksService.pendingForCurrentTechnician()),
       readDeviceFirst<any[]>('checks-done', () => checksService.completedForCurrentTechnician()),
     ]);
-    const day = mode === 'offline' ? await this.day() : [];
+    const day = mode === 'offline' || !connectionAvailable() ? await this.day() : [];
     const rows: any[] = [...pending, ...completed];
     for (const assignment of day) {
       const work: any = await this.work(assignment.work_order_id);

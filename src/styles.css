@@ -554,6 +554,19 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
 .check-block-heading h2 { margin: 0; font-size: clamp(22px, 5vw, 28px); }
 .check-block-equipment { display: grid; gap: 4px; color: var(--muted); overflow-wrap: anywhere; }
 .check-block-navigation.actions { margin: 0; padding-top: 14px; border-top: 1px solid var(--line); gap: 8px; }
+.technician-part-navigation { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.check-field { gap: 8px; }
+.check-field > .check-block-header { gap: 8px; padding: 12px; }
+.check-field .check-block-navigation.actions { padding-top: 8px; }
+.check-field .check-block-heading h2 { font-size: clamp(18px, 4vw, 22px); }
+.check-field .equipment-primary-photo { width: 100%; max-height: 140px; }
+.check-field .equipment-photo-empty { min-height: 44px; }
+.check-field .equipment-photo-panel, .check-field .block-list { gap: 6px; }
+.check-field .block-list a { min-height: 44px; padding: 7px 10px; }
+.check-field .work-detail-list article { padding-block: 6px; }
+.check-field .work-detail-list p { margin-block: 0; }
+.check-field .status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.check-field .status-grid button { min-height: 44px; }
 .photo-list { display: grid; gap: 8px; margin-top: 10px; }
 .photo-list span { border: 1px solid var(--line); border-radius: 12px; padding: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #f8fafc; }
 .photo-list button { border: 0; color: var(--danger); background: transparent; font-weight: 900; }

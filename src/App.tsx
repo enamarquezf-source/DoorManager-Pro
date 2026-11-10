@@ -15,7 +15,7 @@ import { AppearancePreferences } from './components/AppearancePreferences';
 import { useUserAppearance } from './shared/useUserAppearance';
 import { RecordNavigationHint } from './components/RecordNavigationHint';
 import { TechnicianWorkTabs, type TechnicianWorkTab } from './components/TechnicianWorkTabs';
-import { technicianWorkspaceService, getTechnicianJourneyMode, setTechnicianJourneyMode, type PreparedJourney, type TechnicianJourneyMode } from './services/technicianWorkspaceService';
+import { technicianWorkspaceService, type PreparedJourney, type TechnicianJourneyMode } from './services/technicianWorkspaceService';
 import { offlineWorkspaceStore, connectionAvailable } from './services/offlineWorkspaceStore';
 import { resolveOfflineProfile, clearOfflineProfile } from './services/offlineProfile';
 import { overlayFieldWork, saveFieldOperation } from './services/fieldOperations';
@@ -1426,7 +1426,9 @@ function TechnicianDayPage() {
   const navigate = useNavigate();
   const [refreshMessage, setRefreshMessage] = useState('');
   const [preparing, setPreparing] = useState(false);
-  const [mode, setMode] = useState(getTechnicianJourneyMode);
+  const prepareOffline = useLocation().state?.prepareOffline === true;
+  const [mode, setMode] = useState<TechnicianJourneyMode>(prepareOffline ? 'offline' : 'coverage');
+  useEffect(() => { if (prepareOffline) navigate('/app/tecnico', { replace: true, state: null }); }, [prepareOffline, navigate]);
   const offlineMode = mode === 'offline';
   const forceDownload = useRef(false);
   const active = useLoad(async () => {const expected=publicDemoEnabled&&profile?.id?expectedDemoWork(profile.id):undefined;const result=await technicianWorkspaceService.loadJourney(setRefreshMessage,forceDownload.current,expected,mode);if(expected&&profile?.id&&result.rows.some(row=>row.work_order_id===expected))clearExpectedDemoWork(profile.id);return result;}, [mode], { rows: [] as any[], ready: null as PreparedJourney | null }, { retry: false, refetchOnReconnect: false });
@@ -1441,7 +1443,6 @@ function TechnicianDayPage() {
     finally { forceDownload.current = false; setPreparing(false); }
   };
   const changeMode = (next: TechnicianJourneyMode) => {
-    setTechnicianJourneyMode(next);
     setRefreshMessage('');
     setMode(next);
   };
@@ -1517,7 +1518,7 @@ function TechnicianWorkPage() {
     finally { workSaving.current = false; setSavingWork(false); }
   };
   return <section className="page technician-page technician-workstation technician-work-mobile technician-industrial">
-    <BackButton />{typeof checkCompletionNotice==='string'&&<p className="state-warning" role="status">{checkCompletionNotice}</p>}
+    <div className="technician-part-navigation"><BackButton /><Link className="link-button" to="/app/tecnico" state={{prepareOffline:true}}>Preparar sin cobertura</Link></div>{typeof checkCompletionNotice==='string'&&<p className="state-warning" role="status">{checkCompletionNotice}</p>}
     <div className="technician-workstation-head"><div><p className="eyebrow technician-order-code"><Wrench size={14} aria-hidden="true" /> {data.code}</p><h2>{data.clients?.legal_name ?? 'Cliente no informado'}</h2><p>{data.sites?.name ?? 'Centro no informado'}</p><p className="technician-work-title">{data.title}</p></div><Badge tone={severityForStatus(data.status)}>{displayStatus(data.status)}</Badge></div>
     <div className="technician-operation-strip"><span><ClipboardCheck size={15} aria-hidden="true" />Checks <strong>{progress.checks.done}/{progress.checks.total}</strong></span><span><FileUp size={15} aria-hidden="true" />{publicDemoEnabled?'Fotos del parte':'Fotos'} <strong>{progress.photos}</strong></span><span className="technician-local-indicator" role="status">{unsavedWork ? 'Texto sin guardar' : data._finishPending ? 'Cierre pendiente' : 'Copia local'}</span></div>
     {message && <p className="success-note" role="status">{message}</p>}{actionError && <p className="form-error" role="alert">{actionError}</p>}
@@ -1810,7 +1811,7 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
     finally{finishLock.current=false;setFinishing(false);}
   };
   return (
-    <section className="check-mobile">
+    <section className={workspace === "tecnico" ? "check-mobile check-field" : "check-mobile"}>
       <BackButton />
       <header>
         <p className="eyebrow">
@@ -2205,7 +2206,9 @@ function CheckBlockPageV2({
         );
       setConfirmedStatus(status);
       setSaveState("saved");
-      navigate(workspace === "superadmin" ? `/app/superadmin/checks/${id}` : `/app/checks/${id}`);
+      const checkPath = workspace === "superadmin" ? `/app/superadmin/checks/${id}` : `/app/checks/${id}`;
+      const nextBlock = workspace === "tecnico" && zones.slice(zones.indexOf(zone) + 1).find(block => !block.result?.result || block.result.result === "Sin revisar");
+      navigate(nextBlock ? `${checkPath}/bloque/${nextBlock.sectionId}` : checkPath);
       window.scrollTo({ top: 0, behavior: "auto" });
     } catch {
       setSaveState("error");
@@ -2214,7 +2217,7 @@ function CheckBlockPageV2({
     }
   };
   return (
-    <section className="check-mobile block-page">
+    <section className={workspace === "tecnico" ? "check-mobile block-page check-field" : "check-mobile block-page"}>
       <header className="check-block-header">
         <div className="check-block-heading">
           <div>

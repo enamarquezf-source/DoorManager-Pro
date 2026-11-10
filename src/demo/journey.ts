@@ -2,6 +2,7 @@ import type { DemoSession, DemoTour } from './model';
 export const sharedJourney = (tour:DemoTour) => tour==='connected'||tour==='discover';
 export function journeyProgressKey(session: DemoSession, tour: DemoTour) {
  const key = session.id + ':' + (sharedJourney(tour) ? 'journey' : session.role) + ':' + tour;
+ if(tour==='discover')return key+':v3';
  return tour === 'connected' || (tour === 'work' && session.role === 'Tecnico') ? key + ':v2' : key;
 }
 export type MissionEvidence = { baseline:number; saved:boolean; scope?:string };

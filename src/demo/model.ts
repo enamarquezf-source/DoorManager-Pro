@@ -33,14 +33,21 @@ export function demoTourSteps(session: DemoSession,tour:DemoTour='work'): DemoSt
   const detail=session.work_order_id?'/app/partes/'+session.work_order_id:'/app/partes';
   return [...sat.slice(0,4),...tech.slice(0,-1),{...sat[5],route:detail},...office.slice(1,5).map((step,index)=>index===0?{...step,route:detail,text:'Decide qué materiales, horas y desplazamientos son facturables y pulsa APROBAR REVISIÓN ECONÓMICA. Al aprobar pasaremos a preparar su factura.'}:index===1?{...step,text:'En Facturación selecciona el parte de tu recorrido enviado por SAT. Revisa cliente, conceptos, impuestos y vencimiento antes de emitir. Si no lo ves, vuelve al parte y comprueba su revisión y envío a Facturación.'}:step),...management.slice(1,4),{title:'Del aviso al resultado',text:'Has llegado al final del recorrido. Revisa qué acciones has guardado y qué pantallas has explorado. Puedes volver a cualquier misión o seguir probando sin perder los datos de tu empresa temporal.',route:'/app/modulos/rentabilidad',target:'.flow-hero',requiredRole:'Gerencia',finale:true}];
  }
- if(tour==='discover') return [
-  {title:'Un aviso, tres equipos',text:'Abre el trabajo preparado y consulta cliente, centro y equipos. Es una visita guiada: los datos son ficticios y no necesitas rellenar todo para descubrir el circuito.',route:'/app/tecnico',target:dayTarget,requiredRole:'Tecnico'},
-  {title:'Revisión componente a componente',text:'Abre un equipo y una sección. Marca Favorable si está bien. Si hay un defecto, elige su gravedad, selecciona solo el componente afectado y explica qué ocurre. Guarda cada bloque y pulsa Finalizar check. Basta completar un equipo para continuar esta visita rápida.',route:session.work_order_id?'/app/tecnico/trabajo/'+session.work_order_id+'?vista=checks':'/app/tecnico',target:'.work-order-check-link',goal:'checks',requiredRole:'Tecnico'},
-  {title:'De campo a Oficina',text:'Abre el parte de Cliente ejemplo Oficina 1 y revisa sus conceptos. Este es otro caso preparado, listo para facturar, para mostrar esta etapa sin obligarte a terminar el trabajo técnico anterior.',route:'/app/partes',target:'a[href*="/app/partes/"]',requiredRole:'Oficina'},
-  {title:'Cobros a la vista',text:'Consulta los vencimientos y los importes pendientes de la empresa preparada para Gerencia. Este escenario incluye facturas ficticias emitidas; registrar un cobro no realiza ningún cargo bancario.',route:'/app/modulos/cobros',target:'.flow-hero',requiredRole:'Gerencia'},
-  {title:'Entiende el margen',text:'Explora los trabajos preparados para Gerencia. Compara venta y coste, filtra por cliente y abre un parte para seguir el origen de los importes. Son ejemplos adicionales, no resultados del trabajo que acabas de ver.',route:'/app/modulos/rentabilidad',target:'.flow-hero',requiredRole:'Gerencia'},
-  {title:'Ahora prueba tu propio caso',text:'Ya has visto cómo se conectan campo, oficina y negocio. El recorrido completo te permite crear tus propios datos y seguirlos entre perfiles; esta visita rápida no ha creado ni cerrado trabajos por ti.',route:'/app/modulos/rentabilidad',target:'.flow-hero',requiredRole:'Gerencia',finale:true}
- ];
+ if(tour==='discover') {
+  const forRole=(role:DemoRole)=>demoTourSteps({...session,role},'work').map(step=>({...step,requiredRole:role}));
+  const tech=forRole('Tecnico'),sat=forRole('SAT'),office=forRole('Oficina'),management=forRole('Gerencia');
+  return [
+   {...tech[0],title:'Un aviso, tres equipos',text:'Abre el parte preparado. Lo seguirás desde la intervención hasta el estudio de costes.'},
+   {...tech[2],title:'Revisión componente a componente',text:'Abre un equipo, marca sus componentes como favorables y pulsa Finalizar check. Basta con completar un equipo.'},
+   tech[3],tech[4],
+   {title:'Registra el desplazamiento',text:'En Registro, abre Desplazamientos. Pulsa Añadir desplazamiento, indica los kilómetros ficticios y guarda.',route:tech[4].route,target:'[data-demo-travel]',goal:'travel',requiredRole:'Tecnico'},
+   tech[5],tech[6],sat[5],office[2],office[3],
+   {...office[4],title:'Cobros a la vista',requiredRole:'Gerencia',text:'Comprueba el saldo tras el cobro de Oficina. Pulsa Ver calendario o filtra por vencimiento.'},
+   {...management[1],text:'Consulta los gastos del mismo parte: horas y desplazamiento. Compara su coste real con la venta y abre el parte para ver de dónde salen los importes.'},
+   {...management[3],target:'.cost-study-panel'},
+   {title:'Del parte al resultado',text:'Has seguido un mismo trabajo desde el check hasta la factura y el cobro, y has guardado un estudio de costes.',route:'/app/gerencia',target:'.cost-study-panel',requiredRole:'Gerencia',finale:true}
+  ];
+ }
  if(tour==='updates') return [{title:'Tu DMP, siempre al día',text:'Aprende a comprobar la versión y a actualizar conservando tu trabajo.',route:session.role==='Tecnico'?'/app/tecnico':'/app/inicio',target:'[data-demo-update]'}];
  const work = session.work_order_id ? '/app/tecnico/trabajo/' + session.work_order_id : '/app/tecnico';
  if(tour==='purchases') {

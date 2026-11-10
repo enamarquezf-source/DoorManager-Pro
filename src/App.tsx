@@ -1542,7 +1542,7 @@ function TechnicianWorkPage() {
         <details className="technician-work-details technician-entry-group"><summary data-demo-hours>Horas<span>{formatMinutes((data.time_entries ?? []).reduce((sum: number, row: any) => sum + Number(row.duration_minutes ?? 0), 0))} registradas</span></summary><TechnicianHoursCard workOrder={data} onChanged={reload} /></details>
         {(data.planned_material_lines ?? []).length > 0 && <details className="technician-work-details technician-entry-group"><summary>Material previsto<span>{data.planned_material_lines.length} conceptos del presupuesto</span></summary>{(data.planned_material_lines ?? []).length > 0 && <Card title="MATERIALES PREVISTOS DEL PRESUPUESTO"><p className="large-note">Registra la cantidad realmente utilizada. No modifica precios ni condiciones del presupuesto.</p><PlannedMaterialList workOrder={data} onChanged={reload} /></Card>}</details>}
         <details className="technician-work-details technician-entry-group"><summary>Material utilizado<span>{(data.materials ?? []).length} registros</span></summary><TechnicianMaterialsCard workOrder={data} onChanged={reload} /></details>
-        <details className="technician-work-details technician-entry-group"><summary>Desplazamientos<span>{(data.cost_entries ?? []).filter(isTravelCost).length} registros</span></summary><TechnicianTravelCard workOrder={data} onChanged={reload} /></details>
+        <details className="technician-work-details technician-entry-group"><summary data-demo-travel>Desplazamientos<span>{(data.cost_entries ?? []).filter(isTravelCost).length} registros</span></summary><TechnicianTravelCard workOrder={data} onChanged={reload} /></details>
         <details className="technician-work-details technician-entry-group"><summary>Otros recursos y costes<span>{(data.cost_entries ?? []).filter((row: any) => !row.deleted_at && !isTravelCost(row)).length} registros</span></summary><WorkOrderCostsCard workOrder={{...data, cost_entries:(data.cost_entries ?? []).filter((row: any) => !row.deleted_at && !isTravelCost(row))}} onChanged={reload}/></details>
       </> },
       { id: 'photos', label: 'Fotos', detail: progress.photos + ' guardadas', icon: <FileUp size={20} aria-hidden="true" />, content: <>
@@ -1737,7 +1737,6 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
     checkId: id,
     remoteLocalChangeIds: remoteLocalChangeIds(data),
   });
-  const [equipmentPhotoVersion, setEquipmentPhotoVersion] = useState(0);
   if (workspace === "tecnico" && !loading && !data && (!error || isWorkAccessFailure(error)))
     return <AccessDenied />;
   if (loading || error || !data)
@@ -1865,7 +1864,7 @@ function CheckDetailPage({ forcedId }: { forcedId?: string } = {}) {
           }}
         />
       </div>
-      {workspace === 'tecnico' ? <details className="technician-work-details" open={publicDemoEnabled || undefined}><summary>Foto del equipo</summary><EquipmentPhotoPanel equipmentId={data.equipment?.id} canManage={canExecuteCheck(profile) && Boolean(data.work_order_id)} contextWorkOrderId={data.work_order_id} templateImage={template?.image} compact /></details> : <><EquipmentCheckImage equipmentId={data.equipment?.id} template={template} templateImage={template?.image} className="door-check" refreshKey={equipmentPhotoVersion} /><EquipmentPhotoPanel equipmentId={data.equipment?.id} canManage={canExecuteCheck(profile) && Boolean(data.work_order_id)} contextWorkOrderId={data.work_order_id} onChanged={() => setEquipmentPhotoVersion((value) => value + 1)} compact /></>}
+      <EquipmentPhotoPanel equipmentId={data.equipment?.id} canManage={canExecuteCheck(profile) && Boolean(data.work_order_id)} contextWorkOrderId={data.work_order_id} templateImage={template?.image} compact />
       <div
         className="block-list status-summary"
         aria-label="Resumen de bloques revisados"
@@ -2246,7 +2245,7 @@ function CheckBlockPageV2({
           )}
         </div>
       </header>
-      {workspace === 'tecnico' ? <details className="technician-work-details"><summary>Foto del equipo</summary><EquipmentPhotoPanel equipmentId={data.equipment?.id} canManage={canExecuteCheck(profile) && Boolean(data.work_order_id)} contextWorkOrderId={data.work_order_id} compact /></details> : <EquipmentPhotoPanel equipmentId={data.equipment?.id} canManage={canExecuteCheck(profile) && Boolean(data.work_order_id)} contextWorkOrderId={data.work_order_id} compact />}
+
       <details className="technician-work-details"><summary>Resumen de la revisión</summary><Card title="Resumen de la revisión">
         <InfoGrid
           items={[
@@ -4175,11 +4174,6 @@ function formatEntityTableValue(row: any, column: string) {
   if (column === 'sites.name' && row.sites) return formatCenterLabel({ ...row.sites, code: row.site_code ?? row.sites.code, clients: row.clients });
   if (column === 'materials.description' && row.materials) return formatMaterialLabel({ ...row.materials, code: row.material_code ?? row.materials.code });
   return normalizeEntityOptionLabel(displayStatus(value));
-}
-function EquipmentCheckImage({ equipmentId, template, templateImage, className = 'door-check', refreshKey = 0 }: { equipmentId?: string; template: any; templateImage?: string; className?: string; refreshKey?: number }) {
-  const photos = useLoad(() => equipmentId ? equipmentPhotosService.listPrimary(equipmentId) : Promise.resolve([]), [equipmentId, refreshKey], [] as any[]);
-  const primary = primaryEquipmentPhoto(photos.data);
-  return <div className="equipment-check-visual"><div className={`${className} ${template?.placeholder ? 'placeholder' : ''}`} aria-label="Imagen del equipo"><>{primary?.signed_url ? <img src={primary.signed_url} alt="Foto real del equipo" /> : templateImage ? <img src={templateImage} alt={template?.name ?? 'Equipo'} /> : <div className="equipment-placeholder"><Factory size={48} /><strong>{template?.name ?? 'Equipo'}</strong><span>Imagen específica pendiente</span></div>}</></div>{primary?.signed_url && templateImage && <figure className="equipment-template-reference"><img src={templateImage} alt="Referencia visual de plantilla" /><figcaption>Referencia de plantilla</figcaption></figure>}</div>;
 }
 function EquipmentOperationalTitle({ equipment }: { equipment: any }) { const label = equipmentOperationalLabel(equipment); return <div className="equipment-operational-title"><strong>{label.primary}</strong><small>{label.secondary}</small></div>; }
 function EquipmentOperationalMeta({ equipment }: { equipment: any }) { const label = equipmentOperationalLabel(equipment); return <RecordMeta items={[[ 'Tipo · código', label.secondary ], [ 'Cliente · centro', label.context ], [ 'Marca/modelo', label.detail ]]} />; }

@@ -50,7 +50,7 @@ export function DemoWelcomePreview({ role, experience, onClose, onStart }: {
     return () => { element?.close(); };
   }, []);
   const steps = experience === 'discover'
-    ? ['Abre un parte preparado y finaliza un check para ver cómo trabaja el técnico.', 'Pasa por Oficina para consultar un parte de ejemplo y por Gerencia para ver cobros y márgenes.', 'La visita usa datos ya preparados. Introduce solo datos ficticios si quieres probar algún campo.']
+    ? ['Técnico: completa un check, registra el trabajo, las horas y el desplazamiento, firma y finaliza el parte.', 'SAT: revisa el trabajo y los costes y envía el mismo parte a Oficina. Allí emite su factura y registra un cobro ficticio.', 'Gerencia: consulta cobros y gastos, y guarda un estudio de costes.']
     : experience === 'connected'
     ? ['En SAT, inventa un cliente y un centro, describe el aviso y asigna el parte a Alex Demo.', 'Como Técnico, revisa el equipo, anota el trabajo y registra las horas. Envía el parte y vuelve a SAT para validarlo.', 'En Oficina, revisa la factura y simula el cobro. En Gerencia, consulta cómo queda reflejado en los resultados.']
     : roleSteps[role];
@@ -69,7 +69,7 @@ export function DemoWelcomePreview({ role, experience, onClose, onStart }: {
       <track kind="subtitles" src={`/demo-intros/${video}.es.vtt`} srcLang="es" label="Español" />
     </video>
     <div className="demo-preview-audio"><button type="button" aria-pressed={narrationEnabled} onClick={toggleNarration}>{narrationEnabled ? <VolumeX size={17} aria-hidden="true" /> : <Volume2 size={17} aria-hidden="true" />}{narrationEnabled ? 'Silenciar narración' : 'Escuchar narración'}</button><span>Narración con voz de IA</span></div>
-    <p className="demo-preview-note">{experience === 'discover' ? 'Una vista rápida de casos preparados. Después podrás explorar la demo a tu ritmo.' : experience === 'connected' ? 'Qué crear, rellenar y validar en cada perfil. Montaje de casos ficticios de la demo.' : 'Una presentación breve. La guía te indicará cada acción al entrar.'}</p>
+    <p className="demo-preview-note">{experience === 'discover' ? 'Un parte preparado, cuatro perfiles y un recorrido guiado hasta el estudio de costes.' : experience === 'connected' ? 'Qué crear, rellenar y validar en cada perfil. Montaje de casos ficticios de la demo.' : 'Una presentación breve. La guía te indicará cada acción al entrar.'}</p>
     <details className="demo-preview-transcript"><summary>Qué vas a rellenar</summary><ol>{steps.map(step => <li key={step}>{step}</li>)}</ol></details>
     <p className="demo-preview-note">Usa solo datos ficticios. Tu espacio de prueba es temporal.</p>
     <footer><button type="button" onClick={onClose}>Volver</button><button type="button" className="demo-preview-start" onClick={onStart}>Empezar la demo <ArrowRight size={17} aria-hidden="true" /></button></footer>

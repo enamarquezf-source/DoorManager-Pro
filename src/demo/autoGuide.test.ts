@@ -16,10 +16,11 @@ it('requires saved evidence for write missions rather than clicks or visits',()=
 });
 it('recognizes reading the calendar and the user intentionally navigating to another section',()=>{
  const steps=demoTourSteps(session,'discover');
- expect(interactionCompletes(steps[3],'Ver calendario')).toBe(true);
- expect(interactionCompletes(steps[3],'Actualizar')).toBe(false);
+ const collections=steps.findIndex(step=>step.title==='Cobros a la vista');
+ expect(interactionCompletes(steps[collections],'Ver calendario')).toBe(true);
+ expect(interactionCompletes(steps[collections],'Actualizar')).toBe(false);
  expect(navigationMission(steps,0,'/app/modulos/cobros','Tecnico')).toBe(-1);
- expect(navigationMission(steps,0,'/app/modulos/cobros','Gerencia')).toBe(3);
+ expect(navigationMission(steps,0,'/app/modulos/cobros','Gerencia')).toBe(collections);
 });
 it('recognizes opening the received material and never treats a save click as a saved study',()=>{
  const steps=demoTourSteps({...session,role:'Gerencia'},'purchases');expect(navigationCompletes(steps[5],'/app/modulos/materiales','/app/modulos/materiales/rodillo')).toBe(true);

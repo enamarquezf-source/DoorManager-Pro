@@ -22,7 +22,7 @@ it('counts finished checks instead of individual reviewed items',async()=>{
 it('never treats another approved example as SAT approval of the current work',async()=>{
  mock.rpc.mockResolvedValue({data:{sat_approved:7},error:null});mock.rows.work_orders={count:0,error:null};
  const result=await publicDemoService.progress({...session,role:'SAT'},'sat_approved','current-work');
- expect(result.sat_approved).toBe(0);expect(mock.queries[0].filters).toEqual([['company_id','own-company'],['id','current-work'],['sat_review_status','approved'],['economic_review_status','approved']]);
+ expect(result.sat_approved).toBe(0);expect(mock.queries[0].filters).toEqual([['company_id','own-company'],['id','current-work'],['sat_review_status','approved'],['economic_review_status','approved'],['sat_review_destination','facturacion']]);
 });
 it('scopes technician completion, hours and signatures to the work currently opened',async()=>{
  mock.rpc.mockResolvedValue({data:{work_notes:1,times:5,signatures:2,completed_work:1,photos:8},error:null});

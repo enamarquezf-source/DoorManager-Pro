@@ -30,6 +30,7 @@ export function guideCopy(step:DemoStep) {
   signatures:['En Cierre, abre Firma del cliente. Escribe un nombre ficticio, dibuja una firma de prueba y marca la casilla de confirmación. Pulsa Guardar firma.','Ir a la firma paso a paso'],
   completed_work:['En Cierre, revisa el resumen y pulsa Finalizar parte. Confirma con Enviar a revisión. Espera la confirmación del envío a SAT.','Abrir Cierre y revisar el envío'],
   sat_approved:['Revisa el trabajo recibido y abre Revisión económica. Decide qué conceptos son facturables y pulsa APROBAR REVISIÓN ECONÓMICA. Después pulsa Enviar a destino, selecciona Facturación y confirma.','Revisar este parte'],
+  travel:['Abre Desplazamientos en Registro. Pulsa Añadir desplazamiento, anota por ejemplo 10 km y guarda el registro.','Añadir desplazamiento'],
   invoices:['En Facturación, localiza el parte revisado y pulsa Preparar factura. Comprueba el cliente, los conceptos y los importes del borrador.','Ir a facturación'],
   payments:['Abre el borrador que preparaste, emítelo y pulsa Registrar cobro. Introduce un importe y una referencia ficticios. No hay ningún cargo bancario real.','Ir a la factura'],
   catalog_materials:['Crea un material con sus precios. Las existencias se registran por separado.','Crear material'],

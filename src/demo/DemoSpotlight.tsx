@@ -15,6 +15,7 @@ const actions: Record<string, RegExp> = {
   sat_approved: /^Enviar a destino$/i,
   ordered_purchases: /^Marcar pedido$/i,
   purchase_receipts: /^Registrar recepción$/i,
+  travel: /^Añadir desplazamiento$/i,
   times: /^(añadir|registrar) horas$/i,
   work_materials: /^Añadir material$/i,
   signatures: /^(añadir|guardar|registrar) firma/i,
@@ -127,6 +128,18 @@ export function findDemoTarget(step: DemoStep): HTMLElement | null {
     const consent=document.querySelector<HTMLInputElement>('main .signature-consent input[type="checkbox"]');if(consent&&available(consent)&&!consent.checked)return consent.closest<HTMLElement>('label');
     const save=[...document.querySelectorAll<HTMLElement>('main button')].find(element=>available(element)&&/^Guardar firma(?: local)?$/.test((element.textContent??'').trim()));if(save)return save;
     if(name)return name;
+  }
+  if (step.target.startsWith('[data-demo-billing-work') || step.target.startsWith('[data-demo-invoice-work')) {
+    const targets = [...document.querySelectorAll<HTMLElement>(step.target)].filter(available);
+    const payment = targets.find(target => target.matches('button'));
+    if (payment) return payment;
+    const draft = targets[0];
+    if (draft) return [...draft.querySelectorAll<HTMLElement>('button')].find(available) ?? draft;
+    return null;
+  }
+  if (step.goal === 'travel') {
+    const summary = document.querySelector<HTMLElement>('main details:not([open]) > summary[data-demo-travel]');
+    if (summary && available(summary)) return summary;
   }
   if (step.goal === 'times') {
     const summary = document.querySelector<HTMLElement>('main details:not([open]) > summary[data-demo-hours]');

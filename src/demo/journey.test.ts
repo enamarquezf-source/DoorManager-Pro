@@ -23,8 +23,10 @@ it('connects SAT, field work, SAT approval, invoicing and management using the s
  expect(steps.at(-1)?.finale).toBe(true);
  expect(demoTourSteps({...session,role:'Tecnico'},'connected').map(s=>s.title)).toEqual(steps.map(s=>s.title));
 });
-it('clearly identifies the prepared cases as examples rather than pretending they were executed',()=>{
- const steps=demoTourSteps(session,'discover');expect(steps).toHaveLength(6);
- expect(steps.filter(step=>step.goal).map(step=>step.goal)).toEqual(['checks']);
- expect(steps.find(s=>s.requiredRole==='Oficina')?.text).toContain('otro caso preparado');
+it('follows the prepared part from a check through technical completion, billing and management',()=>{
+ const steps=demoTourSteps(session,'discover');
+ expect(steps.filter(step=>step.goal).map(step=>step.goal)).toEqual(['checks','work_notes','times','travel','signatures','completed_work','sat_approved','invoices','payments']);
+ expect(steps.map(s=>s.requiredRole).filter((role,index,all)=>role!==all[index-1])).toEqual(['Tecnico','SAT','Oficina','Gerencia']);
+ expect(steps.find(s=>s.goal==='sat_approved')?.route).toBe('/app/partes/own-work');
+ expect(steps.at(-2)?.title).toBe('Haz un estudio de costes');
 });

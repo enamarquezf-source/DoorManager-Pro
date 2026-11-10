@@ -3,6 +3,7 @@ import { queryClient } from '../query/queryClient';
 import { clearSignedFileCache } from '../shared/signedFiles';
 import { clearOfflineProfile } from '../services/offlineProfile';
 import { publicDemoEnabled, parseDemoSession, validDemoRole, type DemoRole, type DemoSession } from './model';
+import {isTravelCost} from '../shared/travelCosts';
 import {withLocalProgress} from './localProgress';
 let ending: Promise<boolean> | undefined;
 
@@ -45,8 +46,29 @@ export const publicDemoService = {
     const progress=await rpc('dmp_demo_progress') as Record<string,number>;
     if(session&&activeWorkId&&session.role!=='Tecnico'){
       delete progress.sat_approved;
-      const review=await supabase.from('work_orders').select('id',{count:'exact',head:true}).eq('company_id',session.company_id).eq('id',activeWorkId).eq('sat_review_status','approved').eq('economic_review_status','approved').is('deleted_at',null);
+      const review=await supabase.from('work_orders').select('id',{count:'exact',head:true}).eq('company_id',session.company_id).eq('id',activeWorkId).eq('sat_review_status','approved').eq('economic_review_status','approved').eq('sat_review_destination','facturacion').is('deleted_at',null);
       if(!review.error&&typeof review.count==='number')progress.sat_approved=review.count;
+    }
+    if(session&&activeWorkId&&(goal==='invoices'||goal==='payments')){
+      delete progress.invoices;
+      delete progress.payments;
+      const links=await supabase.from('invoice_work_orders').select('invoice_id').eq('company_id',session.company_id).eq('work_order_id',activeWorkId).is('deleted_at',null);
+      if(!links.error){
+        const ids=(links.data??[]).map(link=>link.invoice_id);
+        if(!ids.length){progress.invoices=0;progress.payments=0;}
+        else{
+          const [invoices,payments]=await Promise.all([
+            supabase.from('invoices').select('id',{count:'exact',head:true}).eq('company_id',session.company_id).in('id',ids).neq('status','anulada'),
+            supabase.from('invoice_payments').select('id',{count:'exact',head:true}).eq('company_id',session.company_id).in('invoice_id',ids).is('reversed_at',null),
+          ]);
+          if(!invoices.error&&invoices.count!==null)progress.invoices=invoices.count;
+          if(!payments.error&&payments.count!==null)progress.payments=payments.count;
+        }
+      }
+    }
+    if(session?.role==='Tecnico'&&session.work_order_id&&goal==='travel'){
+      const travel=await supabase.from('work_order_cost_entries').select('cost_type,unit,description').eq('company_id',session.company_id).eq('work_order_id',session.work_order_id).is('deleted_at',null);
+      if(!travel.error)progress.travel=(travel.data??[]).filter(isTravelCost).length;
     }
     if(scopedTechnical&&session?.work_order_id){
       for(const key of ['work_notes','times','signatures','completed_work','photos'])delete progress[key];

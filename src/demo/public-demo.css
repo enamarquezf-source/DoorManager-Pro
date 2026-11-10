@@ -169,3 +169,13 @@ body:has(.public-demo-app)>.mini-modal,body:has(.public-demo-app)>.overlay{z-ind
     padding-bottom: calc(85px + env(safe-area-inset-bottom));
   }
 }
+
+/* Keep the full instruction readable in compact mode. The panel itself scrolls. */
+.demo-guide-v2[data-compact=true] .demo-action-cue p {
+  display: block;
+  overflow: visible;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.demo-guide-v2[data-compact=true] .demo-guide-actions button { font-size: 12px; min-height: 44px; }
+.demo-guide-v2[data-compact=true] { max-height: 46dvh; overflow-y: auto; }

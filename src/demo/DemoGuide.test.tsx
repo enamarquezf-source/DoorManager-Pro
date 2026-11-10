@@ -226,7 +226,7 @@ it('keeps the quick tour on the check until an equipment review is finished',asy
  try{
   await act(async()=>root.render(<MemoryRouter initialEntries={['/app/checks/first']}><Harness/></MemoryRouter>));
   expect(host.querySelector('h2')?.textContent).toBe('Revisión componente a componente');
-  expect(host.textContent).toContain('marca Todo favorable');
+  expect(host.textContent).toContain('Marca Todo favorable');
   mocks.progress.mockResolvedValue({checks:1,work_checks:3});
   await act(async()=>window.dispatchEvent(new Event('focus')));
   expect(host.querySelector('h2')?.textContent).toBe('De campo a Oficina');

@@ -70,3 +70,31 @@ body{margin:0} .public-demo-entry{font-family:Inter,ui-sans-serif,system-ui,-app
   .demo-scenario strong { font-size: 13px; }
   .demo-launch { margin-top: 8px; }
 }
+
+/* The desktop landing uses the extra width for context and measurable results. */
+.demo-intro-signal > .demo-workflow { list-style: none; display: grid; gap: 11px; margin: 0; padding: 0; width: 100%; }
+.demo-workflow li { display: flex; gap: 10px; align-items: center; }
+.demo-workflow li > b { flex: 0 0 30px; display: grid; place-items: center; min-height: 30px; border-radius: 8px; background: #ffffff1a; color: #c4f0de; font-size: 12px; }
+.demo-workflow li strong, .demo-workflow li small { display: block; }
+.demo-workflow li strong { font-size: 14px; color: #fff; }
+.demo-workflow li small { font-size: 13px; color: #d5e9e4; line-height: 1.45; }
+.demo-benchmark { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-bottom: 24px; padding: clamp(18px, 3vw, 36px); border: 1px solid #c6dbd2; border-radius: 20px; background: #e8f3ed; }
+.demo-benchmark h2 { margin: 8px 0; font-size: clamp(21px, 2.4vw, 30px); line-height: 1.2; }
+.demo-benchmark p { margin: 8px 0; font-size: 14px; line-height: 1.55; color: #365b58; }
+.demo-benchmark a { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: #173f47; font-size: 14px; font-weight: 700; }
+.demo-benchmark-results dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 8px 0; }
+.demo-benchmark-results dl div { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 10px; padding: 10px; background: #fff; border: 1px solid #c6dbd2; border-radius: 10px; }
+.demo-benchmark-results dt { font-size: 13px; }
+.demo-benchmark-results dd { margin: 0; color: #176449; font-size: 21px; font-weight: 750; font-variant-numeric: tabular-nums; }
+@media (min-width: 1000px) {
+  .public-demo-entry { padding-inline: max(32px, calc((100% - 1440px) / 2)); }
+  .demo-welcome { grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr); gap: clamp(24px, 5vw, 72px); padding-block: 34px; }
+  .demo-welcome h1 { font-size: clamp(39px, 4vw, 60px); }
+  .demo-intro-copy > p { font-size: 16px; }
+  .demo-role > span, .demo-entry-paths span { font-size: 14px; }
+}
+@media (max-width: 740px) { .demo-benchmark { grid-template-columns: 1fr; gap: 10px; } }
+@media (max-width: 540px) {
+  .demo-wordmark > a[href="#demo-rendimiento"] { display: none; }
+  .demo-benchmark-results dl div { padding: 8px; }
+}

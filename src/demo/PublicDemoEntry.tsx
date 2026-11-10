@@ -24,8 +24,18 @@ export function PublicDemoEntry({ checkReady, start, onReady, siteKey = import.m
   };
   const previous = sessionStorage.getItem('dmp-demo-end-status');
   return <main className="public-demo-entry">
-    <header className="demo-wordmark"><BrandMark size={32} /><strong>DoorManager Pro</strong><a href="#demo-contacto">Contacto</a><span>BETA PÚBLICA</span></header>
-    <section className="demo-welcome"><div className="demo-intro-copy"><span className="demo-eyebrow"><span /> GESTIÓN CONECTADA · TRABAJO REAL</span><h1>Todo empieza con un aviso.<br /><em>Descubre hasta dónde llega.</em></h1><p className="demo-mobile-intro">Partes y equipos, del aviso al cobro.</p><p className="demo-desktop-intro">Para empresas instaladoras y de mantenimiento: clientes, equipos, partes y resultados, conectados en una misma app. Explórala con una guía que te señala el siguiente paso.</p><p className="demo-intro-scope">Esta demo es una pequeña muestra de todo lo que puedes hacer con DMP.</p></div><div className="demo-intro-signal" aria-hidden="true"><ScanLine size={30} /><span>EXPLORA DMP</span><strong>Tu próximo paso,<br />siempre a la vista.</strong><div><i /><i /><i /><i /><i /></div></div></section>
+    <header className="demo-wordmark"><BrandMark size={32} /><strong>DoorManager Pro</strong><a href="#demo-rendimiento">Rendimiento</a><a href="#demo-contacto">Contacto</a><span>BETA PÚBLICA</span></header>
+    <section className="demo-welcome"><div className="demo-intro-copy"><span className="demo-eyebrow"><span /> GESTIÓN CONECTADA · TRABAJO REAL</span><h1>Todo empieza con un aviso.<br /><em>Descubre hasta dónde llega.</em></h1><p className="demo-mobile-intro">Partes y equipos, del aviso al cobro.</p><p className="demo-desktop-intro">Para empresas instaladoras y de mantenimiento: clientes, equipos, partes y resultados, conectados en una misma app. Explórala con una guía que te señala el siguiente paso.</p><p className="demo-intro-scope">Esta demo es una pequeña muestra de todo lo que puedes hacer con DMP.</p></div><aside className="demo-intro-signal" aria-label="Recorrido de la demo">
+      <ScanLine size={28} aria-hidden="true" />
+      <span>UN PARTE, CUATRO ETAPAS</span>
+      <strong>Del aviso al cobro</strong>
+      <ol className="demo-workflow">
+        <li><b>01</b><span><strong>SAT</strong><small>Recibe el aviso y asigna la visita</small></span></li>
+        <li><b>02</b><span><strong>Técnico</strong><small>Revisa el equipo y registra el trabajo</small></span></li>
+        <li><b>03</b><span><strong>Oficina</strong><small>Prepara la factura y registra el cobro</small></span></li>
+        <li><b>04</b><span><strong>Gerencia</strong><small>Consulta costes y rentabilidad</small></span></li>
+      </ol>
+    </aside></section>
     {previous && <p className="demo-ended" role="status">{previous === 'complete' ? 'Tu prueba anterior ha terminado y sus datos se han eliminado.' : 'Tu prueba anterior ha terminado. La limpieza remota queda pendiente de confirmación del servidor.'}</p>}
     <section className="demo-start"><div className="demo-entry-paths" aria-label="Cómo quieres descubrir DMP"><button type="button" disabled={busy} aria-pressed={experience==='discover'} onClick={()=>{setExperience('discover');setRole('Tecnico');}}><strong>Descubrir DMP · unos 3 min</strong><span>Visita rápida con casos preparados. Sin rellenarlo todo.</span></button><button type="button" disabled={busy} aria-pressed={experience==='connected'} onClick={()=>{setExperience('connected');setRole('SAT');}}><strong>Crear mi propio recorrido</strong><span>Del aviso a Gerencia, cambiando de perfil con tu empresa de prueba.</span></button></div><div className="demo-start-heading"><div><span className="demo-eyebrow">01 / ELIGE TU PUNTO DE VISTA</span><h2>¿Desde dónde quieres probarla?</h2></div><span className="demo-start-note"><ShieldCheck size={16} /> Sin registro · A tu ritmo</span></div><fieldset className="demo-role-options" disabled={busy}><legend className="sr-only">Elige tu rol de prueba</legend>
       {demoRoles.map(option => { const Icon = icons[option.icon]; return <label key={option.id} className={`demo-role${role === option.id ? ' is-selected' : ''}`}><input type="radio" name="demo-role" value={option.id} checked={role === option.id} onChange={() => {setRole(option.id);if(experience==='discover'||(experience==='connected'&&option.id!=='SAT'))setExperience('work');}} /><Icon size={24} aria-hidden="true" /><strong>{option.title}</strong><span>{option.description}</span><Check size={17} className="demo-role-check" aria-hidden="true" /></label>; })}
@@ -42,7 +52,24 @@ export function PublicDemoEntry({ checkReady, start, onReady, siteKey = import.m
       else setError('La verificación ha caducado. Complétala para empezar.');
     }} />}
     <p className="demo-privacy">Sin correo ni contraseña. Espacio temporal y separado para cada visitante. Usa datos ficticios: se eliminan al finalizar o tras 30 minutos sin actividad, con un máximo de dos horas. La limpieza por caducidad se procesa periódicamente.</p>
-    </section><section className="demo-beyond"><div><span className="demo-eyebrow">ESTO ES SOLO EL PRINCIPIO</span><h2>Una pequeña muestra.<br />Mucho DMP por descubrir.</h2><p>La demo te invita a recorrer algunos procesos con datos ficticios. La aplicación va mucho más allá: conecta el trabajo de campo con la planificación, las compras y la gestión económica de tu empresa.</p></div><div className="demo-capabilities">{[{icon:ClipboardList,title:'Planifica y conecta',text:'Clientes, centros, equipos, contratos y visitas de mantenimiento.'},{icon:Wrench,title:'Trabaja sobre el terreno',text:'Partes, checks por componente, fotos, horas y trabajo sin cobertura con la jornada preparada.'},{icon:ChartNoAxesCombined,title:'Entiende tu negocio',text:'Materiales, compras, facturación, cobros y estudios de costes y rentabilidad.'}].map(({icon:Icon,title,text})=><article key={title}><Icon size={22} aria-hidden="true"/><div><h3>{title}</h3><p>{text}</p></div></article>)}</div></section><DemoLaunchContact /><footer className="demo-entry-footer"><BrandMark size={22} /><span>DoorManager Pro · Del primer aviso al resultado.</span><span>Demo pública · Usa siempre datos ficticios</span>
+    </section><section className="demo-beyond"><div><span className="demo-eyebrow">ESTO ES SOLO EL PRINCIPIO</span><h2>Una pequeña muestra.<br />Mucho DMP por descubrir.</h2><p>La demo te invita a recorrer algunos procesos con datos ficticios. La aplicación va mucho más allá: conecta el trabajo de campo con la planificación, las compras y la gestión económica de tu empresa.</p></div><div className="demo-capabilities">{[{icon:ClipboardList,title:'Planifica y conecta',text:'Clientes, centros, equipos, contratos y visitas de mantenimiento.'},{icon:Wrench,title:'Trabaja sobre el terreno',text:'Partes, checks por componente, fotos, horas y trabajo sin cobertura con la jornada preparada.'},{icon:ChartNoAxesCombined,title:'Entiende tu negocio',text:'Materiales, compras, facturación, cobros y estudios de costes y rentabilidad.'}].map(({icon:Icon,title,text})=><article key={title}><Icon size={22} aria-hidden="true"/><div><h3>{title}</h3><p>{text}</p></div></article>)}</div></section>
+    <section className="demo-benchmark" id="demo-rendimiento" aria-labelledby="demo-benchmark-title">
+      <div>
+        <span className="demo-eyebrow">AUDITORÍA DE LA PORTADA</span>
+        <h2 id="demo-benchmark-title">Medida con PageSpeed Insights</h2>
+        <p>Prueba de laboratorio de Google Lighthouse del 10 de noviembre de 2026. Las cifras corresponden a la portada que se analizó ese día.</p>
+        <a href="https://pagespeed.web.dev/analysis/https-demo-doormanager-pro-pages-dev/e676jbryww?form_factor=mobile" target="_blank" rel="noopener noreferrer">Ver informe original <ArrowRight size={16} aria-hidden="true" /></a>
+      </div>
+      <div className="demo-benchmark-results">
+        <p>Móvil y ordenador · Puntuaciones sobre 100</p>
+        <dl>
+          {['Rendimiento', 'Accesibilidad', 'Prácticas recomendadas', 'SEO'].map(label =>
+            <div key={label}><dt>{label}</dt><dd>100</dd></div>)}
+        </dl>
+        <p>Tiempo hasta el contenido principal (LCP). Móvil <strong>1,4 s</strong> · Ordenador <strong>0,3 s</strong>.</p>
+      </div>
+    </section>
+    <DemoLaunchContact /><footer className="demo-entry-footer"><BrandMark size={22} /><span>DoorManager Pro · Del primer aviso al resultado.</span><span>Demo pública · Usa siempre datos ficticios</span>
       <ProjectCredit className="demo-author-credit" />
     </footer>
   </main>;

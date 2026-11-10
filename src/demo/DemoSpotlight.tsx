@@ -40,7 +40,11 @@ export function findDemoTarget(step: DemoStep): HTMLElement | null {
     const inputs = [...dialog.querySelectorAll<HTMLInputElement>('input:not([type="hidden"]),select,textarea')].filter(element=>available(element)&&!element.readOnly);
     const missing = inputs.find(element=>element.required && (element.type==='checkbox'?!element.checked:!element.value.trim()));
     const next=[...dialog.querySelectorAll<HTMLButtonElement>('button')].find(element=>available(element)&&/^(Siguiente|Revisar datos)$/.test((element.textContent??'').trim()));
-    return missing ?? next
+    const billingAction=[...dialog.querySelectorAll<HTMLButtonElement>('button')].find(button=>available(button)&&(
+      (step.goal==='invoices'||step.goal==='payments')&&/^Emitir factura$/i.test(button.textContent?.trim()??'')
+      ||step.goal==='payments'&&/^Registrar cobro$/i.test(button.textContent?.trim()??'')
+    ));
+    return missing ?? next ?? billingAction
       ?? [...dialog.querySelectorAll<HTMLButtonElement>('form button')].find(element=>available(element)&&element.type==='submit')
       ?? inputs.find(element=>element===document.activeElement) ?? null;
   }
@@ -137,7 +141,7 @@ export function findDemoTarget(step: DemoStep): HTMLElement | null {
     const payment = targets.find(target => target.matches('button'));
     if (payment) return payment;
     const draft = targets[0];
-    if (draft) return [...draft.querySelectorAll<HTMLElement>('button')].find(available) ?? draft;
+    if (draft) return [...draft.querySelectorAll<HTMLElement>('button, [role=button]')].find(available) ?? draft;
     return null;
   }
   if (step.goal === 'travel') {

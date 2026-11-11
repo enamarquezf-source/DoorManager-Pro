@@ -129,8 +129,10 @@ export function findDemoTarget(step: DemoStep): HTMLElement | null {
     if(work&&available(work))return work;
   }
   if(step.goal==='signatures') {
+    const toggle=document.querySelector<HTMLElement>('main details:not([open]) > summary[data-demo-signature-toggle]');
+    if(toggle&&available(toggle))return toggle;
     const name=[...document.querySelectorAll<HTMLInputElement>('main input')].find(element=>available(element)&&[...element.labels??[]].some(label=>/Nombre firmante/.test(label.textContent??'')));
-    if(name&&!name.value.trim())return name;
+    if(name&&(!name.value.trim()||document.activeElement===name))return name;
     const pad=document.querySelector<HTMLElement>('main .signature-pad[data-has-ink="false"]');if(pad&&available(pad))return pad;
     const consent=document.querySelector<HTMLInputElement>('main .signature-consent input[type="checkbox"]');if(consent&&available(consent)&&!consent.checked)return consent.closest<HTMLElement>('label');
     const save=[...document.querySelectorAll<HTMLElement>('main button')].find(element=>available(element)&&/^Guardar firma(?: local)?$/.test((element.textContent??'').trim()));if(save)return save;
@@ -182,16 +184,21 @@ export function DemoSpotlight({ step, number }: { step: DemoStep; number: number
   useEffect(() => {
     let frame = 0;
     let target: HTMLElement | null = null;
+    let drawingSignature = false;
     const update = () => {
       frame = 0;
-      const next = findDemoTarget(step);
-      if (next !== target) { target?.classList.remove('demo-highlight'); target = next; target?.classList.add('demo-highlight'); }
+      const next = drawingSignature ? target : findDemoTarget(step);
+      const changed = next !== target;
+      if (changed) { target?.classList.remove('demo-highlight'); target = next; target?.classList.add('demo-highlight'); }
       const bounds = target?.getBoundingClientRect();
       const barBottom = document.querySelector('.demo-session-bar')?.getBoundingClientRect().bottom ?? 0;
       const guide = document.querySelector('.demo-guide')?.getBoundingClientRect();
       const modal = Boolean(target?.closest('[role="dialog"],.mini-modal'));
       const covered = !modal && bounds && guide && bounds.right > guide.left && bounds.left < guide.right && bounds.bottom > guide.top && bounds.top < guide.bottom;
       const visible = bounds && !covered && bounds.top >= barBottom + 6 && bounds.bottom <= window.innerHeight - 6 && bounds.left >= 0 && bounds.right <= window.innerWidth;
+      if (changed && target && !visible && step.goal === 'signatures') {
+        target.scrollIntoView({ block: 'center', inline: 'nearest' });
+      }
       const labelNode = target && 'labels' in target ? (target as HTMLInputElement).labels?.[0]?.cloneNode(true) as HTMLElement | undefined : undefined;
       labelNode?.querySelectorAll('input,select,textarea,svg,small').forEach(element=>element.remove());
       const label=(target?.getAttribute('aria-label') || labelNode?.textContent || target?.textContent || '').replace(/\s+/g,' ').trim();
@@ -201,13 +208,25 @@ export function DemoSpotlight({ step, number }: { step: DemoStep; number: number
       setRect(previous => JSON.stringify(previous) === JSON.stringify(value) ? previous : value);
     };
     const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+    const startSignature = (event: PointerEvent) => {
+      drawingSignature = step.goal === 'signatures' && event.target instanceof Element && event.target.matches('canvas.signature-pad');
+    };
+    const endSignature = () => {
+      if (!drawingSignature) return;
+      drawingSignature = false;
+      schedule();
+    };
     const observer = new MutationObserver(schedule);
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'aria-expanded', 'disabled', 'open'] });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'aria-expanded', 'disabled', 'open', 'data-has-ink'] });
     const resize = new ResizeObserver(schedule); resize.observe(document.body);
     window.addEventListener('scroll', schedule, true); window.addEventListener('resize', schedule);
     document.addEventListener('input',schedule,true);document.addEventListener('change',schedule,true);document.addEventListener('focusin',schedule,true);
+    document.addEventListener('focusout',schedule,true);
+    document.addEventListener('pointerdown',startSignature,true);
+    document.addEventListener('pointerup',endSignature,true);
+    document.addEventListener('pointercancel',endSignature,true);
     update();
-    return () => { observer.disconnect(); resize.disconnect(); cancelAnimationFrame(frame); target?.classList.remove('demo-highlight'); window.removeEventListener('scroll', schedule, true); window.removeEventListener('resize', schedule); document.removeEventListener('input',schedule,true);document.removeEventListener('change',schedule,true);document.removeEventListener('focusin',schedule,true); };
+    return () => { document.removeEventListener('focusout',schedule,true); document.removeEventListener('pointerdown',startSignature,true); document.removeEventListener('pointerup',endSignature,true); document.removeEventListener('pointercancel',endSignature,true); observer.disconnect(); resize.disconnect(); cancelAnimationFrame(frame); target?.classList.remove('demo-highlight'); window.removeEventListener('scroll', schedule, true); window.removeEventListener('resize', schedule); document.removeEventListener('input',schedule,true);document.removeEventListener('change',schedule,true);document.removeEventListener('focusin',schedule,true); };
   }, [step.target, step.goal, step.route]);
   if (!rect) return null;
   return createPortal(<div className={'demo-spotlight'+(rect.modal?' in-dialog':'')} aria-hidden="true" style={{ top: rect.top - 5, left: rect.left - 5, width: rect.width + 10, height: rect.height + 10 }}>{rect.field?<b className="demo-field-step">{number.toString().padStart(2,'0')}</b>:<span style={{ left: Math.min(0, window.innerWidth - rect.left - 285) }} className={`demo-spotlight-label${rect.top < window.innerHeight * .55 && rect.top + rect.height < window.innerHeight - 70 ? ' is-below' : ''}`}><MousePointer2 size={14} /><b>{number.toString().padStart(2, '0')}</b><span>{rect.caption}</span></span>}<i className="demo-spotlight-corner" /></div>, document.body);

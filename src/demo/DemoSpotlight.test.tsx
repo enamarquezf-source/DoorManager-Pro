@@ -74,6 +74,12 @@ it('distinguishes the field, records and close views within the same technician 
  expect(isDemoTaskSurface({...records,goal:'signatures',route:'/app/tecnico/trabajo/work?vista=close'},'/app/tecnico/trabajo/work?vista=records')).toBe(false);
 });
 
+it('points to the signature disclosure when it is closed',()=>{
+ document.body.innerHTML='<main><details><summary id="open-signature" data-demo-signature-toggle>Firma del cliente</summary></details></main>';
+ visible();
+ expect(findDemoTarget({...step,goal:'signatures'})?.id).toBe('open-signature');
+});
+
 it('guides the signature through name, drawing, consent and saving without choosing consent for the visitor',()=>{
  document.body.innerHTML='<main><label>Nombre firmante<input id="signer"/></label><canvas id="pad" class="signature-pad" data-has-ink="false"></canvas><label id="consent" class="signature-consent"><input type="checkbox"/>Confirmo mi firma</label><button id="save">Guardar firma</button></main>';visible();const signature={...step,goal:'signatures'};
  expect(findDemoTarget(signature)?.id).toBe('signer');(document.getElementById('signer') as HTMLInputElement).value='Visitante ficticio';expect(findDemoTarget(signature)?.id).toBe('pad');document.getElementById('pad')!.setAttribute('data-has-ink','true');expect(findDemoTarget(signature)?.id).toBe('consent');expect((document.querySelector('.signature-consent input') as HTMLInputElement).checked).toBe(false);(document.querySelector('.signature-consent input') as HTMLInputElement).checked=true;expect(findDemoTarget(signature)?.id).toBe('save');

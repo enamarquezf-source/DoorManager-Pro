@@ -19,7 +19,9 @@ describe('technician scope migration', () => {
     expect(migration).toContain('left join lateral');
     expect(migration).toContain("count(*) filter (where ch.status <> 'Realizado')::integer as pending_checks_count");
     expect(app).toContain('pending_checks_count');
-    expect(app).toContain('key={work.assignment_id');
+    const journey = app.slice(app.indexOf('function TechnicianDayPage('), app.indexOf('function TechnicianScrollShortcut('));
+    expect(journey).toContain('[...visitsByWork.values()].map');
+    expect(journey).toContain('key={work.work_order_id}');
   });
 
   it('removes direct technician alert creation while preserving backoffice roles', () => {

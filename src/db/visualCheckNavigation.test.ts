@@ -15,7 +15,7 @@ describe('visual check navigation safety', () => {
 
   it('keeps the clean equipment image and lower section cards on the same block routes', () => {
     const detail = app.slice(app.indexOf('function CheckDetailPage('), app.indexOf('function CheckBlockPageV2('));
-    expect(detail).toContain('door-check');
+    expect(detail.match(/<EquipmentPhotoPanel /g)).toHaveLength(1);
     expect(detail).toContain('template?.image');
     expect(detail).toContain('className="block-list status-summary"');
     expect(detail).toContain('to={blockHref(zone.sectionId)}');

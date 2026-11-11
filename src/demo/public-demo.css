@@ -179,3 +179,53 @@ body:has(.public-demo-app)>.mini-modal,body:has(.public-demo-app)>.overlay{z-ind
 }
 .demo-guide-v2[data-compact=true] .demo-guide-actions button { font-size: 12px; min-height: 44px; }
 .demo-guide-v2[data-compact=true] { max-height: 46dvh; overflow-y: auto; }
+
+@media (max-width: 640px) {
+  .mini-modal:has(> .demo-technician-record-modal) {
+    grid-template-columns: minmax(0, 1fr);
+    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  }
+
+  .mini-modal:has(> .demo-technician-record-modal) > .demo-technician-record-modal {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-height: calc(100dvh - max(8px, env(safe-area-inset-top)) - max(8px, env(safe-area-inset-bottom)));
+    grid-template-columns: minmax(0, 1fr);
+    overscroll-behavior: contain;
+  }
+
+  .demo-technician-record-modal :is(.guided-step > fieldset, .form-grid, .guided-review dl) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .demo-technician-record-modal :is(label, .guided-review article, .guided-footer > div) {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .demo-technician-record-modal :is(input:not([type="checkbox"], [type="radio"]), select, textarea) {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    font-size: 16px;
+  }
+
+  .demo-technician-record-modal :is(.modal-footer, .guided-footer > div, form > .actions) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .demo-technician-record-modal :is(.modal-footer, .guided-footer, form > .actions) button {
+    flex: 1 1 auto;
+    max-width: 100%;
+    min-height: 44px;
+    white-space: normal;
+  }
+
+  body:has(.demo-technician-record-modal) .demo-guide-mini {
+    display: none;
+  }
+}

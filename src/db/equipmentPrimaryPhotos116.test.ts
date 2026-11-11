@@ -46,10 +46,9 @@ describe('116 equipment primary photos', () => {
     expect(postflight).toContain("p.proname = 'dmp_register_equipment_photo'");
   });
 
-  it('keeps the photo refresh hook before CheckDetailPage early returns', () => {
-    const component = app.slice(app.indexOf('function CheckDetailPage('), app.indexOf('function CheckBlockPage('));
-    expect(component.indexOf('const [equipmentPhotoVersion, setEquipmentPhotoVersion] = useState(0);')).toBeGreaterThanOrEqual(0);
-    expect(component.indexOf('const [equipmentPhotoVersion, setEquipmentPhotoVersion] = useState(0);')).toBeLessThan(component.indexOf('if (workspace === "tecnico"'));
-    expect(component.indexOf('const [equipmentPhotoVersion, setEquipmentPhotoVersion] = useState(0);')).toBeLessThan(component.indexOf('if (loading || error || !data)'));
+  it('refreshes the single gallery after uploading or changing the primary photo', () => {
+    const panel = app.slice(app.indexOf('function EquipmentPhotoPanel('), app.indexOf('function normalizeCheckStatus('));
+    expect(panel.match(/photos\.reload\(\);/g)).toHaveLength(2);
+    expect(panel).toContain('equipmentPhotosService.setPrimary(photoId)');
   });
 });

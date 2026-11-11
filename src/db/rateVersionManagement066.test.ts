@@ -42,6 +42,15 @@ describe('066 rate version management', () => {
     expect(app).toContain('Nueva version');
   });
 
+  it('keeps absent period days null when editing an existing catalog concept', () => {
+    const field = rateForm.match(/period_days: (values\.period_days[^,]+), contributes_to_sale:/)?.[1];
+    expect(field).toBeDefined();
+    const periodDays = new Function('values', 'return ' + field);
+    expect(periodDays({ period_days: null })).toBeNull();
+    expect(periodDays({ period_days: '' })).toBeNull();
+    expect(periodDays({ period_days: '30' })).toBe(30);
+  });
+
   it('does not update economic snapshots', () => {
     expect(migration).not.toContain('work_order_time_entries set');
     expect(migration).not.toContain('work_order_cost_entries set');

@@ -1498,3 +1498,19 @@ body, button, input, select, textarea { font-family: Inter, ui-sans-serif, syste
 .guided-footer>div { display: flex; flex-wrap: wrap; gap: 8px; }
 .guided-footer>span { font-size: 11px; color: #819176; }
 @media(max-width:640px) { .mini-modal:has(.guided-form)>.modal-panel { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); border-radius: 14px; }.modal-panel:has(>.guided-form)>.modal-header { padding: 20px; }.modal-panel>.guided-form { padding-inline: 20px; }.guided-form>.guided-footer { margin-inline: -20px; padding: 14px 20px; }.guided-progress li { flex-basis: 100px; flex-direction: column; align-items: flex-start; }.guided-review dl { grid-template-columns: 1fr; }.guided-footer>span { display: none; }.guided-footer>div { flex: 1; }.guided-footer button { width: auto; flex: 1; } }
+
+.work-material-reference {
+  color: var(--color-primary, var(--dark));
+  font: inherit;
+  text-align: inherit;
+  text-decoration: underline;
+  text-underline-offset: .18em;
+  overflow-wrap: anywhere;
+}
+
+button.work-material-reference {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}

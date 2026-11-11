@@ -57,10 +57,16 @@ export function economicDecisionFor(row: any): EconomicEntryDecision {
   return { kind: row.kind, entry_id: row.id, contributes_to_sale: null, decision: null, source: row.source ?? 'manual', unit_price: Number(row.unit_price ?? 0) };
 }
 
-export function reconcileEconomicDecisions(rows: any[], current: EconomicEntryDecision[], preserveExisting = true): EconomicEntryDecision[] {
+export function savedEconomicDecisionFor(row: any): EconomicEntryDecision {
+  const decision = economicDecisionFor(row);
+  if (typeof row.contributes_to_sale !== 'boolean') return decision;
+  return { ...decision, contributes_to_sale: row.contributes_to_sale, decision: row.contributes_to_sale ? 'enters' : 'does_not_enter' };
+}
+
+export function reconcileEconomicDecisions(rows: any[], current: EconomicEntryDecision[], preserveExisting = true, initialDecision = economicDecisionFor): EconomicEntryDecision[] {
   const existing = preserveExisting
     ? new Map(current.map((decision) => [`${decision.kind}:${decision.entry_id}`, decision]))
     : new Map<string, EconomicEntryDecision>();
-  const reconciled = rows.map((row) => existing.get(`${row.kind}:${row.id}`) ?? economicDecisionFor(row));
+  const reconciled = rows.map((row) => existing.get(`${row.kind}:${row.id}`) ?? initialDecision(row));
   return reconciled.every((decision, index) => decision === current[index]) && reconciled.length === current.length ? current : reconciled;
 }

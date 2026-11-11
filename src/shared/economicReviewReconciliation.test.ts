@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { economicDecisionFor, reconcileEconomicDecisions } from './economicReview';
+import { economicDecisionFor, reconcileEconomicDecisions, savedEconomicDecisionFor } from './economicReview';
 
 const component = readFileSync(resolve(process.cwd(), 'src/components/EconomicReviewPanel.tsx'), 'utf8');
 
@@ -9,6 +9,12 @@ const row = (kind: 'time' | 'material' | 'cost', id: string, unitPrice = 10) => 
 const edited = (kind: 'time' | 'material' | 'cost', id: string, unitPrice: number, contributes: boolean) => ({ ...economicDecisionFor(row(kind, id)), unit_price: unitPrice, contributes_to_sale: contributes, decision: contributes ? 'enters' as const : 'does_not_enter' as const });
 
 describe('economic decision reconciliation', () => {
+  it('restores saved decisions when reopening an approved review', () => {
+    const saved = [{ ...row('cost', 'travel', 55), contributes_to_sale: true }, { ...row('cost', 'removal', 760), contributes_to_sale: false }];
+    expect(reconcileEconomicDecisions(saved, [], false, savedEconomicDecisionFor)).toEqual([edited('cost', 'travel', 55, true), edited('cost', 'removal', 760, false)]);
+    expect(reconcileEconomicDecisions(saved, [], false).map(decision => decision.contributes_to_sale)).toEqual([null, null]);
+  });
+
   it('retains edited rows and initializes only added rows', () => {
     const decisions = reconcileEconomicDecisions([row('time', 'a'), row('material', 'b')], [edited('time', 'a', 42, true)]);
     expect(decisions).toEqual([edited('time', 'a', 42, true), economicDecisionFor(row('material', 'b'))]);
@@ -40,12 +46,12 @@ describe('economic decision reconciliation', () => {
   });
 
   it('keeps the exact current-row decision list for the review payload', () => {
-    expect(component).toContain('reconcileEconomicDecisions(rows, current, preserveExisting)');
+    expect(component).toContain('reconcileEconomicDecisions(rows, current, preserveExisting, initialDecision)');
     expect(component).toContain('reviewWorkOrderEconomic(workOrder.id, decisions, reason.trim(), zeroSaleConfirmed)');
   });
 
   it('invalidates zero sale confirmation when economic inputs change', () => {
-    expect(component).toContain('useEffect(() => { const preserveExisting = previousWorkOrderId.current === workOrder?.id;');
+    expect(component).toContain('useEffect(() => { const preserveExisting = previousReviewKey.current === reviewKey;');
     expect(component).toContain('setZeroSaleConfirmed(false)');
     expect(component).toContain('economicInputFingerprint');
   });

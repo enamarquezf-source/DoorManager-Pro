@@ -5,3 +5,34 @@
     touch-action: pan-x pan-y;
   }
 }
+
+@media (max-width: 760px) {
+  html[data-public-demo],
+  html[data-public-demo] body {
+    overflow-x: clip;
+  }
+
+  html[data-public-demo] :where(#root, .public-demo-entry, .public-demo-app, .workspace, .demo-start) {
+    box-sizing: border-box;
+    inline-size: 100%;
+    min-inline-size: 0;
+    max-inline-size: 100%;
+  }
+
+  html[data-public-demo] .demo-wordmark {
+    flex-wrap: wrap;
+  }
+
+  html[data-public-demo] :where(.demo-role, .demo-scenario > div, .demo-contact-actions, .demo-contact-details) {
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
+  }
+
+  html[data-public-demo] .demo-welcome-preview {
+    overscroll-behavior: contain;
+  }
+
+  html[data-public-demo] .demo-preview-video {
+    max-inline-size: 100%;
+  }
+}

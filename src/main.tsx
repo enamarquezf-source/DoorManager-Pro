@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { publicDemoEnabled } from './demo/model';
 import './demo/touch-layout.css';
 
+if (publicDemoEnabled) document.documentElement.dataset.publicDemo = 'true';
+
 const Entry = lazy(() => publicDemoEnabled && window.location.pathname === '/'
   ? import('./demo/DemoLandingRuntime')
   : import('./ApplicationRuntime'));

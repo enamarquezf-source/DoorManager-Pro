@@ -229,3 +229,24 @@ body:has(.public-demo-app)>.mini-modal,body:has(.public-demo-app)>.overlay{z-ind
     display: none;
   }
 }
+
+@media (max-width: 640px) {
+  body:has(.public-demo-entry, .public-demo-app),
+  .public-demo-entry,
+  .public-demo-app {
+    overflow-x: clip;
+  }
+
+  .public-demo-app .signature-capture,
+  .public-demo-app .signature-drawing {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .public-demo-app .signature-capture .signature-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .demo-spotlight-label {
+    box-sizing: border-box;
+  }
+}

@@ -24,7 +24,7 @@ export function DemoTurnstile({ siteKey, onToken, resetKey }: { siteKey: string;
     load().then(value => {
       if (!active || !element.current) return;
       api = value;
-      widget = value.render(element.current, { sitekey: siteKey, theme: 'light', language: 'es', callback: (token: string) => { if (active) { callback.current(token); setStatus('verified'); } }, 'expired-callback': () => { if (active) { callback.current(''); setStatus('expired'); } }, 'error-callback': () => { if (active) { callback.current(''); setStatus('failed'); } } });
+      widget = value.render(element.current, { sitekey: siteKey, size: element.current.clientWidth < 300 ? 'compact' : 'normal', theme: 'light', language: 'es', callback: (token: string) => { if (active) { callback.current(token); setStatus('verified'); } }, 'expired-callback': () => { if (active) { callback.current(''); setStatus('expired'); } }, 'error-callback': () => { if (active) { callback.current(''); setStatus('failed'); } } });
     }).catch(() => { if (active) setStatus('failed'); });
     return () => { active = false; if (widget !== undefined) api?.remove(widget); };
   }, [siteKey, resetKey, attempt]);

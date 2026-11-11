@@ -196,7 +196,7 @@ export function DemoSpotlight({ step, number }: { step: DemoStep; number: number
       const modal = Boolean(target?.closest('[role="dialog"],.mini-modal'));
       const covered = !modal && bounds && guide && bounds.right > guide.left && bounds.left < guide.right && bounds.bottom > guide.top && bounds.top < guide.bottom;
       const visible = bounds && !covered && bounds.top >= barBottom + 6 && bounds.bottom <= window.innerHeight - 6 && bounds.left >= 0 && bounds.right <= window.innerWidth;
-      if (changed && target && !visible && step.goal === 'signatures') {
+      if (changed && target && !visible && step.goal === 'signatures' && window.innerWidth > 640) {
         target.scrollIntoView({ block: 'center', inline: 'nearest' });
       }
       const labelNode = target && 'labels' in target ? (target as HTMLInputElement).labels?.[0]?.cloneNode(true) as HTMLElement | undefined : undefined;
@@ -229,5 +229,10 @@ export function DemoSpotlight({ step, number }: { step: DemoStep; number: number
     return () => { document.removeEventListener('focusout',schedule,true); document.removeEventListener('pointerdown',startSignature,true); document.removeEventListener('pointerup',endSignature,true); document.removeEventListener('pointercancel',endSignature,true); observer.disconnect(); resize.disconnect(); cancelAnimationFrame(frame); target?.classList.remove('demo-highlight'); window.removeEventListener('scroll', schedule, true); window.removeEventListener('resize', schedule); document.removeEventListener('input',schedule,true);document.removeEventListener('change',schedule,true);document.removeEventListener('focusin',schedule,true); };
   }, [step.target, step.goal, step.route]);
   if (!rect) return null;
-  return createPortal(<div className={'demo-spotlight'+(rect.modal?' in-dialog':'')} aria-hidden="true" style={{ top: rect.top - 5, left: rect.left - 5, width: rect.width + 10, height: rect.height + 10 }}>{rect.field?<b className="demo-field-step">{number.toString().padStart(2,'0')}</b>:<span style={{ left: Math.min(0, window.innerWidth - rect.left - 285) }} className={`demo-spotlight-label${rect.top < window.innerHeight * .55 && rect.top + rect.height < window.innerHeight - 70 ? ' is-below' : ''}`}><MousePointer2 size={14} /><b>{number.toString().padStart(2, '0')}</b><span>{rect.caption}</span></span>}<i className="demo-spotlight-corner" /></div>, document.body);
+  const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+  const left = Math.max(5, rect.left - 5);
+  const right = Math.min(viewportWidth - 5, rect.left + rect.width + 5);
+  const labelWidth = Math.min(300, viewportWidth - 26);
+  const labelLeft = Math.max(8, Math.min(left, viewportWidth - labelWidth - 8));
+  return createPortal(<div className={'demo-spotlight'+(rect.modal?' in-dialog':'')} aria-hidden="true" style={{ top: rect.top - 5, left, width: Math.max(0, right - left), height: rect.height + 10 }}>{rect.field?<b className="demo-field-step">{number.toString().padStart(2,'0')}</b>:<span style={{ left: labelLeft - left }} className={`demo-spotlight-label${rect.top < window.innerHeight * .55 && rect.top + rect.height < window.innerHeight - 70 ? ' is-below' : ''}`}><MousePointer2 size={14} /><b>{number.toString().padStart(2, '0')}</b><span>{rect.caption}</span></span>}<i className="demo-spotlight-corner" /></div>, document.body);
 }

@@ -4,9 +4,9 @@ import {createRoot} from 'react-dom/client';
 import {MemoryRouter} from 'react-router-dom';
 import {useLocation} from 'react-router-dom';
 import {it,expect,vi,afterEach} from 'vitest';
-import type {DemoTour} from './model';
+import {demoTourSteps,type DemoTour} from './model';
 import {DemoGuide,PublicDemoBoundary} from './PublicDemoBoundary';
-const mocks=vi.hoisted(()=>({progress:vi.fn(async()=>({clients:0})),session:vi.fn(),journeysAvailable:vi.fn(),prepareJourney:vi.fn()}));
+const mocks=vi.hoisted(()=>({progress:vi.fn<(...args:any[])=>Promise<Record<string,number>>>(async()=>({clients:0})),session:vi.fn(),journeysAvailable:vi.fn(),prepareJourney:vi.fn()}));
 vi.mock('./service',()=>({publicDemoService:mocks}));
 const session:any={id:'demo',role:'SAT',work_order_id:null};
 
@@ -296,4 +296,45 @@ it('explains parts without identified equipment before explicitly continuing',as
   await act(async()=>host.querySelector<HTMLButtonElement>('.demo-skip')!.click());
   expect(host.querySelector('h2')?.textContent).toBe('Explica el trabajo realizado');
  }finally{await act(async()=>root.unmount());host.remove();}
+});
+
+it.each(['discover','connected'] as const)('leaves billing after a saved payment in %s', async tour => {
+  (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
+  const office={...session,role:'Oficina',work_order_id:'guided-work'};
+  const steps=demoTourSteps(office,tour);
+  const invoiceStep=steps.findIndex(step=>step.goal==='invoices');
+  const paymentStep=steps.findIndex(step=>step.goal==='payments');
+  const host=document.createElement('div');document.body.append(host);
+  const root=createRoot(host);
+  function Harness(){
+    const [progress,setProgress]=useState({step:invoiceStep,open:true});
+    return <><output>{progress.step}</output><DemoGuide session={office} progress={progress} setProgress={setProgress} onRole={async()=>{}} tour={tour}/></>;
+  }
+  mocks.progress.mockImplementation(async (_session:any,goal?:string) => goal==='invoices' ? {invoices:1,payments:0} : {invoices:1,payments:1});
+  try {
+    await act(async()=>root.render(<MemoryRouter initialEntries={['/app/modulos/facturacion']}><Harness/></MemoryRouter>));
+    expect(host.querySelector('output')?.textContent).toBe(String(paymentStep+1));
+    expect(mocks.progress).toHaveBeenCalledWith(office,'payments','guided-work');
+  } finally {
+    await act(async()=>root.unmount());
+    host.remove();
+  }
+});
+
+it.each(['discover','connected'] as const)('resumes %s after SAT already sent the guided part to billing', async tour => {
+  (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
+  const sat={...session,role:'SAT',work_order_id:'guided-work'};
+  const reviewStep=demoTourSteps(sat,tour).findIndex(step=>step.goal==='sat_approved');
+  const host=document.createElement('div');document.body.append(host);
+  const root=createRoot(host);
+  const setProgress=vi.fn();
+  mocks.progress.mockResolvedValue({sat_approved:1});
+  try {
+    await act(async()=>root.render(<MemoryRouter initialEntries={['/app/partes/guided-work']}><DemoGuide session={sat} progress={{step:reviewStep,open:true}} setProgress={setProgress} onRole={async()=>{}} tour={tour}/></MemoryRouter>));
+    expect(setProgress).toHaveBeenCalledExactlyOnceWith({step:reviewStep+1,open:true});
+    expect(mocks.progress).toHaveBeenCalledWith(sat,'sat_approved','guided-work');
+  } finally {
+    await act(async()=>root.unmount());
+    host.remove();
+  }
 });

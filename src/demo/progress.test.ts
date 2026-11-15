@@ -6,7 +6,7 @@ vi.mock('./model',async importOriginal=>({...await importOriginal<any>(),publicD
 vi.mock('../services/technicianOfflineService',()=>({technicianOfflineService:{pending:async()=>[]}}));
 import{publicDemoService}from'./service';
 const session:any={id:'visitor',company_id:'own-company',work_order_id:'own-work',role:'Tecnico'};
-beforeEach(()=>{vi.clearAllMocks();mock.queries=[];mock.rows={checks:{count:0,error:null},work_order_photos:{count:2,error:null}};mock.rpc.mockResolvedValue({data:{photos:1},error:null});mock.from.mockImplementation((table:string)=>{const query:any={table,filters:[]};mock.queries.push(query);const chain:any={select:()=>chain,maybeSingle:()=>chain,eq:(key:string,value:string)=>{query.filters.push([key,value]);return chain;},is:()=>chain,then:(resolve:any,reject:any)=>Promise.resolve(mock.rows[table]).then(resolve,reject)};return chain;});});
+beforeEach(()=>{vi.clearAllMocks();mock.queries=[];mock.rows={checks:{count:0,error:null},work_order_photos:{count:2,error:null}};mock.rpc.mockResolvedValue({data:{photos:1},error:null});mock.from.mockImplementation((table:string)=>{const query:any={table,filters:[]};mock.queries.push(query);const chain:any={select:()=>chain,maybeSingle:()=>chain,eq:(key:string,value:string)=>{query.filters.push([key,value]);return chain;},is:()=>chain,neq:(key:string,value:string)=>{query.filters.push([key,value]);return chain;},then:(resolve:any,reject:any)=>Promise.resolve(mock.rows[table]).then(resolve,reject)};return chain;});});
 it('counts photos from the work as well as checks and scopes all reads to the current company and work',async()=>{
 const result=await publicDemoService.progress(session,'photos');expect(result.photos).toBe(3);expect(result.work_checks).toBe(0);
 for(const query of mock.queries)expect(query.filters).toEqual([['company_id','own-company'],['work_order_id','own-work']]);});
@@ -30,4 +30,20 @@ it('scopes technician completion, hours and signatures to the work currently ope
  const result=await publicDemoService.progress(session,'photos','opened-work');
  expect(result).toMatchObject({work_notes:0,times:0,signatures:0,completed_work:0,photos:2});
  for(const query of mock.queries){expect(query.filters[0]).toEqual(['company_id','own-company']);expect(query.filters[1][1]).toBe('opened-work');}
+});
+
+it('recognizes a recorded customer payment for the guided work without waiting on aggregate progress', async () => {
+  mock.rpc.mockRejectedValue(new Error('aggregate unavailable'));
+  mock.rows.invoices={data:[{id:'draft',paid_amount:0},{id:'paid',paid_amount:'95.00'}],error:null};
+  await expect(publicDemoService.progress({...session,role:'Oficina'},'payments','current-work')).resolves.toEqual({invoices:2,payments:1});
+  expect(mock.rpc).not.toHaveBeenCalled();
+  expect(mock.queries[0].filters).toContainEqual(['invoice_work_orders.work_order_id','current-work']);
+  expect(mock.queries[0].filters).toContainEqual(['company_id','own-company']);
+  expect(mock.queries[0].filters).toContainEqual(['status','cancelada']);
+});
+
+it('does not count seed invoices or payments when the guided work has no invoice', async () => {
+  mock.rows.invoices={data:[],error:null};
+  mock.rpc.mockResolvedValue({data:{invoices:10,payments:10},error:null});
+  await expect(publicDemoService.progress({...session,role:'Oficina'},'payments','current-work')).resolves.toEqual({invoices:0,payments:0});
 });

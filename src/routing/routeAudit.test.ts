@@ -7,6 +7,7 @@ import { canAccessModule, canAccessRoute } from '../auth/permissions';
 import { moduleRegistry } from './moduleCatalog';
 import { moduleAliases } from './sidebarRoutes';
 import { parseManualRoute } from './appRoutes';
+import { demoRoles, demoTourSteps, type DemoSession, type DemoTour } from '../demo/model';
 import type { Profile, RoleName, Workspace } from '../shared/types';
 
 const roles: [Workspace, RoleName][] = [['sat', 'SAT'], ['tecnico', 'Tecnico'], ['oficina', 'Oficina'], ['comercial', 'Comercial'], ['gerencia', 'Gerencia'], ['superadmin', 'superadmin']];
@@ -57,5 +58,20 @@ describe('cross-profile route audit', () => {
       return new RegExp('^' + route.replace(/:[^/]+/g, '[^/]+') + '$').test(path);
     });
     expect(paths.filter(path => !resolved(path))).toEqual([]);
+  });
+});
+
+describe('demo journey destinations', () => {
+  const tours: DemoTour[] = ['discover', 'connected', 'work', 'purchases', 'updates'];
+  const scenarios = tours.flatMap(tour => demoRoles.map(({ id: role }) => ({ tour, role })));
+
+  it.each(scenarios)('$tour gives $role a reachable destination at every step', ({ tour, role }) => {
+    const session = { role, work_order_id: 'audit-work' } as DemoSession;
+    const steps = demoTourSteps(session, tour);
+    expect(steps.length).toBeGreaterThan(0);
+    expect(steps.filter(step => {
+      const actor = profile(step.role ?? step.requiredRole ?? role);
+      return !canAccessRoute(actor, step.route.split('?')[0]) || !step.target || !step.text.trim();
+    }).map(step => step.title)).toEqual([]);
   });
 });

@@ -72,7 +72,7 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
   const detected=persistedWorkStep?(completion[step.goal!]??0)>0:allChecks?(checkTotal??0)>0&&checkCount===checkTotal:Boolean(evidence[index]?.saved);
   const taskSurface=isDemoTaskSurface(step,location.pathname+location.search);
   const automatic=progress.open&&!paused&&!required&&!step.finale&&tour!=='updates';
-  const advance=()=>{const key=tour+':'+index;if(lastAdvanced.current===key||index>=steps.length-1)return;lastAdvanced.current=key;setProgress({step:index+1,open:true});setExpanded(false);const next=steps[index+1];if(sharedJourney(tour)&&next.requiredRole===session.role&&!isDemoTaskSurface(next,location.pathname+location.search))navigate(next.route);};
+  const advance=(openNextScreen=true)=>{const key=tour+':'+index;if(lastAdvanced.current===key||index>=steps.length-1)return;lastAdvanced.current=key;setProgress({step:index+1,open:true});setExpanded(false);const next=steps[index+1];if(openNextScreen&&sharedJourney(tour)&&next.requiredRole===session.role&&!isDemoTaskSurface(next,location.pathname+location.search))navigate(next.route);};
   useEffect(()=>{if(!progress.open)return;const scan=()=>{setSmallScreen(window.innerWidth<=540);setFormOpen(Boolean(document.querySelector('[role="dialog"],.mini-modal')));setCompactReview(window.innerWidth<=540&&Boolean(document.querySelector('main [data-demo-check-results]')));if(step.goal==='checks')setReviewHint(checkTaskHint(findDemoTarget(step)));};scan();const observer=new MutationObserver(scan);observer.observe(document.body,{childList:true,subtree:true});window.addEventListener('resize',scan);document.addEventListener('input',scan,true);document.addEventListener('change',scan,true);return()=>{observer.disconnect();window.removeEventListener('resize',scan);document.removeEventListener('input',scan,true);document.removeEventListener('change',scan,true);};},[progress.open,index,tour,step.goal]);
   useEffect(() => {
     if (!automatic || formOpen || !taskSurface || !['invoices', 'payments'].includes(step.goal ?? '')) return;
@@ -114,6 +114,17 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
     document.addEventListener('click',followMenu,true);
     return()=>document.removeEventListener('click',followMenu,true);
   },[automatic,index,tour,session.role]);
+  useEffect(() => {
+    if (!automatic || !taskSurface || !['Cobros a la vista', 'Comprueba los pendientes'].includes(step.title)) return;
+    // Prepare the next mission once the calendar opens, without leaving Cobros.
+    const scan = () => {
+      if (document.querySelector('main .collections-calendar:not([hidden])')) advance(false);
+    };
+    scan();
+    const observer = new MutationObserver(scan);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
+    return () => observer.disconnect();
+  }, [automatic, taskSurface, index, tour, location.pathname]);
   const launchTarget=()=>{
     if(!isDemoTaskSurface(step,location.pathname+location.search))return false;
     const reveal:Record<string,RegExp>={times:/^Horas/,signatures:/^Firma/,work_materials:/^Material utilizado/,travel:/^Desplazamientos/};

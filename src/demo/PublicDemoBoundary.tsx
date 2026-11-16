@@ -74,6 +74,27 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
   const automatic=progress.open&&!paused&&!required&&!step.finale&&tour!=='updates';
   const advance=()=>{const key=tour+':'+index;if(lastAdvanced.current===key||index>=steps.length-1)return;lastAdvanced.current=key;setProgress({step:index+1,open:true});setExpanded(false);const next=steps[index+1];if(sharedJourney(tour)&&next.requiredRole===session.role&&!isDemoTaskSurface(next,location.pathname+location.search))navigate(next.route);};
   useEffect(()=>{if(!progress.open)return;const scan=()=>{setSmallScreen(window.innerWidth<=540);setFormOpen(Boolean(document.querySelector('[role="dialog"],.mini-modal')));setCompactReview(window.innerWidth<=540&&Boolean(document.querySelector('main [data-demo-check-results]')));if(step.goal==='checks')setReviewHint(checkTaskHint(findDemoTarget(step)));};scan();const observer=new MutationObserver(scan);observer.observe(document.body,{childList:true,subtree:true});window.addEventListener('resize',scan);document.addEventListener('input',scan,true);document.addEventListener('change',scan,true);return()=>{observer.disconnect();window.removeEventListener('resize',scan);document.removeEventListener('input',scan,true);document.removeEventListener('change',scan,true);};},[progress.open,index,tour,step.goal]);
+  useEffect(() => {
+    if (!automatic || formOpen || !taskSurface || !['invoices', 'payments'].includes(step.goal ?? '')) return;
+    const scan = () => {
+      const state = document.querySelector<HTMLElement>('[data-demo-billing-state]')?.dataset.demoBillingState;
+      if (!state) return;
+      const { pending, issued } = JSON.parse(state) as {
+        pending: boolean;
+        issued: { workIds: string[]; paid: boolean }[];
+      };
+      const matching = issued.filter(invoice => guidedWork && invoice.workIds.includes(guidedWork));
+      // In the short tour, Office can use its own example when it is the only
+      // invoice, it has a saved payment, and there is no remaining work to bill.
+      const officeExample = tour === 'discover' && !pending && issued.length === 1 && issued[0].paid;
+      if (officeExample || matching.some(invoice => step.goal === 'invoices' || invoice.paid)) advance();
+    };
+    scan();
+    const observer = new MutationObserver(scan);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true,
+      attributeFilter: ['data-demo-billing-state'] });
+    return () => observer.disconnect();
+  }, [automatic, formOpen, taskSurface, step.goal, guidedWork, index, tour]);
   useEffect(()=>{if(automatic&&!formOpen&&detected)advance();},[automatic,detected,formOpen,index,tour]);
   useEffect(()=>setLaunchFailure(''),[index,tour]);
   useEffect(()=>{const event=step.title==='Haz un estudio de costes'?'dmp-cost-study-saved':step.title==='Registra la factura del proveedor'?'dmp-supplier-payment-recorded':step.title==='Prepara un presupuesto'?'dmp-quote-line-saved':step.title==='Explora el contrato de mantenimiento'?'dmp-maintenance-saved':null;if(!automatic||!event)return;const saved=(received:Event)=>{if(event==='dmp-supplier-payment-recorded'&&(received as CustomEvent).detail?.id!==new URLSearchParams(location.search).get('id'))return;advance();};window.addEventListener(event,saved);return()=>window.removeEventListener(event,saved);},[automatic,index,tour,location.search]);

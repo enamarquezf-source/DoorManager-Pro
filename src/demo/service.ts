@@ -49,7 +49,8 @@ export const publicDemoService = {
         .eq('invoice_work_orders.company_id', session.company_id)
         .eq('invoice_work_orders.work_order_id', activeWorkId)
         .is('invoice_work_orders.deleted_at', null)
-        .neq('status', 'cancelada');
+        .neq('status', 'cancelada')
+        .neq('status', 'borrador');
       if (error) throw friendly(error);
       const invoices = data ?? [];
       return { invoices: invoices.length, payments: invoices.filter(invoice => Number(invoice.paid_amount) > 0).length };

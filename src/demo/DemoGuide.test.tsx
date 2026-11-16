@@ -338,3 +338,34 @@ it.each(['discover','connected'] as const)('resumes %s after SAT already sent th
     host.remove();
   }
 });
+
+it.each([
+  ['discover', false, true, true],
+  ['discover', true, true, false],
+  ['discover', false, false, false],
+  ['connected', false, true, false],
+] as const)('recovers the billing board in %s with pending=%s and paid=%s', async (tour, pending, paid, advances) => {
+  const office = { ...session, role: 'Oficina', work_order_id: 'guided-work' };
+  const steps = demoTourSteps(office, tour);
+  const invoiceStep = steps.findIndex(step => step.goal === 'invoices');
+  const paymentStep = steps.findIndex(step => step.goal === 'payments');
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+  mocks.progress.mockResolvedValue({ invoices: 0, payments: 0 });
+  function Harness() {
+    const [progress, setProgress] = useState({ step: invoiceStep, open: true });
+    return <>
+      <main data-demo-billing-state={JSON.stringify({ pending, issued: [{ workIds: ['office-example'], paid }] })} />
+      <output>{progress.step}</output>
+      <DemoGuide session={office} progress={progress} setProgress={setProgress} onRole={async () => {}} tour={tour} />
+    </>;
+  }
+  try {
+    await act(async () => root.render(<MemoryRouter initialEntries={['/app/modulos/facturacion']}><Harness /></MemoryRouter>));
+    expect(host.querySelector('output')?.textContent).toBe(String(advances ? paymentStep + 1 : invoiceStep));
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
+});

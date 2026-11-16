@@ -34,12 +34,13 @@ it('scopes technician completion, hours and signatures to the work currently ope
 
 it('recognizes a recorded customer payment for the guided work without waiting on aggregate progress', async () => {
   mock.rpc.mockRejectedValue(new Error('aggregate unavailable'));
-  mock.rows.invoices={data:[{id:'draft',paid_amount:0},{id:'paid',paid_amount:'95.00'}],error:null};
+  mock.rows.invoices={data:[{id:'issued',paid_amount:0},{id:'paid',paid_amount:'95.00'}],error:null};
   await expect(publicDemoService.progress({...session,role:'Oficina'},'payments','current-work')).resolves.toEqual({invoices:2,payments:1});
   expect(mock.rpc).not.toHaveBeenCalled();
   expect(mock.queries[0].filters).toContainEqual(['invoice_work_orders.work_order_id','current-work']);
   expect(mock.queries[0].filters).toContainEqual(['company_id','own-company']);
   expect(mock.queries[0].filters).toContainEqual(['status','cancelada']);
+  expect(mock.queries[0].filters).toContainEqual(['status','borrador']);
 });
 
 it('does not count seed invoices or payments when the guided work has no invoice', async () => {

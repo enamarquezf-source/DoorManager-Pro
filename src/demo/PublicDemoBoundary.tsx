@@ -10,7 +10,7 @@ import { guideCopy } from './guideCopy';
 import {journeyProgressKey,sharedJourney,observeMission,readEvidence,type MissionEvidence} from './journey';
 import {DemoJourneyFinish} from './DemoJourneyFinish';
 import {readDemoWork,rememberDemoWork} from './workFocus';
-import {navigationCompletes,interactionCompletes,navigationMission} from './autoGuide';
+import {navigationCompletes,navigationMission} from './autoGuide';
 import { Sparkles, CheckCircle2, MousePointer2 } from 'lucide-react';
 
 type Progress = { step: number; open: boolean };
@@ -114,14 +114,13 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
     document.addEventListener('click',followMenu,true);
     return()=>document.removeEventListener('click',followMenu,true);
   },[automatic,index,tour,session.role]);
-  useEffect(()=>{if(!automatic)return;const click=(event:Event)=>{const element=event.target instanceof Element?event.target.closest('button,a,summary'):null;if(!element||element.closest('.demo-guide,[role="dialog"],.mini-modal'))return;if(interactionCompletes(step,(element.textContent??'').trim()))advance();};document.addEventListener('click',click,true);return()=>document.removeEventListener('click',click,true);},[automatic,index,tour]);
   const launchTarget=()=>{
     if(!isDemoTaskSurface(step,location.pathname+location.search))return false;
     const reveal:Record<string,RegExp>={times:/^Horas/,signatures:/^Firma/,work_materials:/^Material utilizado/,travel:/^Desplazamientos/};
     if(reveal[step.goal??''])for(const summary of document.querySelectorAll<HTMLElement>('main details>summary'))if(reveal[step.goal!].test((summary.textContent??'').trim()))summary.closest('details')!.open=true;
     const target=findDemoTarget(step);if(!target||target.closest('[role="dialog"],.mini-modal'))return false;
     // A page heading can appear before its action has loaded. Keep waiting for creation controls.
-    if((['clients','sites','works','catalog_materials','suppliers','purchase_orders'].includes(step.goal??'')||['Un aviso, tres equipos','Tu jornada preparada','De campo a Oficina','Recibe un trabajo revisado','Cobros a la vista','Comprueba los pendientes','Entiende el margen','Compara margen y costes','Comprueba las existencias'].includes(step.title))&&!target.matches('button,a,summary'))return false;
+    if((['clients','sites','works','catalog_materials','suppliers','purchase_orders'].includes(step.goal??'')||['Un aviso, tres equipos','Tu jornada preparada','De campo a Oficina','Recibe un trabajo revisado','Entiende el margen','Compara margen y costes','Comprueba las existencias'].includes(step.title))&&!target.matches('button,a,summary'))return false;
     setLaunchTask(false);
     const safeClick=!['invoices','payments','completed_work','sat_approved','ordered_purchases','purchase_receipts','signatures'].includes(step.goal??'')&&step.title!=='Registra la factura del proveedor'&&step.title!=='Haz un estudio de costes';
     const confirmsResult=/^((?:Confirmar selección|Guardar y continuar)|Finalizar check|Reintentar finalizar y enviar)$/i.test((target.textContent??'').trim());

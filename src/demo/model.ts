@@ -42,7 +42,7 @@ export function demoTourSteps(session: DemoSession,tour:DemoTour='work'): DemoSt
    tech[3],tech[4],
    {title:'Registra el desplazamiento',text:'En Registro, abre Desplazamientos. Pulsa Añadir desplazamiento, indica los kilómetros ficticios y guarda.',route:tech[4].route,target:'[data-demo-travel]',goal:'travel',requiredRole:'Tecnico'},
    tech[5],tech[6],sat[5],office[2],office[3],
-   {...office[4],title:'Cobros a la vista',requiredRole:'Gerencia',text:'Comprueba el saldo tras el cobro de Oficina. Pulsa Ver calendario o filtra por vencimiento.'},
+   {...office[4],title:'Cobros a la vista',requiredRole:'Gerencia',text:'Pulsa Ver calendario y revisa los vencimientos. Puedes filtrar los cobros y cambiar de mes. Pulsa Siguiente en la guía cuando termines.'},
    {...management[1],text:'Consulta los gastos del mismo parte: horas y desplazamiento. Compara su coste real con la venta y abre el parte para ver de dónde salen los importes.'},
    {...management[3],target:'.cost-study-panel'},
    {title:'Del parte al resultado',text:'Has seguido un mismo trabajo desde el check hasta la factura y el cobro, y has guardado un estudio de costes.',route:'/app/gerencia',target:'.cost-study-panel',requiredRole:'Gerencia',finale:true}

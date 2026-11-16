@@ -140,10 +140,10 @@ expect(host.querySelector('[aria-label="Guía reducida"]')).not.toBeNull();mocks
 await act(async()=>dialog.remove());expect(host.querySelector('h2')?.textContent).toBe('Añade el centro de trabajo');
 }finally{await act(async()=>root.unmount());host.remove();}});
 
-it('recognizes an app action before React changes the button label on that same click',async()=>{
+it('keeps the calendar open in the current mission until the visitor continues',async()=>{
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
 function Harness(){const[p,setP]=useState({step:10,open:true});const[open,setOpen]=useState(false);return <><main><button onClick={()=>setOpen(!open)}>{open?'Ocultar calendario':'Ver calendario'}</button></main><DemoGuide session={{...session,role:'Gerencia'}} tour="discover" progress={p} setProgress={setP} onRole={async()=>{}}/></>;}
-try{await act(async()=>root.render(<MemoryRouter><Harness/></MemoryRouter>));await act(async()=>host.querySelector<HTMLButtonElement>('main button')!.click());expect(host.querySelector('h2')?.textContent).toBe('Compara margen y costes');}finally{await act(async()=>root.unmount());host.remove();}});
+try{await act(async()=>root.render(<MemoryRouter initialEntries={['/app/modulos/cobros']}><Harness/></MemoryRouter>));await act(async()=>host.querySelector<HTMLButtonElement>('main button')!.click());expect(host.querySelector('main button')?.textContent).toBe('Ocultar calendario');expect(host.querySelector('h2')?.textContent).toBe('Cobros a la vista');await act(async()=>host.querySelector<HTMLButtonElement>('.demo-skip')!.click());expect(host.querySelector('h2')?.textContent).toBe('Compara margen y costes');}finally{await act(async()=>root.unmount());host.remove();}});
 
 it('opens the indicated creation form directly rather than requiring a second tutorial click',async()=>{
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;const host=document.createElement('div');document.body.append(host);const root=createRoot(host);const create=vi.fn();

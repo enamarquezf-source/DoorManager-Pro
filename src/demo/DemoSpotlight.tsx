@@ -65,6 +65,8 @@ export function findDemoTarget(step: DemoStep): HTMLElement | null {
     if(review&&available(review))return review;
   }
   if(step.title==='Cobros a la vista'||step.title==='Comprueba los pendientes') {
+    const openCalendar=document.querySelector<HTMLElement>('main .collections-calendar:not([hidden])');
+    if(openCalendar&&available(openCalendar))return openCalendar;
     const calendar=[...document.querySelectorAll<HTMLElement>('main button,main summary')].find(element=>available(element)&&/^Ver calendario$/.test((element.textContent??'').trim()));
     if(calendar)return calendar;
   }

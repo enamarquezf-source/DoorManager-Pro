@@ -1,5 +1,5 @@
 import {expect,it} from 'vitest';
-import {interactionCompletes,navigationCompletes,navigationMission} from './autoGuide';
+import {navigationCompletes,navigationMission} from './autoGuide';
 import {demoTourSteps,type DemoSession} from './model';
 const session={id:'visitor',role:'Tecnico',work_order_id:'own'} as DemoSession;
 it('follows opening the prepared work and a check without treating a page refresh as completion',()=>{
@@ -12,23 +12,19 @@ it('follows opening the prepared work and a check without treating a page refres
 it('requires saved evidence for write missions rather than clicks or visits',()=>{
  const step=demoTourSteps({...session,role:'SAT'},'connected')[0];
  expect(navigationCompletes(step,'/app/clientes','/app/clientes/client')).toBe(false);
- expect(interactionCompletes(step,'Crear cliente')).toBe(false);
 });
-it('recognizes reading the calendar and the user intentionally navigating to another section',()=>{
+it('keeps the collections step open while reading the calendar and follows deliberate section navigation',()=>{
  const steps=demoTourSteps(session,'discover');
  const collections=steps.findIndex(step=>step.title==='Cobros a la vista');
- expect(interactionCompletes(steps[collections],'Ver calendario')).toBe(true);
- expect(interactionCompletes(steps[collections],'Actualizar')).toBe(false);
  expect(navigationMission(steps,0,'/app/modulos/cobros','Tecnico')).toBe(-1);
  expect(navigationMission(steps,0,'/app/modulos/cobros','Gerencia')).toBe(collections);
 });
-it('recognizes opening the received material and never treats a save click as a saved study',()=>{
+it('recognizes opening the received material',()=>{
  const steps=demoTourSteps({...session,role:'Gerencia'},'purchases');expect(navigationCompletes(steps[5],'/app/modulos/materiales','/app/modulos/materiales/rodillo')).toBe(true);
- expect(interactionCompletes({title:'Haz un estudio de costes'} as any,'Guardar estudio')).toBe(false);
 });
 
-it('advances the management overview when a work is actually opened',()=>{
+it('keeps the management overview on the current step while the visitor reads the work',()=>{
  const step=demoTourSteps({...session,role:'Gerencia'},'work')[0];
- expect(navigationCompletes(step,'/app/inicio','/app/partes/example')).toBe(true);
+ expect(navigationCompletes(step,'/app/inicio','/app/partes/example')).toBe(false);
  expect(navigationCompletes(step,'/app/inicio','/app/partes')).toBe(false);
 });

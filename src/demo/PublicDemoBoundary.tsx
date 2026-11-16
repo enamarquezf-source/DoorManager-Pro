@@ -100,7 +100,18 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
   useEffect(()=>{const event=step.title==='Haz un estudio de costes'?'dmp-cost-study-saved':step.title==='Registra la factura del proveedor'?'dmp-supplier-payment-recorded':step.title==='Prepara un presupuesto'?'dmp-quote-line-saved':step.title==='Explora el contrato de mantenimiento'?'dmp-maintenance-saved':null;if(!automatic||!event)return;const saved=(received:Event)=>{if(event==='dmp-supplier-payment-recorded'&&(received as CustomEvent).detail?.id!==new URLSearchParams(location.search).get('id'))return;advance();};window.addEventListener(event,saved);return()=>window.removeEventListener(event,saved);},[automatic,index,tour,location.search]);
   useEffect(()=>{const expected=step.title==='Registra el envío del presupuesto'?'Enviado':step.title==='Simula la aceptación del cliente'?'Aceptado':null;if(!automatic||!expected)return;const saved=(event:Event)=>{if((event as CustomEvent).detail?.status===expected)advance();};window.addEventListener('dmp-quote-status-saved',saved);return()=>window.removeEventListener('dmp-quote-status-saved',saved);},[automatic,index,tour]);
   useEffect(()=>{if(!automatic||formOpen||step.title!=='Comprueba los conceptos')return;const scan=()=>{if(document.querySelector('main [data-economic-review="approved"]'))advance();};scan();const observer=new MutationObserver(scan);observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['data-economic-review']});return()=>observer.disconnect();},[automatic,formOpen,index,tour,location.pathname]);
-  useEffect(()=>{const path=location.pathname+location.search;const before=lastLocation.current;lastLocation.current=path;if(automatic&&navigationCompletes(step,before,path))advance();},[location.pathname,location.search,automatic,index,tour]);
+  useEffect(() => {
+    const path = location.pathname + location.search;
+    const before = lastLocation.current;
+    lastLocation.current = path;
+    if (!automatic) return;
+    const profitabilityReview = step.title === 'Compara margen y costes' || step.title === 'Entiende el margen';
+    if (profitabilityReview && /^\/app\/partes\/[^/]+\/?$/.test(location.pathname)) {
+      advance(false);
+    } else if (navigationCompletes(step, before, path)) {
+      advance();
+    }
+  }, [location.pathname, location.search, automatic, index, tour]);
   useEffect(()=>{
     if(!automatic)return;
     const followMenu=(event:MouseEvent)=>{

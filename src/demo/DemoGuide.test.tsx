@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import {act,useState} from 'react';
 import {createRoot} from 'react-dom/client';
-import {MemoryRouter} from 'react-router-dom';
+import {Link,MemoryRouter} from 'react-router-dom';
 import {useLocation} from 'react-router-dom';
 import {it,expect,vi,afterEach} from 'vitest';
 import {demoTourSteps,type DemoTour} from './model';
@@ -369,3 +369,37 @@ it.each([
     host.remove();
   }
 });
+
+it.each(['/app/modulos/cobros', '/app/partes/office-example?vista=horas'])(
+  'prepares the cost study and keeps the work open from %s', async initialPath => {
+    const officeWork = '/app/partes/office-example?vista=horas';
+    const manager = { ...session, role: 'Gerencia' };
+    const steps = demoTourSteps(manager, 'discover');
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    const rects = vi.spyOn(HTMLElement.prototype, 'getClientRects').mockReturnValue([{ width: 100, height: 40 }] as any);
+    function Harness() {
+      const location = useLocation();
+      const [progress, setProgress] = useState({ step: steps.findIndex(step => step.title === 'Compara margen y costes'), open: true });
+      return <>
+        <main>{location.pathname === '/app/modulos/rentabilidad' && <Link to={officeWork}>Abrir parte de Oficina</Link>}</main>
+        <output>{location.pathname + location.search}</output>
+        <DemoGuide session={manager} progress={progress} setProgress={setProgress} onRole={async () => {}} tour="discover" />
+      </>;
+    }
+    try {
+      await act(async () => root.render(<MemoryRouter initialEntries={[initialPath]}><Harness /></MemoryRouter>));
+      if (initialPath !== officeWork) {
+        expect(host.querySelector('.demo-guide-next')?.textContent).toContain('Ver rentabilidad');
+        await act(async () => host.querySelector<HTMLButtonElement>('.demo-guide-next')!.click());
+      }
+      expect(host.querySelector('output')?.textContent).toBe(officeWork);
+      expect(host.querySelector('h2')?.textContent).toBe('Haz un estudio de costes');
+    } finally {
+      rects.mockRestore();
+      await act(async () => root.unmount());
+      host.remove();
+    }
+  },
+);

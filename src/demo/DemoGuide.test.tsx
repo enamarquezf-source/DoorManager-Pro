@@ -403,3 +403,31 @@ it.each(['/app/modulos/cobros', '/app/partes/office-example?vista=horas'])(
     }
   },
 );
+
+it.each(['connected', 'work'] as const)('prepares the cost study after selecting the quarter in %s', async tour => {
+  const manager = { ...session, role: 'Gerencia' };
+  const steps = demoTourSteps(manager, tour);
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+  function Harness() {
+    const location = useLocation();
+    const [quarter, setQuarter] = useState(false);
+    const [progress, setProgress] = useState({ step: steps.findIndex(step => step.title === 'Analiza el tiempo'), open: true });
+    return <>
+      <main><button data-demo-study-quarter onClick={() => setQuarter(true)}>Últimos 3 meses</button></main>
+      <output>{location.pathname}:{String(quarter)}</output>
+      <DemoGuide session={manager} progress={progress} setProgress={setProgress} onRole={async () => {}} tour={tour} />
+    </>;
+  }
+  try {
+    await act(async () => root.render(<MemoryRouter initialEntries={['/app/gerencia']}><Harness /></MemoryRouter>));
+    expect(host.querySelector('h2')?.textContent).toBe('Analiza el tiempo');
+    await act(async () => host.querySelector<HTMLButtonElement>('main button')!.click());
+    expect(host.querySelector('output')?.textContent).toBe('/app/gerencia:true');
+    expect(host.querySelector('h2')?.textContent).toBe('Haz un estudio de costes');
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
+});

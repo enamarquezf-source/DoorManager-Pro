@@ -136,6 +136,15 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
     observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
     return () => observer.disconnect();
   }, [automatic, taskSurface, index, tour, location.pathname]);
+  useEffect(() => {
+    if (!automatic || !taskSurface || step.title !== 'Analiza el tiempo') return;
+    const selectPeriod = (event: MouseEvent) => {
+      const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('main button[data-demo-study-quarter]') : null;
+      if (button && !button.disabled && !button.closest('fieldset[disabled]')) advance(false);
+    };
+    document.addEventListener('click', selectPeriod);
+    return () => document.removeEventListener('click', selectPeriod);
+  }, [automatic, taskSurface, index, tour]);
   const launchTarget=()=>{
     if(!isDemoTaskSurface(step,location.pathname+location.search))return false;
     const reveal:Record<string,RegExp>={times:/^Horas/,signatures:/^Firma/,work_materials:/^Material utilizado/,travel:/^Desplazamientos/};

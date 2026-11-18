@@ -142,9 +142,9 @@ describe('quotes management 034', () => {
     expect(app).not.toContain('window.open');
   });
 
-  it('keeps quote statuses ready for future invoicing without changing totals on status edits', () => {
+  it('keeps quote status transitions separate from invoice totals', () => {
     for (const status of ['Borrador', 'Enviado', 'Aceptado', 'Ejecutado en cliente', 'Rechazado', 'Caducado', 'Cancelado']) expect(quotesService).toContain(status);
-    expect(app).toContain('Estados candidatos para fases futuras: Aceptado y Ejecutado en cliente');
+    expect(app).toContain('La facturación se realiza desde el parte revisado y aprobado.');
     expect(quotesService).toContain("supabase.rpc('dmp_change_quote_status'");
     expect(quotesService).toContain("return this.changeStatus(id, 'Enviado', 'Envio al cliente', email);");
     expect(quotesService).not.toContain('tax_amount: payload.status');

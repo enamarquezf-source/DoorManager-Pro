@@ -67,7 +67,7 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
   const allChecks=step.goal==='checks'&&tour!=='discover';
   const checkTotal=step.goal==='checks'?completion.work_checks:undefined;
   const checkCount=Math.min(checkTotal??0,completion.checks??0);
-  const persistedWorkStep = Boolean(guidedWork && (step.goal === 'invoices' || step.goal === 'payments'
+  const persistedWorkStep = Boolean(guidedWork && (step.goal === 'assignments' || step.goal === 'invoices' || step.goal === 'payments'
     || (session.role === 'SAT' && step.goal === 'sat_approved')));
   const detected=persistedWorkStep?(completion[step.goal!]??0)>0:allChecks?(checkTotal??0)>0&&checkCount===checkTotal:Boolean(evidence[index]?.saved);
   const taskSurface=isDemoTaskSurface(step,location.pathname+location.search);

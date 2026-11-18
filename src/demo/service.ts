@@ -41,6 +41,15 @@ export async function clearDemoDevice() {
 export const publicDemoService = {
   async journeysAvailable() { const data = await rpc('dmp_demo_status'); return data?.journeys === 2; },
   async progress(session?:DemoSession,goal?:string,activeWorkId?:string) {
+    if (session && activeWorkId && goal === 'assignments') {
+      guard();
+      const { count, error } = await supabase.from('work_order_assignments')
+        .select('id', { count: 'exact', head: true })
+        .eq('company_id', session.company_id).eq('work_order_id', activeWorkId)
+        .is('deleted_at', null).neq('status', 'Cancelado');
+      if (error) throw friendly(error);
+      return { assignments: count ?? 0 };
+    }
     if (session && activeWorkId && (goal === 'invoices' || goal === 'payments')) {
       guard();
       const { data, error } = await supabase.from('invoices')

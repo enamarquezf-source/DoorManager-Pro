@@ -48,3 +48,12 @@ it('does not count seed invoices or payments when the guided work has no invoice
   mock.rpc.mockResolvedValue({data:{invoices:10,payments:10},error:null});
   await expect(publicDemoService.progress({...session,role:'Oficina'},'payments','current-work')).resolves.toEqual({invoices:0,payments:0});
 });
+
+it('does not count another work assignment when SAT receives a new commercial work', async () => {
+  mock.rpc.mockResolvedValue({data:{assignments:9},error:null});
+  mock.rows.work_order_assignments={count:0,error:null};
+  await expect(publicDemoService.progress({...session,role:'SAT'},'assignments','new-commercial-work'))
+    .resolves.toEqual({assignments:0});
+  expect(mock.rpc).not.toHaveBeenCalled();
+  expect(mock.queries[0].filters).toEqual([['company_id','own-company'],['work_order_id','new-commercial-work'],['status','Cancelado']]);
+});

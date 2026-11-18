@@ -118,6 +118,9 @@ main { padding: 24px; }
 .invoice-print-totals span { display: grid; gap: 4px; text-align: right; color: #627188; }
 .invoice-print-totals strong { color: #172033; font-size: 16px; }
 .invoice-print-notes { display: none; }
+.document-download { display: inline-flex; flex-direction: column; gap: 5px; max-width: 100%; }
+.document-download > button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.document-download [role="alert"] { max-width: 280px; font-size: 12px; }
 .mini-modal h3 { margin: 0; }
 .mini-modal label { display: grid; gap: 7px; font-weight: 850; }
 .mini-modal input, .mini-modal textarea, .mini-modal select { min-height: 42px; border: 1px solid var(--line); border-radius: 12px; padding: 0 10px; background: white; color: var(--dark); min-width: 0; }
@@ -824,6 +827,33 @@ dt { color: var(--text-soft); font-size: 12px; font-weight: 800; } dd { margin: 
   .invoice-view-modal { display: none !important; }
   .invoice-print-document { display: block !important; position: absolute; inset: 0; padding: 12mm; background: white; color: #172033; }
   .invoice-print-document header, .invoice-print-document table, .invoice-print-document .invoice-print-parties, .invoice-print-document .invoice-print-totals { break-inside: avoid; }
+}
+
+/* Print the document alone, with comfortable A4 margins and repeatable table headings. */
+@media print {
+  @page { size: A4; margin: 14mm; }
+  .demo-session-bar, .demo-role-menu, .demo-guide, .demo-spotlight-label,
+  .document-download, .back-link, .mobile-bottom-nav { display: none !important; }
+  .workspace { display: block !important; }
+  .workspace > main { margin: 0 !important; padding: 0 !important; }
+  body:has(.invoice-print-document) .billing-page > :not(.invoice-print-document) { display: none !important; }
+  .invoice-print-document { position: static !important; padding: 0 !important; font: 10pt/1.5 Arial, sans-serif; }
+  .invoice-print-document header { border-bottom: 3px solid #173f47; padding: 0 0 7mm; }
+  .invoice-print-document h1 { color: #173f47; font-size: 26pt; letter-spacing: -.04em; }
+  .invoice-print-document .eyebrow { color: #586d71; letter-spacing: .12em; }
+  .invoice-print-document .invoice-print-parties > div { padding: 5mm; background: #edf5f2; border: 1px solid #d5e3de; border-radius: 3mm; }
+  .invoice-print-document table { font-size: 8pt; table-layout: fixed; }
+  .invoice-print-document th:first-child { width: 29%; }
+  .invoice-print-document td { overflow-wrap: anywhere; }
+  .invoice-print-document table, .quote-report-table table { break-inside: auto !important; }
+  .invoice-print-document tr, .quote-report tr { break-inside: avoid; }
+  .invoice-print-document thead, .quote-report thead { display: table-header-group; }
+  .invoice-print-document .invoice-print-notes { display: block; margin-top: 8mm; padding-top: 4mm; border-top: 1px solid #d5e3de; }
+  .invoice-print-totals { padding: 6mm; background: #edf5f2; border: 1px solid #d5e3de; border-radius: 3mm; margin-top: 5mm; }
+  .quote-report { color: #173f47; font: 10pt/1.5 Arial, sans-serif; }
+  .quote-report-hero { border-bottom: 3px solid #173f47; padding-bottom: 6mm; }
+  .quote-report-hero h1 { font-size: 26pt; letter-spacing: -.04em; }
+  .quote-report-grid > div { padding: 4mm; background: #edf5f2; border: 1px solid #d5e3de; border-radius: 3mm; }
 }
 
 /* Approved UI-A/UI-B/UI-E/UI-G/UI-H baseline additions. */

@@ -69,7 +69,7 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
   const checkCount=Math.min(checkTotal??0,completion.checks??0);
   const persistedWorkStep = Boolean(guidedWork && (step.goal === 'assignments' || step.goal === 'invoices' || step.goal === 'payments'
     || (session.role === 'SAT' && step.goal === 'sat_approved')));
-  const detected=persistedWorkStep?(completion[step.goal!]??0)>0:allChecks?(checkTotal??0)>0&&checkCount===checkTotal:Boolean(evidence[index]?.saved);
+  const detected=persistedWorkStep?(completion[step.goal!]??0)>0:step.goal==='checks'&&tour==='discover'?(completion.checks??0)>0:allChecks?(checkTotal??0)>0&&checkCount===checkTotal:Boolean(evidence[index]?.saved);
   const taskSurface=isDemoTaskSurface(step,location.pathname+location.search);
   const automatic=progress.open&&!paused&&!required&&!step.finale&&tour!=='updates';
   const advance=(openNextScreen=true)=>{const key=tour+':'+index;if(lastAdvanced.current===key||index>=steps.length-1)return;lastAdvanced.current=key;setProgress({step:index+1,open:true});setExpanded(false);const next=steps[index+1];if(openNextScreen&&sharedJourney(tour)&&next.requiredRole===session.role&&!isDemoTaskSurface(next,location.pathname+location.search))navigate(next.route);};

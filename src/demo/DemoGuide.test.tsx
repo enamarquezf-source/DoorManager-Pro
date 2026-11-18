@@ -35,6 +35,16 @@ it('follows a deliberate sidebar visit to billing without marking skipped tasks 
  }finally{await act(async()=>root.unmount());}
 });
 afterEach(()=>{vi.clearAllMocks();mocks.progress.mockResolvedValue({clients:0});localStorage.clear();document.body.innerHTML='';});
+it('recognizes an already completed check when reopening the discovery guide',async()=>{
+ vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);
+ mocks.progress.mockResolvedValue({checks:1,work_checks:3});
+ const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ const setProgress=vi.fn();
+ try{
+  await act(async()=>root.render(<MemoryRouter initialEntries={['/app/tecnico/trabajo/own-work?vista=checks']}><DemoGuide session={{...session,role:'Tecnico',work_order_id:'own-work'}} tour="discover" progress={{step:1,open:true}} setProgress={setProgress} onRole={async()=>{}}/></MemoryRouter>));
+  expect(setProgress).toHaveBeenCalledWith({step:2,open:true});
+ }finally{await act(async()=>root.unmount());vi.unstubAllGlobals();}
+});
 it.each([390,576,760])('starts collapsed at %ipx and returns to the bar after dismissing the instructions',async(width)=>{
  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);
  vi.stubGlobal('innerWidth',width);

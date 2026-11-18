@@ -105,8 +105,9 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
     const before = lastLocation.current;
     lastLocation.current = path;
     if (!automatic) return;
-    const profitabilityReview = step.title === 'Compara margen y costes' || step.title === 'Entiende el margen';
-    if (profitabilityReview && /^\/app\/partes\/[^/]+\/?$/.test(location.pathname)) {
+    const openedWorkReview = ['Explora una empresa con actividad', 'Compara margen y costes', 'Entiende el margen'].includes(step.title);
+    const justAdvancedHere = before === path && lastAdvanced.current === tour + ':' + (index - 1);
+    if (openedWorkReview && !justAdvancedHere && /^\/app\/partes\/[^/]+\/?$/.test(location.pathname)) {
       advance(false);
     } else if (navigationCompletes(step, before, path)) {
       advance();
@@ -158,7 +159,7 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
     if(safeClick&&!confirmsResult&&target.matches('button,a,summary')){target.click();return true;}
     target.scrollIntoView({behavior:'smooth',block:'center'});if(target.matches('input,textarea,select'))target.focus();return true;
   };
-  useEffect(()=>{if(!launchTask||!progress.open)return;if(launchMission.current!==tour+':'+index){setLaunchTask(false);return;}let observer:MutationObserver|undefined;const open=()=>{if(!launchTarget())return false;setLaunchTask(false);return true;};if(open())return;observer=new MutationObserver(()=>{if(open())observer?.disconnect();});observer.observe(document.body,{childList:true,subtree:true});const stop=setTimeout(()=>{setLaunchTask(false);setLaunchFailure('Todavía no aparece la acción de este paso. Revisa que estés en el registro indicado y vuelve a probar.');},8000);return()=>{observer?.disconnect();clearTimeout(stop);};},[launchTask,location.pathname,location.search,index,tour,progress.open]);
+  useEffect(()=>{if(!launchTask||!progress.open)return;if(launchMission.current!==tour+':'+index){setLaunchTask(false);return;}let observer:MutationObserver|undefined;const open=()=>{if(!launchTarget())return false;setLaunchTask(false);return true;};if(open())return;observer=new MutationObserver(()=>{if(open())observer?.disconnect();});observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['disabled','hidden','open','aria-expanded']});const stop=setTimeout(()=>{setLaunchTask(false);setLaunchFailure('Todavía no aparece la acción de este paso. Revisa que estés en el registro indicado y vuelve a probar.');},8000);return()=>{observer?.disconnect();clearTimeout(stop);};},[launchTask,location.pathname,location.search,index,tour,progress.open]);
   useEffect(()=>{if(!progress.open)return;const editing=(event:Event)=>{const target=event.target;if(target instanceof Element&&target.matches('input,select,textarea,canvas')&&target.closest('main')&&!target.closest('.demo-guide')){setExpanded(false);if(window.innerWidth<=540)setMinimized(true);}};document.addEventListener('focusin',editing);return()=>document.removeEventListener('focusin',editing);},[progress.open]);
   if (!progress.open) return null;
   const go = (next: number) => { lastAdvanced.current='';setExpanded(false);setMinimized(false);setProgress({ step: next, open: true }); if(!steps[next].requiredRole||steps[next].requiredRole===session.role)navigate(steps[next].route); };

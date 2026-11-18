@@ -1,6 +1,8 @@
 // @vitest-environment happy-dom
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
 import { afterEach, expect, it, vi } from 'vitest';
-import { findDemoTarget, isDemoTaskSurface, checkTaskHint } from './DemoSpotlight';
+import { DemoSpotlight, findDemoTarget, isDemoTaskSurface, checkTaskHint } from './DemoSpotlight';
 import type { DemoStep } from './model';
 
 const step: DemoStep = { title: 'Cliente', text: '', route: '/app/clientes', target: '.page-head', goal: 'clients' };
@@ -123,4 +125,35 @@ it('points to saving a loaded cost study instead of continually refreshing it',(
  expect(findDemoTarget(mission)).toBe(document.querySelector('input'));
  document.body.innerHTML='<main><section class="cost-study-panel"><button>Nuevo estudio</button><button id="analyse">Analizar periodo</button></section></main>';
  expect(findDemoTarget(mission)?.id).toBe('analyse');
+});
+
+it('never highlights assignment profile links as work orders', () => {
+  document.body.innerHTML = '<main><a id="sara" href="/app/partes/work/asignaciones/sara" aria-label="Ficha de Sara Demo">Sara Demo</a><a id="work" href="/app/partes/work?vista=horas">Parte</a></main>';
+  visible();
+  const mission = { ...step, title: 'Explora una empresa con actividad', goal: undefined };
+  expect(findDemoTarget(mission)?.id).toBe('work');
+  document.getElementById('work')!.remove();
+  expect(findDemoTarget(mission)).toBeNull();
+});
+
+it('moves the commercial marker to the next action on the same quote screen', async () => {
+  (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+  document.body.innerHTML = '<main><button id="line">Añadir concepto</button><button id="send">Marcar como enviado</button></main>';
+  visible();
+  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+  vi.stubGlobal('requestAnimationFrame', vi.fn(() => 1));
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+  const quote = { ...step, goal: undefined, route: '/app/modulos/presupuestos', target: '.page-head' };
+  try {
+    await act(async () => root.render(<DemoSpotlight step={{ ...quote, title: 'Prepara un presupuesto' }} number={2} />));
+    expect(document.getElementById('line')?.classList.contains('demo-highlight')).toBe(true);
+    await act(async () => root.render(<DemoSpotlight step={{ ...quote, title: 'Registra el envío del presupuesto' }} number={3} />));
+    expect(document.getElementById('line')?.classList.contains('demo-highlight')).toBe(false);
+    expect(document.getElementById('send')?.classList.contains('demo-highlight')).toBe(true);
+  } finally {
+    await act(async () => root.unmount());
+    vi.unstubAllGlobals();
+  }
 });

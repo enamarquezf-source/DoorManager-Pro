@@ -120,7 +120,11 @@ export function findDemoTarget(step: DemoStep): HTMLElement | null {
     const pending=block.find(element=>/Sin revisar/.test(element.textContent??''));if(pending)return pending;
     if(block.length){const finish=[...document.querySelectorAll<HTMLElement>('main button')].find(element=>available(element)&&/^(Finalizar check|Reintentar finalizar y enviar)$/.test((element.textContent??'').trim()));if(finish)return finish;}
   }
-  if(step.title==='Entiende el margen'||step.title==='Compara margen y costes'||step.title==='Explora una empresa con actividad') {const work=[...document.querySelectorAll<HTMLElement>('main a[href*="/app/partes/"]')].find(available);if(work)return work;}
+  if (['Entiende el margen', 'Compara margen y costes', 'Explora una empresa con actividad'].includes(step.title)) {
+    const work = [...document.querySelectorAll<HTMLAnchorElement>('main a[href]')].find(element =>
+      available(element) && /^\/app\/partes\/[^/?]+(?:[?].*)?$/.test(element.getAttribute('href') ?? ''));
+    return work ?? null;
+  }
   if(step.title==='Comprueba las existencias'){const material=[...document.querySelectorAll<HTMLElement>('main a.material-row-link')].find(available);if(material)return material;}
   if(step.title==='Consulta el aviso'||step.title==='Revisión componente a componente') {
     const checksTab=document.querySelector<HTMLElement>('[data-tab="checks"]');
@@ -229,7 +233,7 @@ export function DemoSpotlight({ step, number }: { step: DemoStep; number: number
     document.addEventListener('pointercancel',endSignature,true);
     update();
     return () => { document.removeEventListener('focusout',schedule,true); document.removeEventListener('pointerdown',startSignature,true); document.removeEventListener('pointerup',endSignature,true); document.removeEventListener('pointercancel',endSignature,true); observer.disconnect(); resize.disconnect(); cancelAnimationFrame(frame); target?.classList.remove('demo-highlight'); window.removeEventListener('scroll', schedule, true); window.removeEventListener('resize', schedule); document.removeEventListener('input',schedule,true);document.removeEventListener('change',schedule,true);document.removeEventListener('focusin',schedule,true); };
-  }, [step.target, step.goal, step.route]);
+  }, [step.title, step.target, step.goal, step.route, number]);
   if (!rect) return null;
   const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
   const left = Math.max(5, rect.left - 5);

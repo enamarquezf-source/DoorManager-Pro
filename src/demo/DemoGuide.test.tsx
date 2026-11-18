@@ -431,3 +431,63 @@ it.each(['connected', 'work'] as const)('prepares the cost study after selecting
     host.remove();
   }
 });
+
+it('prepares profitability after opening the management example without skipping that mission', async () => {
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+  function Harness() {
+    const location = useLocation();
+    const [progress, setProgress] = useState({ step: 0, open: true });
+    return <>
+      <main><Link to="/app/partes/example">Parte de ejemplo</Link></main>
+      <output>{location.pathname}</output>
+      <DemoGuide session={{ ...session, role: 'Gerencia' }} progress={progress} setProgress={setProgress} onRole={async () => {}} tour="work" />
+    </>;
+  }
+  try {
+    await act(async () => root.render(<MemoryRouter initialEntries={['/app/partes']}><Harness /></MemoryRouter>));
+    await act(async () => host.querySelector<HTMLAnchorElement>('main a')!.click());
+    expect(host.querySelector('output')?.textContent).toBe('/app/partes/example');
+    expect(host.querySelector('h2')?.textContent).toBe('Compara margen y costes');
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
+});
+
+it.each([
+  ['SAT', 'work', 1, '/app/centros', 'Crear centro'],
+  ['Comercial', 'work', 0, '/app/clientes', 'Crear cliente'],
+  ['Oficina', 'purchases', 1, '/app/modulos/proveedores', 'Crear proveedor'],
+] as const)('waits for an existing disabled action to become available for %s', async (role, tour, step, path, label) => {
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+  const create = vi.fn();
+  const rects = vi.spyOn(HTMLElement.prototype, 'getClientRects').mockReturnValue([{ width: 100, height: 40 }] as any);
+  let enableAction: () => void = () => {};
+  function Action() {
+    const [enabled, setEnabled] = useState(false);
+    enableAction = () => setEnabled(true);
+    return <button disabled={!enabled} onClick={create}>{label}</button>;
+  }
+  try {
+    await act(async () => root.render(
+      <MemoryRouter initialEntries={[path]}>
+        <main><header className="page-head">Cargando</header><Action /></main>
+        <DemoGuide session={{ ...session, role }} progress={{ step, open: true }} setProgress={() => {}} onRole={async () => {}} tour={tour} />
+      </MemoryRouter>,
+    ));
+    await act(async () => host.querySelector<HTMLButtonElement>('.demo-guide-next')!.click());
+    expect(create).not.toHaveBeenCalled();
+    expect(host.querySelector('.demo-guide-next')?.getAttribute('aria-busy')).toBe('true');
+    await act(async () => enableAction());
+    expect(create).toHaveBeenCalledOnce();
+    expect(host.querySelector('.demo-guide-next')?.getAttribute('aria-busy')).toBe('false');
+  } finally {
+    rects.mockRestore();
+    await act(async () => root.unmount());
+    host.remove();
+  }
+});

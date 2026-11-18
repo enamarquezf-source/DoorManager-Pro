@@ -53,9 +53,9 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
   const [evidence,setEvidence]=useState<Record<string,MissionEvidence>>(()=>readEvidence(evidenceKey));
   useEffect(()=>setEvidence(readEvidence(evidenceKey)),[evidenceKey]);
   const [snapshot,setCompletion]=useState<{scope:string;value:Record<string,number>}>();
-  const progressScope=JSON.stringify([evidenceKey,session.role,guidedWork]);
-  const completion=snapshot?.scope===progressScope?snapshot.value:{};
   const steps = demoTourSteps(guidedWork?{...session,work_order_id:guidedWork}:session,tour).map(mission=>mission.title==='Registra la factura del proveedor'?{...mission,route:demoPurchaseInvoiceRoute(session.company_id)}:sharedJourney(tour)&&guidedWork&&mission.goal==='invoices'?{...mission,target:'[data-demo-billing-work='+JSON.stringify(guidedWork)+']'}:sharedJourney(tour)&&guidedWork&&mission.goal==='payments'?{...mission,target:'[data-demo-invoice-work~='+JSON.stringify(guidedWork)+']'}:mission); const index = Math.min(progress.step, steps.length - 1); const step = steps[index];
+  const progressScope=JSON.stringify([evidenceKey,session.role,guidedWork,index,step.goal??step.title]);
+  const completion=snapshot?.scope===progressScope?snapshot.value:{};
   useEffect(()=>{
     if(!progress.open || !roleSwitchAvailable) return;
     let active=true; let pending=false;

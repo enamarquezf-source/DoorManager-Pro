@@ -491,3 +491,30 @@ it.each([
     host.remove();
   }
 });
+
+it('does not reuse aggregate counts from economic review as proof of billing the guided work', async () => {
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+  let resolveInvoice: (value: Record<string, number>) => void = () => {};
+  const invoiceResult = new Promise<Record<string, number>>(resolve => { resolveInvoice = resolve; });
+  mocks.progress.mockImplementation(async (_session: any, goal?: string) =>
+    goal === 'invoices' ? invoiceResult : { invoices: 3, payments: 1 });
+  function Harness() {
+    const [progress, setProgress] = useState({ step: 1, open: true });
+    return <>
+      <main><section data-economic-review="approved" /></main>
+      <DemoGuide session={{ ...session, role: 'Oficina', work_order_id: 'guided-work' }}
+        progress={progress} setProgress={setProgress} onRole={async () => {}} tour="work" />
+    </>;
+  }
+  try {
+    await act(async () => root.render(<MemoryRouter initialEntries={['/app/partes/guided-work']}><Harness /></MemoryRouter>));
+    expect(host.querySelector('h2')?.textContent).toBe('Prepara la factura');
+    await act(async () => resolveInvoice({ invoices: 0, payments: 0 }));
+    expect(host.querySelector('h2')?.textContent).toBe('Prepara la factura');
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
+});

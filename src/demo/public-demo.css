@@ -99,6 +99,16 @@ body:has(.public-demo-app)>.mini-modal,body:has(.public-demo-app)>.overlay{z-ind
 
 .demo-guide-v2[data-finale=true] .demo-skip{display:inline-flex!important}
 
+/* Narrow windows need the same unobstructed controls as phones. */
+@media(max-width:760px){
+ .demo-guide{left:10px;right:10px;width:auto;max-width:none}
+ .public-demo-app:has(.demo-guide-mini) .check-mobile .confirm-bar{bottom:calc(94px + env(safe-area-inset-bottom));z-index:44;scroll-margin-bottom:100px}
+ .public-demo-app:has(.demo-guide-mini) .workspace>main{padding-bottom:calc(100px + env(safe-area-inset-bottom))}
+ .demo-guide-v2[data-expanded=true]{max-height:48dvh;overscroll-behavior:contain}
+ .demo-guide-mini>button>div{min-width:0;line-height:1.4}
+ .demo-guide-mini>button>span{flex-shrink:0}
+}
+
 /* Keep field confirmation above the mobile coach rather than under its tap area. */
 @media(max-width:540px){
  .public-demo-app:has(.demo-guide-mini) .check-mobile .confirm-bar{bottom:calc(94px + env(safe-area-inset-bottom));z-index:44;scroll-margin-bottom:100px}

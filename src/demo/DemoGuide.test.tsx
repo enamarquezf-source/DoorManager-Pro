@@ -35,9 +35,9 @@ it('follows a deliberate sidebar visit to billing without marking skipped tasks 
  }finally{await act(async()=>root.unmount());}
 });
 afterEach(()=>{vi.clearAllMocks();mocks.progress.mockResolvedValue({clients:0});localStorage.clear();document.body.innerHTML='';});
-it('starts collapsed on a phone and returns to the bar after dismissing the instructions',async()=>{
+it.each([390,576,760])('starts collapsed at %ipx and returns to the bar after dismissing the instructions',async(width)=>{
  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);
- vi.stubGlobal('innerWidth',390);
+ vi.stubGlobal('innerWidth',width);
  const host=document.createElement('div');
  document.body.append(host);
  const root=createRoot(host);

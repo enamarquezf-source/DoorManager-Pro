@@ -35,7 +35,7 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
   const [minimized,setMinimized]=useState(false);
   const [paused,setPaused]=useState(false);
   const [formOpen,setFormOpen]=useState(false);
-  const [smallScreen,setSmallScreen]=useState(()=>window.innerWidth<=540);
+  const [smallScreen,setSmallScreen]=useState(()=>window.innerWidth<=760);
   const [compactReview,setCompactReview]=useState(false);
   const [reviewHint,setReviewHint]=useState('Elige el resultado de este bloque');
   const lastLocation=useRef(location.pathname+location.search);
@@ -73,7 +73,7 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
   const taskSurface=isDemoTaskSurface(step,location.pathname+location.search);
   const automatic=progress.open&&!paused&&!required&&!step.finale&&tour!=='updates';
   const advance=(openNextScreen=true)=>{const key=tour+':'+index;if(lastAdvanced.current===key||index>=steps.length-1)return;lastAdvanced.current=key;setProgress({step:index+1,open:true});setExpanded(false);const next=steps[index+1];if(openNextScreen&&sharedJourney(tour)&&next.requiredRole===session.role&&!isDemoTaskSurface(next,location.pathname+location.search))navigate(next.route);};
-  useEffect(()=>{if(!progress.open)return;const scan=()=>{setSmallScreen(window.innerWidth<=540);setFormOpen(Boolean(document.querySelector('[role="dialog"],.mini-modal')));setCompactReview(window.innerWidth<=540&&Boolean(document.querySelector('main [data-demo-check-results]')));if(step.goal==='checks')setReviewHint(checkTaskHint(findDemoTarget(step)));};scan();const observer=new MutationObserver(scan);observer.observe(document.body,{childList:true,subtree:true});window.addEventListener('resize',scan);document.addEventListener('input',scan,true);document.addEventListener('change',scan,true);return()=>{observer.disconnect();window.removeEventListener('resize',scan);document.removeEventListener('input',scan,true);document.removeEventListener('change',scan,true);};},[progress.open,index,tour,step.goal]);
+  useEffect(()=>{if(!progress.open)return;const scan=()=>{setSmallScreen(window.innerWidth<=760);setFormOpen(Boolean(document.querySelector('[role="dialog"],.mini-modal')));setCompactReview(window.innerWidth<=760&&Boolean(document.querySelector('main [data-demo-check-results]')));if(step.goal==='checks')setReviewHint(checkTaskHint(findDemoTarget(step)));};scan();const observer=new MutationObserver(scan);observer.observe(document.body,{childList:true,subtree:true});window.addEventListener('resize',scan);document.addEventListener('input',scan,true);document.addEventListener('change',scan,true);return()=>{observer.disconnect();window.removeEventListener('resize',scan);document.removeEventListener('input',scan,true);document.removeEventListener('change',scan,true);};},[progress.open,index,tour,step.goal]);
   useEffect(() => {
     if (!automatic || formOpen || !taskSurface || !['invoices', 'payments'].includes(step.goal ?? '')) return;
     const scan = () => {
@@ -160,7 +160,7 @@ export function DemoGuide({ session, progress, setProgress, onRole, roleSwitchAv
     target.scrollIntoView({behavior:'smooth',block:'center'});if(target.matches('input,textarea,select'))target.focus();return true;
   };
   useEffect(()=>{if(!launchTask||!progress.open)return;if(launchMission.current!==tour+':'+index){setLaunchTask(false);return;}let observer:MutationObserver|undefined;const open=()=>{if(!launchTarget())return false;setLaunchTask(false);return true;};if(open())return;observer=new MutationObserver(()=>{if(open())observer?.disconnect();});observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['disabled','hidden','open','aria-expanded']});const stop=setTimeout(()=>{setLaunchTask(false);setLaunchFailure('Todavía no aparece la acción de este paso. Revisa que estés en el registro indicado y vuelve a probar.');},8000);return()=>{observer?.disconnect();clearTimeout(stop);};},[launchTask,location.pathname,location.search,index,tour,progress.open]);
-  useEffect(()=>{if(!progress.open)return;const editing=(event:Event)=>{const target=event.target;if(target instanceof Element&&target.matches('input,select,textarea,canvas')&&target.closest('main')&&!target.closest('.demo-guide')){setExpanded(false);if(window.innerWidth<=540)setMinimized(true);}};document.addEventListener('focusin',editing);return()=>document.removeEventListener('focusin',editing);},[progress.open]);
+  useEffect(()=>{if(!progress.open)return;const editing=(event:Event)=>{const target=event.target;if(target instanceof Element&&target.matches('input,select,textarea,canvas')&&target.closest('main')&&!target.closest('.demo-guide')){setExpanded(false);if(window.innerWidth<=760)setMinimized(true);}};document.addEventListener('focusin',editing);return()=>document.removeEventListener('focusin',editing);},[progress.open]);
   if (!progress.open) return null;
   const go = (next: number) => { lastAdvanced.current='';setExpanded(false);setMinimized(false);setProgress({ step: next, open: true }); if(!steps[next].requiredRole||steps[next].requiredRole===session.role)navigate(steps[next].route); };
   const showTask = () => {

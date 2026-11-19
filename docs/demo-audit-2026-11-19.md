@@ -49,4 +49,34 @@ La espera de descarga del navegador perdió la conexión con la herramienta; la 
 
 ## Pendiente de cobertura
 
-Completar nuevamente Descubrir DMP desde SAT hasta el estudio final, repetir Mi recorrido completo de principio a fin con la última versión, recorrer compras por todos los roles y el contrato opcional, y comprobar las descargas y el diálogo de impresión en navegador tras recuperar la verificación de acceso. No se presentan como pruebas realizadas en esta sesión.
+Quedan pendientes la rama de compras para Técnico en una sesión con un consumo asignado, y la descarga real de PDF y el diálogo de impresión en navegador. El recorrido opcional de contrato ya se comprobó en SAT; Descubrir DMP y Mi recorrido completo se han repetido hasta el estudio final.
+
+## Revisión de seguimiento · 19 de noviembre
+
+- Se repitió en la Demo pública Descubrir DMP de Técnico a Gerencia: checks y cierre con respuestas pendientes, firma única, revisión SAT, factura y cobro ficticios, calendario de cobros, parte para revisar rentabilidad y estudio de costes guardado.
+- Se confirmó el despliegue del commit `e1bab14` en Demo y Pro. En Gerencia, «Ver rentabilidad» abre el parte activo y deja preparada la misión de costes siguiente; ya no abre una pantalla que no corresponde a la guía.
+- En el filtro «Últimos 3 meses» las fechas cambiaron a 1 de septiembre–30 de noviembre de 2026. La prueba de la guía comprueba también que la misión avanza al realizar esa acción.
+- Se comprobó el alta ficticia de cliente y centro desde la guía SAT: formularios de cuatro pasos, revisión previa, guardado y avance de misión. La guía condujo después a «Recibe una solicitud» en Partes y ofreció entrar como SAT al cambiar el perfil.
+- Se completó en la Demo pública el recorrido de compras: material, proveedor, pedido con línea, confirmación, recepción, stock de cinco unidades, factura de proveedor de 181,50 € y pago ficticio desde Caja de simulación. La factura conservó su vínculo con PED-2026-000001 y REC-2026-000001; la misión siguiente abrió Rentabilidad.
+- Se recorrió la misión opcional de contrato desde SAT. El asistente pasó por cliente/centro, equipos, plan y revisión; calculó cuatro visitas trimestrales (19/11/2026, 19/02/2027, 19/05/2027 y 19/08/2027) y guardó MNT-000001 como borrador. No se activó ni se generaron partes.
+- El perfil Técnico de esta sesión no tenía partes pendientes después de las pruebas anteriores. Se observó el estado vacío y no se inventó ningún consumo. Para probar esta rama de compras hace falta repetirla en una sesión Demo con una asignación pendiente.
+- La suite general volvió a dejar una prueba de PGlite por encima de 5 s bajo carga; repetida en solitario pasó en 1,84 s. Se elevó a 15 s el límite solo para esa prueba de integración.
+- Tras ampliar el timeout de esa prueba de integración, la suite completa pasó: 376 archivos y 2.095 pruebas. `npm run build` terminó correctamente; Vite mantiene el aviso informativo de un chunk mayor de 500 kB.
+- Las pruebas de `src/demo`: 119/119 en 19 archivos. Suite general: 2.094/2.095; el único fallo fue que `src/db/deficiencyDeletion190.test.ts` excedió 5 s bajo carga. Repetida aisladamente: 2/2 en 1,74 s.
+
+Queda pendiente repetir de principio a fin las 20 misiones de Mi recorrido completo y probar descarga/impresión desde el navegador. La rama de compras para Técnico también requiere una sesión Demo con trabajo asignado. Por tanto, la revisión cubre los recorridos principales y no todas las combinaciones posibles.
+
+## Revisión de recorridos completa · 19 de noviembre
+
+- Se completaron las 20 misiones públicas de «Mi recorrido completo» con cliente, centro, parte, trabajo, horas, firma ficticia, entrega a SAT, revisión económica, envío a Facturación, factura, cobro y estudio de costes. La guía terminó en 20/20.
+- El recorrido partió sin equipo identificado y se verificó que «Continuar sin checks» permite registrar trabajo, horas, firma y finalizar el parte. La pantalla confirmó que se entregó a SAT y que ya no admite cambios del técnico.
+- En la guía se detectó texto contradictorio después de la revisión SAT: Oficina volvía a recibir instrucciones de aprobarla. Se corrigió el paso para que Oficina compruebe los importes aprobados antes de preparar la factura.
+- La asignación inicial proponía nombres que no corresponden a la identidad del perfil Técnico de esta Demo. Se cambió por Visitante Demo y se comprobó que la visita aparece en Mi jornada.
+- En Cobros, la acción «Abrir esta pantalla» desplegaba el calendario. Se actualizó el texto y la etiqueta de acción para indicar «Ver calendario de cobros»; al abrirlo la guía deja preparada la misión siguiente sin cambiar de pantalla.
+- Se abrió Comercial, su panel, Oportunidades y Presupuestos. Oportunidades y Presupuestos mostraron estados vacíos; el formulario «Crear presupuesto» cargó clientes y no se envió ni guardó un presupuesto en esta inspección. La lista accesible del navegador marcó las opciones como deshabilitadas, pero el código del selector no aplica ese atributo; se deja pendiente verificar la selección con interacción directa en un navegador que exponga el menú nativo.
+- Factura y cobro del recorrido fueron operaciones de datos ficticios en la Demo, sin transacciones bancarias reales.
+- Se añadieron tres pruebas de copy/modelo de la guía. Las pruebas `src/demo/guideCopy.test.ts` y `src/demo/DemoGuide.test.tsx` pasaron (53/53); `npm run build` terminó correctamente. Vite mantiene el aviso informativo del chunk principal superior a 500 kB.
+
+## Cobertura pendiente
+
+No se declara exhaustiva la revisión de todas las combinaciones de pantallas/permisos. Queda comprobar con navegación de teclado o un navegador que permita operar el menú nativo si los clientes se pueden elegir al crear presupuesto desde Comercial. Sigue pendiente validar descarga real e impresión desde el navegador y repetir la rama de compras para Técnico con un consumo asignado. Las demás guías ya completadas se documentan arriba; este trabajo no modifica datos de Pro ni configuración del ordenador.

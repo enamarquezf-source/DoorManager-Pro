@@ -74,6 +74,7 @@ body{margin:0} .public-demo-entry{font-family:Inter,ui-sans-serif,system-ui,-app
 /* The desktop landing uses the extra width for context and measurable results. */
 .demo-intro-signal > .demo-workflow { list-style: none; display: grid; gap: 11px; margin: 0; padding: 0; width: 100%; }
 .demo-workflow li { display: flex; gap: 10px; align-items: center; }
+.demo-workflow li > span { display: grid; gap: 2px; min-width: 0; }
 .demo-workflow li > b { flex: 0 0 30px; display: grid; place-items: center; min-height: 30px; border-radius: 8px; background: #ffffff1a; color: #c4f0de; font-size: 12px; }
 .demo-workflow li strong, .demo-workflow li small { display: block; }
 .demo-workflow li strong { font-size: 14px; color: #fff; }

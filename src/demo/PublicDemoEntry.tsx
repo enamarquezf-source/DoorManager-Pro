@@ -6,6 +6,7 @@ import { DemoWelcomePreview } from './DemoWelcomePreview';
 import { demoRoles, type DemoRole, type DemoSession } from './model';
 import { DemoTurnstile } from './Turnstile';
 import { DemoLaunchContact } from './DemoLaunchContact';
+import './landing.css';
 const icons = { chart: ChartNoAxesCombined, office: Building2, planning: ClipboardList, sales: BriefcaseBusiness, tools: Wrench };
 
 export function PublicDemoEntry({ checkReady, start, onReady, siteKey = import.meta.env.VITE_DEMO_TURNSTILE_SITE_KEY ?? '' }: {
@@ -30,10 +31,10 @@ export function PublicDemoEntry({ checkReady, start, onReady, siteKey = import.m
       <span>UN PARTE, CUATRO ETAPAS</span>
       <strong>Del aviso al cobro</strong>
       <ol className="demo-workflow">
-        <li><b>01</b><span><strong>SAT</strong><small>Recibe el aviso y asigna la visita</small></span></li>
-        <li><b>02</b><span><strong>Técnico</strong><small>Revisa el equipo y registra el trabajo</small></span></li>
-        <li><b>03</b><span><strong>Oficina</strong><small>Prepara la factura y registra el cobro</small></span></li>
-        <li><b>04</b><span><strong>Gerencia</strong><small>Consulta costes y rentabilidad</small></span></li>
+        <li><b>01</b><span><strong>SAT</strong>{' '}<small>Recibe el aviso y asigna la visita</small></span></li>
+        <li><b>02</b><span><strong>Técnico</strong>{' '}<small>Revisa el equipo y registra el trabajo</small></span></li>
+        <li><b>03</b><span><strong>Oficina</strong>{' '}<small>Prepara la factura y registra el cobro</small></span></li>
+        <li><b>04</b><span><strong>Gerencia</strong>{' '}<small>Consulta costes y rentabilidad</small></span></li>
       </ol>
     </aside></section>
     {previous && <p className="demo-ended" role="status">{previous === 'complete' ? 'Tu prueba anterior ha terminado y sus datos se han eliminado.' : 'Tu prueba anterior ha terminado. La limpieza remota queda pendiente de confirmación del servidor.'}</p>}

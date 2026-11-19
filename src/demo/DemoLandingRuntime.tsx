@@ -1,7 +1,6 @@
 import { useCallback, useState, type ComponentType } from 'react';
 import { PublicDemoEntry } from './PublicDemoEntry';
 import type { DemoSession } from './model';
-import './landing.css';
 
 // Offline precaching starts with the application, not the first-visit landing.
 const loadApplication = () => import('../ApplicationRuntime');

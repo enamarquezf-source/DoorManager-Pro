@@ -72,7 +72,7 @@ const roleDefaults: Record<RoleName, string[]> = {
   superadmin: permissionCatalog,
   Gerencia: permissionCatalog.filter((key) => !key.startsWith('admin.') && !['users.create', 'users.deactivate'].includes(key)),
   Oficina: permissionCatalog.filter((key) => key.startsWith('purchase_') || key.startsWith('supplier_invoices.') || key.startsWith('supplier_payments.') || key.startsWith('treasury.') || key.startsWith('materials.') || key.startsWith('suppliers.') || key.startsWith('documents.') || key.startsWith('billing.') || key === 'stock.read' || ['vehicles.delete', 'alerts.delete', 'deficiencies.delete'].includes(key)),
-  SAT: ['suppliers.read', 'purchase_orders.read', 'purchase_receipts.read', 'materials.read', 'stock.read', 'sat.read', 'sat.write', 'sat.assign', 'sat.checks.manage', 'documents.read', 'documents.delete', 'vehicles.delete', 'alerts.delete', 'deficiencies.delete'],
+  SAT: ['suppliers.read', 'purchase_orders.read', 'purchase_orders.create', 'purchase_orders.update', 'purchase_orders.submit', 'purchase_orders.cancel', 'purchase_receipts.read', 'materials.read', 'stock.read', 'sat.read', 'sat.write', 'sat.assign', 'sat.checks.manage', 'documents.read', 'documents.delete', 'vehicles.delete', 'alerts.delete', 'deficiencies.delete'],
   Comercial: ['suppliers.read', 'materials.read', 'commercial.read', 'commercial.write', 'documents.read', 'documents.create', 'documents.update'],
   Tecnico: ['materials.read', 'stock.read', 'sat.read', 'sat.write', 'sat.checks.manage', 'documents.read'],
 };

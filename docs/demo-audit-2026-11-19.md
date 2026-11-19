@@ -79,4 +79,13 @@ Queda pendiente repetir de principio a fin las 20 misiones de Mi recorrido compl
 
 ## Cobertura pendiente
 
-No se declara exhaustiva la revisión de todas las combinaciones de pantallas/permisos. Queda comprobar con navegación de teclado o un navegador que permita operar el menú nativo si los clientes se pueden elegir al crear presupuesto desde Comercial. Sigue pendiente validar descarga real e impresión desde el navegador y repetir la rama de compras para Técnico con un consumo asignado. Las demás guías ya completadas se documentan arriba; este trabajo no modifica datos de Pro ni configuración del ordenador.
+No se declara exhaustiva la revisión de todas las combinaciones de pantallas/permisos. Sigue pendiente validar la descarga e impresión del PDF de factura en un navegador que exponga el diálogo del sistema.
+
+## Continuación de la revisión · 19 de noviembre
+
+- Se comprobó en Comercial que el selector de cliente de «Crear presupuesto» se habilita al terminar de cargar. La lectura de accesibilidad lo marcaba como deshabilitado, pero la selección directa de «Cliente de auditoría DMP - solo pruebas» funcionó y el formulario actualizó el valor. Se cerró sin guardar el presupuesto.
+- Se creó el parte ficticio PAR-2026-000002, asignado a Visitante Demo, para verificar el consumo de material con stock. Técnico encontró la fotocélula de prueba, el almacén mostró 5 unidades y se registró 1 unidad para el parte. El técnico guardó trabajo, firmó con nombre y trazo ficticios (el botón quedó deshabilitado tras guardar una vez) y entregó el parte a SAT.
+- SAT recibió el parte y el consumo pendiente. Al validar el consumo, la lista pasó a 0 pendientes y el panel mostró el parte en revisión SAT. No se emitió otra factura.
+- La impresión de la factura se intentó desde «Imprimir factura», pero el navegador integrado bloqueó la interacción durante esa acción y no permitió confirmar el diálogo de impresión; por eso no se da por verificada. Los PDF se generaron, renderizaron e inspeccionaron localmente en la revisión anterior.
+- La versión pública de Demo sirve `build-info.json` con commit `30c023313411c7ed38b20c8f48eaec0b492489f4`, compilado el 19/11/2026 a las 20:18:10 UTC. Esto confirma que el commit de las correcciones de guía ya está desplegado.
+- Las comprobaciones y operaciones de esta sesión se limitaron a datos de demostración ficticios. No se modificó Pro ni la configuración del ordenador.

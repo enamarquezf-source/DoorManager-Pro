@@ -381,9 +381,9 @@ it.each([
 });
 
 it.each(['/app/modulos/cobros', '/app/partes/office-example?vista=horas'])(
-  'prepares the cost study and keeps the work open from %s', async initialPath => {
-    const officeWork = '/app/partes/office-example?vista=horas';
-    const manager = { ...session, role: 'Gerencia' };
+  'opens the guided work and prepares the next mission from %s', async initialPath => {
+    const officeWork = '/app/partes/office-example';
+    const manager = { ...session, role: 'Gerencia', work_order_id: 'office-example' };
     const steps = demoTourSteps(manager, 'discover');
     const host = document.createElement('div');
     document.body.append(host);
@@ -393,18 +393,18 @@ it.each(['/app/modulos/cobros', '/app/partes/office-example?vista=horas'])(
       const location = useLocation();
       const [progress, setProgress] = useState({ step: steps.findIndex(step => step.title === 'Compara margen y costes'), open: true });
       return <>
-        <main>{location.pathname === '/app/modulos/rentabilidad' && <Link to={officeWork}>Abrir parte de Oficina</Link>}</main>
+        <main />
         <output>{location.pathname + location.search}</output>
         <DemoGuide session={manager} progress={progress} setProgress={setProgress} onRole={async () => {}} tour="discover" />
       </>;
     }
     try {
       await act(async () => root.render(<MemoryRouter initialEntries={[initialPath]}><Harness /></MemoryRouter>));
-      if (initialPath !== officeWork) {
+      if (initialPath !== officeWork + '?vista=horas') {
         expect(host.querySelector('.demo-guide-next')?.textContent).toContain('Ver rentabilidad');
         await act(async () => host.querySelector<HTMLButtonElement>('.demo-guide-next')!.click());
       }
-      expect(host.querySelector('output')?.textContent).toBe(officeWork);
+      expect(host.querySelector('output')?.textContent).toBe(initialPath === officeWork + '?vista=horas' ? initialPath : officeWork);
       expect(host.querySelector('h2')?.textContent).toBe('Haz un estudio de costes');
     } finally {
       rects.mockRestore();
